@@ -11,4 +11,10 @@ const baseConfig = defineConfig(
   tseslint.configs.stylistic,
 );
 
-export default [...baseConfig, eslintConfigPrettier];
+export default [
+  {
+    ignores: ["**/dist/**", "node_modules/**"],
+  },
+  ...baseConfig,
+  eslintConfigPrettier,
+];

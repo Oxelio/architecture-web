@@ -1,0 +1,18 @@
+import type { Migration } from "kysely/migration";
+
+export const postgresIdentityMigrations: Record<string, Migration> = {
+  "001_create_identity_users": {
+    async up(db) {
+      await db.schema
+        .createTable("identity_users")
+        .addColumn("id", "uuid", (col) => col.primaryKey())
+        .addColumn("email", "varchar", (col) => col.notNull().unique())
+        .addColumn("password_hash", "varchar", (col) => col.notNull())
+        .addColumn("created_at", "timestamp", (col) => col.notNull())
+        .execute();
+    },
+    async down(db) {
+      await db.schema.dropTable("identity_users").execute();
+    },
+  },
+};

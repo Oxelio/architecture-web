@@ -1,5 +1,5 @@
 # ---------- Base ----------
-FROM node:26.2.0-trixie-slim AS base
+FROM node:26.3.1-trixie-slim AS base
 
 WORKDIR /repo
 
@@ -23,7 +23,7 @@ RUN pnpm --filter ./apps/api build
 RUN pnpm --filter ./apps/api deploy --prod --legacy /out
 
 # ---------- Production ----------
-FROM node:26.2.0-trixie-slim AS production
+FROM node:26.3.1-trixie-slim AS production
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -32,4 +32,4 @@ COPY --from=build /out ./
 
 EXPOSE 80
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/app.js"]

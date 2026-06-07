@@ -1,0 +1,62 @@
+{
+  "name": "@architecture/identity",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "imports": {
+    "#entities/*": "./domain/entities/*.js",
+    "#value-objects/*": "./domain/value-objects/*.js",
+    "#contracts/*": "./application/contracts/*.js",
+    "#dtos/*": "./application/dtos/*.js",
+    "#adapters/*": "./infrastructure/adaptaters/*.js",
+    "#persistence/*": "./infrastructure/persistence/*.js"
+  },
+  "exports": {
+    "./application/uses-cases/register": {
+      "types": "./application/uses-cases/register.ts",
+      "default": "./application/uses-cases/register.js"
+    },
+    "./application/dtos/register-request": {
+      "types": "./application/dtos/register-request.ts",
+      "default": "./application/dtos/register-request.js"
+    },
+    "./domain/value-objects/email": {
+      "types": "./domain/value-objects/email.ts",
+      "default": "./domain/value-objects/email.js"
+    },
+    "./domain/value-objects/password-plain": {
+      "types": "./domain/value-objects/password-plain.ts",
+      "default": "./domain/value-objects/password-plain.js"
+    },
+    "./infrastructure/adaptaters/user-repository": {
+      "types": "./infrastructure/adaptaters/user-repository.ts",
+      "default": "./infrastructure/adaptaters/user-repository.js"
+    },
+    "./infrastructure/adaptaters/password-hasher": {
+      "types": "./infrastructure/adaptaters/password-hasher.ts",
+      "default": "./infrastructure/adaptaters/password-hasher.js"
+    },
+    "./infrastructure/persistence/schema": {
+      "types": "./infrastructure/persistence/schema.ts",
+      "default": "./infrastructure/persistence/schema.js"
+    },
+    "./infrastructure/persistence/migrations/postgres": {
+      "types": "./infrastructure/persistence/migrations/postgres.ts",
+      "default": "./infrastructure/persistence/migrations/postgres.js"
+    }
+  },
+  "dependencies": {
+    "@architecture/foundation": "workspace:*",
+    "argon2": "^0.44.0",
+    "kysely": "^0.29.2",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.9.3"
+  }
+}
