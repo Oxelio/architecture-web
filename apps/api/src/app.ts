@@ -3,12 +3,16 @@ import { config } from "dotenv";
 
 config({ path: new URL("../.env", import.meta.url) });
 
-import { Register } from "@architecture/identity/application/uses-cases/register";
-import { RegisterRequestDTO } from "@architecture/identity/application/dtos/register-request";
-import { Email } from "@architecture/identity/domain/value-objects/email";
-import { PasswordPlain } from "@architecture/identity/domain/value-objects/password-plain";
-import { UserAdapter } from "@architecture/identity/infrastructure/adaptaters/user-repository";
-import { PasswordHasherAdapter } from "@architecture/identity/infrastructure/adaptaters/password-hasher";
+import { RegisterRequestDTO } from "@architecture/identity/application/dtos";
+import {
+  Email,
+  PasswordPlain,
+} from "@architecture/identity/domain/value-objects";
+import { Register } from "@architecture/identity/application/uses-cases";
+import {
+  PasswordHasherAdapter,
+  UserAdapter,
+} from "@architecture/identity/infrastructure/adaptaters";
 import { createDatabase } from "./database.js";
 
 export const db = createDatabase();

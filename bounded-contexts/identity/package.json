@@ -16,37 +16,29 @@
     "#persistence/*": "./infrastructure/persistence/*.js"
   },
   "exports": {
-    "./application/uses-cases/register": {
-      "types": "./application/uses-cases/register.ts",
-      "default": "./application/uses-cases/register.js"
+    "./application/uses-cases": {
+      "types": "./application/uses-cases/index.ts",
+      "default": "./application/uses-cases/index.js"
     },
-    "./application/dtos/register-request": {
-      "types": "./application/dtos/register-request.ts",
-      "default": "./application/dtos/register-request.js"
+    "./application/dtos": {
+      "types": "./application/dtos/index.ts",
+      "default": "./application/dtos/index.js"
     },
-    "./domain/value-objects/email": {
-      "types": "./domain/value-objects/email.ts",
-      "default": "./domain/value-objects/email.js"
+    "./domain/value-objects": {
+      "types": "./domain/value-objects/index.ts",
+      "default": "./domain/value-objects/index.js"
     },
-    "./domain/value-objects/password-plain": {
-      "types": "./domain/value-objects/password-plain.ts",
-      "default": "./domain/value-objects/password-plain.js"
-    },
-    "./infrastructure/adaptaters/user-repository": {
-      "types": "./infrastructure/adaptaters/user-repository.ts",
-      "default": "./infrastructure/adaptaters/user-repository.js"
-    },
-    "./infrastructure/adaptaters/password-hasher": {
-      "types": "./infrastructure/adaptaters/password-hasher.ts",
-      "default": "./infrastructure/adaptaters/password-hasher.js"
+    "./infrastructure/adaptaters": {
+      "types": "./infrastructure/adaptaters/index.ts",
+      "default": "./infrastructure/adaptaters/index.js"
     },
     "./infrastructure/persistence/schema": {
       "types": "./infrastructure/persistence/schema.ts",
       "default": "./infrastructure/persistence/schema.js"
     },
     "./infrastructure/persistence/migrations/postgres": {
-      "types": "./infrastructure/persistence/migrations/postgres.ts",
-      "default": "./infrastructure/persistence/migrations/postgres.js"
+      "types": "./infrastructure/persistence/migrations/001_create_identity_users.ts",
+      "default": "./infrastructure/persistence/migrations/001_create_identity_users.js"
     }
   },
   "dependencies": {
