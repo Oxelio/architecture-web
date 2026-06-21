@@ -3,7 +3,7 @@ import type { PasswordPlain } from "#value-objects/password-plain";
 
 export abstract class PasswordHasherContract {
   abstract hash(password: PasswordPlain): Promise<PasswordHash>;
-  abstract fakeVerify(): Promise<boolean>;
+  abstract fakeVerify(): Promise<void>;
   abstract verify(
     password: PasswordPlain,
     hashedPassword: PasswordHash,

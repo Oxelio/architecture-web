@@ -3,16 +3,9 @@ import { config } from "dotenv";
 
 config({ path: new URL("../.env", import.meta.url) });
 
-import { RegisterRequestDTO } from "@architecture/identity/application/dtos";
-import {
-  Email,
-  PasswordPlain,
-} from "@architecture/identity/domain/value-objects";
 import { Register } from "@architecture/identity/application/uses-cases";
-import {
-  PasswordHasherAdapter,
-  UserAdapter,
-} from "@architecture/identity/infrastructure/adaptaters";
+import { Argon2PasswordHasher } from "@architecture/identity/infrastructure/adaptaters";
+import { UserRepository } from "@architecture/identity/infrastructure/persistence/repositories";
 import { createDatabase } from "./database.js";
 
 export const db = createDatabase();
@@ -21,7 +14,10 @@ const server = Fastify({
   logger: true,
 });
 
-const register = new Register(new UserAdapter(db), new PasswordHasherAdapter());
+const register = new Register(
+  new UserRepository(db),
+  new Argon2PasswordHasher(),
+);
 
 server.post<{
   Body: {
@@ -29,14 +25,16 @@ server.post<{
     password: string;
   };
 }>("/register", async (request, reply) => {
-  const dto = new RegisterRequestDTO(
-    Email.of(request.body.email),
-    PasswordPlain.create(request.body.password),
-  );
+  const result = await register.execute({
+    email: request.body.email,
+    password: request.body.password,
+  });
 
-  await register.execute(dto);
+  if (result.success) {
+    return reply.code(201).send();
+  }
 
-  return reply.code(201).send();
+  return reply.code(400).send();
 });
 
 server.get("/", async () => {

@@ -1,6 +1,10 @@
 import type { PasswordHasherContract } from "#contracts/password-hasher";
 import type { UserContract } from "#contracts/user";
-import type { AuthenticationRequestDTO } from "#dtos/authentication-request";
+import type { AuthenticationUserCommand } from "../commands/authentication-user.js";
+import { Result } from "@architecture/foundation";
+import type { AuthenticateResult } from "../errors/authenticate.js";
+import { Email } from "#value-objects/email";
+import { PasswordPlain } from "#value-objects/password-plain";
 
 export class Authenticate {
   constructor(
@@ -8,14 +12,32 @@ export class Authenticate {
     private readonly password: PasswordHasherContract,
   ) {}
 
-  async execute(payload: AuthenticationRequestDTO): Promise<void> {
-    const user = await this.user.findByEmail(payload.email);
+  async execute(
+    payload: AuthenticationUserCommand,
+  ): Promise<AuthenticateResult> {
+    const email = Email.of(payload.email);
+    const password = PasswordPlain.create(payload.password);
+    const user = await this.user.findByEmail(email);
 
     if (!user) {
-      this.password.fakeVerify();
-      return;
+      await this.password.fakeVerify(); // Timing attack prevention
+
+      return Result.failure({
+        code: "INVALID_CREDENTIALS",
+      });
     }
 
-    this.password.verify(payload.password, user.password);
+    const passwordVerified = await this.password.verify(
+      password,
+      user.password,
+    );
+
+    if (!passwordVerified) {
+      return Result.failure({
+        code: "INVALID_CREDENTIALS",
+      });
+    }
+
+    return Result.ok(undefined);
   }
 }

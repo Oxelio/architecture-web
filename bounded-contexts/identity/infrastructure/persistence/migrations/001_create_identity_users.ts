@@ -5,7 +5,7 @@ export const postgresIdentityMigrations: Record<string, Migration> = {
     async up(db) {
       await db.schema
         .createTable("identity_users")
-        .addColumn("id", "uuid", (col) => col.primaryKey())
+        .addColumn("id", "uuid", (col) => col.primaryKey().notNull())
         .addColumn("email", "varchar", (col) => col.notNull().unique())
         .addColumn("password_hash", "varchar", (col) => col.notNull())
         .addColumn("created_at", "timestamp", (col) => col.notNull())

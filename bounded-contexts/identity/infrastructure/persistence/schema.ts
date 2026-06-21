@@ -1,12 +1,12 @@
 // bounded-contexts/identity/infrastructure/persistence/schema.ts
-import type { Generated, Insertable, Selectable } from "kysely";
+import type { Insertable, Selectable } from "kysely";
 
 export interface IdentityDatabase {
   identity_users: IdentityUserTable;
 }
 
 export interface IdentityUserTable {
-  id: Generated<string>;
+  id: string;
   email: string;
   password_hash: string;
   created_at: Date;

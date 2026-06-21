@@ -13,16 +13,17 @@
     "#contracts/*": "./application/contracts/*.js",
     "#dtos/*": "./application/dtos/*.js",
     "#adapters/*": "./infrastructure/adaptaters/*.js",
-    "#persistence/*": "./infrastructure/persistence/*.js"
+    "#persistence/*": "./infrastructure/persistence/*.js",
+    "#mappers/*": "./infrastructure/mappers/*.js"
   },
   "exports": {
     "./application/uses-cases": {
       "types": "./application/uses-cases/index.ts",
       "default": "./application/uses-cases/index.js"
     },
-    "./application/dtos": {
-      "types": "./application/dtos/index.ts",
-      "default": "./application/dtos/index.js"
+    "./application/commands": {
+      "types": "./application/commands/index.ts",
+      "default": "./application/commands/index.js"
     },
     "./domain/value-objects": {
       "types": "./domain/value-objects/index.ts",
@@ -31,6 +32,10 @@
     "./infrastructure/adaptaters": {
       "types": "./infrastructure/adaptaters/index.ts",
       "default": "./infrastructure/adaptaters/index.js"
+    },
+    "./infrastructure/persistence/repositories": {
+      "types": "./infrastructure/persistence/repositories/index.ts",
+      "default": "./infrastructure/persistence/repositories/index.js"
     },
     "./infrastructure/persistence/schema": {
       "types": "./infrastructure/persistence/schema.ts",

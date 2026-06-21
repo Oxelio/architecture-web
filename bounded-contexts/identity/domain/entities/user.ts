@@ -22,6 +22,10 @@ export class User extends Entity<UserProperties> {
     });
   }
 
+  static rehydrate(props: UserProperties): User {
+    return new User(props);
+  }
+
   get password(): PasswordHash {
     return this.props.password;
   }
