@@ -1,6 +1,6 @@
 import type { Migration } from "kysely/migration";
 
-export const postgresIdentityMigrations: Record<string, Migration> = {
+export const identityUserMigrations: Record<string, Migration> = {
   "001_create_identity_users": {
     async up(db) {
       await db.schema

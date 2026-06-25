@@ -1,8 +1,8 @@
 import { UserEntity } from "#entities/user.entity";
+import type { IdentityDatabase } from "#persistence/kysely/schema";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import type { IdentityDatabase } from "#persistence/schema";
 
 type UserRow = IdentityDatabase["identity_users"];
 

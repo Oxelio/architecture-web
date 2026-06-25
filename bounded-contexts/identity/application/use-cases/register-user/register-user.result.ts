@@ -13,7 +13,7 @@ export type RegisterError =
       code: "PASSWORD_TOO_WEAK";
     };
 
-interface RegisterUserResponse {
+export interface RegisterUserResponse {
   userId: string;
 }
 

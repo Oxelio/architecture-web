@@ -1,11 +1,11 @@
-import type { UserPort } from "../../../application/ports/user.port.js";
 import { UserEntity } from "#entities/user.entity";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import type { Kysely } from "kysely";
-import type { IdentityDatabase } from "#persistence/schema";
-import { UserMapper } from "#mappers/user";
+import { UserMapper } from "#mappers/user.mapper";
+import type { UserPort } from "#application/ports/user.port";
+import type { IdentityDatabase } from "../schema.js";
 
-export class UserRepository implements UserPort {
+export class KyselyUserRepository implements UserPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
 
   async save(user: UserEntity): Promise<void> {

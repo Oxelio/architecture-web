@@ -1,8 +1,10 @@
+// apps/api/src/scripts/migrate.ts
+
 import { config } from "dotenv";
 import { Migrator, type MigrationProvider } from "kysely/migration";
 
-import { postgresIdentityMigrations } from "@architecture/identity/infrastructure/persistence/migrations/postgres";
-import { createDatabase } from "./database.js";
+import { createDatabase } from "../composition-root/database.container.js";
+import { identityUserMigrations } from "@architecture/identity/infrastructure";
 
 config({ path: new URL("../.env", import.meta.url) });
 
@@ -12,7 +14,7 @@ const migrator = new Migrator({
   db,
   provider: {
     async getMigrations() {
-      return postgresIdentityMigrations;
+      return identityUserMigrations;
     },
   } satisfies MigrationProvider,
 });

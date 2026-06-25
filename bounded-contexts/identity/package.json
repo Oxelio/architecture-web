@@ -14,7 +14,9 @@
     "#dtos/*": "./application/dtos/*.js",
     "#adapters/*": "./infrastructure/adaptaters/*.js",
     "#persistence/*": "./infrastructure/persistence/*.js",
-    "#mappers/*": "./infrastructure/mappers/*.js"
+    "#mappers/*": "./infrastructure/mappers/*.js",
+    "#application/*": "./application/*.js",
+    "#presentation/*": "./presentation/*.js"
   },
   "exports": {
     "./application": {
@@ -25,18 +27,15 @@
       "types": "./infrastructure/index.ts",
       "default": "./infrastructure/index.js"
     },
-    "./infrastructure/persistence/schema": {
-      "types": "./infrastructure/persistence/schema.ts",
-      "default": "./infrastructure/persistence/schema.js"
-    },
-    "./infrastructure/persistence/migrations/postgres": {
-      "types": "./infrastructure/persistence/migrations/001_create_identity_users.ts",
-      "default": "./infrastructure/persistence/migrations/001_create_identity_users.js"
+    "./presentation/http": {
+      "types": "./presentation/http/index.ts",
+      "default": "./presentation/http/index.js"
     }
   },
   "dependencies": {
     "@architecture/foundation": "workspace:*",
     "argon2": "^0.44.0",
+    "fastify": "^5.8.5",
     "kysely": "^0.29.2",
     "uuid": "^14.0.0"
   },

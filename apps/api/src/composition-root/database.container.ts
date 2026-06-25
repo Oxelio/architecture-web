@@ -1,9 +1,10 @@
+// src/composition-root/database.ts
+
 import { Kysely, PostgresDialect } from "kysely";
+import type { IdentityDatabase } from "@architecture/identity/infrastructure";
 import { Pool } from "pg";
 
-import type { IdentityDatabase } from "@architecture/identity/infrastructure/persistence/schema";
-
-type AppDatabase = IdentityDatabase;
+export type AppDatabase = IdentityDatabase;
 
 export function createDatabase() {
   const connectionString = process.env["DATABASE_URL"];
