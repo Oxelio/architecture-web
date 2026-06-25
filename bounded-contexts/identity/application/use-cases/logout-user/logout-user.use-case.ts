@@ -1,6 +1,6 @@
-import type { LogoutUserCommand } from "../commands/logout-user.js";
+import type { LogoutUserCommand } from "./logout-user.command.js";
 
-export class LogoutUser {
+export class LogoutUserUseCase {
   async execute(payload: LogoutUserCommand): Promise<void> {
     const userId = payload.userId;
 

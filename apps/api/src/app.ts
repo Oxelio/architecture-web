@@ -1,12 +1,16 @@
+// src/app.ts
+
 import Fastify from "fastify";
 import { config } from "dotenv";
 
 config({ path: new URL("../.env", import.meta.url) });
 
-import { Register } from "@architecture/identity/application/uses-cases";
-import { Argon2PasswordHasher } from "@architecture/identity/infrastructure/adaptaters";
-import { UserRepository } from "@architecture/identity/infrastructure/persistence/repositories";
+import { RegisterUserUseCase } from "@architecture/identity/application";
 import { createDatabase } from "./database.js";
+import {
+  PasswordHasherArgon2,
+  UserRepository,
+} from "@architecture/identity/infrastructure";
 
 export const db = createDatabase();
 
@@ -14,9 +18,9 @@ const server = Fastify({
   logger: true,
 });
 
-const register = new Register(
+const register = new RegisterUserUseCase(
   new UserRepository(db),
-  new Argon2PasswordHasher(),
+  new PasswordHasherArgon2(),
 );
 
 server.post<{
@@ -25,16 +29,33 @@ server.post<{
     password: string;
   };
 }>("/register", async (request, reply) => {
-  const result = await register.execute({
-    email: request.body.email,
-    password: request.body.password,
-  });
+  const result = await register.execute(request.body);
 
   if (result.success) {
-    return reply.code(201).send();
+    return reply.code(201).send({
+      userId: result.value.userId,
+    });
   }
 
-  return reply.code(400).send();
+  switch (result.error.code) {
+    case "USER_ALREADY_EXISTS":
+      return reply.code(409).send({
+        error: "USER_ALREADY_EXISTS",
+      });
+
+    case "INVALID_EMAIL":
+      return reply.code(400).send({
+        error: "INVALID_EMAIL",
+      });
+
+    case "PASSWORD_TOO_WEAK":
+      return reply.code(400).send({
+        error: "PASSWORD_TOO_WEAK",
+      });
+
+    default:
+      return reply.code(500).send();
+  }
 });
 
 server.get("/", async () => {

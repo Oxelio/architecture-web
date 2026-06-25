@@ -1,20 +1,20 @@
-import type { UserContract } from "#contracts/user";
-import { User } from "#entities/user";
-import { Email } from "#value-objects/email";
+import type { UserPort } from "../../../application/ports/user.port.js";
+import { UserEntity } from "#entities/user.entity";
+import { EmailValueObject } from "#value-objects/email.value-object";
 import type { Kysely } from "kysely";
 import type { IdentityDatabase } from "#persistence/schema";
 import { UserMapper } from "#mappers/user";
 
-export class UserRepository implements UserContract {
+export class UserRepository implements UserPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
 
-  async save(user: User): Promise<void> {
+  async save(user: UserEntity): Promise<void> {
     const row = UserMapper.toPersistence(user);
 
     await this.db.insertInto("identity_users").values(row).execute();
   }
 
-  async findByEmail(email: Email): Promise<User | null> {
+  async findByEmail(email: EmailValueObject): Promise<UserEntity | null> {
     const user = await this.db
       .selectFrom("identity_users")
       .selectAll()

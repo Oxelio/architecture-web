@@ -17,25 +17,13 @@
     "#mappers/*": "./infrastructure/mappers/*.js"
   },
   "exports": {
-    "./application/uses-cases": {
-      "types": "./application/uses-cases/index.ts",
-      "default": "./application/uses-cases/index.js"
+    "./application": {
+      "types": "./application/index.ts",
+      "default": "./application/index.js"
     },
-    "./application/commands": {
-      "types": "./application/commands/index.ts",
-      "default": "./application/commands/index.js"
-    },
-    "./domain/value-objects": {
-      "types": "./domain/value-objects/index.ts",
-      "default": "./domain/value-objects/index.js"
-    },
-    "./infrastructure/adaptaters": {
-      "types": "./infrastructure/adaptaters/index.ts",
-      "default": "./infrastructure/adaptaters/index.js"
-    },
-    "./infrastructure/persistence/repositories": {
-      "types": "./infrastructure/persistence/repositories/index.ts",
-      "default": "./infrastructure/persistence/repositories/index.js"
+    "./infrastructure": {
+      "types": "./infrastructure/index.ts",
+      "default": "./infrastructure/index.js"
     },
     "./infrastructure/persistence/schema": {
       "types": "./infrastructure/persistence/schema.ts",

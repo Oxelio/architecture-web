@@ -1,4 +1,4 @@
-type Result<TValue, TError> =
+export type Result<TValue, TError> =
   | {
       success: true;
       value: TValue;
@@ -8,13 +8,17 @@ type Result<TValue, TError> =
       error: TError;
     };
 
-const Result = {
-  ok<T>(value?: T): Result<T | undefined, never> {
-    return {
-      success: true,
-      value: value as T,
-    };
-  },
+function ok(): Result<undefined, never>;
+function ok<T>(value: T): Result<T, never>;
+function ok<T>(value?: T): Result<T | undefined, never> {
+  return {
+    success: true,
+    value: value as T,
+  };
+}
+
+export const Result = {
+  ok,
 
   failure<E>(error: E): Result<never, E> {
     return {
