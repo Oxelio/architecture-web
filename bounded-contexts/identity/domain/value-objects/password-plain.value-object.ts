@@ -1,6 +1,6 @@
 import { Result, ValueObject } from "@architecture/foundation";
 
-type PlainPasswordError =
+export type PlainPasswordError =
   | { readonly kind: "password.empty" }
   | {
       readonly kind: "password.too_short";

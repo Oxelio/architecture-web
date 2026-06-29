@@ -6,7 +6,7 @@ import { Migrator, type MigrationProvider } from "kysely/migration";
 import { createDatabase } from "../composition-root/database.container.js";
 import { identityUserMigrations } from "@architecture/identity/infrastructure";
 
-config({ path: new URL("../.env", import.meta.url) });
+config({ path: new URL("../../.env", import.meta.url) });
 
 const db = createDatabase();
 

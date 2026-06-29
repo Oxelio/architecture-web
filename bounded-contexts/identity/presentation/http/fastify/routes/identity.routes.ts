@@ -12,6 +12,21 @@ export function buildIdentityRoutes(container: IdentityContainer) {
       container.registerUser,
     );
 
-    app.post("/register", registerUserController.handle);
+    app.post(
+      "/register",
+      {
+        schema: {
+          body: {
+            type: "object",
+            required: ["email", "password"],
+            properties: {
+              email: { type: "string" },
+              password: { type: "string", minLength: 8 },
+            },
+          },
+        },
+      },
+      registerUserController.handle,
+    );
   };
 }

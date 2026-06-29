@@ -16,14 +16,12 @@ export function buildRegisterUserController(useCase: RegisterUserUseCase) {
       });
 
       if (!result.success) {
-        return reply.status(400).send({
-          error: result.error.code,
-        });
+        const response = RegisterUserPresenter.toFailureHttp(result.error);
+        return reply.status(response.status).send(response.body);
       }
 
-      const response = RegisterUserPresenter.toHttp(result.value);
-
-      return reply.status(201).send(response);
+      const response = RegisterUserPresenter.toSuccessHttp(result.value);
+      return reply.status(response.status).send(response.body);
     },
   };
 }

@@ -21,7 +21,8 @@
     "#application/*": "./application/*.js",
     "#presentation/*": "./presentation/*.js",
     "#errors/*": "./domain/errors/*.js",
-    "#policies/*": "./domain/policies/*.js"
+    "#policies/*": "./domain/policies/*.js",
+    "#ports/*": "./application/ports/*.js"
   },
   "exports": {
     "./application": {

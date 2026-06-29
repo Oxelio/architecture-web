@@ -1,19 +1,14 @@
 // bounded-contexts/identity/application/features/register-user/register-user.result.ts
 
+import type { EmailError } from "#value-objects/email.value-object";
+import type { PlainPasswordError } from "#value-objects/password-plain.value-object";
 import type { Result } from "@architecture/foundation";
 
 export type RegisterError =
+  | EmailError
+  | PlainPasswordError
   | {
-      code: "USER_ALREADY_EXISTS";
-    }
-  | {
-      code: "INVALID_EMAIL";
-    }
-  | {
-      code: "INVALID_PASSWORD";
-    }
-  | {
-      code: "PASSWORD_TOO_WEAK";
+      kind: "user.already_exists";
     };
 
 export interface RegisterUserResponse {

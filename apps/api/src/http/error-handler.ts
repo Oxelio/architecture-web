@@ -7,7 +7,7 @@ export function errorHandler(
 ) {
   request.log.error(error);
 
-  return reply.status(500).send({
-    message: "Internal server error",
+  return reply.status(error.statusCode ?? 500).send({
+    message: error.message,
   });
 }

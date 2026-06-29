@@ -1,7 +1,7 @@
 // bounded-contexts/identity/application/features/register-user/register-user.use-case.ts
 
-import type { PasswordHasherPort } from "../../ports/password-hasher.port.js";
-import type { UserPort } from "../../ports/user.port.js";
+import type { PasswordHasherPort } from "#ports/password-hasher.port";
+import type { UserPort } from "#ports/user.port";
 import { UserEntity } from "#entities/user.entity";
 import { Result } from "@architecture/foundation";
 import type { RegisterUserCommand } from "./register-user.command.js";
@@ -18,23 +18,19 @@ export class RegisterUserUseCase {
   async execute(payload: RegisterUserCommand): Promise<RegisterResult> {
     const email = EmailValueObject.create(payload.email);
     if (!email.success) {
-      return Result.failure({
-        code: "INVALID_EMAIL",
-      });
+      return Result.failure(email.error);
     }
 
     const existingUser = await this.user.findByEmail(email.value);
     if (existingUser) {
       return Result.failure({
-        code: "USER_ALREADY_EXISTS",
+        kind: "user.already_exists",
       });
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
     if (!password.success) {
-      return Result.failure({
-        code: "INVALID_PASSWORD",
-      });
+      return Result.failure(password.error);
     }
 
     const hashedPassword = await this.password.hash(password.value);
