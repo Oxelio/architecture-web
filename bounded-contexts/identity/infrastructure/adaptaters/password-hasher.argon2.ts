@@ -11,7 +11,14 @@ export class PasswordHasherArgon2 implements PasswordHasherPort {
     password: PasswordPlainValueObject,
   ): Promise<PasswordHashValueObject> {
     const hashedPassword = await argon2.hash(password.value);
-    return PasswordHashValueObject.create(hashedPassword);
+
+    const passwordHashValueObject =
+      PasswordHashValueObject.create(hashedPassword);
+    if (!passwordHashValueObject.success) {
+      throw new Error("Invalid password value object");
+    }
+
+    return passwordHashValueObject.value;
   }
 
   async fakeVerify(): Promise<void> {

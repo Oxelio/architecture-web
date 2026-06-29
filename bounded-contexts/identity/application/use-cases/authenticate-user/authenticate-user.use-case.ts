@@ -13,9 +13,21 @@ export class AuthenticateUserUseCase {
   ) {}
 
   async execute(payload: AuthenticateUserCommand): Promise<AuthenticateResult> {
-    const email = EmailValueObject.of(payload.email);
+    const email = EmailValueObject.create(payload.email);
+    if (!email.success) {
+      return Result.failure({
+        code: "INVALID_EMAIL",
+      });
+    }
+
     const password = PasswordPlainValueObject.create(payload.password);
-    const user = await this.user.findByEmail(email);
+    if (!password.success) {
+      return Result.failure({
+        code: "INVALID_PASSWORD",
+      });
+    }
+
+    const user = await this.user.findByEmail(email.value);
 
     if (!user) {
       await this.password.fakeVerify(); // Timing attack prevention
@@ -26,7 +38,7 @@ export class AuthenticateUserUseCase {
     }
 
     const passwordVerified = await this.password.verify(
-      password,
+      password.value,
       user.password,
     );
 

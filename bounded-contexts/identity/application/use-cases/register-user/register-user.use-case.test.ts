@@ -4,10 +4,18 @@ import { PasswordPlainValueObject } from "#value-objects/password-plain.value-ob
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { UserEntity } from "#entities/user.entity";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import { PasswordHasherPort } from "#application/index";
 
-class FakePasswordHasherPort {
+class FakePasswordHasherPort extends PasswordHasherPort {
   async hash(password: PasswordPlainValueObject) {
-    return PasswordHashValueObject.of("hashed-" + password.value);
+    const passwordVO = PasswordPlainValueObject.create(
+      "hashed-" + password.value,
+    );
+    if (!passwordVO.success) {
+      throw new Error("Invalid password value object");
+    }
+
+    return passwordVO.value;
   }
 
   async verify(
@@ -17,7 +25,9 @@ class FakePasswordHasherPort {
     return hashedPassword.value === "hashed-" + password.value;
   }
 
-  async fakeVerify() {}
+  async fakeVerify() {
+    // Do nothing
+  }
 }
 
 class FakeUserPort {
@@ -57,17 +67,30 @@ describe("RegisterUserUseCase", () => {
       expect(result.value.userId).toBeDefined();
     }
 
-    const stored = await userPort.findByEmail(
-      EmailValueObject.of(validPayload.email),
-    );
+    const emailVO = EmailValueObject.create(validPayload.email);
+    if (!emailVO.success) {
+      throw new Error("Invalid email value object");
+    }
+
+    const stored = await userPort.findByEmail(emailVO.value);
 
     expect(stored).not.toBeNull();
   });
 
   it("should fail when user already exists", async () => {
+    const emailVO = EmailValueObject.create(validPayload.email);
+    if (!emailVO.success) {
+      throw new Error("Invalid email value object");
+    }
+
+    const passwordVO = PasswordPlainValueObject.create("hashed");
+    if (!passwordVO.success) {
+      throw new Error("Invalid password value object");
+    }
+
     const existingUser = UserEntity.create({
-      email: EmailValueObject.of(validPayload.email),
-      password: PasswordHashValueObject.of("hashed"),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     await userPort.save(existingUser);

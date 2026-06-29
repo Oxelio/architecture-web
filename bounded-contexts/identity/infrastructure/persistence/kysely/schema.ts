@@ -9,7 +9,6 @@ export interface IdentityUserTable {
   id: string;
   email: string;
   password_hash: string;
-  created_at: Date;
 }
 
 export type IdentityUserRow = Selectable<IdentityUserTable>;

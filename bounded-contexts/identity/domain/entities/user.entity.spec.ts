@@ -11,9 +11,19 @@ describe("UserEntity", () => {
   /* -------------------------------------------------- */
 
   it("should create a user with generated identifier", () => {
+    const emailVO = EmailValueObject.create("test@test.com");
+    if (!emailVO.success) {
+      throw new Error("EmailValueObject creation failed");
+    }
+
+    const passwordVO = PasswordHashValueObject.create("hashed");
+    if (!passwordVO.success) {
+      throw new Error("PasswordHashValueObject creation failed");
+    }
+
     const user = UserEntity.create({
-      email: EmailValueObject.of("test@test.com"),
-      password: PasswordHashValueObject.of("hashed"),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     expect(user.identifier).toBeDefined();
@@ -28,10 +38,20 @@ describe("UserEntity", () => {
   it("should rehydrate user correctly", () => {
     const id = UserIdentifierValueObject.generate();
 
+    const emailVO = EmailValueObject.create("rehydrate@test.com");
+    if (!emailVO.success) {
+      throw new Error("EmailValueObject creation failed");
+    }
+
+    const passwordVO = PasswordHashValueObject.create("hashed");
+    if (!passwordVO.success) {
+      throw new Error("PasswordHashValueObject creation failed");
+    }
+
     const user = UserEntity.rehydrate({
       identifier: id,
-      email: EmailValueObject.of("rehydrate@test.com"),
-      password: PasswordHashValueObject.of("hashed"),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     expect(user.identifier).toBe(id);
@@ -44,9 +64,19 @@ describe("UserEntity", () => {
   /* -------------------------------------------------- */
 
   it("should expose email and password via getters", () => {
+    const emailVO = EmailValueObject.create("getter@test.com");
+    if (!emailVO.success) {
+      throw new Error("EmailValueObject creation failed");
+    }
+
+    const passwordVO = PasswordHashValueObject.create("hashed");
+    if (!passwordVO.success) {
+      throw new Error("PasswordHashValueObject creation failed");
+    }
+
     const user = UserEntity.create({
-      email: EmailValueObject.of("getter@test.com"),
-      password: PasswordHashValueObject.of("hashed"),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     expect(user.email).toBeDefined();

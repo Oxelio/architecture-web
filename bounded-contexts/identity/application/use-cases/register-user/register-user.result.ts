@@ -10,6 +10,9 @@ export type RegisterError =
       code: "INVALID_EMAIL";
     }
   | {
+      code: "INVALID_PASSWORD";
+    }
+  | {
       code: "PASSWORD_TOO_WEAK";
     };
 

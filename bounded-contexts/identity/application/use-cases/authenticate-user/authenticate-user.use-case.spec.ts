@@ -26,7 +26,14 @@ class FakePasswordHasherPort {
   async hash(
     password: PasswordPlainValueObject,
   ): Promise<PasswordHashValueObject> {
-    return PasswordHashValueObject.of("hashed-" + password.value);
+    const passwordVO = PasswordPlainValueObject.create(
+      "hashed-" + password.value,
+    );
+    if (!passwordVO.success) {
+      throw new Error("Invalid password value object");
+    }
+
+    return passwordVO.value;
   }
 
   async verify(
@@ -82,9 +89,21 @@ describe("AuthenticateUserUseCase", () => {
   /* -------------------------------------------------- */
 
   it("should fail when password is invalid", async () => {
+    const emailVO = EmailValueObject.create(validEmail);
+    if (!emailVO.success) {
+      throw new Error("Invalid email value object");
+    }
+
+    const passwordVO = PasswordPlainValueObject.create(
+      "hashed-" + validPassword,
+    );
+    if (!passwordVO.success) {
+      throw new Error("Invalid password value object");
+    }
+
     const user = UserEntity.create({
-      email: EmailValueObject.of(validEmail),
-      password: PasswordHashValueObject.of("hashed-wrong"),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     await userPort.save(user);
@@ -106,9 +125,21 @@ describe("AuthenticateUserUseCase", () => {
   /* -------------------------------------------------- */
 
   it("should authenticate user successfully", async () => {
+    const emailVO = EmailValueObject.create(validEmail);
+    if (!emailVO.success) {
+      throw new Error("Invalid email value object");
+    }
+
+    const passwordVO = PasswordPlainValueObject.create(
+      "hashed-" + validPassword,
+    );
+    if (!passwordVO.success) {
+      throw new Error("Invalid password value object");
+    }
+
     const user = UserEntity.create({
-      email: EmailValueObject.of(validEmail),
-      password: PasswordHashValueObject.of("hashed-" + validPassword),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     await userPort.save(user);
@@ -132,9 +163,21 @@ describe("AuthenticateUserUseCase", () => {
   it("should call password verify when user exists", async () => {
     const verifySpy = vi.spyOn(passwordHasher, "verify");
 
+    const emailVO = EmailValueObject.create(validEmail);
+    if (!emailVO.success) {
+      throw new Error("Invalid email value object");
+    }
+
+    const passwordVO = PasswordPlainValueObject.create(
+      "hashed-" + validPassword,
+    );
+    if (!passwordVO.success) {
+      throw new Error("Invalid password value object");
+    }
+
     const user = UserEntity.create({
-      email: EmailValueObject.of(validEmail),
-      password: PasswordHashValueObject.of("hashed-" + validPassword),
+      email: emailVO.value,
+      password: passwordVO.value,
     });
 
     await userPort.save(user);

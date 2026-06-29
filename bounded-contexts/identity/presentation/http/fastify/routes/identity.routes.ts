@@ -1,7 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { buildRegisterUserController } from "../controllers/register-user.controller.js";
+import { RegisterUserUseCase } from "#application/use-cases/register-user/register-user.use-case";
 
-export function buildIdentityRoutes(container: any) {
+interface IdentityContainer {
+  readonly registerUser: RegisterUserUseCase;
+}
+
+export function buildIdentityRoutes(container: IdentityContainer) {
   return async (app: FastifyInstance) => {
     const registerUserController = buildRegisterUserController(
       container.registerUser,

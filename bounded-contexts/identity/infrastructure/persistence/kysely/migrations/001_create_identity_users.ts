@@ -8,7 +8,6 @@ export const identityUserMigrations: Record<string, Migration> = {
         .addColumn("id", "uuid", (col) => col.primaryKey().notNull())
         .addColumn("email", "varchar", (col) => col.notNull().unique())
         .addColumn("password_hash", "varchar", (col) => col.notNull())
-        .addColumn("created_at", "timestamp", (col) => col.notNull())
         .execute();
     },
     async down(db) {

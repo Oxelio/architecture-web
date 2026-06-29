@@ -19,7 +19,9 @@
     "#persistence/*": "./infrastructure/persistence/*.js",
     "#mappers/*": "./infrastructure/mappers/*.js",
     "#application/*": "./application/*.js",
-    "#presentation/*": "./presentation/*.js"
+    "#presentation/*": "./presentation/*.js",
+    "#errors/*": "./domain/errors/*.js",
+    "#policies/*": "./domain/policies/*.js"
   },
   "exports": {
     "./application": {

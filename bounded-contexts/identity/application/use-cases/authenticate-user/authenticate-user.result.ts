@@ -1,8 +1,15 @@
 import type { Result } from "@architecture/foundation";
 
-interface AuthenticateError {
-  code: "INVALID_CREDENTIALS";
-}
+export type AuthenticateError =
+  | {
+      code: "INVALID_CREDENTIALS";
+    }
+  | {
+      code: "INVALID_EMAIL";
+    }
+  | {
+      code: "INVALID_PASSWORD";
+    };
 
 interface AuthenticateUserResponse {
   userId: string;
