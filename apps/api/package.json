@@ -29,6 +29,7 @@
     "@architecture/identity": "workspace:*",
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
+    "ioredis": "^5.11.1",
     "kysely": "^0.29.2",
     "pg": "^8.21.0"
   },

@@ -5,35 +5,37 @@ import { Result } from "@architecture/foundation";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import type { AuthenticateResult } from "./authenticate-user.result.js";
+import { SessionEntity } from "#entities/session.entity";
+import type { SessionPort } from "#application/ports/session.port";
 
 export class AuthenticateUserUseCase {
   constructor(
     private readonly user: UserPort,
     private readonly password: PasswordHasherPort,
+    private readonly session: SessionPort,
   ) {}
 
   async execute(payload: AuthenticateUserCommand): Promise<AuthenticateResult> {
     const email = EmailValueObject.create(payload.email);
     if (!email.success) {
       return Result.failure({
-        code: "INVALID_EMAIL",
+        kind: "invalid_credentials",
       });
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
     if (!password.success) {
       return Result.failure({
-        code: "INVALID_PASSWORD",
+        kind: "invalid_credentials",
       });
     }
 
     const user = await this.user.findByEmail(email.value);
-
     if (!user) {
       await this.password.fakeVerify(); // Timing attack prevention
 
       return Result.failure({
-        code: "INVALID_CREDENTIALS",
+        kind: "invalid_credentials",
       });
     }
 
@@ -41,13 +43,20 @@ export class AuthenticateUserUseCase {
       password.value,
       user.password,
     );
-
     if (!passwordVerified) {
       return Result.failure({
-        code: "INVALID_CREDENTIALS",
+        kind: "invalid_credentials",
       });
     }
 
-    return Result.ok({ userId: user.identifier.value });
+    const sessionEntity = SessionEntity.createForUser({
+      userId: user.identifier,
+    });
+    await this.session.create(sessionEntity);
+
+    return Result.ok({
+      userId: user.identifier.value,
+      sessionId: sessionEntity.identifier.value,
+    });
   }
 }

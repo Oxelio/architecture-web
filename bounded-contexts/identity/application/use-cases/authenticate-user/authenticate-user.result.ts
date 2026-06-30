@@ -1,18 +1,12 @@
 import type { Result } from "@architecture/foundation";
 
-export type AuthenticateError =
-  | {
-      code: "INVALID_CREDENTIALS";
-    }
-  | {
-      code: "INVALID_EMAIL";
-    }
-  | {
-      code: "INVALID_PASSWORD";
-    };
+export type AuthenticateError = {
+  kind: "invalid_credentials";
+};
 
-interface AuthenticateUserResponse {
+export interface AuthenticateUserResponse {
   userId: string;
+  sessionId: string;
 }
 
 export type AuthenticateResult = Result<

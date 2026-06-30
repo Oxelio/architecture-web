@@ -5,6 +5,9 @@ import { PasswordPlainValueObject } from "#value-objects/password-plain.value-ob
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserEntity } from "#entities/user.entity";
 import { AuthenticateUserUseCase } from "./authenticate-user.use-case.js";
+import { SessionPort } from "#application/ports/session.port";
+import type { SessionEntity } from "#entities/session.entity";
+import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 
 /* ---------------- FAKE USER PORT ---------------- */
 
@@ -26,14 +29,12 @@ class FakePasswordHasherPort {
   async hash(
     password: PasswordPlainValueObject,
   ): Promise<PasswordHashValueObject> {
-    const passwordVO = PasswordPlainValueObject.create(
-      "hashed-" + password.value,
-    );
-    if (!passwordVO.success) {
-      throw new Error("Invalid password value object");
+    const hash = PasswordHashValueObject.create("hashed-" + password.value);
+    if (!hash.success) {
+      throw new Error("Invalid hashed password value object");
     }
 
-    return passwordVO.value;
+    return hash.value;
   }
 
   async verify(
@@ -48,9 +49,30 @@ class FakePasswordHasherPort {
   }
 }
 
+/* ---------------- FAKE SESSION PORT ---------------- */
+
+class FakeSessionPort extends SessionPort {
+  private readonly sessions = new Map<string, SessionEntity>();
+
+  async create(session: SessionEntity): Promise<void> {
+    this.sessions.set(session.identifier.value, session);
+  }
+
+  async findById(
+    id: SessionIdentifierValueObject,
+  ): Promise<SessionEntity | null> {
+    return this.sessions.get(id.value) ?? null;
+  }
+
+  async delete(id: SessionIdentifierValueObject): Promise<void> {
+    this.sessions.delete(id.value);
+  }
+}
+
 describe("AuthenticateUserUseCase", () => {
   let userPort: FakeUserPort;
   let passwordHasher: FakePasswordHasherPort;
+  let sessionPort: FakeSessionPort;
   let useCase: AuthenticateUserUseCase;
 
   const validEmail = "test@test.com";
@@ -59,8 +81,13 @@ describe("AuthenticateUserUseCase", () => {
   beforeEach(() => {
     userPort = new FakeUserPort();
     passwordHasher = new FakePasswordHasherPort();
+    sessionPort = new FakeSessionPort();
 
-    useCase = new AuthenticateUserUseCase(userPort, passwordHasher);
+    useCase = new AuthenticateUserUseCase(
+      userPort,
+      passwordHasher,
+      sessionPort,
+    );
   });
 
   /* -------------------------------------------------- */
@@ -78,7 +105,9 @@ describe("AuthenticateUserUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.code).toBe("INVALID_CREDENTIALS");
+      expect(result.error).toStrictEqual({
+        kind: "invalid_credentials",
+      });
     }
 
     expect(fakeSpy).toHaveBeenCalledOnce();
@@ -94,29 +123,30 @@ describe("AuthenticateUserUseCase", () => {
       throw new Error("Invalid email value object");
     }
 
-    const passwordVO = PasswordPlainValueObject.create(
-      "hashed-" + validPassword,
-    );
-    if (!passwordVO.success) {
+    const plain = PasswordPlainValueObject.create(validPassword);
+    if (!plain.success) {
       throw new Error("Invalid password value object");
     }
+    const hash = await passwordHasher.hash(plain.value);
 
     const user = UserEntity.create({
       email: emailVO.value,
-      password: passwordVO.value,
+      password: hash,
     });
 
     await userPort.save(user);
 
     const result = await useCase.execute({
       email: validEmail,
-      password: validPassword,
+      password: "wrong-password",
     });
 
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.code).toBe("INVALID_CREDENTIALS");
+      expect(result.error).toEqual({
+        kind: "invalid_credentials",
+      });
     }
   });
 

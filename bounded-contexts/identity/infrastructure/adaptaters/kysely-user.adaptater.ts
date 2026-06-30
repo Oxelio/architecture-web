@@ -3,9 +3,9 @@ import { EmailValueObject } from "#value-objects/email.value-object";
 import type { Kysely } from "kysely";
 import { UserMapper } from "#mappers/user.mapper";
 import type { UserPort } from "#application/ports/user.port";
-import type { IdentityDatabase } from "../schema.js";
+import type { IdentityDatabase } from "#persistence/kysely/schema";
 
-export class KyselyUserRepository implements UserPort {
+export class KyselyUserAdaptater implements UserPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
 
   async save(user: UserEntity): Promise<void> {

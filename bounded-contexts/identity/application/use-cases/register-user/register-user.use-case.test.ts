@@ -83,14 +83,14 @@ describe("RegisterUserUseCase", () => {
       throw new Error("Invalid email value object");
     }
 
-    const passwordVO = PasswordPlainValueObject.create("hashed");
-    if (!passwordVO.success) {
-      throw new Error("Invalid password value object");
+    const hash = PasswordHashValueObject.create("hashed");
+    if (!hash.success) {
+      throw new Error(`Invalid password value object`);
     }
 
     const existingUser = UserEntity.create({
       email: emailVO.value,
-      password: passwordVO.value,
+      password: hash.value,
     });
 
     await userPort.save(existingUser);
@@ -100,7 +100,9 @@ describe("RegisterUserUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.code).toBe("USER_ALREADY_EXISTS");
+      expect(result.error).toStrictEqual({
+        kind: "user.already_exists",
+      });
     }
   });
 

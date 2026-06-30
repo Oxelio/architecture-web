@@ -4,7 +4,7 @@ import type { PasswordHasherPort } from "../../application/ports/password-hasher
 import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 
-export class PasswordHasherArgon2 implements PasswordHasherPort {
+export class Argon2PasswordHasherAdaptater implements PasswordHasherPort {
   private readonly FAKE_HASH = "fake-hash-for-fake-verification";
 
   async hash(
