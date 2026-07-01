@@ -6,7 +6,7 @@ import type { UserPort } from "#application/ports/user.port";
 import type { IdentityDatabase } from "#persistence/kysely/schema";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-export class KyselyUserAdaptater implements UserPort {
+export class KyselyUserAdapter implements UserPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
   async save(user: UserEntity): Promise<void> {
     const row = UserMapper.toPersistence(user);

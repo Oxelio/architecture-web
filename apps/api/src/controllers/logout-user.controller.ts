@@ -1,5 +1,5 @@
-import type { LogoutUserUseCase } from "#application/use-cases/logout-user/logout-user.use-case";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import type { LogoutUserUseCase } from "@architecture/identity/application";
 import type { SessionCookieOptions } from "./authenticate-user.controller.js";
 
 export function buildLogoutUserController(

@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { GetMyProfileUseCase } from "#application/use-cases/get-my-profile/get-my-profile.use-case";
+import type { GetMyProfileUseCase } from "@architecture/identity/application";
 
 interface AuthenticatedRequest extends FastifyRequest {
   auth: {

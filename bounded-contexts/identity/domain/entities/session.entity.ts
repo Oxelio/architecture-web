@@ -1,7 +1,7 @@
 import { Entity } from "@architecture/foundation";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import { SessionPolicy } from "./session.policy.js";
+import { SessionPolicy } from "#policies/session.policy";
 
 interface SessionProperties {
   readonly identifier: SessionIdentifierValueObject;

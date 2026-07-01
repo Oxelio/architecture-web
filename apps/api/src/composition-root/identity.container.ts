@@ -8,8 +8,8 @@ import {
   ValidateSessionUseCase,
 } from "@architecture/identity/application";
 import {
-  PasswordHasherArgon2,
-  KyselyUserRepository,
+  Argon2PasswordHasherAdapter,
+  KyselyUserAdapter,
   RedisSessionAdapter,
 } from "@architecture/identity/infrastructure";
 import type { Kysely } from "kysely";
@@ -17,8 +17,8 @@ import type { AppDatabase } from "./database.container.js";
 
 export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
   // infrastructure
-  const passwordHasher = new PasswordHasherArgon2();
-  const userRepository = new KyselyUserRepository(db);
+  const passwordHasher = new Argon2PasswordHasherAdapter();
+  const userRepository = new KyselyUserAdapter(db);
   const session = new RedisSessionAdapter(redis);
 
   // application

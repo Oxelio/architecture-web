@@ -1,10 +1,9 @@
 // bounded-contexts/identity/presentation/http/presenters/authenticate-user.presenter.ts
 import type {
-  AuthenticateUserResponse,
   AuthenticateError,
-} from "#application/use-cases/authenticate-user/authenticate-user.result";
-
-import type { HttpError } from "#presentation/http/presenters/http-error";
+  AuthenticateUserResponse,
+} from "@architecture/identity/application";
+import type { HttpError } from "./http-error.js";
 import type { HttpSuccess } from "./http-success.js";
 
 interface AuthenticateUserData {

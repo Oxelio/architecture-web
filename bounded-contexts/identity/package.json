@@ -15,11 +15,10 @@
     "#value-objects/*": "./domain/value-objects/*.js",
     "#contracts/*": "./application/contracts/*.js",
     "#dtos/*": "./application/dtos/*.js",
-    "#adapters/*": "./infrastructure/adaptaters/*.js",
+    "#adapters/*": "./infrastructure/adapters/*.js",
     "#persistence/*": "./infrastructure/persistence/*.js",
     "#mappers/*": "./infrastructure/mappers/*.js",
     "#application/*": "./application/*.js",
-    "#presentation/*": "./presentation/*.js",
     "#errors/*": "./domain/errors/*.js",
     "#policies/*": "./domain/policies/*.js",
     "#ports/*": "./application/ports/*.js"
@@ -32,17 +31,11 @@
     "./infrastructure": {
       "types": "./infrastructure/index.ts",
       "default": "./infrastructure/index.js"
-    },
-    "./presentation/http": {
-      "types": "./presentation/http/index.ts",
-      "default": "./presentation/http/index.js"
     }
   },
   "dependencies": {
     "@architecture/foundation": "workspace:*",
-    "@fastify/cookie": "^11.0.2",
     "argon2": "^0.44.0",
-    "fastify": "^5.8.5",
     "ioredis": "^5.11.1",
     "kysely": "^0.29.2",
     "uuid": "^14.0.0"

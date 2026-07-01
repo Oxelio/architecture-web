@@ -4,16 +4,14 @@ import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
 import pkg from "../package.json" with { type: "json" };
 import { errorHandler } from "./http/error-handler.js";
-import {
-  buildIdentityRoutes,
-  buildProfileRoutes,
-} from "@architecture/identity/presentation/http";
 import { buildApplicationContainer } from "./composition-root/application.container.js";
 import {
   authPlugin,
   buildSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "./auth.js";
+import { buildIdentityRoutes } from "./routes/identity.routes.js";
+import { buildProfileRoutes } from "./routes/profile.routes.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;
 

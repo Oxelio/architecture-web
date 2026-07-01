@@ -1,12 +1,14 @@
 import type { FastifyInstance } from "fastify";
+import type {
+  AuthenticateUserUseCase,
+  LogoutUserUseCase,
+  RegisterUserUseCase,
+} from "@architecture/identity/application";
 import { buildRegisterUserController } from "../controllers/register-user.controller.js";
-import { RegisterUserUseCase } from "#application/use-cases/register-user/register-user.use-case";
-import { AuthenticateUserUseCase } from "#application/use-cases/authenticate-user/authenticate-user.use-case";
 import {
   buildAuthenticateUserController,
   type SessionCookieOptions,
 } from "../controllers/authenticate-user.controller.js";
-import { LogoutUserUseCase } from "#application/use-cases/logout-user/logout-user.use-case";
 import { buildLogoutUserController } from "../controllers/logout-user.controller.js";
 
 interface IdentityContainer {

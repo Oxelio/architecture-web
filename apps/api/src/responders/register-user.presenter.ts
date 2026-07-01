@@ -1,10 +1,9 @@
 // bounded-contexts/identity/presentation/http/fastify/presenters/register-user.presenter.ts
-
 import type {
   RegisterUserResponse,
   RegisterError,
-} from "#application/use-cases/register-user/register-user.result";
-import type { HttpError } from "#presentation/http/presenters/http-error";
+} from "@architecture/identity/application";
+import type { HttpError } from "./http-error.js";
 import type { HttpSuccess } from "./http-success.js";
 
 interface RegisterUserData {

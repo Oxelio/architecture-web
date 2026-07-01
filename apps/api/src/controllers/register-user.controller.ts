@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { RegisterUserPresenter } from "../../presenters/register-user.presenter.js";
 import { RegisterUserUseCase } from "@architecture/identity/application";
+import { RegisterUserPresenter } from "../responders/register-user.presenter.js";
 
 export function buildRegisterUserController(useCase: RegisterUserUseCase) {
   return {

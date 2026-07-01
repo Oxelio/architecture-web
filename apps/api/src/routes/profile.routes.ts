@@ -1,6 +1,6 @@
 import type { FastifyInstance, preHandlerHookHandler } from "fastify";
+import type { GetMyProfileUseCase } from "@architecture/identity/application";
 import { buildGetMyProfileController } from "../controllers/get-my-profile.controller.js";
-import { GetMyProfileUseCase } from "#application/use-cases/get-my-profile/get-my-profile.use-case";
 
 interface ProfileContainer {
   readonly getMyProfile: GetMyProfileUseCase;
