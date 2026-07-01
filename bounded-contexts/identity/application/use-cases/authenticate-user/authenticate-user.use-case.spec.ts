@@ -8,6 +8,7 @@ import { AuthenticateUserUseCase } from "./authenticate-user.use-case.js";
 import { SessionPort } from "#application/ports/session.port";
 import type { SessionEntity } from "#entities/session.entity";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
+import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 /* ---------------- FAKE USER PORT ---------------- */
 
@@ -20,6 +21,10 @@ class FakeUserPort {
 
   async save(user: UserEntity): Promise<void> {
     this.users.set(user.email.value, user);
+  }
+
+  async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
+    return this.users.get(id.value) ?? null;
   }
 }
 

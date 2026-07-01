@@ -1,0 +1,69 @@
+import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
+import type { ValidateSessionUseCase } from "@architecture/identity/application";
+import type { FastifyPluginAsync, preHandlerHookHandler } from "fastify";
+import fp from "fastify-plugin";
+
+export const SESSION_COOKIE_NAME = "sid";
+
+export interface AuthenticatedContext {
+  userId: string;
+  sessionId: string;
+}
+
+declare module "fastify" {
+  interface FastifyRequest {
+    auth: AuthenticatedContext | null;
+  }
+
+  interface FastifyInstance {
+    authenticate: preHandlerHookHandler;
+  }
+}
+
+interface AuthPluginOptions {
+  validateSession: ValidateSessionUseCase;
+  sessionCookieName: string;
+}
+
+export function buildSessionCookieOptions(): CookieSerializeOptions {
+  const isProduction = process.env["NODE_ENV"] === "production";
+
+  return {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: isProduction,
+  };
+}
+
+const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
+  await app.register(fastifyCookie);
+
+  app.decorateRequest("auth", null);
+
+  app.decorate("authenticate", async (request, reply) => {
+    const sessionId = request.cookies[opts.sessionCookieName];
+
+    if (!sessionId) {
+      return reply.status(401).send({
+        error: { code: "UNAUTHORIZED" },
+      });
+    }
+
+    const result = await opts.validateSession.execute({
+      sessionId,
+    });
+
+    if (!result.success) {
+      return reply.status(401).send({
+        error: { code: "UNAUTHORIZED" },
+      });
+    }
+
+    request.auth = result.value;
+  });
+};
+
+export const authPlugin = fp(plugin, {
+  name: "auth",
+});

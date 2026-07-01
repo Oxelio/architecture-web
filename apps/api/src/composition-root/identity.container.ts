@@ -3,7 +3,9 @@
 import { Redis } from "ioredis";
 import {
   AuthenticateUserUseCase,
+  LogoutUserUseCase,
   RegisterUserUseCase,
+  ValidateSessionUseCase,
 } from "@architecture/identity/application";
 import {
   PasswordHasherArgon2,
@@ -26,9 +28,13 @@ export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
     passwordHasher,
     session,
   );
+  const validateSession = new ValidateSessionUseCase(session, userRepository);
+  const logoutUser = new LogoutUserUseCase(session);
 
   return {
     registerUser,
     authenticateUser,
+    validateSession,
+    logoutUser,
   };
 }

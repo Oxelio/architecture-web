@@ -33,4 +33,12 @@ export class SessionEntity extends Entity<SessionProperties> {
   get expiresAt(): Date {
     return this.props.expiresAt;
   }
+
+  isExpired(): boolean {
+    return this.props.expiresAt.getTime() <= Date.now();
+  }
+
+  isValid(): boolean {
+    return !this.isExpired();
+  }
 }

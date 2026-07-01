@@ -5,7 +5,7 @@ import type {
   RegisterError,
 } from "#application/use-cases/register-user/register-user.result";
 import type { HttpError } from "#presentation/http/presenters/http-error";
-import { HttpSuccess } from "./http-success";
+import type { HttpSuccess } from "./http-success.js";
 
 interface RegisterUserData {
   userId: string;

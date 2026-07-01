@@ -5,6 +5,7 @@ import { EmailValueObject } from "#value-objects/email.value-object";
 import { UserEntity } from "#entities/user.entity";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { PasswordHasherPort } from "#application/index";
+import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 class FakePasswordHasherPort extends PasswordHasherPort {
   async hash(password: PasswordPlainValueObject) {
@@ -39,6 +40,10 @@ class FakeUserPort {
 
   async save(user: UserEntity): Promise<void> {
     this.users.set(user.email.value, user);
+  }
+
+  async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
+    return this.users.get(id.value) ?? null;
   }
 }
 

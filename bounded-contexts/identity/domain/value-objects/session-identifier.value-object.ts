@@ -8,7 +8,7 @@ export class SessionIdentifierValueObject extends Identifier {
     });
   }
 
-  static of(value: string): SessionIdentifierValueObject {
+  static create(value: string): SessionIdentifierValueObject {
     return new SessionIdentifierValueObject({ value });
   }
 }

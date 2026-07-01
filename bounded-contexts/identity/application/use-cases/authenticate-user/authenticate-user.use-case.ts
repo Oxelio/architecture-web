@@ -57,6 +57,7 @@ export class AuthenticateUserUseCase {
     return Result.ok({
       userId: user.identifier.value,
       sessionId: sessionEntity.identifier.value,
+      sessionExpiresAt: sessionEntity.expiresAt,
     });
   }
 }

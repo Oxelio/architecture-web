@@ -5,11 +5,10 @@ import type {
 } from "#application/use-cases/authenticate-user/authenticate-user.result";
 
 import type { HttpError } from "#presentation/http/presenters/http-error";
-import { HttpSuccess } from "./http-success";
+import type { HttpSuccess } from "./http-success.js";
 
 interface AuthenticateUserData {
   userId: string;
-  sessionId: string;
 }
 
 export const AuthenticateUserPresenter = {
@@ -21,7 +20,6 @@ export const AuthenticateUserPresenter = {
       body: {
         data: {
           userId: data.userId,
-          sessionId: data.sessionId,
         },
       },
     };

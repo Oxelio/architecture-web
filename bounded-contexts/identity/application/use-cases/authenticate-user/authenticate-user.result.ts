@@ -7,6 +7,7 @@ export type AuthenticateError = {
 export interface AuthenticateUserResponse {
   userId: string;
   sessionId: string;
+  sessionExpiresAt: Date;
 }
 
 export type AuthenticateResult = Result<
