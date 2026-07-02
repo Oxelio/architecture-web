@@ -1,8 +1,8 @@
 import type { Result } from "@architecture/foundation";
 
-export type ValidateSessionError = {
+export interface ValidateSessionError {
   kind: "unauthorized";
-};
+}
 
 export interface ValidateSessionResponse {
   userId: string;

@@ -1,8 +1,8 @@
 import type { Result } from "@architecture/foundation";
 
-export type GetCurrentUserProfileError = {
+export interface GetCurrentUserProfileError {
   kind: "not_found";
-};
+}
 
 export interface GetCurrentUserProfileResponse {
   userId: string;

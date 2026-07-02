@@ -1,7 +1,9 @@
-import type { SessionPort } from "#application/ports/session.port";
-import { SessionEntity } from "#entities/session.entity";
-import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import type { SessionPort } from "@architecture/identity/application";
+import {
+  SessionEntity,
+  UserIdentifierValueObject,
+} from "@architecture/identity/domain";
+import type { SessionIdentifierValueObject } from "@architecture/identity/domain";
 import type { Redis } from "ioredis";
 
 interface SessionRecord {

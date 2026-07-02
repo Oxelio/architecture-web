@@ -37,7 +37,6 @@
   },
   "dependencies": {
     "@architecture/foundation": "workspace:*",
-    "argon2": "^0.44.0",
     "ioredis": "^5.11.1",
     "uuid": "^14.0.0"
   },

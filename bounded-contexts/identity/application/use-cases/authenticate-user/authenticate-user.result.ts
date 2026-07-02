@@ -1,8 +1,8 @@
 import type { Result } from "@architecture/foundation";
 
-export type AuthenticateError = {
+export interface AuthenticateError {
   kind: "invalid_credentials";
-};
+}
 
 export interface AuthenticateUserResponse {
   userId: string;

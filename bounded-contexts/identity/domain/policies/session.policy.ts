@@ -1,7 +1,7 @@
-export class SessionPolicy {
-  static readonly totalMinutes = 60;
+export const SessionPolicy = {
+  totalMinutes: 60,
 
-  static expiresAt() {
+  expiresAt(): Date {
     return new Date(Date.now() + this.totalMinutes * 60 * 1000);
-  }
-}
+  },
+} as const;

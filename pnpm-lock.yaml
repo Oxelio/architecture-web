@@ -302,6 +302,9 @@ importers:
       "@architecture/identity-persistence-kysely":
         specifier: workspace:*
         version: link:../../infrastructure/identity/persistence-kysely
+      "@architecture/identity-session-redis":
+        specifier: workspace:*
+        version: link:../../infrastructure/identity/session-redis
       "@fastify/cookie":
         specifier: ^11.0.2
         version: 11.0.2
@@ -403,9 +406,6 @@ importers:
       "@architecture/foundation":
         specifier: workspace:*
         version: link:../../foundation
-      argon2:
-        specifier: ^0.44.0
-        version: 0.44.0
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1
@@ -482,6 +482,22 @@ importers:
       kysely:
         specifier: ^0.29.2
         version: 0.29.2
+    devDependencies:
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  infrastructure/identity/session-redis:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../bounded-contexts/identity
+      ioredis:
+        specifier: ^5.11.1
+        version: 5.11.1
     devDependencies:
       "@types/node":
         specifier: ^25.9.0
