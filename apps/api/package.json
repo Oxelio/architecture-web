@@ -24,6 +24,12 @@
       "onFail": "download"
     }
   },
+  "imports": {
+    "#composition-root/*": "./composition-root/*.js",
+    "#controllers/*": "./controllers/*.js",
+    "#routes/*": "./routes/*.js",
+    "#presentation/*": "./presentation/*.js"
+  },
   "type": "module",
   "dependencies": {
     "@architecture/identity": "workspace:*",

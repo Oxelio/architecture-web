@@ -397,15 +397,9 @@ importers:
       "@architecture/foundation":
         specifier: workspace:*
         version: link:../../foundation
-      "@fastify/cookie":
-        specifier: ^11.0.2
-        version: 11.0.2
       argon2:
         specifier: ^0.44.0
         version: 0.44.0
-      fastify:
-        specifier: ^5.8.5
-        version: 5.8.5
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1

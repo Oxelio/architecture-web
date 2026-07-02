@@ -13,7 +13,12 @@ export type {
   AuthenticateError,
 } from "./use-cases/authenticate-user/authenticate-user.result.js";
 
-export { GetMyProfileUseCase } from "./use-cases/get-my-profile/get-my-profile.use-case.js";
+export type {
+  GetCurrentUserProfileResponse,
+  GetCurrentUserProfileError,
+} from "./use-cases/get-current-user-profile/get-current-user-profile.result.js";
+export { GetCurrentUserProfileUseCase } from "./use-cases/get-current-user-profile/get-current-user-profile.use-case.js";
+
 export { ValidateSessionUseCase } from "./use-cases/validate-session/validate-session.use-case.js";
 
 // Ports
