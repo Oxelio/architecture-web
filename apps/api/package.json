@@ -33,6 +33,7 @@
   "type": "module",
   "dependencies": {
     "@architecture/identity": "workspace:*",
+    "@architecture/identity-persistence-kysely": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
     "dotenv": "^17.4.2",

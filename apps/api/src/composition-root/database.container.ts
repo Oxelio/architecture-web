@@ -1,7 +1,7 @@
 // src/composition-root/database.ts
 
 import { Kysely, PostgresDialect } from "kysely";
-import type { IdentityDatabase } from "@architecture/identity/infrastructure";
+import type { IdentityDatabase } from "@architecture/identity-persistence-kysely";
 import { Pool } from "pg";
 
 export type AppDatabase = IdentityDatabase;

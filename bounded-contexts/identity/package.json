@@ -16,14 +16,16 @@
     "#contracts/*": "./application/contracts/*.js",
     "#dtos/*": "./application/dtos/*.js",
     "#adapters/*": "./infrastructure/adapters/*.js",
-    "#persistence/*": "./infrastructure/persistence/*.js",
-    "#mappers/*": "./infrastructure/mappers/*.js",
     "#application/*": "./application/*.js",
     "#errors/*": "./domain/errors/*.js",
     "#policies/*": "./domain/policies/*.js",
     "#ports/*": "./application/ports/*.js"
   },
   "exports": {
+    "./domain": {
+      "types": "./domain/index.ts",
+      "default": "./domain/index.js"
+    },
     "./application": {
       "types": "./application/index.ts",
       "default": "./application/index.js"
@@ -37,7 +39,6 @@
     "@architecture/foundation": "workspace:*",
     "argon2": "^0.44.0",
     "ioredis": "^5.11.1",
-    "kysely": "^0.29.2",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

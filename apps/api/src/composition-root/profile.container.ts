@@ -1,4 +1,4 @@
-import { KyselyUserAdapter } from "@architecture/identity/infrastructure";
+import { KyselyUserAdapter } from "@architecture/identity-persistence-kysely";
 import type { Kysely } from "kysely";
 import type { AppDatabase } from "./database.container.js";
 import { GetCurrentUserProfileUseCase } from "@architecture/identity/application";

@@ -4,7 +4,7 @@ import { config } from "dotenv";
 import { Migrator, type MigrationProvider } from "kysely/migration";
 
 import { createDatabase } from "../composition-root/database.container.js";
-import { identityUserMigrations } from "@architecture/identity/infrastructure";
+import { identityUserMigrations } from "@architecture/identity-persistence-kysely";
 
 config({ path: new URL("../../.env", import.meta.url) });
 

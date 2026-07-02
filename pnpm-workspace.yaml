@@ -2,6 +2,7 @@ packages:
   - "apps/*"
   - "foundation"
   - "bounded-contexts/*"
+  - "infrastructure/**"
 allowBuilds:
   argon2: true
   esbuild: true

@@ -296,6 +296,9 @@ importers:
       "@architecture/identity":
         specifier: workspace:*
         version: link:../../bounded-contexts/identity
+      "@architecture/identity-persistence-kysely":
+        specifier: workspace:*
+        version: link:../../infrastructure/identity/persistence-kysely
       "@fastify/cookie":
         specifier: ^11.0.2
         version: 11.0.2
@@ -403,9 +406,6 @@ importers:
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1
-      kysely:
-        specifier: ^0.29.2
-        version: 0.29.2
       uuid:
         specifier: ^14.0.0
         version: 14.0.0
@@ -432,6 +432,22 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
     devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  infrastructure/identity/persistence-kysely:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../bounded-contexts/identity
+      kysely:
+        specifier: ^0.29.2
+        version: 0.29.2
+    devDependencies:
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

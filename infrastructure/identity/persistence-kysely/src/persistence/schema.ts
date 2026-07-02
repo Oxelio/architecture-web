@@ -1,4 +1,3 @@
-// bounded-contexts/identity/infrastructure/persistence/schema.ts
 import type { Insertable, Selectable } from "kysely";
 
 export interface IdentityDatabase {

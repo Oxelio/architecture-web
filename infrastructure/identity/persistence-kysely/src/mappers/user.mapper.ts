@@ -1,9 +1,12 @@
-import { UserEntity } from "#entities/user.entity";
-import type { IdentityDatabase } from "#persistence/kysely/schema";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import {
+  EmailValueObject,
+  PasswordHashValueObject,
+  UserEntity,
+  UserIdentifierValueObject,
+} from "@architecture/identity/domain";
+
 import { InvalidPersistenceDataError } from "../errors/invalid-persistence-data.error.js";
+import type { IdentityDatabase } from "../persistence/schema.js";
 
 type UserRow = IdentityDatabase["identity_users"];
 

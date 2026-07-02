@@ -9,9 +9,9 @@ import {
 } from "@architecture/identity/application";
 import {
   Argon2PasswordHasherAdapter,
-  KyselyUserAdapter,
   RedisSessionAdapter,
 } from "@architecture/identity/infrastructure";
+import { KyselyUserAdapter } from "@architecture/identity-persistence-kysely";
 import type { Kysely } from "kysely";
 import type { AppDatabase } from "./database.container.js";
 

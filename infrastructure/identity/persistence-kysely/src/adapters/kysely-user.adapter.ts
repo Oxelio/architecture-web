@@ -1,13 +1,17 @@
-import { UserEntity } from "#entities/user.entity";
-import { EmailValueObject } from "#value-objects/email.value-object";
+import type { UserEntity } from "@architecture/identity/domain";
+import {
+  EmailValueObject,
+  UserIdentifierValueObject,
+} from "@architecture/identity/domain";
+import type { UserPort } from "@architecture/identity/application";
 import type { Kysely } from "kysely";
-import { UserMapper } from "#mappers/user.mapper";
-import type { UserPort } from "#application/ports/user.port";
-import type { IdentityDatabase } from "#persistence/kysely/schema";
-import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
+import { UserMapper } from "../mappers/user.mapper.js";
+import type { IdentityDatabase } from "../persistence/schema.js";
 
 export class KyselyUserAdapter implements UserPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
+
   async save(user: UserEntity): Promise<void> {
     const row = UserMapper.toPersistence(user);
 
