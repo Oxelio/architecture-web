@@ -7,16 +7,24 @@ import { Pool } from "pg";
 export type AppDatabase = IdentityDatabase;
 
 export function createDatabase() {
-  const connectionString = process.env["DATABASE_URL"];
+  const host = process.env["DATABASE_HOST"];
+  const port = process.env["DATABASE_PORT"];
+  const database = process.env["DATABASE_NAME"];
+  const user = process.env["DATABASE_USER"];
+  const password = process.env["DATABASE_PASSWORD"];
 
-  if (!connectionString) {
-    throw new Error("DATABASE_URL environment variable is required");
+  if (!host || !port || !database || !user || !password) {
+    throw new Error("Database environment variables are missing");
   }
 
   return new Kysely<AppDatabase>({
     dialect: new PostgresDialect({
       pool: new Pool({
-        connectionString,
+        host,
+        port: Number(port),
+        database,
+        user,
+        password,
       }),
     }),
   });
