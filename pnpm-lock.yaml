@@ -455,6 +455,25 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  infrastructure/identity/password-bcrypt:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../bounded-contexts/identity
+      bcrypt:
+        specifier: ^6.0.0
+        version: 6.0.0
+    devDependencies:
+      "@types/bcrypt":
+        specifier: ^6.0.0
+        version: 6.0.0
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   infrastructure/identity/persistence-kysely:
     dependencies:
       "@architecture/identity":
@@ -1428,6 +1447,12 @@ packages:
         integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==,
       }
 
+  "@types/bcrypt@6.0.0":
+    resolution:
+      {
+        integrity: sha512-/oJGukuH3D2+D+3H4JWLaAsJ/ji86dhRidzZ/Od7H/i8g+aCmvkeCc6Ni/f9uxGLSQVCRZkX2/lqEFG2BvWtlQ==,
+      }
+
   "@types/chai@5.2.3":
     resolution:
       {
@@ -1877,6 +1902,13 @@ packages:
       }
     engines: { node: ">=6.0.0" }
     hasBin: true
+
+  bcrypt@6.0.0:
+    resolution:
+      {
+        integrity: sha512-cU8v/EGSrnH+HnxV2z0J7/blxH8gq7Xh2JFT6Aroax7UohdmiJJlxApMxtKfuI7z68NvvVcmR78k2LbT6efhRg==,
+      }
+    engines: { node: ">= 18" }
 
   brace-expansion@5.0.7:
     resolution:
@@ -4295,6 +4327,10 @@ snapshots:
     dependencies:
       "@babel/types": 7.29.7
 
+  "@types/bcrypt@6.0.0":
+    dependencies:
+      "@types/node": 25.9.3
+
   "@types/chai@5.2.3":
     dependencies:
       "@types/deep-eql": 4.0.2
@@ -4644,6 +4680,11 @@ snapshots:
   balanced-match@4.0.4: {}
 
   baseline-browser-mapping@2.10.37: {}
+
+  bcrypt@6.0.0:
+    dependencies:
+      node-addon-api: 8.8.0
+      node-gyp-build: 4.8.4
 
   brace-expansion@5.0.7:
     dependencies:
