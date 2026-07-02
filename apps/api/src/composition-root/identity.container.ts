@@ -7,11 +7,9 @@ import {
   RegisterUserUseCase,
   ValidateSessionUseCase,
 } from "@architecture/identity/application";
-import {
-  Argon2PasswordHasherAdapter,
-  RedisSessionAdapter,
-} from "@architecture/identity/infrastructure";
+import { RedisSessionAdapter } from "@architecture/identity/infrastructure";
 import { KyselyUserAdapter } from "@architecture/identity-persistence-kysely";
+import { Argon2PasswordHasherAdapter } from "@architecture/identity-password-argon2";
 import type { Kysely } from "kysely";
 import type { AppDatabase } from "./database.container.js";
 

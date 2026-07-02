@@ -1,8 +1,10 @@
 import argon2 from "argon2";
 
-import type { PasswordHasherPort } from "../../application/ports/password-hasher.port.js";
-import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import type { PasswordHasherPort } from "@architecture/identity/application";
+import {
+  PasswordHashValueObject,
+  type PasswordPlainValueObject,
+} from "@architecture/identity/domain";
 
 export class Argon2PasswordHasherAdapter implements PasswordHasherPort {
   private readonly FAKE_HASH = "fake-hash-for-fake-verification";

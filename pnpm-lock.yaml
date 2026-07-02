@@ -296,6 +296,9 @@ importers:
       "@architecture/identity":
         specifier: workspace:*
         version: link:../../bounded-contexts/identity
+      "@architecture/identity-password-argon2":
+        specifier: workspace:*
+        version: link:../../infrastructure/identity/password-argon2
       "@architecture/identity-persistence-kysely":
         specifier: workspace:*
         version: link:../../infrastructure/identity/persistence-kysely
@@ -432,6 +435,22 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
     devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  infrastructure/identity/password-argon2:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../bounded-contexts/identity
+      argon2:
+        specifier: ^0.44.0
+        version: 0.44.0
+    devDependencies:
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
