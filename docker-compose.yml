@@ -33,6 +33,7 @@ services:
       retries: 10
 
   api:
+    image: architecture-web-api:latest
     build:
       context: .
       dockerfile: apps/api/Dockerfile

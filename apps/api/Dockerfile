@@ -1,4 +1,4 @@
-FROM node:26.3.1-trixie-slim AS build
+FROM node:26.4.0-trixie-slim AS build
 WORKDIR /repo
 RUN npm install -g pnpm@11.3.0
 ENV CI=true
@@ -13,7 +13,7 @@ RUN pnpm --filter @architecture/identity-password-argon2 build
 RUN pnpm --filter @architecture/identity-session-redis build
 RUN pnpm --filter api build
 
-FROM node:26.3.1-trixie-slim AS production
+FROM node:26-alpine AS production
 WORKDIR /repo
 RUN npm install -g pnpm@11.3.0
 ENV CI=true
@@ -29,6 +29,8 @@ COPY --from=build /repo/bounded-contexts/identity/dist /app/node_modules/@archit
 COPY --from=build /repo/infrastructure/identity/persitence/kysely/dist /app/node_modules/@architecture/identity-persistence-kysely/dist
 COPY --from=build /repo/infrastructure/identity/security/argon2/dist /app/node_modules/@architecture/identity-password-argon2/dist
 COPY --from=build /repo/infrastructure/identity/session/redis/dist /app/node_modules/@architecture/identity-session-redis/dist
+RUN chown -R node:node /app
+USER node
 WORKDIR /app
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
