@@ -3,6 +3,7 @@
 import { Redis } from "ioredis";
 import {
   AuthenticateUserUseCase,
+  GetCurrentUserProfileUseCase,
   LogoutUserUseCase,
   RegisterUserUseCase,
   ValidateSessionUseCase,
@@ -13,26 +14,35 @@ import { Argon2PasswordHasherAdapter } from "@architecture/identity-password-arg
 import type { Kysely } from "kysely";
 import type { AppDatabase } from "./database.container.js";
 
+export interface IdentityContainer {
+  readonly registerUser: RegisterUserUseCase;
+  readonly authenticateUser: AuthenticateUserUseCase;
+  readonly logoutUser: LogoutUserUseCase;
+  readonly getCurrentUserProfile: GetCurrentUserProfileUseCase;
+}
+
 export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
   // infrastructure
   const passwordHasher = new Argon2PasswordHasherAdapter();
-  const userRepository = new KyselyUserAdapter(db);
+  const user = new KyselyUserAdapter(db);
   const session = new RedisSessionAdapter(redis);
 
   // application
-  const registerUser = new RegisterUserUseCase(userRepository, passwordHasher);
+  const registerUser = new RegisterUserUseCase(user, passwordHasher);
   const authenticateUser = new AuthenticateUserUseCase(
-    userRepository,
+    user,
     passwordHasher,
     session,
   );
-  const validateSession = new ValidateSessionUseCase(session, userRepository);
+  const validateSession = new ValidateSessionUseCase(session, user);
   const logoutUser = new LogoutUserUseCase(session);
+  const getCurrentUserProfile = new GetCurrentUserProfileUseCase(user);
 
   return {
     registerUser,
     authenticateUser,
     validateSession,
     logoutUser,
+    getCurrentUserProfile,
   };
 }

@@ -3,7 +3,6 @@
 import { Redis } from "ioredis";
 import { createDatabase } from "./database.container.js";
 import { buildIdentityContainer } from "./identity.container.js";
-import { buildProfileContainer } from "./profile.container.js";
 
 export function buildApplicationContainer() {
   const db = createDatabase();
@@ -13,10 +12,8 @@ export function buildApplicationContainer() {
   });
 
   const identity = buildIdentityContainer(db, redis);
-  const profile = buildProfileContainer(db);
 
   return {
     identity,
-    profile,
   };
 }

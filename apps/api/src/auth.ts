@@ -1,6 +1,10 @@
 import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
 import type { ValidateSessionUseCase } from "@architecture/identity/application";
-import type { FastifyPluginAsync, preHandlerHookHandler } from "fastify";
+import type {
+  FastifyInstance,
+  FastifyPluginAsync,
+  preHandlerHookHandler,
+} from "fastify";
 import fp from "fastify-plugin";
 
 export const SESSION_COOKIE_NAME = "sid";
@@ -8,6 +12,10 @@ export const SESSION_COOKIE_NAME = "sid";
 export interface AuthenticatedContext {
   userId: string;
   sessionId: string;
+}
+
+export interface AuthenticatedFastifyInstance extends FastifyInstance {
+  authenticate: preHandlerHookHandler;
 }
 
 declare module "fastify" {

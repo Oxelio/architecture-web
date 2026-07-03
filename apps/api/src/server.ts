@@ -11,7 +11,6 @@ import {
   SESSION_COOKIE_NAME,
 } from "./auth.js";
 import { buildIdentityRoutes } from "./routes/identity.routes.js";
-import { buildProfileRoutes } from "./routes/profile.routes.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;
 
@@ -46,13 +45,9 @@ export async function buildServer() {
       options: sessionCookieOptions,
     }),
     {
-      prefix: `/${apiVersion}/auth`,
+      prefix: `/${apiVersion}/identity`,
     },
   );
-
-  app.register(buildProfileRoutes(container.profile), {
-    prefix: `/${apiVersion}`,
-  });
 
   return app;
 }
