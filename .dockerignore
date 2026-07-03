@@ -12,3 +12,14 @@ pnpm-debug.log*
 .DS_Store
 .git
 .gitignore
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+*.p12
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
