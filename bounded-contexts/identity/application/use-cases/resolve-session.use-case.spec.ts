@@ -11,6 +11,7 @@ import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
+import { StatusValueObject } from "#value-objects/status.value-object";
 
 /* -------------------------------------------------------------------------- */
 /*                                FAKE USER PORT                              */
@@ -179,6 +180,10 @@ describe("ResolveSessionUseCase", () => {
       identifier: userId,
       email: email.value,
       password: password.value,
+      status: StatusValueObject.active(),
+      isEmailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     await userPort.save(user);
@@ -217,6 +222,10 @@ describe("ResolveSessionUseCase", () => {
       identifier: userId,
       email: email.value,
       password: password.value,
+      status: StatusValueObject.active(),
+      isEmailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     await userPort.save(user);

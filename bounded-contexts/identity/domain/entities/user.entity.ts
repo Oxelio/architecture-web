@@ -2,11 +2,16 @@ import { Entity } from "@architecture/foundation";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { EmailValueObject } from "#value-objects/email.value-object";
+import { StatusValueObject } from "#value-objects/status.value-object";
 
 interface UserProperties {
   readonly identifier: UserIdentifierValueObject;
-  readonly email: EmailValueObject;
-  readonly password: PasswordHashValueObject;
+  email: EmailValueObject;
+  password: PasswordHashValueObject;
+  status: StatusValueObject;
+  isEmailVerified: boolean;
+  readonly createdAt: Date;
+  updatedAt: Date;
 }
 
 interface UserCreationProperties {
@@ -16,9 +21,16 @@ interface UserCreationProperties {
 
 export class UserEntity extends Entity<UserProperties> {
   static create(properties: UserCreationProperties): UserEntity {
+    const now = new Date();
+
     return new UserEntity({
-      ...properties,
       identifier: UserIdentifierValueObject.generate(),
+      email: properties.email,
+      password: properties.password,
+      status: StatusValueObject.pending(),
+      isEmailVerified: false,
+      createdAt: now,
+      updatedAt: now,
     });
   }
 
@@ -26,11 +38,76 @@ export class UserEntity extends Entity<UserProperties> {
     return new UserEntity(props);
   }
 
+  // ------------------------
+  // Getters
+  // ------------------------
+
+  get email(): EmailValueObject {
+    return this.props.email;
+  }
+
   get password(): PasswordHashValueObject {
     return this.props.password;
   }
 
-  get email(): EmailValueObject {
-    return this.props.email;
+  get status(): StatusValueObject {
+    return this.props.status;
+  }
+
+  get isEmailVerified(): boolean {
+    return this.props.isEmailVerified;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
+  // ------------------------
+  // Business logic
+  // ------------------------
+
+  changeEmail(newEmail: EmailValueObject): void {
+    if (newEmail.equals(this.props.email)) return;
+
+    this.props.email = newEmail;
+    this.touch();
+  }
+
+  changePassword(newPassword: PasswordHashValueObject): void {
+    this.props.password = newPassword;
+    this.touch();
+  }
+
+  verifyEmail(): void {
+    if (this.props.isEmailVerified) return;
+
+    this.props.isEmailVerified = true;
+    this.touch();
+  }
+
+  suspend(): void {
+    if (this.props.status.isSuspended()) return;
+
+    this.props.status = StatusValueObject.suspended();
+    this.touch();
+  }
+
+  activate(): void {
+    if (this.props.status.isActive()) return;
+
+    this.props.status = StatusValueObject.active();
+    this.touch();
+  }
+
+  // ------------------------
+  // Internal helpers
+  // ------------------------
+
+  private touch(): void {
+    this.props.updatedAt = new Date();
   }
 }
