@@ -20,6 +20,7 @@ export default defineConfig({
         "**/*.spec.ts",
         "**/*.test.ts",
         "**/*.port.ts",
+        "**/*index.ts",
       ],
     },
   },

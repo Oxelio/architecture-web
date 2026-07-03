@@ -1,42 +1,51 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+import { SignInUseCase } from "./sign-in.use-case.js";
+
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+
 import { UserEntity } from "#entities/user.entity";
-import { SignInUseCase } from "./sign-in.use-case.js";
-import { SessionPort } from "#application/ports/session.port";
 import type { SessionEntity } from "#entities/session.entity";
+
+import type { SessionPort } from "#application/ports/session.port";
+import type { PasswordHasherPort } from "#application/ports/password-hasher.port";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-/* ---------------- FAKE USER PORT ---------------- */
+/* -------------------------------------------------------------------------- */
+/*                                FAKE USER PORT                              */
+/* -------------------------------------------------------------------------- */
 
 class FakeUserPort {
-  users = new Map<string, UserEntity>();
+  private readonly usersById = new Map<string, UserEntity>();
+  private readonly usersByEmail = new Map<string, UserEntity>();
 
   async findByEmail(email: EmailValueObject): Promise<UserEntity | null> {
-    return this.users.get(email.value) ?? null;
-  }
-
-  async save(user: UserEntity): Promise<void> {
-    this.users.set(user.email.value, user);
+    return this.usersByEmail.get(email.value) ?? null;
   }
 
   async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
-    return this.users.get(id.value) ?? null;
+    return this.usersById.get(id.value) ?? null;
+  }
+
+  async save(user: UserEntity): Promise<void> {
+    this.usersById.set(user.identifier.value, user);
+    this.usersByEmail.set(user.email.value, user);
   }
 }
 
-/* ---------------- FAKE PASSWORD HASHER ---------------- */
+/* -------------------------------------------------------------------------- */
+/*                             FAKE PASSWORD HASHER                           */
+/* -------------------------------------------------------------------------- */
 
-class FakePasswordHasherPort {
-  async hash(
-    password: PasswordPlainValueObject,
-  ): Promise<PasswordHashValueObject> {
+class FakePasswordHasherPort implements PasswordHasherPort {
+  async hash(password: PasswordPlainValueObject) {
     const hash = PasswordHashValueObject.create("hashed-" + password.value);
+
     if (!hash.success) {
-      throw new Error("Invalid hashed password value object");
+      throw new Error("Invalid hash");
     }
 
     return hash.value;
@@ -50,13 +59,15 @@ class FakePasswordHasherPort {
   }
 
   async fakeVerify(): Promise<void> {
-    // Do nothing
+    // timing attack protection noop
   }
 }
 
-/* ---------------- FAKE SESSION PORT ---------------- */
+/* -------------------------------------------------------------------------- */
+/*                              FAKE SESSION PORT                             */
+/* -------------------------------------------------------------------------- */
 
-class FakeSessionPort extends SessionPort {
+class FakeSessionPort implements SessionPort {
   private readonly sessions = new Map<string, SessionEntity>();
 
   async create(session: SessionEntity): Promise<void> {
@@ -72,7 +83,13 @@ class FakeSessionPort extends SessionPort {
   async delete(id: SessionIdentifierValueObject): Promise<void> {
     this.sessions.delete(id.value);
   }
+
+  count() {
+    return this.sessions.size;
+  }
 }
+
+/* -------------------------------------------------------------------------- */
 
 describe("SignInUseCase", () => {
   let userPort: FakeUserPort;
@@ -91,12 +108,50 @@ describe("SignInUseCase", () => {
     useCase = new SignInUseCase(userPort, passwordHasher, sessionPort);
   });
 
-  /* -------------------------------------------------- */
-  /* 1. USER NOT FOUND                                  */
-  /* -------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /* 1. INVALID EMAIL                                                       */
+  /* ---------------------------------------------------------------------- */
+
+  it("should fail when email is invalid", async () => {
+    const result = await useCase.execute({
+      email: "invalid-email",
+      password: validPassword,
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error).toEqual({
+        kind: "invalid_credentials",
+      });
+    }
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* 2. INVALID PASSWORD (VALUE OBJECT)                                     */
+  /* ---------------------------------------------------------------------- */
+
+  it("should fail when password is invalid", async () => {
+    const result = await useCase.execute({
+      email: validEmail,
+      password: "",
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error).toEqual({
+        kind: "invalid_credentials",
+      });
+    }
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* 3. USER NOT FOUND + fakeVerify                                         */
+  /* ---------------------------------------------------------------------- */
 
   it("should fail when user does not exist and call fakeVerify", async () => {
-    const fakeSpy = vi.spyOn(passwordHasher, "fakeVerify");
+    const spy = vi.spyOn(passwordHasher, "fakeVerify");
 
     const result = await useCase.execute({
       email: validEmail,
@@ -105,34 +160,32 @@ describe("SignInUseCase", () => {
 
     expect(result.success).toBe(false);
 
+    expect(spy).toHaveBeenCalledOnce();
+
     if (!result.success) {
-      expect(result.error).toStrictEqual({
+      expect(result.error).toEqual({
         kind: "invalid_credentials",
       });
     }
-
-    expect(fakeSpy).toHaveBeenCalledOnce();
   });
 
-  /* -------------------------------------------------- */
-  /* 2. WRONG PASSWORD                                  */
-  /* -------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /* 4. WRONG PASSWORD                                                      */
+  /* ---------------------------------------------------------------------- */
 
-  it("should fail when password is invalid", async () => {
+  it("should fail when password is incorrect", async () => {
     const emailVO = EmailValueObject.create(validEmail);
-    if (!emailVO.success) {
-      throw new Error("Invalid email value object");
+    const passwordVO = PasswordPlainValueObject.create(validPassword);
+
+    if (!emailVO.success || !passwordVO.success) {
+      throw new Error("Invalid VO");
     }
 
-    const plain = PasswordPlainValueObject.create(validPassword);
-    if (!plain.success) {
-      throw new Error("Invalid password value object");
-    }
-    const hash = await passwordHasher.hash(plain.value);
+    const hashed = await passwordHasher.hash(passwordVO.value);
 
     const user = UserEntity.create({
       email: emailVO.value,
-      password: hash,
+      password: hashed,
     });
 
     await userPort.save(user);
@@ -151,26 +204,54 @@ describe("SignInUseCase", () => {
     }
   });
 
-  /* -------------------------------------------------- */
-  /* 3. SUCCESS AUTH                                   */
-  /* -------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /* 5. VERIFY CALLED                                                       */
+  /* ---------------------------------------------------------------------- */
 
-  it("should authenticate user successfully", async () => {
+  it("should call password verify when user exists", async () => {
+    const spy = vi.spyOn(passwordHasher, "verify");
+
     const emailVO = EmailValueObject.create(validEmail);
-    if (!emailVO.success) {
-      throw new Error("Invalid email value object");
+    const passwordVO = PasswordPlainValueObject.create(validPassword);
+
+    if (!emailVO.success || !passwordVO.success) {
+      throw new Error("Invalid VO");
     }
 
-    const passwordVO = PasswordPlainValueObject.create(
-      "hashed-" + validPassword,
-    );
-    if (!passwordVO.success) {
-      throw new Error("Invalid password value object");
-    }
+    const hashed = await passwordHasher.hash(passwordVO.value);
 
     const user = UserEntity.create({
       email: emailVO.value,
-      password: passwordVO.value,
+      password: hashed,
+    });
+
+    await userPort.save(user);
+
+    await useCase.execute({
+      email: validEmail,
+      password: validPassword,
+    });
+
+    expect(spy).toHaveBeenCalledOnce();
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* 6. SUCCESS AUTH                                                        */
+  /* ---------------------------------------------------------------------- */
+
+  it("should authenticate user and return session", async () => {
+    const emailVO = EmailValueObject.create(validEmail);
+    const passwordVO = PasswordPlainValueObject.create(validPassword);
+
+    if (!emailVO.success || !passwordVO.success) {
+      throw new Error("Invalid VO");
+    }
+
+    const hashed = await passwordHasher.hash(passwordVO.value);
+
+    const user = UserEntity.create({
+      email: emailVO.value,
+      password: hashed,
     });
 
     await userPort.save(user);
@@ -183,41 +264,41 @@ describe("SignInUseCase", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.value.userId).toBeDefined();
+      expect(result.value.userId).toBe(user.identifier.value);
+
+      expect(result.value.sessionId).toBeDefined();
+      expect(result.value.sessionExpiresAt).toBeInstanceOf(Date);
     }
   });
 
-  /* -------------------------------------------------- */
-  /* 4. VERIFY CALLED                                  */
-  /* -------------------------------------------------- */
+  /* ---------------------------------------------------------------------- */
+  /* 7. SESSION CREATED                                                     */
+  /* ---------------------------------------------------------------------- */
 
-  it("should call password verify when user exists", async () => {
-    const verifySpy = vi.spyOn(passwordHasher, "verify");
-
+  it("should create a session in session store", async () => {
     const emailVO = EmailValueObject.create(validEmail);
-    if (!emailVO.success) {
-      throw new Error("Invalid email value object");
+    const passwordVO = PasswordPlainValueObject.create(validPassword);
+
+    if (!emailVO.success || !passwordVO.success) {
+      throw new Error("Invalid VO");
     }
 
-    const passwordVO = PasswordPlainValueObject.create(
-      "hashed-" + validPassword,
-    );
-    if (!passwordVO.success) {
-      throw new Error("Invalid password value object");
-    }
+    const hashed = await passwordHasher.hash(passwordVO.value);
 
     const user = UserEntity.create({
       email: emailVO.value,
-      password: passwordVO.value,
+      password: hashed,
     });
 
     await userPort.save(user);
+
+    expect(sessionPort.count()).toBe(0);
 
     await useCase.execute({
       email: validEmail,
       password: validPassword,
     });
 
-    expect(verifySpy).toHaveBeenCalledOnce();
+    expect(sessionPort.count()).toBe(1);
   });
 });

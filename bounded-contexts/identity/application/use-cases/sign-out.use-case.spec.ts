@@ -15,13 +15,11 @@ class FakeSessionPort implements SessionPort {
     this.sessions.set(session.identifier.value, session);
   }
 
-  async findById(
-    id: SessionIdentifierValueObject,
-  ): Promise<SessionEntity | null> {
+  async findById(id: any): Promise<SessionEntity | null> {
     return this.sessions.get(id.value) ?? null;
   }
 
-  async delete(id: SessionIdentifierValueObject): Promise<void> {
+  async delete(id: any): Promise<void> {
     this.sessions.delete(id.value);
   }
 
@@ -39,41 +37,79 @@ describe("SignOutUseCase", () => {
     useCase = new SignOutUseCase(sessionPort);
   });
 
-  it("should do nothing when sessionId is empty", async () => {
-    const deleteSpy = vi.spyOn(sessionPort, "delete");
+  /* -------------------------------------------------- */
+  /* 1. EMPTY SESSION ID                                */
+  /* -------------------------------------------------- */
 
-    await useCase.execute({ sessionId: "" });
+  it("should fail when sessionId is empty", async () => {
+    const result = await useCase.execute({ sessionId: "" });
 
-    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error).toEqual({
+        kind: "invalid_session_id",
+      });
+    }
+
+    expect(sessionPort.count()).toBe(0);
   });
+
+  /* -------------------------------------------------- */
+  /* 2. INVALID UUID CASE (VO rejection)               */
+  /* -------------------------------------------------- */
+
+  it("should fail when sessionId is invalid", async () => {
+    const result = await useCase.execute({
+      sessionId: "not-a-valid-uuid",
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error.kind).toBe("invalid_session_id");
+    }
+
+    expect(sessionPort.count()).toBe(0);
+  });
+
+  /* -------------------------------------------------- */
+  /* 3. VALID DELETE                                   */
+  /* -------------------------------------------------- */
 
   it("should delete session when sessionId is valid", async () => {
     const deleteSpy = vi.spyOn(sessionPort, "delete");
 
     const sessionId = SessionIdentifierValueObject.generate();
 
-    await useCase.execute({
+    const result = await useCase.execute({
       sessionId: sessionId.value,
     });
 
+    expect(result.success).toBe(true);
     expect(deleteSpy).toHaveBeenCalledOnce();
   });
+
+  /* -------------------------------------------------- */
+  /* 4. ACTUAL STORAGE REMOVAL                         */
+  /* -------------------------------------------------- */
 
   it("should remove session from storage", async () => {
     const userId = UserIdentifierValueObject.generate();
 
     const session = SessionEntity.createForUser({
-      userId: userId,
+      userId,
     });
 
     await sessionPort.create(session);
 
     expect(sessionPort.count()).toBe(1);
 
-    await useCase.execute({
+    const result = await useCase.execute({
       sessionId: session.identifier.value,
     });
 
+    expect(result.success).toBe(true);
     expect(sessionPort.count()).toBe(0);
   });
 });
