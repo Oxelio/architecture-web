@@ -1,36 +1,34 @@
-# ---------- Base ----------
-FROM node:26.3.1-trixie-slim AS base
-
+FROM node:26.3.1-trixie-slim AS build
 WORKDIR /repo
-
 RUN npm install -g pnpm@11.3.0
-
-# ---------- Dependencies ----------
-FROM base AS deps
-
 ENV CI=true
-
+ENV NODE_ENV=development
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY . .
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm --filter @architecture/foundation build
+RUN pnpm --filter @architecture/identity build
+RUN pnpm --filter @architecture/identity-persistence-kysely build
+RUN pnpm --filter @architecture/identity-password-argon2 build
+RUN pnpm --filter @architecture/identity-session-redis build
+RUN pnpm --filter api build
 
-RUN pnpm install --filter ./apps/api... --frozen-lockfile --ignore-scripts
-
-# ---------- Build ----------
-FROM deps AS build
-
-WORKDIR /repo/apps/api
-RUN pnpm --filter ./apps/api build
-
-# ---------- Production ----------
 FROM node:26.3.1-trixie-slim AS production
-
-WORKDIR /app
+WORKDIR /repo
+RUN npm install -g pnpm@11.3.0
+ENV CI=true
 ENV NODE_ENV=production
-
-COPY --from=build /repo/apps/api/dist ./dist
-COPY --from=deps /repo/node_modules ./node_modules
-COPY apps/api/package.json ./package.json
-
-EXPOSE 80
-
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY . .
+RUN pnpm install --filter ./apps/api... --prod --frozen-lockfile --ignore-scripts
+RUN rm -rf /app/* /app/.[!.]* /app/..?* 2>/dev/null || true
+RUN pnpm --filter ./apps/api deploy --prod --legacy --ignore-scripts /app
+COPY --from=build /repo/apps/api/dist /app/dist
+COPY --from=build /repo/foundation/dist /app/node_modules/@architecture/foundation/dist
+COPY --from=build /repo/bounded-contexts/identity/dist /app/node_modules/@architecture/identity/dist
+COPY --from=build /repo/infrastructure/identity/persitence/kysely/dist /app/node_modules/@architecture/identity-persistence-kysely/dist
+COPY --from=build /repo/infrastructure/identity/security/argon2/dist /app/node_modules/@architecture/identity-password-argon2/dist
+COPY --from=build /repo/infrastructure/identity/session/redis/dist /app/node_modules/@architecture/identity-session-redis/dist
+WORKDIR /app
+EXPOSE 3000
 CMD ["node", "dist/main.js"]

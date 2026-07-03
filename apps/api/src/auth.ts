@@ -1,5 +1,5 @@
 import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
-import type { ValidateSessionUseCase } from "@architecture/identity/application";
+import type { ResolveSessionUseCase } from "@architecture/identity/application";
 import type {
   FastifyInstance,
   FastifyPluginAsync,
@@ -29,7 +29,7 @@ declare module "fastify" {
 }
 
 interface AuthPluginOptions {
-  validateSession: ValidateSessionUseCase;
+  resolveSession: ResolveSessionUseCase;
   sessionCookieName: string;
 }
 
@@ -58,7 +58,7 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
       });
     }
 
-    const result = await opts.validateSession.execute({
+    const result = await opts.resolveSession.execute({
       sessionId,
     });
 

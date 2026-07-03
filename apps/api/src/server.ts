@@ -32,7 +32,7 @@ export async function buildServer() {
   const sessionCookieOptions = buildSessionCookieOptions();
 
   await app.register(authPlugin, {
-    validateSession: container.identity.validateSession,
+    resolveSession: container.identity.resolveSession,
     sessionCookieName: SESSION_COOKIE_NAME,
   });
 

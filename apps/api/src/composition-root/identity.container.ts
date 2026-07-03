@@ -18,6 +18,7 @@ export interface IdentityContainer {
   readonly signUp: SignUpUseCase;
   readonly signIn: SignInUseCase;
   readonly signOut: SignOutUseCase;
+  readonly resolveSession: ResolveSessionUseCase;
   readonly getUserProfile: GetUserProfileUseCase;
 }
 

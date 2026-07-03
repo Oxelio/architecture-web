@@ -32,6 +32,30 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: architecture-web-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: architecture
+      DATABASE_USER: architecture
+      DATABASE_PASSWORD: architecture
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      WEB_ORIGIN: http://localhost:5173
+    ports:
+      - "3000:3000"
+
 volumes:
   postgres-data:
   redis-data:

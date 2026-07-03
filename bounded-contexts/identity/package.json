@@ -11,29 +11,29 @@
     "test:coverage": "vitest run --coverage"
   },
   "imports": {
-    "#entities/*": "./domain/entities/*.js",
-    "#value-objects/*": "./domain/value-objects/*.js",
-    "#contracts/*": "./application/contracts/*.js",
-    "#dtos/*": "./application/dtos/*.js",
-    "#adapters/*": "./infrastructure/adapters/*.js",
-    "#application/*": "./application/*.js",
-    "#errors/*": "./domain/errors/*.js",
-    "#policies/*": "./domain/policies/*.js",
-    "#ports/*": "./application/ports/*.js",
-    "#use-cases/*": "./application/use-cases/*.js"
+    "#entities/*": "./dist/domain/entities/*.js",
+    "#value-objects/*": "./dist/domain/value-objects/*.js",
+    "#contracts/*": "./dist/application/contracts/*.js",
+    "#dtos/*": "./dist/application/dtos/*.js",
+    "#adapters/*": "./dist/infrastructure/adapters/*.js",
+    "#application/*": "./dist/application/*.js",
+    "#errors/*": "./dist/domain/errors/*.js",
+    "#policies/*": "./dist/domain/policies/*.js",
+    "#ports/*": "./dist/application/ports/*.js",
+    "#use-cases/*": "./dist/application/use-cases/*.js"
   },
   "exports": {
     "./domain": {
-      "types": "./domain/index.ts",
-      "default": "./domain/index.js"
+      "types": "./dist/domain/index.d.ts",
+      "default": "./dist/domain/index.js"
     },
     "./application": {
-      "types": "./application/index.ts",
-      "default": "./application/index.js"
+      "types": "./dist/application/index.d.ts",
+      "default": "./dist/application/index.js"
     },
     "./infrastructure": {
-      "types": "./infrastructure/index.ts",
-      "default": "./infrastructure/index.js"
+      "types": "./dist/infrastructure/index.d.ts",
+      "default": "./dist/infrastructure/index.js"
     }
   },
   "dependencies": {
