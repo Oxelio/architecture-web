@@ -19,6 +19,7 @@ export default defineConfig({
         "**/dist/**",
         "**/*.spec.ts",
         "**/*.test.ts",
+        "**/*.port.ts",
       ],
     },
   },

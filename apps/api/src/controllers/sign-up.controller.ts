@@ -1,8 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { RegisterUserUseCase } from "@architecture/identity/application";
-import { RegisterUserPresenter } from "../presentation/register-user.presenter.js";
+import { SignUpUseCase } from "@architecture/identity/application";
+import { SignUpPresenter } from "../presentation/sign-up.presenter.js";
 
-export function buildRegisterUserController(useCase: RegisterUserUseCase) {
+export function buildSignUpController(useCase: SignUpUseCase) {
   return {
     handle: async (request: FastifyRequest, reply: FastifyReply) => {
       const { email, password } = request.body as {
@@ -16,11 +16,11 @@ export function buildRegisterUserController(useCase: RegisterUserUseCase) {
       });
 
       if (!result.success) {
-        const response = RegisterUserPresenter.toFailureHttp(result.error);
+        const response = SignUpPresenter.toFailureHttp(result.error);
         return reply.status(response.status).send(response.body);
       }
 
-      const response = RegisterUserPresenter.toSuccessHttp(result.value);
+      const response = SignUpPresenter.toSuccessHttp(result.value);
       return reply.status(response.status).send(response.body);
     },
   };

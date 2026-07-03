@@ -1,25 +1,41 @@
 // Use Cases
-export { RegisterUserUseCase } from "./use-cases/register-user/register-user.use-case.js";
-export type {
-  RegisterUserResponse,
-  RegisterError,
-} from "./use-cases/register-user/register-user.result.js";
+export {
+  SignUpUseCase,
+  type SignUpInput,
+  type SignUpError,
+  type SignUpResponse,
+  type SignUpResult,
+} from "#use-cases/sign-up.use-case";
 
-export { LogoutUserUseCase } from "./use-cases/logout-user/logout-user.use-case.js";
+export {
+  SignInUseCase,
+  type SignInInput,
+  type SignInResponse,
+  type SignInError,
+  type SignInResult,
+} from "#use-cases/sign-in.use-case";
 
-export { AuthenticateUserUseCase } from "./use-cases/authenticate-user/authenticate-user.use-case.js";
-export type {
-  AuthenticateUserResponse,
-  AuthenticateError,
-} from "./use-cases/authenticate-user/authenticate-user.result.js";
+export {
+  SignOutUseCase,
+  type SignOutInput,
+  type SignOutResult,
+} from "#use-cases/sign-out.use-case";
 
-export type {
-  GetCurrentUserProfileResponse,
-  GetCurrentUserProfileError,
-} from "./use-cases/get-current-user-profile/get-current-user-profile.result.js";
-export { GetCurrentUserProfileUseCase } from "./use-cases/get-current-user-profile/get-current-user-profile.use-case.js";
+export {
+  GetUserProfileUseCase,
+  type GetUserProfileInput,
+  type GetUserProfileResponse,
+  type GetUserProfileError,
+  type GetUserProfileResult,
+} from "#use-cases/get-user-profile.use-case";
 
-export { ValidateSessionUseCase } from "./use-cases/validate-session/validate-session.use-case.js";
+export {
+  ResolveSessionUseCase,
+  type ResolveSessionInput,
+  type ResolveSessionResponse,
+  type ResolveSessionError,
+  type ResolveSessionResult,
+} from "./use-cases/resolve-session.use-case.js";
 
 // Ports
 export { PasswordHasherPort } from "./ports/password-hasher.port.js";

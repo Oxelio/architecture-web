@@ -1,24 +1,34 @@
 // apps/api/src/presentation/get-my-profile.presenter.ts
 import type {
-  GetCurrentUserProfileResponse,
-  GetCurrentUserProfileError,
+  GetUserProfileResponse,
+  GetUserProfileError,
 } from "@architecture/identity/application";
 import type { HttpError } from "./http-error.js";
 import type { HttpSuccess } from "./http-success.js";
 
-export const GetCurrentUserProfilePresenter = {
+interface GetUserProfileResponseDto {
+  userId: string;
+  email: string;
+}
+
+export const GetUserProfilePresenter = {
   toSuccessHttp(
-    data: GetCurrentUserProfileResponse,
-  ): HttpSuccess<GetCurrentUserProfileResponse> {
+    data: GetUserProfileResponse,
+  ): HttpSuccess<GetUserProfileResponseDto> {
+    const dto: GetUserProfileResponseDto = {
+      userId: data.userId,
+      email: data.email,
+    };
+
     return {
       status: 200,
       body: {
-        data,
+        data: dto,
       },
     };
   },
 
-  toFailureHttp(error: GetCurrentUserProfileError): HttpError {
+  toFailureHttp(error: GetUserProfileError): HttpError {
     if (error.kind === "not_found") {
       return {
         status: 404,

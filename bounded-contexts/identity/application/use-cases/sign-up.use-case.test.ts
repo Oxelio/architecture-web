@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { RegisterUserUseCase } from "#application/use-cases/register-user/register-user.use-case";
+import { SignUpUseCase } from "#application/use-cases/sign-up.use-case";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { UserEntity } from "#entities/user.entity";
@@ -50,7 +50,7 @@ class FakeUserPort {
 describe("RegisterUserUseCase", () => {
   let userPort: FakeUserPort;
   let passwordHasher: FakePasswordHasherPort;
-  let useCase: RegisterUserUseCase;
+  let useCase: SignUpUseCase;
 
   const validPayload = {
     email: "test@test.com",
@@ -60,7 +60,7 @@ describe("RegisterUserUseCase", () => {
   beforeEach(() => {
     userPort = new FakeUserPort();
     passwordHasher = new FakePasswordHasherPort();
-    useCase = new RegisterUserUseCase(userPort, passwordHasher);
+    useCase = new SignUpUseCase(userPort, passwordHasher);
   });
 
   it("should register a new user successfully", async () => {

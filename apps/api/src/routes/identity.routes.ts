@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { buildRegisterUserController } from "../controllers/register-user.controller.js";
+import { buildSignUpController } from "../controllers/sign-up.controller.js";
 import {
-  buildAuthenticateUserController,
+  buildSignInController,
   type SessionCookieOptions,
-} from "../controllers/authenticate-user.controller.js";
-import { buildLogoutUserController } from "../controllers/logout-user.controller.js";
-import { buildGetCurrentUserProfileController } from "../controllers/get-current-user-profile.controller.js";
+} from "../controllers/sign-in.controller.js";
+import { buildSignOutController } from "../controllers/sign-out.controller.js";
+import { buildGetUserProfileController } from "../controllers/get-user-profile.controller.js";
 import type { IdentityContainer } from "../composition-root/identity.container.js";
 import type { AuthenticatedFastifyInstance } from "../auth.js";
 
@@ -14,23 +14,21 @@ export function buildIdentityRoutes(
   sessionCookie: SessionCookieOptions,
 ) {
   return async (app: FastifyInstance) => {
-    const registerUserController = buildRegisterUserController(
-      container.registerUser,
-    );
+    const registerUserController = buildSignUpController(container.signUp);
 
-    const authenticateUserController = buildAuthenticateUserController(
-      container.authenticateUser,
+    const authenticateUserController = buildSignInController(
+      container.signIn,
       sessionCookie,
     );
 
-    const logoutUserController = buildLogoutUserController(
-      container.logoutUser,
+    const logoutUserController = buildSignOutController(
+      container.signOut,
       sessionCookie,
     );
 
     const authenticatedApp = app as AuthenticatedFastifyInstance;
-    const getCurrentUserProfile = buildGetCurrentUserProfileController(
-      container.getCurrentUserProfile,
+    const getCurrentUserProfile = buildGetUserProfileController(
+      container.getUserProfile,
     );
 
     app.post(
@@ -51,7 +49,7 @@ export function buildIdentityRoutes(
     );
 
     app.post(
-      "/login",
+      "/signin",
       {
         schema: {
           body: {
@@ -67,7 +65,7 @@ export function buildIdentityRoutes(
       authenticateUserController.handle,
     );
 
-    app.post("/logout", logoutUserController.handle);
+    app.post("/signout", logoutUserController.handle);
 
     app.get(
       "/me",

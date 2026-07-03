@@ -1,28 +1,30 @@
 // bounded-contexts/identity/presentation/http/fastify/presenters/register-user.presenter.ts
 import type {
-  RegisterUserResponse,
-  RegisterError,
+  SignUpResponse,
+  SignUpError,
 } from "@architecture/identity/application";
 import type { HttpError } from "./http-error.js";
 import type { HttpSuccess } from "./http-success.js";
 
-interface RegisterUserData {
+interface SignUpResponseDto {
   userId: string;
 }
 
-export const RegisterUserPresenter = {
-  toSuccessHttp(data: RegisterUserResponse): HttpSuccess<RegisterUserData> {
+export const SignUpPresenter = {
+  toSuccessHttp(data: SignUpResponse): HttpSuccess<SignUpResponseDto> {
+    const dto: SignUpResponseDto = {
+      userId: data.userId,
+    };
+
     return {
       status: 201,
       body: {
-        data: {
-          userId: data.userId,
-        },
+        data: dto,
       },
     };
   },
 
-  toFailureHttp(error: RegisterError): HttpError {
+  toFailureHttp(error: SignUpError): HttpError {
     switch (error.kind) {
       case "email.empty":
         return {

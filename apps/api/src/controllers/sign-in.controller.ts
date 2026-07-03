@@ -1,15 +1,15 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { CookieSerializeOptions } from "@fastify/cookie";
-import type { AuthenticateUserUseCase } from "@architecture/identity/application";
-import { AuthenticateUserPresenter } from "../presentation/authenticate-user.presenter.js";
+import type { SignInUseCase } from "@architecture/identity/application";
+import { SignInPresenter } from "../presentation/sign-in.presenter.js";
 
 export interface SessionCookieOptions {
   name: string;
   options: CookieSerializeOptions;
 }
 
-export function buildAuthenticateUserController(
-  useCase: AuthenticateUserUseCase,
+export function buildSignInController(
+  useCase: SignInUseCase,
   sessionCookie: SessionCookieOptions,
 ) {
   return {
@@ -25,12 +25,12 @@ export function buildAuthenticateUserController(
       });
 
       if (!result.success) {
-        const response = AuthenticateUserPresenter.toFailureHttp(result.error);
+        const response = SignInPresenter.toFailureHttp(result.error);
 
         return reply.status(response.status).send(response.body);
       }
 
-      const response = AuthenticateUserPresenter.toSuccessHttp(result.value);
+      const response = SignInPresenter.toSuccessHttp(result.value);
       const maxAge = Math.max(
         1,
         Math.floor(

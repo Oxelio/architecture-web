@@ -1,9 +1,9 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { LogoutUserUseCase } from "@architecture/identity/application";
-import type { SessionCookieOptions } from "./authenticate-user.controller.js";
+import type { SignOutUseCase } from "@architecture/identity/application";
+import type { SessionCookieOptions } from "./sign-in.controller.js";
 
-export function buildLogoutUserController(
-  useCase: LogoutUserUseCase,
+export function buildSignOutController(
+  useCase: SignOutUseCase,
   sessionCookie: SessionCookieOptions,
 ) {
   return {

@@ -19,7 +19,8 @@
     "#application/*": "./application/*.js",
     "#errors/*": "./domain/errors/*.js",
     "#policies/*": "./domain/policies/*.js",
-    "#ports/*": "./application/ports/*.js"
+    "#ports/*": "./application/ports/*.js",
+    "#use-cases/*": "./application/use-cases/*.js"
   },
   "exports": {
     "./domain": {

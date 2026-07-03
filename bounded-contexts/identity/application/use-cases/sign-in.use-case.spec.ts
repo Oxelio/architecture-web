@@ -4,7 +4,7 @@ import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserEntity } from "#entities/user.entity";
-import { AuthenticateUserUseCase } from "./authenticate-user.use-case.js";
+import { SignInUseCase } from "./sign-in.use-case.js";
 import { SessionPort } from "#application/ports/session.port";
 import type { SessionEntity } from "#entities/session.entity";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
@@ -74,11 +74,11 @@ class FakeSessionPort extends SessionPort {
   }
 }
 
-describe("AuthenticateUserUseCase", () => {
+describe("SignInUseCase", () => {
   let userPort: FakeUserPort;
   let passwordHasher: FakePasswordHasherPort;
   let sessionPort: FakeSessionPort;
-  let useCase: AuthenticateUserUseCase;
+  let useCase: SignInUseCase;
 
   const validEmail = "test@test.com";
   const validPassword = "password123";
@@ -88,11 +88,7 @@ describe("AuthenticateUserUseCase", () => {
     passwordHasher = new FakePasswordHasherPort();
     sessionPort = new FakeSessionPort();
 
-    useCase = new AuthenticateUserUseCase(
-      userPort,
-      passwordHasher,
-      sessionPort,
-    );
+    useCase = new SignInUseCase(userPort, passwordHasher, sessionPort);
   });
 
   /* -------------------------------------------------- */

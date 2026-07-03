@@ -2,25 +2,42 @@ import { Result } from "@architecture/foundation";
 import type { SessionPort } from "#application/ports/session.port";
 import type { UserPort } from "#application/ports/user.port";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import type { ValidateSessionCommand } from "./validate-session.command.js";
-import type { ValidateSessionResult } from "./validate-session.result.js";
 
-export class ValidateSessionUseCase {
+export interface ResolveSessionInput {
+  sessionId: string;
+}
+
+export interface ResolveSessionError {
+  kind: "unauthorized";
+}
+
+export interface ResolveSessionResponse {
+  userId: string;
+  sessionId: string;
+}
+
+export type ResolveSessionResult = Result<
+  ResolveSessionResponse,
+  ResolveSessionError
+>;
+
+export class ResolveSessionUseCase {
   constructor(
     private readonly sessionPort: SessionPort,
     private readonly userPort: UserPort,
   ) {}
 
-  async execute(
-    payload: ValidateSessionCommand,
-  ): Promise<ValidateSessionResult> {
+  async execute(payload: ResolveSessionInput): Promise<ResolveSessionResult> {
     if (!payload.sessionId) {
       return Result.failure({ kind: "unauthorized" });
     }
 
     const sessionId = SessionIdentifierValueObject.create(payload.sessionId);
-    const session = await this.sessionPort.findById(sessionId);
+    if (!sessionId.success) {
+      return Result.failure({ kind: "unauthorized" });
+    }
 
+    const session = await this.sessionPort.findById(sessionId.value);
     if (!session || session.isExpired()) {
       return Result.failure({ kind: "unauthorized" });
     }

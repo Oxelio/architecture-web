@@ -1,15 +1,29 @@
 import type { UserPort } from "#application/ports/user.port";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { Result } from "@architecture/foundation";
-import type { GetCurrentUserProfileQuery } from "./get-current-user-profile.query.js";
-import type { GetCurrentUserProfileResult } from "./get-current-user-profile.result.js";
 
-export class GetCurrentUserProfileUseCase {
+export interface GetUserProfileInput {
+  userId: string;
+}
+
+export interface GetUserProfileError {
+  kind: "not_found";
+}
+
+export interface GetUserProfileResponse {
+  userId: string;
+  email: string;
+}
+
+export type GetUserProfileResult = Result<
+  GetUserProfileResponse,
+  GetUserProfileError
+>;
+
+export class GetUserProfileUseCase {
   constructor(private readonly userPort: UserPort) {}
 
-  async execute(
-    command: GetCurrentUserProfileQuery,
-  ): Promise<GetCurrentUserProfileResult> {
+  async execute(command: GetUserProfileInput): Promise<GetUserProfileResult> {
     const userIdentifier = UserIdentifierValueObject.create(command.userId);
     if (!userIdentifier.success) {
       return Result.failure({

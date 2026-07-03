@@ -2,11 +2,11 @@
 
 import { Redis } from "ioredis";
 import {
-  AuthenticateUserUseCase,
-  GetCurrentUserProfileUseCase,
-  LogoutUserUseCase,
-  RegisterUserUseCase,
-  ValidateSessionUseCase,
+  SignInUseCase,
+  GetUserProfileUseCase,
+  SignOutUseCase,
+  SignUpUseCase,
+  ResolveSessionUseCase,
 } from "@architecture/identity/application";
 import { RedisSessionAdapter } from "@architecture/identity-session-redis";
 import { KyselyUserAdapter } from "@architecture/identity-persistence-kysely";
@@ -15,10 +15,10 @@ import type { Kysely } from "kysely";
 import type { AppDatabase } from "./database.container.js";
 
 export interface IdentityContainer {
-  readonly registerUser: RegisterUserUseCase;
-  readonly authenticateUser: AuthenticateUserUseCase;
-  readonly logoutUser: LogoutUserUseCase;
-  readonly getCurrentUserProfile: GetCurrentUserProfileUseCase;
+  readonly signUp: SignUpUseCase;
+  readonly signIn: SignInUseCase;
+  readonly signOut: SignOutUseCase;
+  readonly getUserProfile: GetUserProfileUseCase;
 }
 
 export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
@@ -28,21 +28,17 @@ export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
   const session = new RedisSessionAdapter(redis);
 
   // application
-  const registerUser = new RegisterUserUseCase(user, passwordHasher);
-  const authenticateUser = new AuthenticateUserUseCase(
-    user,
-    passwordHasher,
-    session,
-  );
-  const validateSession = new ValidateSessionUseCase(session, user);
-  const logoutUser = new LogoutUserUseCase(session);
-  const getCurrentUserProfile = new GetCurrentUserProfileUseCase(user);
+  const signUp = new SignUpUseCase(user, passwordHasher);
+  const signIn = new SignInUseCase(user, passwordHasher, session);
+  const signOut = new SignOutUseCase(session);
+  const resolveSession = new ResolveSessionUseCase(session, user);
+  const getUserProfile = new GetUserProfileUseCase(user);
 
   return {
-    registerUser,
-    authenticateUser,
-    validateSession,
-    logoutUser,
-    getCurrentUserProfile,
+    signUp,
+    signIn,
+    signOut,
+    resolveSession,
+    getUserProfile,
   };
 }

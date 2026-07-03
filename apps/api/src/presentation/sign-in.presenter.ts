@@ -1,30 +1,30 @@
 // bounded-contexts/identity/presentation/http/presenters/authenticate-user.presenter.ts
 import type {
-  AuthenticateError,
-  AuthenticateUserResponse,
+  SignInError,
+  SignInResponse,
 } from "@architecture/identity/application";
 import type { HttpError } from "./http-error.js";
 import type { HttpSuccess } from "./http-success.js";
 
-interface AuthenticateUserData {
+interface SignInResponseDto {
   userId: string;
 }
 
-export const AuthenticateUserPresenter = {
-  toSuccessHttp(
-    data: AuthenticateUserResponse,
-  ): HttpSuccess<AuthenticateUserData> {
+export const SignInPresenter = {
+  toSuccessHttp(data: SignInResponse): HttpSuccess<SignInResponseDto> {
+    const dto: SignInResponseDto = {
+      userId: data.userId,
+    };
+
     return {
       status: 200,
       body: {
-        data: {
-          userId: data.userId,
-        },
+        data: dto,
       },
     };
   },
 
-  toFailureHttp(error: AuthenticateError): HttpError {
+  toFailureHttp(error: SignInError): HttpError {
     if (error.kind === "invalid_credentials") {
       return {
         status: 401,

@@ -1,21 +1,36 @@
-import type { PasswordHasherPort } from "../../ports/password-hasher.port.js";
-import type { UserPort } from "../../ports/user.port.js";
-import type { AuthenticateUserCommand } from "./authenticate-user.command.js";
+import type { PasswordHasherPort } from "../ports/password-hasher.port.js";
 import { Result } from "@architecture/foundation";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
-import type { AuthenticateResult } from "./authenticate-user.result.js";
 import { SessionEntity } from "#entities/session.entity";
 import type { SessionPort } from "#application/ports/session.port";
+import type { UserPort } from "#application/ports/user.port";
 
-export class AuthenticateUserUseCase {
+export interface SignInInput {
+  email: string;
+  password: string;
+}
+
+export interface SignInError {
+  kind: "invalid_credentials";
+}
+
+export interface SignInResponse {
+  userId: string;
+  sessionId: string;
+  sessionExpiresAt: Date;
+}
+
+export type SignInResult = Result<SignInResponse, SignInError>;
+
+export class SignInUseCase {
   constructor(
     private readonly user: UserPort,
     private readonly password: PasswordHasherPort,
     private readonly session: SessionPort,
   ) {}
 
-  async execute(payload: AuthenticateUserCommand): Promise<AuthenticateResult> {
+  async execute(payload: SignInInput): Promise<SignInResult> {
     const email = EmailValueObject.create(payload.email);
     if (!email.success) {
       return Result.failure({
