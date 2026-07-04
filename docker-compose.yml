@@ -54,8 +54,21 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       WEB_ORIGIN: http://localhost:5173
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USER: user
+      SMTP_PASSWORD: user
+      SMTP_FROM: no-reply@architecture.local
+      APP_URL: http://localhost:3000/v1/identity
     ports:
       - "3000:3000"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: architecture-web-mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # UI web
 
 volumes:
   postgres-data:

@@ -187,6 +187,9 @@ describe("SignInUseCase", () => {
       email: emailVO.value,
       password: hashed,
     });
+    // ensure user is verified and active for authentication
+    user.verifyEmail();
+    user.activate();
 
     await userPort.save(user);
 
@@ -224,6 +227,9 @@ describe("SignInUseCase", () => {
       email: emailVO.value,
       password: hashed,
     });
+    // ensure user is verified and active for authentication
+    user.verifyEmail();
+    user.activate();
 
     await userPort.save(user);
 
@@ -253,6 +259,9 @@ describe("SignInUseCase", () => {
       email: emailVO.value,
       password: hashed,
     });
+    // ensure user is verified and active for authentication
+    user.verifyEmail();
+    user.activate();
 
     await userPort.save(user);
 
@@ -289,6 +298,9 @@ describe("SignInUseCase", () => {
       email: emailVO.value,
       password: hashed,
     });
+    // ensure user is verified and active for authentication
+    user.verifyEmail();
+    user.activate();
 
     await userPort.save(user);
 

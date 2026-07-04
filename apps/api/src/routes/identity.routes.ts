@@ -7,6 +7,7 @@ import {
 import { buildSignOutController } from "../controllers/sign-out.controller.js";
 import { buildGetUserProfileController } from "../controllers/get-user-profile.controller.js";
 import type { IdentityContainer } from "../composition-root/identity.container.js";
+import { buildVerifyEmailController } from "../controllers/verify-email.controller.js";
 import type { AuthenticatedFastifyInstance } from "../auth.js";
 
 export function buildIdentityRoutes(
@@ -14,25 +15,28 @@ export function buildIdentityRoutes(
   sessionCookie: SessionCookieOptions,
 ) {
   return async (app: FastifyInstance) => {
-    const registerUserController = buildSignUpController(container.signUp);
+    const signUpController = buildSignUpController(container.signUp);
 
-    const authenticateUserController = buildSignInController(
+    const signInController = buildSignInController(
       container.signIn,
       sessionCookie,
     );
 
-    const logoutUserController = buildSignOutController(
+    const signOutController = buildSignOutController(
       container.signOut,
       sessionCookie,
     );
 
     const authenticatedApp = app as AuthenticatedFastifyInstance;
-    const getCurrentUserProfile = buildGetUserProfileController(
+    const getUserProfile = buildGetUserProfileController(
       container.getUserProfile,
+    );
+    const verifyEmailController = buildVerifyEmailController(
+      container.verifyEmail,
     );
 
     app.post(
-      "/register",
+      "/signup",
       {
         schema: {
           body: {
@@ -45,7 +49,7 @@ export function buildIdentityRoutes(
           },
         },
       },
-      registerUserController.handle,
+      signUpController.handle,
     );
 
     app.post(
@@ -62,17 +66,33 @@ export function buildIdentityRoutes(
           },
         },
       },
-      authenticateUserController.handle,
+      signInController.handle,
     );
 
-    app.post("/signout", logoutUserController.handle);
+    app.post("/signout", signOutController.handle);
 
     app.get(
       "/me",
       {
         preHandler: authenticatedApp.authenticate,
       },
-      getCurrentUserProfile.handle,
+      getUserProfile.handle,
+    );
+
+    app.get(
+      "/verify",
+      {
+        schema: {
+          querystring: {
+            type: "object",
+            required: ["token"],
+            properties: {
+              token: { type: "string" },
+            },
+          },
+        },
+      },
+      verifyEmailController.handle,
     );
   };
 }

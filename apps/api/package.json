@@ -5,7 +5,9 @@
   "main": "main.js",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "migrate": "tsx src/scripts/migrate.ts",
+    "migrate:up": "tsx src/scripts/migrate-up.ts",
+    "migrate:down": "tsx src/scripts/migrate-down.ts",
+    "migrate:reset": "tsx src/scripts/migrate-reset.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "format": "prettier . --write",
@@ -36,6 +38,7 @@
     "@architecture/identity-persistence-kysely": "workspace:*",
     "@architecture/identity-password-argon2": "workspace:*",
     "@architecture/identity-session-redis": "workspace:*",
+    "@architecture/identity-email-nodemailer": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
     "dotenv": "^17.4.2",

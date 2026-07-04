@@ -36,6 +36,17 @@ export const SignInPresenter = {
       };
     }
 
+    if (error.kind === "user_suspended") {
+      return {
+        status: 403,
+        body: {
+          error: {
+            code: "USER_SUSPENDED",
+          },
+        },
+      };
+    }
+
     return {
       status: 500,
       body: {

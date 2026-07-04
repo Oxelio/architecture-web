@@ -1,5 +1,5 @@
 import type { PasswordHasherPort } from "../ports/password-hasher.port.js";
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { SessionEntity } from "#entities/session.entity";
@@ -11,9 +11,17 @@ export interface SignInInput {
   password: string;
 }
 
-export interface SignInError {
-  kind: "invalid_credentials";
-}
+export const SignInErrors = {
+  invalidCredentials: {
+    kind: "invalid_credentials",
+  },
+
+  userSuspended: {
+    kind: "user_suspended",
+  },
+} as const;
+
+export type SignInError = ErrorOf<typeof SignInErrors>;
 
 export interface SignInResponse {
   userId: string;
@@ -33,25 +41,19 @@ export class SignInUseCase {
   async execute(payload: SignInInput): Promise<SignInResult> {
     const email = EmailValueObject.create(payload.email);
     if (!email.success) {
-      return Result.failure({
-        kind: "invalid_credentials",
-      });
+      return this.invalidCredentials();
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
     if (!password.success) {
-      return Result.failure({
-        kind: "invalid_credentials",
-      });
+      return this.invalidCredentials();
     }
 
     const user = await this.user.findByEmail(email.value);
     if (!user) {
       await this.password.fakeVerify(); // Timing attack prevention
 
-      return Result.failure({
-        kind: "invalid_credentials",
-      });
+      return this.invalidCredentials();
     }
 
     const passwordVerified = await this.password.verify(
@@ -59,9 +61,11 @@ export class SignInUseCase {
       user.password,
     );
     if (!passwordVerified) {
-      return Result.failure({
-        kind: "invalid_credentials",
-      });
+      return this.invalidCredentials();
+    }
+
+    if (user.status.isSuspended()) {
+      return this.userSuspended();
     }
 
     const sessionEntity = SessionEntity.createForUser({
@@ -74,5 +78,13 @@ export class SignInUseCase {
       sessionId: sessionEntity.identifier.value,
       sessionExpiresAt: sessionEntity.expiresAt,
     });
+  }
+
+  private invalidCredentials(): SignInResult {
+    return Result.failure(SignInErrors.invalidCredentials);
+  }
+
+  private userSuspended(): SignInResult {
+    return Result.failure(SignInErrors.userSuspended);
   }
 }

@@ -7,6 +7,38 @@ import { PasswordPlainValueObject } from "#value-objects/password-plain.value-ob
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { SignUpUseCase } from "./sign-up.use-case.js";
 
+/* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
+
+class FakeEmailVerificationPort {
+  public lastToken?: string;
+
+  async create(_userId: any, token: string, _expiresAt: Date): Promise<void> {
+    this.lastToken = token;
+  }
+
+  async findByToken(): Promise<any> {
+    return null;
+  }
+
+  async markUsed(): Promise<void> {
+    return;
+  }
+}
+
+/* ---------------- FAKE EMAIL SENDER ---------------- */
+
+class FakeEmailSenderPort {
+  public lastSent?: { to: string; token: string };
+
+  async sendVerificationEmail(to: any, token: string): Promise<void> {
+    this.lastSent = { to: to.value, token };
+  }
+
+  async send() {
+    return;
+  }
+}
+
 /* ---------------- FAKE PASSWORD HASHER ---------------- */
 
 class FakePasswordHasherPort {
@@ -56,12 +88,21 @@ class FakeUserPort {
 describe("SignUpUseCase - full coverage", () => {
   let userPort: FakeUserPort;
   let passwordHasher: FakePasswordHasherPort;
+  let emailVerificationPort: FakeEmailVerificationPort;
+  let emailSenderPort: FakeEmailSenderPort;
   let useCase: SignUpUseCase;
 
   beforeEach(() => {
     userPort = new FakeUserPort();
     passwordHasher = new FakePasswordHasherPort();
-    useCase = new SignUpUseCase(userPort, passwordHasher);
+    emailVerificationPort = new FakeEmailVerificationPort();
+    emailSenderPort = new FakeEmailSenderPort();
+    useCase = new SignUpUseCase(
+      userPort,
+      passwordHasher,
+      emailVerificationPort as any,
+      emailSenderPort as any,
+    );
   });
 
   /* -------------------------------------------------- */
@@ -78,6 +119,8 @@ describe("SignUpUseCase - full coverage", () => {
 
     if (result.success) {
       expect(result.value.userId).toBeDefined();
+      expect(emailVerificationPort.lastToken).toBeDefined();
+      expect(emailSenderPort.lastSent).toBeDefined();
     }
   });
 

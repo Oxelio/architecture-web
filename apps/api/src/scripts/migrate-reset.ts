@@ -1,0 +1,39 @@
+// apps/api/src/scripts/migrate-reset.ts
+
+import { config } from "dotenv";
+
+import { createDatabase } from "../composition-root/database.container.js";
+import { getAllMigrations } from "./migrations.provider.js";
+import { Migrator } from "kysely/migration";
+
+config({ path: new URL("../../.env", import.meta.url) });
+
+const db = createDatabase();
+
+console.log("💣 Dropping all tables...");
+
+await db.schema.dropSchema("public").ifExists().cascade().execute();
+
+await db.schema.createSchema("public").execute();
+
+console.log("♻️ Running migrations...");
+
+const migrator = new Migrator({
+  db,
+  provider: {
+    async getMigrations() {
+      return getAllMigrations();
+    },
+  },
+});
+
+const { error } = await migrator.migrateToLatest();
+
+await db.destroy();
+
+if (error) {
+  console.error(error);
+  process.exit(1);
+}
+
+console.log("✅ Reset completed");

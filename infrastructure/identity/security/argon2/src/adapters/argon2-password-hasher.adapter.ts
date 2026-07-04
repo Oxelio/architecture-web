@@ -7,7 +7,8 @@ import {
 } from "@architecture/identity/domain";
 
 export class Argon2PasswordHasherAdapter implements PasswordHasherPort {
-  private readonly FAKE_HASH = "fake-hash-for-fake-verification";
+  private readonly FAKE_HASH =
+    "$argon2id$v=19$m=65536,t=3,p=4$C4VnZkq4QmZzZzZzZzZzZg$QwqQwqQwqQwqQwqQwqQwqQ";
 
   async hash(
     password: PasswordPlainValueObject,

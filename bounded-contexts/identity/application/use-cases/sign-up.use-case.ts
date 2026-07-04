@@ -2,6 +2,8 @@
 
 import type { PasswordHasherPort } from "#ports/password-hasher.port";
 import type { UserPort } from "#ports/user.port";
+import type { EmailSenderPort } from "#ports/email-sender.port";
+import type { EmailVerificationPort } from "#ports/email-verification.port";
 import { UserEntity } from "#entities/user.entity";
 import { Result } from "@architecture/foundation";
 import {
@@ -35,6 +37,8 @@ export class SignUpUseCase {
   constructor(
     private readonly user: UserPort,
     private readonly password: PasswordHasherPort,
+    private readonly emailVerification: EmailVerificationPort,
+    private readonly emailSender: EmailSenderPort,
   ) {}
 
   async execute(payload: SignUpInput): Promise<SignUpResult> {
@@ -61,7 +65,17 @@ export class SignUpUseCase {
       email: email.value,
       password: hashedPassword,
     });
+
+    // persist user as pending (not verified)
     await this.user.save(user);
+
+    // generate token, store and send verification email
+    const { v4: uuidv4 } = await import("uuid");
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
+
+    await this.emailVerification.create(user.identifier, token, expiresAt);
+    await this.emailSender.sendVerificationEmail(email.value, token);
 
     return Result.ok({
       userId: user.identifier.value,

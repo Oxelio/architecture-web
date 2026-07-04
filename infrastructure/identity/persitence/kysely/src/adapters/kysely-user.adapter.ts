@@ -15,7 +15,19 @@ export class KyselyUserAdapter implements UserPort {
   async save(user: UserEntity): Promise<void> {
     const row = UserMapper.toPersistence(user);
 
-    await this.db.insertInto("identity_users").values(row).execute();
+    await this.db
+      .insertInto("identity_users")
+      .values(row)
+      .onConflict((oc) =>
+        oc.column("id").doUpdateSet({
+          email: row.email,
+          password_hash: row.password_hash,
+          status: row.status,
+          is_email_verified: row.is_email_verified,
+          updated_at: row.updated_at,
+        }),
+      )
+      .execute();
   }
 
   async findByEmail(email: EmailValueObject): Promise<UserEntity | null> {

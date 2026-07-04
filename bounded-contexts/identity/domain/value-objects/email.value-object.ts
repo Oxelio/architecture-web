@@ -1,20 +1,24 @@
 // bounded-contexts/identity/domain/value-objects/email.value-object.ts
 
-import { Result, ValueObject } from "@architecture/foundation";
+import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
 
-export type EmailError =
-  | { readonly kind: "email.empty" }
-  | { readonly kind: "email.too_long"; readonly max: number }
-  | { readonly kind: "email.invalid_format"; readonly value: string };
+export const EmailErrors = {
+  empty: {
+    kind: "email.empty",
+  },
 
-const EmailErrorFactory = {
-  empty: (): EmailError => ({ kind: "email.empty" }),
-  tooLong: (max: number): EmailError => ({ kind: "email.too_long", max }),
-  invalidFormat: (value: string): EmailError => ({
+  tooLong: (max: number) => ({
+    kind: "email.too_long",
+    max,
+  }),
+
+  invalidFormat: (value: string) => ({
     kind: "email.invalid_format",
     value,
   }),
 } as const;
+
+export type EmailError = ErrorOf<typeof EmailErrors>;
 
 export class EmailValueObject extends ValueObject<{ value: string }> {
   private static readonly MAX_LENGTH = 254;
@@ -27,19 +31,17 @@ export class EmailValueObject extends ValueObject<{ value: string }> {
 
   public static create(email: string): Result<EmailValueObject, EmailError> {
     if (email.trim().length === 0) {
-      return Result.failure(EmailErrorFactory.empty());
+      return Result.failure(EmailErrors.empty);
     }
 
     const normalized = this.normalize(email);
 
     if (this.isTooLong(normalized)) {
-      return Result.failure(
-        EmailErrorFactory.tooLong(EmailValueObject.MAX_LENGTH),
-      );
+      return Result.failure(EmailErrors.tooLong(EmailValueObject.MAX_LENGTH));
     }
 
     if (this.isInvalidFormat(normalized)) {
-      return Result.failure(EmailErrorFactory.invalidFormat(normalized));
+      return Result.failure(EmailErrors.invalidFormat(normalized));
     }
 
     return Result.ok(new EmailValueObject({ value: normalized }));

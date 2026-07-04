@@ -1,6 +1,7 @@
 import {
   EmailValueObject,
   PasswordHashValueObject,
+  StatusValueObject,
   UserEntity,
   UserIdentifierValueObject,
 } from "@architecture/identity/domain";
@@ -31,11 +32,20 @@ export const UserMapper = {
       throw new InvalidPersistenceDataError("User", "id", row.id);
     }
 
+    const status = StatusValueObject.create(row.status);
+    if (!status.success) {
+      throw new InvalidPersistenceDataError("User", "status", row.status);
+    }
+
     return UserEntity.rehydrate({
       identifier: identifier.value,
       email: email.value,
       password: password.value,
-    });
+      status: status.value,
+      isEmailVerified: row.is_email_verified,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
+    } as any);
   },
 
   toPersistence(user: UserEntity): UserRow {
@@ -43,6 +53,10 @@ export const UserMapper = {
       id: user.identifier.value,
       email: user.email.value,
       password_hash: user.password.value,
+      status: user.status.value,
+      is_email_verified: user.isEmailVerified,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
     };
   },
 };
