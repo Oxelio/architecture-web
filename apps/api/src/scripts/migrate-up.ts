@@ -1,14 +1,13 @@
 // apps/api/src/scripts/migrate-up.ts
 
-import { config } from "dotenv";
 import { Migrator } from "kysely/migration";
-
 import { createDatabase } from "../composition-root/database.container.js";
 import { getAllMigrations } from "./migrations.provider.js";
+import { loadConfig } from "../config/app.config.js";
 
-config({ path: new URL("../../.env", import.meta.url) });
+const config = loadConfig();
 
-const db = createDatabase();
+const db = createDatabase(config.database);
 
 const migrator = new Migrator({
   db,

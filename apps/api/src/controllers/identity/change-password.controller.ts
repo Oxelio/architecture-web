@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ChangePasswordUseCase } from "@architecture/identity/application";
-import { ChangePasswordPresenter } from "../presentation/change-password.presenter.js";
+import { ChangePasswordPresenter } from "#presentation/change-password.presenter";
 
 interface AuthenticatedRequest extends FastifyRequest {
   auth: {

@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ChangeEmailUseCase } from "@architecture/identity/application";
-import { ChangeEmailPresenter } from "../presentation/change-email.presenter.js";
+import { ChangeEmailPresenter } from "#presentation/change-email.presenter";
 
 interface AuthenticatedRequest extends FastifyRequest {
   auth: {

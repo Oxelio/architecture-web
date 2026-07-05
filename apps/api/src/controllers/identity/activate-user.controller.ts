@@ -1,6 +1,8 @@
+// apps/api/src/controllers/identity/activate-user.controller.ts
+
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ActivateUserUseCase } from "@architecture/identity/application";
-import { ActivateUserPresenter } from "../presentation/activate-user.presenter.js";
+import { ActivateUserPresenter } from "#presentation/activate-user.presenter";
 
 interface RouteParams {
   userId: string;

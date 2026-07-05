@@ -2,7 +2,7 @@
 
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { GetUserProfileUseCase } from "@architecture/identity/application";
-import { GetUserProfilePresenter } from "../presentation/get-user-profile.presenter.js";
+import { GetUserProfilePresenter } from "#presentation/get-user-profile.presenter";
 
 interface AuthenticatedRequest extends FastifyRequest {
   auth: {

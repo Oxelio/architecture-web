@@ -1,14 +1,12 @@
 // apps/api/src/scripts/migrate-reset.ts
 
-import { config } from "dotenv";
-
 import { createDatabase } from "../composition-root/database.container.js";
 import { getAllMigrations } from "./migrations.provider.js";
 import { Migrator } from "kysely/migration";
+import { loadConfig } from "../config/app.config.js";
 
-config({ path: new URL("../../.env", import.meta.url) });
-
-const db = createDatabase();
+const config = loadConfig();
+const db = createDatabase(config.database);
 
 console.log("💣 Dropping all tables...");
 

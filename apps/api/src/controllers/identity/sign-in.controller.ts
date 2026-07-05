@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { CookieSerializeOptions } from "@fastify/cookie";
 import type { SignInUseCase } from "@architecture/identity/application";
-import { SignInPresenter } from "../presentation/sign-in.presenter.js";
+import { SignInPresenter } from "#presentation/sign-in.presenter";
 
 export interface SessionCookieOptions {
   name: string;

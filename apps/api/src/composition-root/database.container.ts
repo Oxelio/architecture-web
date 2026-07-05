@@ -1,30 +1,21 @@
-// src/composition-root/database.ts
+// apps/api/src/composition-root/database.container.ts
 
 import { Kysely, PostgresDialect } from "kysely";
 import type { IdentityDatabase } from "@architecture/identity-persistence-kysely";
 import { Pool } from "pg";
+import type { AppConfig } from "../config/app.config.js";
 
 export type AppDatabase = IdentityDatabase;
 
-export function createDatabase() {
-  const host = process.env["DATABASE_HOST"];
-  const port = process.env["DATABASE_PORT"];
-  const database = process.env["DATABASE_NAME"];
-  const user = process.env["DATABASE_USER"];
-  const password = process.env["DATABASE_PASSWORD"];
-
-  if (!host || !port || !database || !user || !password) {
-    throw new Error("Database environment variables are missing");
-  }
-
+export function createDatabase(dbConfig: AppConfig["database"]) {
   return new Kysely<AppDatabase>({
     dialect: new PostgresDialect({
       pool: new Pool({
-        host,
-        port: Number(port),
-        database,
-        user,
-        password,
+        host: dbConfig.host,
+        port: dbConfig.port,
+        database: dbConfig.name,
+        user: dbConfig.user,
+        password: dbConfig.password,
       }),
     }),
   });

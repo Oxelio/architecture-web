@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { VerifyEmailUseCase } from "@architecture/identity/application";
-import { VerifyEmailPresenter } from "../presentation/verify-email.presenter.js";
+import { VerifyEmailPresenter } from "#presentation/verify-email.presenter";
 
 export function buildVerifyEmailController(useCase: VerifyEmailUseCase) {
   return {

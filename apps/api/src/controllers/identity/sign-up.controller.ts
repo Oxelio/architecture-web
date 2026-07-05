@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { SignUpUseCase } from "@architecture/identity/application";
-import { SignUpPresenter } from "../presentation/sign-up.presenter.js";
+import { SignUpPresenter } from "#presentation/sign-up.presenter";
 
 export function buildSignUpController(useCase: SignUpUseCase) {
   return {

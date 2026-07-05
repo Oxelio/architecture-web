@@ -1,6 +1,5 @@
 import type { ChangeEmailError } from "@architecture/identity/application";
-import type { HttpError } from "./http-error.js";
-import type { HttpSuccess } from "./http-success.js";
+import type { HttpError, HttpSuccess } from "./http.types.js";
 
 export const ChangeEmailPresenter = {
   toSuccessHttp(): HttpSuccess<{}> {

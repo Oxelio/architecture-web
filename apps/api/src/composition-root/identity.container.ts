@@ -1,4 +1,4 @@
-// src/composition-root/identity.container.ts
+// apps/api/src/composition-root/identity.container.ts
 
 import { Redis } from "ioredis";
 import {
@@ -22,6 +22,7 @@ import { Argon2PasswordHasherAdapter } from "@architecture/identity-password-arg
 import type { Kysely } from "kysely";
 import type { AppDatabase } from "./database.container.js";
 import { NodemailerEmailSenderAdapter } from "@architecture/identity-email-nodemailer";
+import type { AppConfig } from "../config/app.config.js";
 
 export interface IdentityContainer {
   readonly signUp: SignUpUseCase;
@@ -36,18 +37,22 @@ export interface IdentityContainer {
   readonly suspendUser: SuspendUserUseCase;
 }
 
-export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
+export function buildIdentityContainer(
+  db: Kysely<AppDatabase>,
+  redis: Redis,
+  config: AppConfig,
+) {
   // infrastructure
   const passwordHasher = new Argon2PasswordHasherAdapter();
   const user = new KyselyUserAdapter(db);
   const emailVerification = new KyselyEmailVerificationAdapter(db);
   const emailSender = new NodemailerEmailSenderAdapter(
-    process.env["SMTP_HOST"] ?? "localhost",
-    Number(process.env["SMTP_PORT"] ?? 587),
-    process.env["SMTP_USERNAME"] ?? "user",
-    process.env["SMTP_PASSWORD"] ?? "user",
-    process.env["SMTP_FROM_ADDRESS"] ?? "no-reply@example.com",
-    process.env["APP_URL"] ?? "http://localhost:3000/v1/identity",
+    config.smtp.host,
+    config.smtp.port,
+    config.smtp.username,
+    config.smtp.password,
+    config.smtp.from,
+    config.smtp.appUrl,
   );
   const session = new RedisSessionAdapter(redis);
 

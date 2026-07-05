@@ -27,18 +27,19 @@
     }
   },
   "imports": {
-    "#composition-root/*": "./composition-root/*.js",
-    "#controllers/*": "./controllers/*.js",
-    "#routes/*": "./routes/*.js",
-    "#presentation/*": "./presentation/*.js"
+    "#composition-root/*": "./src/composition-root/*.js",
+    "#controllers/*": "./src/controllers/*.js",
+    "#routes/*": "./src/routes/*.js",
+    "#presentation/*": "./src/presentation/*.js",
+    "#schema/*": "./src/schema/*.js"
   },
   "type": "module",
   "dependencies": {
     "@architecture/identity": "workspace:*",
-    "@architecture/identity-persistence-kysely": "workspace:*",
-    "@architecture/identity-password-argon2": "workspace:*",
-    "@architecture/identity-session-redis": "workspace:*",
     "@architecture/identity-email-nodemailer": "workspace:*",
+    "@architecture/identity-password-argon2": "workspace:*",
+    "@architecture/identity-persistence-kysely": "workspace:*",
+    "@architecture/identity-session-redis": "workspace:*",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
     "dotenv": "^17.4.2",
@@ -46,7 +47,8 @@
     "fastify-plugin": "^6.0.0",
     "ioredis": "^5.11.1",
     "kysely": "^0.29.2",
-    "pg": "^8.21.0"
+    "pg": "^8.21.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { SuspendUserUseCase } from "@architecture/identity/application";
-import { SuspendUserPresenter } from "../presentation/suspend-user.presenter.js";
+import { SuspendUserPresenter } from "#presentation/suspend-user.presenter";
 
 interface RouteParams {
   userId: string;
