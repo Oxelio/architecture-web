@@ -1,14 +1,18 @@
 import type { SessionPort } from "#application/ports/session.port";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 
 export interface SignOutInput {
   sessionId: string;
 }
 
-export interface SignOutError {
-  kind: "invalid_session_id";
-}
+const SignOutErrors = {
+  invalidSessionId: {
+    kind: "invalid_session_id",
+  },
+} as const;
+
+export type SignOutError = ErrorOf<typeof SignOutErrors>;
 
 export type SignOutResult = Result<void, SignOutError>;
 
@@ -17,12 +21,12 @@ export class SignOutUseCase {
 
   async execute(payload: SignOutInput): Promise<SignOutResult> {
     if (!payload.sessionId) {
-      return Result.failure({ kind: "invalid_session_id" });
+      return Result.failure(SignOutErrors.invalidSessionId);
     }
 
     const sessionId = SessionIdentifierValueObject.create(payload.sessionId);
     if (!sessionId.success) {
-      return Result.failure({ kind: "invalid_session_id" });
+      return Result.failure(SignOutErrors.invalidSessionId);
     }
 
     await this.sessionPort.delete(sessionId.value);

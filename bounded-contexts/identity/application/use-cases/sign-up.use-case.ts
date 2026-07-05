@@ -1,11 +1,12 @@
 // bounded-contexts/identity/application/features/register-user/register-user.use-case.ts
 
+import { v4 as uuidv4 } from "uuid";
 import type { PasswordHasherPort } from "#ports/password-hasher.port";
 import type { UserPort } from "#ports/user.port";
 import type { EmailSenderPort } from "#ports/email-sender.port";
 import type { EmailVerificationPort } from "#ports/email-verification.port";
 import { UserEntity } from "#entities/user.entity";
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 import {
   EmailValueObject,
   type EmailError,
@@ -20,12 +21,16 @@ export interface SignUpInput {
   password: string;
 }
 
+const SignUpErrors = {
+  userAlreadyExists: {
+    kind: "user.already_exists",
+  },
+} as const;
+
 export type SignUpError =
   | EmailError
   | PlainPasswordError
-  | {
-      kind: "user.already_exists";
-    };
+  | ErrorOf<typeof SignUpErrors>;
 
 export interface SignUpResponse {
   userId: string;
@@ -49,9 +54,7 @@ export class SignUpUseCase {
 
     const existingUser = await this.user.findByEmail(email.value);
     if (existingUser) {
-      return Result.failure({
-        kind: "user.already_exists",
-      });
+      return Result.failure(SignUpErrors.userAlreadyExists);
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
@@ -66,11 +69,8 @@ export class SignUpUseCase {
       password: hashedPassword,
     });
 
-    // persist user as pending (not verified)
     await this.user.save(user);
 
-    // generate token, store and send verification email
-    const { v4: uuidv4 } = await import("uuid");
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h
 

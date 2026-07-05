@@ -11,13 +11,13 @@ export interface SignInInput {
   password: string;
 }
 
-export const SignInErrors = {
+const SignInErrors = {
   invalidCredentials: {
-    kind: "invalid_credentials",
+    kind: "user.invalid_credentials",
   },
 
   userSuspended: {
-    kind: "user_suspended",
+    kind: "user.suspended",
   },
 } as const;
 
@@ -41,19 +41,19 @@ export class SignInUseCase {
   async execute(payload: SignInInput): Promise<SignInResult> {
     const email = EmailValueObject.create(payload.email);
     if (!email.success) {
-      return this.invalidCredentials();
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
     if (!password.success) {
-      return this.invalidCredentials();
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const user = await this.user.findByEmail(email.value);
     if (!user) {
       await this.password.fakeVerify(); // Timing attack prevention
 
-      return this.invalidCredentials();
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const passwordVerified = await this.password.verify(
@@ -61,11 +61,11 @@ export class SignInUseCase {
       user.password,
     );
     if (!passwordVerified) {
-      return this.invalidCredentials();
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     if (user.status.isSuspended()) {
-      return this.userSuspended();
+      return Result.failure(SignInErrors.userSuspended);
     }
 
     const sessionEntity = SessionEntity.createForUser({
@@ -78,13 +78,5 @@ export class SignInUseCase {
       sessionId: sessionEntity.identifier.value,
       sessionExpiresAt: sessionEntity.expiresAt,
     });
-  }
-
-  private invalidCredentials(): SignInResult {
-    return Result.failure(SignInErrors.invalidCredentials);
-  }
-
-  private userSuspended(): SignInResult {
-    return Result.failure(SignInErrors.userSuspended);
   }
 }

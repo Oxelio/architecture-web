@@ -1,14 +1,18 @@
 import type { UserPort } from "#application/ports/user.port";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 
 export interface GetUserProfileInput {
   userId: string;
 }
 
-export interface GetUserProfileError {
-  kind: "not_found";
-}
+const GetUserProfileErrors = {
+  notFound: {
+    kind: "user.not_found",
+  },
+} as const;
+
+export type GetUserProfileError = ErrorOf<typeof GetUserProfileErrors>;
 
 export interface GetUserProfileResponse {
   userId: string;
@@ -21,22 +25,19 @@ export type GetUserProfileResult = Result<
 >;
 
 export class GetUserProfileUseCase {
-  constructor(private readonly userPort: UserPort) {}
+  constructor(private readonly user: UserPort) {}
 
-  async execute(command: GetUserProfileInput): Promise<GetUserProfileResult> {
-    const userIdentifier = UserIdentifierValueObject.create(command.userId);
+  public async execute(
+    payload: GetUserProfileInput,
+  ): Promise<GetUserProfileResult> {
+    const userIdentifier = UserIdentifierValueObject.create(payload.userId);
     if (!userIdentifier.success) {
-      return Result.failure({
-        kind: "not_found",
-      });
+      return Result.failure(GetUserProfileErrors.notFound);
     }
 
-    const user = await this.userPort.findById(userIdentifier.value);
-
+    const user = await this.user.findById(userIdentifier.value);
     if (!user) {
-      return Result.failure({
-        kind: "not_found",
-      });
+      return Result.failure(GetUserProfileErrors.notFound);
     }
 
     return Result.ok({

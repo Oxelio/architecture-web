@@ -1,6 +1,6 @@
 import type { UserPort } from "#application/ports/user.port";
 import type { PasswordHasherPort } from "#application/ports/password-hasher.port";
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 import {
   PasswordPlainValueObject,
   type PlainPasswordError,
@@ -12,9 +12,17 @@ export interface ChangePasswordInput {
   password: string;
 }
 
-export type ChangePasswordError = PlainPasswordError | { kind: "not_found" };
+const ChangePasswordErrors = {
+  notFound: {
+    kind: "user.not_found",
+  },
+} as const;
 
-export type ChangePasswordResult = Result<{}, ChangePasswordError>;
+export type ChangePasswordError =
+  | PlainPasswordError
+  | ErrorOf<typeof ChangePasswordErrors>;
+
+export type ChangePasswordResult = Result<void, ChangePasswordError>;
 
 export class ChangePasswordUseCase {
   constructor(
@@ -22,21 +30,27 @@ export class ChangePasswordUseCase {
     private readonly passwordHasher: PasswordHasherPort,
   ) {}
 
-  async execute(command: ChangePasswordInput): Promise<ChangePasswordResult> {
-    const userId = UserIdentifierValueObject.create(command.userId);
-    if (!userId.success) return Result.failure({ kind: "not_found" });
-
-    const password = PasswordPlainValueObject.create(command.password);
-    if (!password.success) return Result.failure(password.error);
+  async execute(payload: ChangePasswordInput): Promise<ChangePasswordResult> {
+    const userId = UserIdentifierValueObject.create(payload.userId);
+    if (!userId.success) {
+      return Result.failure(ChangePasswordErrors.notFound);
+    }
 
     const user = await this.userPort.findById(userId.value);
-    if (!user) return Result.failure({ kind: "not_found" });
+    if (!user) {
+      return Result.failure(ChangePasswordErrors.notFound);
+    }
+
+    const password = PasswordPlainValueObject.create(payload.password);
+    if (!password.success) {
+      return Result.failure(password.error);
+    }
 
     const hashed = await this.passwordHasher.hash(password.value);
 
     user.changePassword(hashed);
     await this.userPort.save(user);
 
-    return Result.ok({});
+    return Result.ok();
   }
 }

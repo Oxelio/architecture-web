@@ -2,7 +2,7 @@
 
 import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
 
-export const EmailErrors = {
+const EmailErrors = {
   empty: {
     kind: "email.empty",
   },

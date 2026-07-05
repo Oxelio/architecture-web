@@ -1,19 +1,16 @@
-import { ValueObject, Result } from "@architecture/foundation";
+import { ValueObject, Result, type ErrorOf } from "@architecture/foundation";
 
-type StatusError =
-  | { readonly kind: "status.empty" }
-  | { readonly kind: "status.invalid"; readonly value: string };
-
-const StatusErrorFactory = {
-  empty: (): StatusError => ({
+const StatusErrors = {
+  empty: {
     kind: "status.empty",
-  }),
-
-  invalid: (value: string): StatusError => ({
+  },
+  invalid: (value: string) => ({
     kind: "status.invalid",
     value,
   }),
 } as const;
+
+export type StatusError = ErrorOf<typeof StatusErrors>;
 
 type UserStatusType = "active" | "suspended" | "pending";
 
@@ -22,43 +19,43 @@ interface StatusProperties {
 }
 
 export class StatusValueObject extends ValueObject<StatusProperties> {
-  static active(): StatusValueObject {
+  public get value(): UserStatusType {
+    return this.properties.value;
+  }
+
+  public static active(): StatusValueObject {
     return new StatusValueObject({ value: "active" });
   }
 
-  static suspended(): StatusValueObject {
+  public static suspended(): StatusValueObject {
     return new StatusValueObject({ value: "suspended" });
   }
 
-  static pending(): StatusValueObject {
+  public static pending(): StatusValueObject {
     return new StatusValueObject({ value: "pending" });
   }
 
-  static create(value: string): Result<StatusValueObject, StatusError> {
+  public static create(value: string): Result<StatusValueObject, StatusError> {
     if (!value) {
-      return Result.failure(StatusErrorFactory.empty());
+      return Result.failure(StatusErrors.empty);
     }
 
     if (!["active", "suspended", "pending"].includes(value)) {
-      return Result.failure(StatusErrorFactory.invalid(value));
+      return Result.failure(StatusErrors.invalid(value));
     }
 
     return Result.ok(new StatusValueObject({ value: value as UserStatusType }));
   }
 
-  get value(): UserStatusType {
-    return this.properties.value;
-  }
-
-  isActive(): boolean {
+  public isActive(): boolean {
     return this.properties.value === "active";
   }
 
-  isSuspended(): boolean {
+  public isSuspended(): boolean {
     return this.properties.value === "suspended";
   }
 
-  isPending(): boolean {
+  public isPending(): boolean {
     return this.properties.value === "pending";
   }
 }

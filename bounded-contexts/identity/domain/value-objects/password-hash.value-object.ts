@@ -1,12 +1,15 @@
-import { Result, ValueObject } from "@architecture/foundation";
+import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
 
-interface HashedPasswordError {
-  readonly kind: "hashed_password.empty";
-}
-
-const HashedPasswordError = {
-  empty: (): HashedPasswordError => ({ kind: "hashed_password.empty" }),
+const HashedPasswordErrors = {
+  empty: {
+    kind: "hashed_password.empty",
+  },
+  invalidCharacters: {
+    kind: "hashed_password.invalid_characters",
+  },
 } as const;
+
+export type HashedPasswordError = ErrorOf<typeof HashedPasswordErrors>;
 
 export class PasswordHashValueObject extends ValueObject<{ value: string }> {
   get value(): string {
@@ -16,9 +19,18 @@ export class PasswordHashValueObject extends ValueObject<{ value: string }> {
   static create(
     value: string,
   ): Result<PasswordHashValueObject, HashedPasswordError> {
-    if (!value) {
-      return Result.failure(HashedPasswordError.empty());
+    if (value.length === 0) {
+      return Result.failure(HashedPasswordErrors.empty);
     }
-    return Result.ok(new PasswordHashValueObject({ value }));
+
+    if (/[\r\n\t]/.test(value)) {
+      return Result.failure(HashedPasswordErrors.invalidCharacters);
+    }
+
+    return Result.ok(
+      new PasswordHashValueObject({
+        value: value,
+      }),
+    );
   }
 }

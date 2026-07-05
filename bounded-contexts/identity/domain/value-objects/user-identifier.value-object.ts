@@ -1,25 +1,20 @@
 import { v7 as uuid, validate, version } from "uuid";
-import { Identifier, Result } from "@architecture/foundation";
+import { Identifier, Result, type ErrorOf } from "@architecture/foundation";
 
-type UserIdentifierError =
-  | { readonly kind: "user_identifier.empty" }
-  | { readonly kind: "user_identifier.invalid_uuid" }
-  | { readonly kind: "user_identifier.invalid_version"; readonly expected: 7 };
-
-const UserIdentifierError = {
-  empty: (): UserIdentifierError => ({
+const UserIdentifierErrors = {
+  empty: {
     kind: "user_identifier.empty",
-  }),
-
-  invalidUuid: (): UserIdentifierError => ({
+  },
+  invalidUuid: {
     kind: "user_identifier.invalid_uuid",
-  }),
-
-  invalidVersion: (): UserIdentifierError => ({
+  },
+  invalidVersion: (expected: number) => ({
     kind: "user_identifier.invalid_version",
-    expected: 7,
+    expected,
   }),
 } as const;
+
+export type UserIdentifierError = ErrorOf<typeof UserIdentifierErrors>;
 
 export class UserIdentifierValueObject extends Identifier {
   public static generate(): UserIdentifierValueObject {
@@ -32,15 +27,15 @@ export class UserIdentifierValueObject extends Identifier {
     value: string,
   ): Result<UserIdentifierValueObject, UserIdentifierError> {
     if (!value) {
-      return Result.failure(UserIdentifierError.empty());
+      return Result.failure(UserIdentifierErrors.empty);
     }
 
     if (!validate(value)) {
-      return Result.failure(UserIdentifierError.invalidUuid());
+      return Result.failure(UserIdentifierErrors.invalidUuid);
     }
 
     if (version(value) !== 7) {
-      return Result.failure(UserIdentifierError.invalidVersion());
+      return Result.failure(UserIdentifierErrors.invalidVersion(7));
     }
 
     return Result.ok(

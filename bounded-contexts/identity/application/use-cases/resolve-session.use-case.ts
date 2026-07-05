@@ -1,4 +1,4 @@
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 import type { SessionPort } from "#application/ports/session.port";
 import type { UserPort } from "#application/ports/user.port";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
@@ -7,9 +7,13 @@ export interface ResolveSessionInput {
   sessionId: string;
 }
 
-export interface ResolveSessionError {
-  kind: "unauthorized";
-}
+const ResolveSessionErrors = {
+  unauthorized: {
+    kind: "session.unauthorized",
+  },
+} as const;
+
+export type ResolveSessionError = ErrorOf<typeof ResolveSessionErrors>;
 
 export interface ResolveSessionResponse {
   userId: string;
@@ -29,23 +33,23 @@ export class ResolveSessionUseCase {
 
   async execute(payload: ResolveSessionInput): Promise<ResolveSessionResult> {
     if (!payload.sessionId) {
-      return Result.failure({ kind: "unauthorized" });
+      return Result.failure(ResolveSessionErrors.unauthorized);
     }
 
     const sessionId = SessionIdentifierValueObject.create(payload.sessionId);
     if (!sessionId.success) {
-      return Result.failure({ kind: "unauthorized" });
+      return Result.failure(ResolveSessionErrors.unauthorized);
     }
 
     const session = await this.sessionPort.findById(sessionId.value);
     if (!session || session.isExpired()) {
-      return Result.failure({ kind: "unauthorized" });
+      return Result.failure(ResolveSessionErrors.unauthorized);
     }
 
     const user = await this.userPort.findById(session.userId);
 
     if (!user) {
-      return Result.failure({ kind: "unauthorized" });
+      return Result.failure(ResolveSessionErrors.unauthorized);
     }
 
     return Result.ok({

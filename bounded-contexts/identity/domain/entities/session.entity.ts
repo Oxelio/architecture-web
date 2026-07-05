@@ -1,7 +1,6 @@
 import { Entity } from "@architecture/foundation";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import { SessionPolicy } from "#policies/session.policy";
 
 interface SessionProperties {
   readonly identifier: SessionIdentifierValueObject;
@@ -14,31 +13,33 @@ interface SessionPropertiesCreationProperties {
 }
 
 export class SessionEntity extends Entity<SessionProperties> {
-  static createForUser(properties: SessionPropertiesCreationProperties) {
+  private static readonly SESSION_LIFETIME_MINUTES = 60;
+
+  public static createForUser(properties: SessionPropertiesCreationProperties) {
     return new SessionEntity({
-      ...properties,
-      expiresAt: SessionPolicy.expiresAt(),
+      userId: properties.userId,
+      expiresAt: SessionEntity.expirationDate(),
       identifier: SessionIdentifierValueObject.generate(),
     });
   }
 
-  static rehydrate(props: SessionProperties) {
+  public static rehydrate(props: SessionProperties) {
     return new SessionEntity(props);
   }
 
-  get userId(): UserIdentifierValueObject {
+  public get userId(): UserIdentifierValueObject {
     return this.props.userId;
   }
 
-  get expiresAt(): Date {
+  public get expiresAt(): Date {
     return this.props.expiresAt;
   }
 
-  isExpired(): boolean {
+  public isExpired(): boolean {
     return this.props.expiresAt.getTime() <= Date.now();
   }
 
-  isValid(): boolean {
-    return !this.isExpired();
+  private static expirationDate(): Date {
+    return new Date(Date.now() + this.SESSION_LIFETIME_MINUTES * 60 * 1000);
   }
 }

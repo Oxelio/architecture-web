@@ -20,7 +20,7 @@ interface UserCreationProperties {
 }
 
 export class UserEntity extends Entity<UserProperties> {
-  static create(properties: UserCreationProperties): UserEntity {
+  public static create(properties: UserCreationProperties): UserEntity {
     const now = new Date();
 
     return new UserEntity({
@@ -34,7 +34,7 @@ export class UserEntity extends Entity<UserProperties> {
     });
   }
 
-  static rehydrate(props: UserProperties): UserEntity {
+  public static rehydrate(props: UserProperties): UserEntity {
     return new UserEntity(props);
   }
 
@@ -42,28 +42,16 @@ export class UserEntity extends Entity<UserProperties> {
   // Getters
   // ------------------------
 
-  get email(): EmailValueObject {
+  public get email(): EmailValueObject {
     return this.props.email;
   }
 
-  get password(): PasswordHashValueObject {
+  public get password(): PasswordHashValueObject {
     return this.props.password;
   }
 
-  get status(): StatusValueObject {
+  public get status(): StatusValueObject {
     return this.props.status;
-  }
-
-  get isEmailVerified(): boolean {
-    return this.props.isEmailVerified;
-  }
-
-  get createdAt(): Date {
-    return this.props.createdAt;
-  }
-
-  get updatedAt(): Date {
-    return this.props.updatedAt;
   }
 
   // ------------------------

@@ -1,28 +1,20 @@
 import { v7 as uuid, validate, version } from "uuid";
-import { Identifier, Result } from "@architecture/foundation";
+import { Identifier, Result, type ErrorOf } from "@architecture/foundation";
 
-export type SessionIdentifierError =
-  | { readonly kind: "session_identifier.empty" }
-  | { readonly kind: "session_identifier.invalid_uuid" }
-  | {
-      readonly kind: "session_identifier.invalid_version";
-      readonly expected: 7;
-    };
-
-const SessionIdentifierError = {
-  empty: (): SessionIdentifierError => ({
+const SessionIdentifierErrors = {
+  empty: {
     kind: "session_identifier.empty",
-  }),
-
-  invalidUuid: (): SessionIdentifierError => ({
+  },
+  invalidUuid: {
     kind: "session_identifier.invalid_uuid",
-  }),
-
-  invalidVersion: (): SessionIdentifierError => ({
+  },
+  invalidVersion: (expected: number) => ({
     kind: "session_identifier.invalid_version",
-    expected: 7,
+    expected,
   }),
 } as const;
+
+export type SessionIdentifierError = ErrorOf<typeof SessionIdentifierErrors>;
 
 export class SessionIdentifierValueObject extends Identifier {
   static generate(): SessionIdentifierValueObject {
@@ -35,15 +27,15 @@ export class SessionIdentifierValueObject extends Identifier {
     value: string,
   ): Result<SessionIdentifierValueObject, SessionIdentifierError> {
     if (!value) {
-      return Result.failure(SessionIdentifierError.empty());
+      return Result.failure(SessionIdentifierErrors.empty);
     }
 
     if (!validate(value)) {
-      return Result.failure(SessionIdentifierError.invalidUuid());
+      return Result.failure(SessionIdentifierErrors.invalidUuid);
     }
 
     if (version(value) !== 7) {
-      return Result.failure(SessionIdentifierError.invalidVersion());
+      return Result.failure(SessionIdentifierErrors.invalidVersion(7));
     }
 
     return Result.ok(
