@@ -8,6 +8,10 @@ import {
   SignUpUseCase,
   VerifyEmailUseCase,
   ResolveSessionUseCase,
+  ChangeEmailUseCase,
+  ChangePasswordUseCase,
+  ActivateUserUseCase,
+  SuspendUserUseCase,
 } from "@architecture/identity/application";
 import { RedisSessionAdapter } from "@architecture/identity-session-redis";
 import {
@@ -26,6 +30,10 @@ export interface IdentityContainer {
   readonly resolveSession: ResolveSessionUseCase;
   readonly getUserProfile: GetUserProfileUseCase;
   readonly verifyEmail: VerifyEmailUseCase;
+  readonly changeEmail: ChangeEmailUseCase;
+  readonly changePassword: ChangePasswordUseCase;
+  readonly activateUser: ActivateUserUseCase;
+  readonly suspendUser: SuspendUserUseCase;
 }
 
 export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
@@ -55,6 +63,10 @@ export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
   const resolveSession = new ResolveSessionUseCase(session, user);
   const getUserProfile = new GetUserProfileUseCase(user);
   const verifyEmail = new VerifyEmailUseCase(user, emailVerification);
+  const changeEmail = new ChangeEmailUseCase(user);
+  const changePassword = new ChangePasswordUseCase(user, passwordHasher);
+  const activateUser = new ActivateUserUseCase(user);
+  const suspendUser = new SuspendUserUseCase(user);
 
   return {
     signUp,
@@ -63,5 +75,9 @@ export function buildIdentityContainer(db: Kysely<AppDatabase>, redis: Redis) {
     resolveSession,
     getUserProfile,
     verifyEmail,
+    changeEmail,
+    changePassword,
+    activateUser,
+    suspendUser,
   };
 }

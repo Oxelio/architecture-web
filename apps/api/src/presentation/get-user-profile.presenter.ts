@@ -29,7 +29,7 @@ export const GetUserProfilePresenter = {
   },
 
   toFailureHttp(error: GetUserProfileError): HttpError {
-    if (error.kind === "not_found") {
+    if (error.kind === "user.not_found") {
       return {
         status: 404,
         body: {

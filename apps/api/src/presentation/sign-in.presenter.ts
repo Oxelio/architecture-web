@@ -25,7 +25,7 @@ export const SignInPresenter = {
   },
 
   toFailureHttp(error: SignInError): HttpError {
-    if (error.kind === "invalid_credentials") {
+    if (error.kind === "user.invalid_credentials") {
       return {
         status: 401,
         body: {
@@ -36,7 +36,7 @@ export const SignInPresenter = {
       };
     }
 
-    if (error.kind === "user_suspended") {
+    if (error.kind === "user.suspended") {
       return {
         status: 403,
         body: {
