@@ -20,7 +20,7 @@ const ConfigSchema = z.object({
     username: z.string(),
     password: z.string(),
     from: z.string(),
-    appUrl: z.string().url(),
+    verifyUrl: z.url(),
   }),
 });
 
@@ -45,7 +45,7 @@ export function loadConfig(): AppConfig {
       username: process.env["SMTP_USERNAME"],
       password: process.env["SMTP_PASSWORD"],
       from: process.env["SMTP_FROM_ADDRESS"],
-      appUrl: process.env["APP_URL"],
+      verifyUrl: process.env["SMTP_VERIFY_URL"],
     },
   });
 }

@@ -15,6 +15,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts \
     && pnpm --filter @architecture/identity-persistence-kysely build \
     && pnpm --filter @architecture/identity-password-argon2 build \
     && pnpm --filter @architecture/identity-session-redis build \
+    && pnpm --filter @architecture/identity-email-nodemailer build \
     && pnpm --filter api build
 
 FROM node:26-alpine AS production
@@ -37,6 +38,7 @@ COPY --from=build /repo/bounded-contexts/identity/dist /app/node_modules/@archit
 COPY --from=build /repo/infrastructure/identity/persitence/kysely/dist /app/node_modules/@architecture/identity-persistence-kysely/dist
 COPY --from=build /repo/infrastructure/identity/security/argon2/dist /app/node_modules/@architecture/identity-password-argon2/dist
 COPY --from=build /repo/infrastructure/identity/session/redis/dist /app/node_modules/@architecture/identity-session-redis/dist
+COPY --from=build /repo/infrastructure/identity/email/nodemailer/dist /app/node_modules/@architecture/identity-email-nodemailer/dist
 RUN chown -R node:node /app
 USER node
 WORKDIR /app

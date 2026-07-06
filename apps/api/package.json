@@ -18,7 +18,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "MIT",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
@@ -27,11 +26,11 @@
     }
   },
   "imports": {
-    "#composition-root/*": "./src/composition-root/*.js",
-    "#controllers/*": "./src/controllers/*.js",
-    "#routes/*": "./src/routes/*.js",
-    "#presentation/*": "./src/presentation/*.js",
-    "#schema/*": "./src/schema/*.js"
+    "#controllers/*": "./dist/controllers/*.js",
+    "#routes/*": "./dist/routes/*.js",
+    "#presentation/*": "./dist/presentation/*.js",
+    "#composition-root/*": "./dist/composition-root/*.js",
+    "#schema/*": "./dist/schema/*.js"
   },
   "type": "module",
   "dependencies": {

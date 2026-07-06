@@ -56,10 +56,10 @@ services:
       WEB_ORIGIN: http://localhost:5173
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
-      SMTP_USER: user
+      SMTP_USERNAME: user
       SMTP_PASSWORD: user
-      SMTP_FROM: no-reply@architecture.local
-      APP_URL: http://localhost:3000/v1/identity
+      SMTP_FROM_ADDRESS: no-reply@architecture.local
+      SMTP_VERIFY_URL: http://localhost:3000/v1/identity
     ports:
       - "3000:3000"
 

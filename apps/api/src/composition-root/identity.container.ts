@@ -52,7 +52,7 @@ export function buildIdentityContainer(
     config.smtp.username,
     config.smtp.password,
     config.smtp.from,
-    config.smtp.appUrl,
+    config.smtp.verifyUrl,
   );
   const session = new RedisSessionAdapter(redis);
 
