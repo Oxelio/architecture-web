@@ -39,6 +39,10 @@ export class SessionEntity extends Entity<SessionProperties> {
     return this.props.expiresAt.getTime() <= Date.now();
   }
 
+  public isValid(): boolean {
+    return !this.isExpired();
+  }
+
   private static expirationDate(): Date {
     return new Date(Date.now() + this.SESSION_LIFETIME_MINUTES * 60 * 1000);
   }

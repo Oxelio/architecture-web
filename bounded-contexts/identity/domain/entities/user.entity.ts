@@ -54,6 +54,18 @@ export class UserEntity extends Entity<UserProperties> {
     return this.props.status;
   }
 
+  public get isEmailVerified(): boolean {
+    return this.props.isEmailVerified;
+  }
+
+  public get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  public get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
   // ------------------------
   // Business logic
   // ------------------------
