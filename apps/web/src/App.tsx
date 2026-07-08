@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -103,54 +102,44 @@ function App() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -18 }}
-            transition={{ duration: 0.24, ease: "easeOut" }}
-          >
-            <Suspense
-              fallback={
-                <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-10 text-center text-slate-300">
-                  {t("common.loading")}
-                </div>
+        <Suspense
+          fallback={
+            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-10 text-center text-slate-300">
+              {t("common.loading")}
+            </div>
+          }
+        >
+          <Routes location={location}>
+            <Route
+              path="/"
+              element={<HomePage user={user} loading={isLoading} />}
+            />
+            <Route
+              path="/signin"
+              element={
+                user ? <Navigate to="/profile" replace /> : <SignInPage />
               }
-            >
-              <Routes>
-                <Route
-                  path="/"
-                  element={<HomePage user={user} loading={isLoading} />}
-                />
-                <Route
-                  path="/signin"
-                  element={
-                    user ? <Navigate to="/profile" replace /> : <SignInPage />
-                  }
-                />
-                <Route
-                  path="/signup"
-                  element={
-                    user ? <Navigate to="/profile" replace /> : <SignUpPage />
-                  }
-                />
-                <Route path="/verify" element={<VerifyEmailPage />} />
-                <Route
-                  path="/profile"
-                  element={
-                    user ? (
-                      <ProfilePage user={user} />
-                    ) : (
-                      <Navigate to="/signin" replace />
-                    )
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </motion.div>
-        </AnimatePresence>
+            />
+            <Route
+              path="/signup"
+              element={
+                user ? <Navigate to="/profile" replace /> : <SignUpPage />
+              }
+            />
+            <Route path="/verify" element={<VerifyEmailPage />} />
+            <Route
+              path="/profile"
+              element={
+                user ? (
+                  <ProfilePage user={user} />
+                ) : (
+                  <Navigate to="/signin" replace />
+                )
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );
