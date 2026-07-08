@@ -63,6 +63,21 @@ services:
     ports:
       - "3000:3000"
 
+  web:
+    image: architecture-web-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: architecture-web-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+    ports:
+      - "5173:80"
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: architecture-web-mailpit
