@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import type { CurrentUser } from "../services/api";
 import { changeEmail, changePassword, signOut } from "../services/api";
 
@@ -8,7 +9,8 @@ interface ProfilePageProps {
   user: CurrentUser;
 }
 
-export function ProfilePage({ user }: ProfilePageProps) {
+export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState(user.email);
   const [password, setPassword] = useState("");
   const [serverMessage, setServerMessage] = useState<string | null>(null);
@@ -17,14 +19,14 @@ export function ProfilePage({ user }: ProfilePageProps) {
   const emailMutation = useMutation({
     mutationFn: changeEmail,
     onSuccess: () => {
-      setServerMessage("Adresse e-mail mise à jour avec succès.");
+      setServerMessage(t("profile.successEmail"));
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
     },
     onError: (error: unknown) => {
       setServerMessage(
         error instanceof Error
-          ? `Impossible de mettre à jour l'adresse e-mail : ${error.message}`
-          : "Impossible de mettre à jour l'adresse e-mail.",
+          ? `${t("profile.emailUpdateError")}: ${error.message}`
+          : t("profile.emailUpdateError"),
       );
     },
   });
@@ -32,14 +34,14 @@ export function ProfilePage({ user }: ProfilePageProps) {
   const passwordMutation = useMutation({
     mutationFn: changePassword,
     onSuccess: () => {
-      setServerMessage("Mot de passe modifié avec succès.");
+      setServerMessage(t("profile.successPassword"));
       setPassword("");
     },
     onError: (error: unknown) => {
       setServerMessage(
         error instanceof Error
-          ? `Impossible de modifier le mot de passe : ${error.message}`
-          : "Impossible de modifier le mot de passe.",
+          ? `${t("profile.passwordUpdateError")}: ${error.message}`
+          : t("profile.passwordUpdateError"),
       );
     },
   });
@@ -50,7 +52,7 @@ export function ProfilePage({ user }: ProfilePageProps) {
       queryClient.setQueryData(["currentUser"], null);
     },
     onError: () => {
-      setServerMessage("Impossible de se déconnecter. Réessaie.");
+      setServerMessage(t("profile.signOutError"));
     },
   });
 
@@ -60,7 +62,7 @@ export function ProfilePage({ user }: ProfilePageProps) {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       window.location.assign("/signin");
     } catch {
-      setServerMessage("Impossible de se déconnecter. Réessaie.");
+      setServerMessage(t("profile.signOutError"));
     }
   };
 
@@ -75,20 +77,19 @@ export function ProfilePage({ user }: ProfilePageProps) {
         <div className="space-y-5">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-sky-400/80">
-              Profil utilisateur
+              {t("profile.title")}
             </p>
             <h2 className="mt-3 text-3xl font-semibold text-white">
-              Bienvenue, {user.email}
+              {t("profile.welcome", { email: user.email })}
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300">
-              Voici ton compte. Tu peux mettre à jour ton adresse email, changer
-              ton mot de passe ou te déconnecter.
+              {t("profile.description")}
             </p>
           </div>
 
           <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-6">
             <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
-              Identifiant
+              {t("profile.identifier")}
             </p>
             <p className="mt-3 text-xl font-semibold text-white break-words">
               {user.userId}
@@ -97,7 +98,7 @@ export function ProfilePage({ user }: ProfilePageProps) {
 
           <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-6">
             <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
-              Email
+              {t("profile.email")}
             </p>
             <p className="mt-3 text-xl font-semibold text-white break-words">
               {user.email}
@@ -110,7 +111,9 @@ export function ProfilePage({ user }: ProfilePageProps) {
             className="inline-flex items-center justify-center rounded-full bg-rose-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={signOutMutation.isPending}
           >
-            {signOutMutation.isPending ? "Déconnexion..." : "Se déconnecter"}
+            {signOutMutation.isPending
+              ? t("profile.signOutPending")
+              : t("profile.signOut")}
           </button>
         </div>
 
@@ -119,16 +122,16 @@ export function ProfilePage({ user }: ProfilePageProps) {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
-                  Mettre à jour l'email
+                  {t("profile.updateEmailTitle")}
                 </p>
                 <p className="mt-2 text-sm text-slate-400">
-                  Change ton adresse e-mail de connexion.
+                  {t("profile.updateEmailDescription")}
                 </p>
               </div>
             </div>
             <div className="mt-6 space-y-4">
               <label className="block text-sm font-medium text-slate-200">
-                Nouvelle adresse email
+                {t("profile.newEmail")}
                 <input
                   type="email"
                   value={email}
@@ -143,8 +146,8 @@ export function ProfilePage({ user }: ProfilePageProps) {
                 className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {emailMutation.isPending
-                  ? "Enregistrement..."
-                  : "Mettre à jour l'email"}
+                  ? t("profile.updateEmailPending")
+                  : t("profile.updateEmailSubmit")}
               </button>
             </div>
           </section>
@@ -153,16 +156,16 @@ export function ProfilePage({ user }: ProfilePageProps) {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
-                  Modifier le mot de passe
+                  {t("profile.updatePasswordTitle")}
                 </p>
                 <p className="mt-2 text-sm text-slate-400">
-                  Choisis un mot de passe plus sécurisé.
+                  {t("profile.updatePasswordDescription")}
                 </p>
               </div>
             </div>
             <div className="mt-6 space-y-4">
               <label className="block text-sm font-medium text-slate-200">
-                Nouveau mot de passe
+                {t("profile.newPassword")}
                 <input
                   type="password"
                   value={password}
@@ -177,12 +180,12 @@ export function ProfilePage({ user }: ProfilePageProps) {
                 className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {passwordMutation.isPending
-                  ? "Mise à jour..."
-                  : "Changer le mot de passe"}
+                  ? t("profile.updatePasswordPending")
+                  : t("profile.updatePasswordSubmit")}
               </button>
               {password.length > 0 && password.length < 8 ? (
                 <p className="text-sm text-amber-300">
-                  Le mot de passe doit comporter au moins 8 caractères.
+                  {t("profile.passwordHint")}
                 </p>
               ) : null}
             </div>

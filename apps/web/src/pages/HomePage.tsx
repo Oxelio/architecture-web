@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import type { CurrentUser } from "../services/api";
 
@@ -7,7 +8,27 @@ interface HomePageProps {
   loading: boolean;
 }
 
-export function HomePage({ user, loading }: HomePageProps) {
+export function HomePage({ user, loading }: Readonly<HomePageProps>) {
+  const { t } = useTranslation();
+
+  let primaryActionLabel: string;
+  if (loading) {
+    primaryActionLabel = t("common.loading");
+  } else if (user) {
+    primaryActionLabel = t("home.primaryAction");
+  } else {
+    primaryActionLabel = t("home.primaryActionGuest");
+  }
+
+  let statusText: string;
+  if (loading) {
+    statusText = t("home.statusChecking");
+  } else if (user) {
+    statusText = t("home.statusConnected", { email: user.email });
+  } else {
+    statusText = t("home.statusDisconnected");
+  }
+
   return (
     <div className="space-y-12">
       <motion.section
@@ -18,15 +39,14 @@ export function HomePage({ user, loading }: HomePageProps) {
       >
         <div className="mx-auto max-w-3xl space-y-6 text-center">
           <span className="inline-flex rounded-full bg-gradient-to-r from-sky-500 to-violet-500 px-4 py-1 text-sm font-semibold uppercase tracking-[0.26em] text-white/90 shadow-sm shadow-sky-500/20">
-            Identity platform
+            {t("home.eyebrow")}
           </span>
           <div className="space-y-4">
             <h2 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              Un portail élégant et fiable pour votre authentification.
+              {t("home.heroTitle")}
             </h2>
             <p className="mx-auto max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-              Connecte ton front React à l’API Fastify, avec un design clair,
-              réactif et animé.
+              {t("home.heroSubtitle")}
             </p>
           </div>
 
@@ -35,17 +55,15 @@ export function HomePage({ user, loading }: HomePageProps) {
               to={user ? "/profile" : "/signup"}
               className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110"
             >
-              {loading
-                ? "Chargement..."
-                : user
-                  ? "Voir mon profil"
-                  : "Créer un compte"}
+              {primaryActionLabel}
             </Link>
             <Link
               to={user ? "/profile" : "/signin"}
               className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-950/80 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900"
             >
-              {user ? "Mon espace" : "Connexion"}
+              {user
+                ? t("home.secondaryAction")
+                : t("home.secondaryActionGuest")}
             </Link>
           </div>
         </div>
@@ -54,19 +72,16 @@ export function HomePage({ user, loading }: HomePageProps) {
       <section className="grid gap-6 md:grid-cols-3">
         {[
           {
-            title: "Sécurité robuste",
-            description:
-              "Session cookie, gestion d’erreur claire et validation côté serveur.",
+            title: t("home.featureTitle"),
+            description: t("home.featureDescription"),
           },
           {
-            title: "Expérience fluide",
-            description:
-              "Animations subtiles, chargement optimisé et navigation instantanée.",
+            title: t("home.featureTitleTwo"),
+            description: t("home.featureDescriptionTwo"),
           },
           {
-            title: "Code maintenable",
-            description:
-              "TypeScript, React Query et composants petits et réutilisables.",
+            title: t("home.featureTitleThree"),
+            description: t("home.featureDescriptionThree"),
           },
         ].map((item) => (
           <motion.article
@@ -88,34 +103,29 @@ export function HomePage({ user, loading }: HomePageProps) {
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-sky-400/80">
-              Bienvenue
+              {t("home.sectionEyebrow")}
             </p>
             <h3 className="mt-4 text-3xl font-semibold text-white">
-              Une interface moderne pour ton identité
+              {t("home.sectionTitle")}
             </h3>
             <p className="mt-4 max-w-xl text-base leading-8 text-slate-300">
-              Explore comment un front React bien structuré peut exploiter ton
-              API d’authentification, tout en gardant une UI élégante et
-              accessible.
+              {t("home.sectionDescription")}
             </p>
           </div>
           <div className="rounded-3xl border border-slate-800/90 bg-slate-950/70 p-6">
             <div className="space-y-4 text-slate-200">
               <div>
-                <p className="text-sm uppercase text-slate-500">Statut</p>
-                <p className="mt-2 text-lg font-semibold">
-                  {loading
-                    ? "Vérification en cours"
-                    : user
-                      ? `Connecté en tant que ${user.email}`
-                      : "Non connecté"}
+                <p className="text-sm uppercase text-slate-500">
+                  {t("home.statusLabel")}
                 </p>
+                <p className="mt-2 text-lg font-semibold">{statusText}</p>
               </div>
               <div>
-                <p className="text-sm uppercase text-slate-500">Clé API</p>
+                <p className="text-sm uppercase text-slate-500">
+                  {t("home.apiLabel")}
+                </p>
                 <p className="mt-2 text-sm text-slate-400">
-                  Utilise l’API `GET /identity/me` pour récupérer le profil
-                  utilisateur.
+                  {t("home.apiHelp")}
                 </p>
               </div>
             </div>

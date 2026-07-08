@@ -1,21 +1,27 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { signUp } from "../services/api";
 
-const signUpSchema = z.object({
-  email: z.string().email({ message: "Email invalide" }),
-  password: z
-    .string()
-    .min(8, { message: "Le mot de passe doit contenir au moins 8 caractères" }),
-});
-
-type SignUpFormValues = z.infer<typeof signUpSchema>;
+type SignUpFormValues = {
+  email: string;
+  password: string;
+};
 
 export function SignUpPage() {
+  const { t } = useTranslation();
+  const signUpSchema = useMemo(
+    () =>
+      z.object({
+        email: z.email({ message: t("auth.invalidEmail") }),
+        password: z.string().min(8, { message: t("auth.passwordMin") }),
+      }),
+    [t],
+  );
   const [serverMessage, setServerMessage] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,13 +41,11 @@ export function SignUpPage() {
 
     try {
       await signUp(values);
-      setServerMessage(
-        "Inscription réussie. Vérifie ton email pour activer ton compte.",
-      );
+      setServerMessage(t("auth.signUpSuccess"));
       setTimeout(() => navigate("/signin", { replace: true }), 2500);
     } catch (error) {
       if (error instanceof Error) {
-        setServerError(error.message ?? "Erreur inconnue");
+        setServerError(error.message ?? t("common.unknownError"));
       }
     } finally {
       setIsSubmitting(false);
@@ -57,18 +61,20 @@ export function SignUpPage() {
     >
       <div className="space-y-4 text-center">
         <p className="text-sm uppercase tracking-[0.28em] text-sky-400/80">
-          Inscription
+          {t("nav.signUp")}
         </p>
-        <h2 className="text-3xl font-semibold text-white">Crée ton compte</h2>
+        <h2 className="text-3xl font-semibold text-white">
+          {t("auth.signUpTitle")}
+        </h2>
         <p className="text-sm leading-7 text-slate-400">
-          Enregistre-toi pour accéder à ton espace sécurisé et gérer ton profil.
+          {t("auth.signUpDescription")}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-200">
-            Email
+            {t("common.email")}
             <input
               type="email"
               autoComplete="email"
@@ -83,7 +89,7 @@ export function SignUpPage() {
           </label>
 
           <label className="block text-sm font-medium text-slate-200">
-            Mot de passe
+            {t("common.password")}
             <input
               type="password"
               autoComplete="new-password"
@@ -110,17 +116,17 @@ export function SignUpPage() {
           disabled={isSubmitting}
           className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSubmitting ? "Création..." : "Créer un compte"}
+          {isSubmitting ? t("auth.signUpPending") : t("auth.signUpSubmit")}
         </button>
       </form>
 
       <div className="mt-8 text-center text-sm text-slate-400">
-        Déjà inscrit ?{" "}
+        {t("auth.signUpLinkText")} {""}
         <Link
           to="/signin"
           className="font-semibold text-white hover:text-sky-300"
         >
-          Connecte-toi
+          {t("auth.signUpLinkAction")}
         </Link>
       </div>
     </motion.div>

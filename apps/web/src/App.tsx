@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { lazy, Suspense } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { cn } from "./lib/cn";
 
@@ -25,6 +27,7 @@ const ProfilePage = lazy(() =>
 function App() {
   const location = useLocation();
   const { data: user, isLoading } = useCurrentUser();
+  const { t } = useTranslation();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -45,6 +48,7 @@ function App() {
           </Link>
 
           <nav className="flex flex-wrap items-center gap-2">
+            <LanguageSwitcher />
             <Link
               to="/"
               className={cn(
@@ -54,7 +58,7 @@ function App() {
                   : "text-slate-400",
               )}
             >
-              Accueil
+              {t("nav.home")}
             </Link>
             {user ? (
               <Link
@@ -66,7 +70,7 @@ function App() {
                     : "text-slate-400",
                 )}
               >
-                Profil
+                {t("nav.profile")}
               </Link>
             ) : (
               <>
@@ -79,7 +83,7 @@ function App() {
                       : "text-slate-400",
                   )}
                 >
-                  Connexion
+                  {t("nav.signIn")}
                 </Link>
                 <Link
                   to="/signup"
@@ -90,7 +94,7 @@ function App() {
                       : "text-slate-200",
                   )}
                 >
-                  Inscription
+                  {t("nav.signUp")}
                 </Link>
               </>
             )}
@@ -110,7 +114,7 @@ function App() {
             <Suspense
               fallback={
                 <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-10 text-center text-slate-300">
-                  Chargement...
+                  {t("common.loading")}
                 </div>
               }
             >

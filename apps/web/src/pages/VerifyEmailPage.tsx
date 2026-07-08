@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { verifyEmail } from "../services/api";
 
 export function VerifyEmailPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const hasToken = Boolean(token);
@@ -11,9 +13,7 @@ export function VerifyEmailPage() {
     hasToken ? "loading" : "error",
   );
   const [message, setMessage] = useState<string>(
-    hasToken
-      ? "Vérification en cours..."
-      : "Le lien de vérification est invalide.",
+    hasToken ? t("verify.loading") : t("verify.invalidLink"),
   );
 
   useEffect(() => {
@@ -24,15 +24,13 @@ export function VerifyEmailPage() {
     verifyEmail(token)
       .then(() => {
         setStatus("success");
-        setMessage("Ton adresse email a été vérifiée avec succès.");
+        setMessage(t("verify.success"));
       })
       .catch(() => {
         setStatus("error");
-        setMessage(
-          "La vérification a échoué. Vérifie le lien ou réessaie plus tard.",
-        );
+        setMessage(t("verify.error"));
       });
-  }, [token]);
+  }, [t, token]);
 
   return (
     <motion.div
@@ -43,10 +41,10 @@ export function VerifyEmailPage() {
     >
       <div className="space-y-4 text-center">
         <p className="text-sm uppercase tracking-[0.28em] text-sky-400/80">
-          Activation du compte
+          {t("verify.eyebrow")}
         </p>
         <h2 className="text-3xl font-semibold text-white">
-          Vérification de ton adresse email
+          {t("verify.title")}
         </h2>
         <p className="text-sm leading-7 text-slate-400">{message}</p>
       </div>
@@ -58,7 +56,7 @@ export function VerifyEmailPage() {
             : "border-rose-500 bg-rose-500/10 text-rose-200"
         }`}
       >
-        {status === "loading" ? "Patiente pendant la validation..." : message}
+        {status === "loading" ? t("verify.waiting") : message}
       </div>
     </motion.div>
   );

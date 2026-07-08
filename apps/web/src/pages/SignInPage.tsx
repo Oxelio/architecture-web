@@ -1,22 +1,28 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { signIn } from "../services/api";
 
-const signInSchema = z.object({
-  email: z.string().email({ message: "Email invalide" }),
-  password: z
-    .string()
-    .min(8, { message: "Le mot de passe doit contenir au moins 8 caractères" }),
-});
-
-type SignInFormValues = z.infer<typeof signInSchema>;
+type SignInFormValues = {
+  email: string;
+  password: string;
+};
 
 export function SignInPage() {
+  const { t } = useTranslation();
+  const signInSchema = useMemo(
+    () =>
+      z.object({
+        email: z.email({ message: t("auth.invalidEmail") }),
+        password: z.string().min(8, { message: t("auth.passwordMin") }),
+      }),
+    [t],
+  );
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -39,7 +45,7 @@ export function SignInPage() {
       navigate("/profile", { replace: true });
     } catch (error) {
       if (error instanceof Error) {
-        setServerError(error.message ?? "Erreur inconnue");
+        setServerError(error.message ?? t("common.unknownError"));
       }
     } finally {
       setIsSubmitting(false);
@@ -55,20 +61,20 @@ export function SignInPage() {
     >
       <div className="space-y-4 text-center">
         <p className="text-sm uppercase tracking-[0.28em] text-sky-400/80">
-          Connexion
+          {t("nav.signIn")}
         </p>
         <h2 className="text-3xl font-semibold text-white">
-          Accède à ton espace
+          {t("auth.signInTitle")}
         </h2>
         <p className="text-sm leading-7 text-slate-400">
-          Utilise ton email et ton mot de passe pour te connecter au système.
+          {t("auth.signInDescription")}
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-200">
-            Email
+            {t("common.email")}
             <input
               type="email"
               autoComplete="email"
@@ -83,7 +89,7 @@ export function SignInPage() {
           </label>
 
           <label className="block text-sm font-medium text-slate-200">
-            Mot de passe
+            {t("common.password")}
             <input
               type="password"
               autoComplete="current-password"
@@ -107,17 +113,17 @@ export function SignInPage() {
           disabled={isSubmitting}
           className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSubmitting ? "Connexion..." : "Se connecter"}
+          {isSubmitting ? t("auth.signInPending") : t("auth.signInSubmit")}
         </button>
       </form>
 
       <div className="mt-8 text-center text-sm text-slate-400">
-        Pas encore de compte ?{" "}
+        {t("auth.signInLinkText")} {""}
         <Link
           to="/signup"
           className="font-semibold text-white hover:text-sky-300"
         >
-          Crée-en un
+          {t("auth.signInLinkAction")}
         </Link>
       </div>
     </motion.div>
