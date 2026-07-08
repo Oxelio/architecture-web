@@ -39,7 +39,7 @@ export function buildSessionCookieOptions(): CookieSerializeOptions {
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "lax",
+    sameSite: "none",
     secure: isProduction,
   };
 }

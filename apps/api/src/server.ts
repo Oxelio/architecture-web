@@ -22,7 +22,9 @@ export async function buildServer() {
 
   await app.register(fastifyCors, {
     credentials: true,
-    origin: process.env["WEB_ORIGIN"] ?? "http://localhost:5173",
+    origin: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   // =========================

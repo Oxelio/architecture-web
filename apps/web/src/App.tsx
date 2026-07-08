@@ -1,121 +1,154 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "./assets/vite.svg";
-import heroImg from "./assets/hero.png";
-import "./App.css";
+import { AnimatePresence, motion } from "framer-motion";
+import { lazy, Suspense } from "react";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useCurrentUser } from "./hooks/useCurrentUser";
+import { cn } from "./lib/cn";
+
+const HomePage = lazy(() =>
+  import("./pages/HomePage").then((mod) => ({ default: mod.HomePage })),
+);
+const SignInPage = lazy(() =>
+  import("./pages/SignInPage").then((mod) => ({ default: mod.SignInPage })),
+);
+const SignUpPage = lazy(() =>
+  import("./pages/SignUpPage").then((mod) => ({ default: mod.SignUpPage })),
+);
+const VerifyEmailPage = lazy(() =>
+  import("./pages/VerifyEmailPage").then((mod) => ({
+    default: mod.VerifyEmailPage,
+  })),
+);
+const ProfilePage = lazy(() =>
+  import("./pages/ProfilePage").then((mod) => ({ default: mod.ProfilePage })),
+);
 
 function App() {
-  const [count, setCount] = useState(0);
+  const location = useLocation();
+  const { data: user, isLoading } = useCurrentUser();
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 via-indigo-500 to-sky-500 shadow-lg shadow-violet-500/20">
+              <span className="text-xl font-semibold text-white">A</span>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+                Architecture
+              </p>
+              <h1 className="text-lg font-semibold text-white">
+                Identity Studio
+              </h1>
+            </div>
+          </Link>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          <nav className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/"
+              className={cn(
+                "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                location.pathname === "/"
+                  ? "bg-slate-800 text-white"
+                  : "text-slate-400",
+              )}
+            >
+              Accueil
+            </Link>
+            {user ? (
+              <Link
+                to="/profile"
+                className={cn(
+                  "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                  location.pathname === "/profile"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-400",
+                )}
+              >
+                Profil
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/signin"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                    location.pathname === "/signin"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400",
+                  )}
+                >
+                  Connexion
+                </Link>
+                <Link
+                  to="/signup"
+                  className={cn(
+                    "rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-900",
+                    location.pathname === "/signup"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-200",
+                  )}
+                >
+                  Inscription
+                </Link>
+              </>
+            )}
+          </nav>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </header>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -18 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+          >
+            <Suspense
+              fallback={
+                <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-10 text-center text-slate-300">
+                  Chargement...
+                </div>
+              }
+            >
+              <Routes>
+                <Route
+                  path="/"
+                  element={<HomePage user={user} loading={isLoading} />}
+                />
+                <Route
+                  path="/signin"
+                  element={
+                    user ? <Navigate to="/profile" replace /> : <SignInPage />
+                  }
+                />
+                <Route
+                  path="/signup"
+                  element={
+                    user ? <Navigate to="/profile" replace /> : <SignUpPage />
+                  }
+                />
+                <Route path="/verify" element={<VerifyEmailPage />} />
+                <Route
+                  path="/profile"
+                  element={
+                    user ? (
+                      <ProfilePage user={user} />
+                    ) : (
+                      <Navigate to="/signin" replace />
+                    )
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
+      </main>
+    </div>
   );
 }
 
