@@ -27,7 +27,7 @@ export class UserEntity extends Entity<UserProperties> {
       identifier: UserIdentifierValueObject.generate(),
       email: properties.email,
       password: properties.password,
-      status: StatusValueObject.pending(),
+      status: StatusValueObject.active(),
       isEmailVerified: false,
       createdAt: now,
       updatedAt: now,

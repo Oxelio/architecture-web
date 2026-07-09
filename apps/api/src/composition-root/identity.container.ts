@@ -12,8 +12,12 @@ import {
   ChangePasswordUseCase,
   ActivateUserUseCase,
   SuspendUserUseCase,
+  ResendEmailVerificationUseCase,
 } from "@architecture/identity/application";
-import { RedisSessionAdapter } from "@architecture/identity-session-redis";
+import {
+  RedisEmailVerificationRateLimitAdapter,
+  RedisSessionAdapter,
+} from "@architecture/identity-session-redis";
 import {
   KyselyUserAdapter,
   KyselyEmailVerificationAdapter,
@@ -31,6 +35,7 @@ export interface IdentityContainer {
   readonly resolveSession: ResolveSessionUseCase;
   readonly getUserProfile: GetUserProfileUseCase;
   readonly verifyEmail: VerifyEmailUseCase;
+  readonly resendEmailVerification: ResendEmailVerificationUseCase;
   readonly changeEmail: ChangeEmailUseCase;
   readonly changePassword: ChangePasswordUseCase;
   readonly activateUser: ActivateUserUseCase;
@@ -55,6 +60,7 @@ export function buildIdentityContainer(
     config.smtp.verifyUrl,
   );
   const session = new RedisSessionAdapter(redis);
+  const rateLimit = new RedisEmailVerificationRateLimitAdapter(redis);
 
   // application
   const signUp = new SignUpUseCase(
@@ -68,6 +74,12 @@ export function buildIdentityContainer(
   const resolveSession = new ResolveSessionUseCase(session, user);
   const getUserProfile = new GetUserProfileUseCase(user);
   const verifyEmail = new VerifyEmailUseCase(user, emailVerification);
+  const resendEmailVerification = new ResendEmailVerificationUseCase(
+    user,
+    emailVerification,
+    emailSender,
+    rateLimit,
+  );
   const changeEmail = new ChangeEmailUseCase(user);
   const changePassword = new ChangePasswordUseCase(user, passwordHasher);
   const activateUser = new ActivateUserUseCase(user);
@@ -80,6 +92,7 @@ export function buildIdentityContainer(
     resolveSession,
     getUserProfile,
     verifyEmail,
+    resendEmailVerification,
     changeEmail,
     changePassword,
     activateUser,

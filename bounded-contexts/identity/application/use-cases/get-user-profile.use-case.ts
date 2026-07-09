@@ -17,6 +17,7 @@ export type GetUserProfileError = ErrorOf<typeof GetUserProfileErrors>;
 export interface GetUserProfileResponse {
   userId: string;
   email: string;
+  isEmailVerified: boolean;
 }
 
 export type GetUserProfileResult = Result<
@@ -43,6 +44,7 @@ export class GetUserProfileUseCase {
     return Result.ok({
       userId: user.identifier.value,
       email: user.email.value,
+      isEmailVerified: user.isEmailVerified,
     });
   }
 }

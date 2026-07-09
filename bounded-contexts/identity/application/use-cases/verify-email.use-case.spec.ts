@@ -56,6 +56,10 @@ class FakeEmailVerificationPort implements EmailVerificationPort {
       record.used = true;
     }
   }
+
+  async invalidatePrevious(_userId: UserIdentifierValueObject): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
 }
 
 /* ---------------- TEST SUITE ---------------- */

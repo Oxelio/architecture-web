@@ -23,6 +23,7 @@ export interface IdentityEmailVerificationTable {
   user_id: string;
   expires_at: Date;
   used: boolean;
+  invalidated: boolean;
   created_at: Date;
 }
 

@@ -3,7 +3,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import type { CurrentUser } from "../services/api";
-import { changeEmail, changePassword, signOut } from "../services/api";
+import {
+  changeEmail,
+  changePassword,
+  resendEmailVerification,
+  signOut,
+} from "../services/api";
 
 interface ProfilePageProps {
   user: CurrentUser;
@@ -66,6 +71,20 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     }
   };
 
+  const resendVerificationMutation = useMutation({
+    mutationFn: resendEmailVerification,
+    onSuccess: () => {
+      setServerMessage(t("profile.successVerificationEmail"));
+    },
+    onError: (error: unknown) => {
+      setServerMessage(
+        error instanceof Error
+          ? `${t("profile.verificationEmailError")}: ${error.message}`
+          : t("profile.verificationEmailError"),
+      );
+    },
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 18 }}
@@ -103,6 +122,45 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
             <p className="mt-3 text-xl font-semibold text-white break-words">
               {user.email}
             </p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-6">
+            <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
+              {t("profile.emailVerification")}
+            </p>
+
+            <div className="mt-3 flex items-center gap-3">
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
+                  user.isEmailVerified
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-amber-500/20 text-amber-300"
+                }`}
+              >
+                {user.isEmailVerified
+                  ? t("profile.emailVerified")
+                  : t("profile.emailNotVerified")}
+              </span>
+            </div>
+
+            {!user.isEmailVerified ? (
+              <div className="mt-5">
+                <p className="text-sm text-slate-400">
+                  {t("profile.emailVerificationHint")}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => resendVerificationMutation.mutate()}
+                  disabled={resendVerificationMutation.isPending}
+                  className="mt-4 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {resendVerificationMutation.isPending
+                    ? t("profile.resendVerificationPending")
+                    : t("profile.resendVerification")}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <button

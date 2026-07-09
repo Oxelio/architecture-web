@@ -22,6 +22,7 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
       user_id: userId.value,
       expires_at: expiresAt,
       used: false,
+      invalidated: false,
       created_at: new Date(),
     };
 
@@ -48,6 +49,7 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
       userId: userIdResult.value,
       expiresAt: row.expires_at,
       used: row.used,
+      invalidated: row.invalidated,
     } as unknown as EmailVerificationRecord;
   }
 
@@ -56,6 +58,17 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
       .updateTable("identity_email_verifications")
       .set({ used: true })
       .where("token", "=", token)
+      .execute();
+  }
+
+  async invalidatePrevious(userId: UserIdentifierValueObject): Promise<void> {
+    await this.db
+      .updateTable("identity_email_verifications")
+      .set({
+        invalidated: true,
+      })
+      .where("user_id", "=", userId.value)
+      .where("invalidated", "=", false)
       .execute();
   }
 }

@@ -9,6 +9,7 @@ import { buildChangePasswordController } from "#controllers/identity/change-pass
 import { buildActivateUserController } from "#controllers/identity/activate-user.controller";
 import { buildSuspendUserController } from "#controllers/identity/suspend-user.controller";
 import type { SessionCookieOptions } from "#controllers/identity/sign-in.controller";
+import { buildResendEmailVerificationController } from "./resend-email-verification.controller.js";
 
 export function buildIdentityControllers(
   container: IdentityContainer,
@@ -20,6 +21,9 @@ export function buildIdentityControllers(
     signOut: buildSignOutController(container.signOut, sessionCookie),
     getUserProfile: buildGetUserProfileController(container.getUserProfile),
     verifyEmail: buildVerifyEmailController(container.verifyEmail),
+    resendEmailVerification: buildResendEmailVerificationController(
+      container.resendEmailVerification,
+    ),
     changeEmail: buildChangeEmailController(container.changeEmail),
     changePassword: buildChangePasswordController(container.changePassword),
     activateUser: buildActivateUserController(container.activateUser),

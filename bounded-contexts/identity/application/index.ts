@@ -21,10 +21,6 @@ export {
   type SignOutResult,
 } from "#use-cases/sign-out.use-case";
 
-export { EmailSenderPort } from "./ports/email-sender.port.js";
-export type { EmailVerificationRecord } from "./ports/email-verification.port.js";
-export { EmailVerificationPort } from "./ports/email-verification.port.js";
-
 export {
   GetUserProfileUseCase,
   type GetUserProfileInput,
@@ -76,7 +72,18 @@ export {
   type ResolveSessionResult,
 } from "./use-cases/resolve-session.use-case.js";
 
+export {
+  ResendEmailVerificationUseCase,
+  type ResendEmailVerificationInput,
+  type ResendEmailVerificationError,
+  type ResendEmailVerificationResult,
+} from "#use-cases/resend-email-verification.use-case";
+
 // Ports
 export { PasswordHasherPort } from "./ports/password-hasher.port.js";
 export { UserPort } from "./ports/user.port.js";
 export { SessionPort } from "./ports/session.port.js";
+export { EmailVerificationPort } from "./ports/email-verification.port.js";
+export { EmailSenderPort } from "./ports/email-sender.port.js";
+export type { EmailVerificationRecord } from "./ports/email-verification.port.js";
+export { EmailVerificationRateLimitPort } from "./ports/email-verification-rate-limit.port.js";

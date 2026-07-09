@@ -8,6 +8,7 @@ import type { HttpError, HttpSuccess } from "./http.types.js";
 interface GetUserProfileResponseDto {
   userId: string;
   email: string;
+  isEmailVerified: boolean;
 }
 
 export const GetUserProfilePresenter = {
@@ -17,6 +18,7 @@ export const GetUserProfilePresenter = {
     const dto: GetUserProfileResponseDto = {
       userId: data.userId,
       email: data.email,
+      isEmailVerified: data.isEmailVerified,
     };
 
     return {

@@ -12,7 +12,6 @@ describe("StatusValueObject", () => {
     expect(status.value).toBe("active");
     expect(status.isActive()).toBe(true);
     expect(status.isSuspended()).toBe(false);
-    expect(status.isPending()).toBe(false);
   });
 
   it("should create suspended status", () => {
@@ -21,51 +20,24 @@ describe("StatusValueObject", () => {
     expect(status.value).toBe("suspended");
     expect(status.isSuspended()).toBe(true);
     expect(status.isActive()).toBe(false);
-    expect(status.isPending()).toBe(false);
-  });
-
-  it("should create pending status", () => {
-    const status = StatusValueObject.pending();
-
-    expect(status.value).toBe("pending");
-    expect(status.isPending()).toBe(true);
-    expect(status.isActive()).toBe(false);
-    expect(status.isSuspended()).toBe(false);
   });
 
   /* -------------------------------------------------- */
   /* CREATE VALID CASES                                 */
   /* -------------------------------------------------- */
 
-  it("should create status from valid string: active", () => {
-    const result = StatusValueObject.create("active");
+  it.each(["active", "suspended", "pending"])(
+    "should create status from valid string: %s",
+    (status) => {
+      const result = StatusValueObject.create(status);
 
-    expect(result.success).toBe(true);
+      expect(result.success).toBe(true);
 
-    if (!result.success) return;
+      if (!result.success) return;
 
-    expect(result.value.value).toBe("active");
-  });
-
-  it("should create status from valid string: suspended", () => {
-    const result = StatusValueObject.create("suspended");
-
-    expect(result.success).toBe(true);
-
-    if (!result.success) return;
-
-    expect(result.value.value).toBe("suspended");
-  });
-
-  it("should create status from valid string: pending", () => {
-    const result = StatusValueObject.create("pending");
-
-    expect(result.success).toBe(true);
-
-    if (!result.success) return;
-
-    expect(result.value.value).toBe("pending");
-  });
+      expect(result.value.value).toBe(status);
+    },
+  );
 
   /* -------------------------------------------------- */
   /* CREATE INVALID CASES                               */
@@ -109,11 +81,5 @@ describe("StatusValueObject", () => {
     const status = StatusValueObject.suspended();
 
     expect(status.isSuspended()).toBe(true);
-  });
-
-  it("should correctly identify pending status", () => {
-    const status = StatusValueObject.pending();
-
-    expect(status.isPending()).toBe(true);
   });
 });

@@ -112,6 +112,15 @@ const resources = {
         signOutError: "Impossible de se déconnecter. Réessaie.",
         emailUpdateError: "Impossible de mettre à jour l'adresse e-mail.",
         passwordUpdateError: "Impossible de modifier le mot de passe.",
+        emailVerification: "Vérification de l'adresse e-mail",
+        emailVerified: "Adresse vérifiée",
+        emailNotVerified: "Adresse non vérifiée",
+        emailVerificationHint:
+          "Votre adresse e-mail n'est pas encore vérifiée. Un nouveau lien peut vous être envoyé.",
+        resendVerification: "Renvoyer l'e-mail de vérification",
+        resendVerificationPending: "Envoi en cours...",
+        successVerificationEmail: "L'e-mail de vérification a été envoyé.",
+        verificationEmailError: "Impossible d'envoyer l'e-mail de vérification",
       },
       verify: {
         eyebrow: "Activation du compte",
@@ -218,6 +227,15 @@ const resources = {
         signOutError: "Unable to sign out. Please try again.",
         emailUpdateError: "Unable to update the email address.",
         passwordUpdateError: "Unable to update the password.",
+        emailVerification: "Email verification",
+        emailVerified: "Verified",
+        emailNotVerified: "Not verified",
+        emailVerificationHint:
+          "Your email address is not verified yet. A new verification link can be sent.",
+        resendVerification: "Resend verification email",
+        resendVerificationPending: "Sending...",
+        successVerificationEmail: "Verification email sent.",
+        verificationEmailError: "Unable to send verification email",
       },
       verify: {
         eyebrow: "Account activation",

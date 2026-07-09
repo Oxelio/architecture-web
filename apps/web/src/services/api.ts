@@ -1,6 +1,7 @@
 export interface CurrentUser {
   userId: string;
   email: string;
+  isEmailVerified: boolean;
 }
 
 export interface SignInPayload {
@@ -123,4 +124,10 @@ export async function verifyEmail(token: string) {
       method: "GET",
     },
   );
+}
+
+export async function resendEmailVerification(): Promise<void> {
+  await request<unknown>("/identity/verify/resend", {
+    method: "POST",
+  });
 }

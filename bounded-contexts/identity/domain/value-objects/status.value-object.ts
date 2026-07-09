@@ -12,7 +12,7 @@ const StatusErrors = {
 
 export type StatusError = ErrorOf<typeof StatusErrors>;
 
-type UserStatusType = "active" | "suspended" | "pending";
+type UserStatusType = "active" | "suspended";
 
 interface StatusProperties {
   readonly value: UserStatusType;
@@ -29,10 +29,6 @@ export class StatusValueObject extends ValueObject<StatusProperties> {
 
   public static suspended(): StatusValueObject {
     return new StatusValueObject({ value: "suspended" });
-  }
-
-  public static pending(): StatusValueObject {
-    return new StatusValueObject({ value: "pending" });
   }
 
   public static create(value: string): Result<StatusValueObject, StatusError> {
@@ -53,9 +49,5 @@ export class StatusValueObject extends ValueObject<StatusProperties> {
 
   public isSuspended(): boolean {
     return this.properties.value === "suspended";
-  }
-
-  public isPending(): boolean {
-    return this.properties.value === "pending";
   }
 }

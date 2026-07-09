@@ -17,4 +17,6 @@ export abstract class EmailVerificationPort {
   abstract findByToken(token: string): Promise<EmailVerificationRecord | null>;
 
   abstract markUsed(token: string): Promise<void>;
+
+  abstract invalidatePrevious(userId: UserIdentifierValueObject): Promise<void>;
 }

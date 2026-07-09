@@ -8,7 +8,8 @@ export const identityEmailVerificationMigrations: Record<string, Migration> = {
         .addColumn("token", "varchar", (col) => col.primaryKey().notNull())
         .addColumn("user_id", "uuid", (col) => col.notNull())
         .addColumn("expires_at", "timestamp", (col) => col.notNull())
-        .addColumn("used", "boolean", (col) => col.notNull().defaultTo(false))
+        .addColumn("used", "boolean", (col) => col.notNull())
+        .addColumn("invalidated", "boolean", (col) => col.notNull())
         .addColumn("created_at", "timestamp", (col) =>
           col.notNull().defaultTo(new Date()),
         )

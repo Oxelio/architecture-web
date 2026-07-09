@@ -22,6 +22,11 @@ export function buildIdentityRoutes(
     app.post("/signup", { schema: signUpSchema }, controllers.signUp.handle);
     app.post("/signin", { schema: signInSchema }, controllers.signIn.handle);
     app.post("/signout", controllers.signOut.handle);
+    app.post(
+      "/verify/resend",
+      { preHandler: authenticatedApp.authenticate },
+      controllers.resendEmailVerification.handle,
+    );
 
     app.get(
       "/me",

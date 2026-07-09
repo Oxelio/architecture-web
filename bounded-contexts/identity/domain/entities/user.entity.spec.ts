@@ -27,7 +27,7 @@ describe("UserEntity", () => {
     expect(user.identifier).toBeDefined();
     expect(user.email.value).toBe("test@test.com");
     expect(user.password.value).toBe("hashed");
-    expect(user.status.isPending()).toBe(true);
+    expect(user.status.isActive()).toBe(true);
     expect(user.isEmailVerified).toBe(false);
     expect(user.createdAt).toBeInstanceOf(Date);
     expect(user.updatedAt).toBeInstanceOf(Date);
