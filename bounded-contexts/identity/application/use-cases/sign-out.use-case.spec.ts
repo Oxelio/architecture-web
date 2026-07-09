@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { SignOutUseCase } from "./sign-out.use-case.js";
-import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import type { SessionPort } from "#application/ports/session.port";
-import { SessionEntity } from "#entities/session.entity";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
+import type { SessionPort } from "../ports/session.port.js";
+import { SessionEntity } from "../../domain/entities/session.entity.js";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
 
 /* ---------------- FAKE SESSION PORT ---------------- */
 

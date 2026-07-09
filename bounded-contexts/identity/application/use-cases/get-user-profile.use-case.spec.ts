@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { GetUserProfileUseCase } from "./get-user-profile.use-case.js";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import type { UserPort } from "#application/ports/user.port";
-import type { UserEntity } from "#entities/user.entity";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import type { UserPort } from "../ports/user.port.js";
+import type { UserEntity } from "../../domain/entities/user.entity.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 
@@ -48,7 +48,7 @@ describe("GetUserProfileUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        kind: "user.not_found",
       });
     }
   });
@@ -68,7 +68,7 @@ describe("GetUserProfileUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        kind: "user.not_found",
       });
     }
   });
@@ -118,7 +118,7 @@ describe("GetUserProfileUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("not_found");
+      expect(result.error.kind).toBe("user.not_found");
     }
   });
 });

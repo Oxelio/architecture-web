@@ -36,4 +36,25 @@ describe("PasswordHashValueObject", () => {
       kind: "hashed_password.empty",
     });
   });
+
+  /* -------------------------------------------------- */
+  /* INVALID CHARACTERS                                 */
+  /* -------------------------------------------------- */
+
+  it.each(["hash\npassword", "hash\tpassword", "hash\rpassword"])(
+    "should fail when hashed password contains invalid characters '%s'",
+    (hash) => {
+      const result = PasswordHashValueObject.create(hash);
+
+      expect(result.success).toBe(false);
+
+      if (result.success) {
+        throw new Error("Expected failure");
+      }
+
+      expect(result.error).toEqual({
+        kind: "hashed_password.invalid_characters",
+      });
+    },
+  );
 });

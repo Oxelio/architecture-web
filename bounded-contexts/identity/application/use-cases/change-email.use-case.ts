@@ -35,7 +35,9 @@ export class ChangeEmailUseCase {
     }
 
     const user = await this.userPort.findById(userId.value);
-    if (!user) return Result.failure({ kind: "not_found" });
+    if (!user) {
+      return Result.failure({ kind: "not_found" });
+    }
 
     user.changeEmail(email.value);
     await this.userPort.save(user);

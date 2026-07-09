@@ -2,17 +2,17 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { SignInUseCase } from "./sign-in.use-case.js";
 
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
+import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
 
-import { UserEntity } from "#entities/user.entity";
-import type { SessionEntity } from "#entities/session.entity";
+import { UserEntity } from "../../domain/entities/user.entity.js";
+import type { SessionEntity } from "../../domain/entities/session.entity.js";
 
-import type { SessionPort } from "#application/ports/session.port";
-import type { PasswordHasherPort } from "#application/ports/password-hasher.port";
-import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import type { SessionPort } from "../ports/session.port.js";
+import type { PasswordHasherPort } from "../ports/password-hasher.port.js";
+import type { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
+import type { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
 
 /* -------------------------------------------------------------------------- */
 /*                                FAKE USER PORT                              */
@@ -122,7 +122,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "invalid_credentials",
+        kind: "user.invalid_credentials",
       });
     }
   });
@@ -141,7 +141,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "invalid_credentials",
+        kind: "user.invalid_credentials",
       });
     }
   });
@@ -164,7 +164,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "invalid_credentials",
+        kind: "user.invalid_credentials",
       });
     }
   });
@@ -202,7 +202,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "invalid_credentials",
+        kind: "user.invalid_credentials",
       });
     }
   });
@@ -312,5 +312,46 @@ describe("SignInUseCase", () => {
     });
 
     expect(sessionPort.count()).toBe(1);
+  });
+
+  /* ---------------------------------------------------------------------- */
+  /* 8. USER SUSPENDED                                                      */
+  /* ---------------------------------------------------------------------- */
+
+  it("should fail when user is suspended", async () => {
+    const emailVO = EmailValueObject.create(validEmail);
+    const passwordVO = PasswordPlainValueObject.create(validPassword);
+
+    if (!emailVO.success || !passwordVO.success) {
+      throw new Error("Invalid VO");
+    }
+
+    const hashed = await passwordHasher.hash(passwordVO.value);
+
+    const user = UserEntity.create({
+      email: emailVO.value,
+      password: hashed,
+    });
+
+    // User must have valid credentials
+    user.verifyEmail();
+
+    // Put user in suspended state
+    user.suspend();
+
+    await userPort.save(user);
+
+    const result = await useCase.execute({
+      email: validEmail,
+      password: validPassword,
+    });
+
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error).toEqual({
+        kind: "user.suspended",
+      });
+    }
   });
 });

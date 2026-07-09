@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-import { UserEntity } from "#entities/user.entity";
+import { UserEntity } from "../../domain/entities/user.entity.js";
 
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
+import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
 import { SignUpUseCase } from "./sign-up.use-case.js";
 
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */

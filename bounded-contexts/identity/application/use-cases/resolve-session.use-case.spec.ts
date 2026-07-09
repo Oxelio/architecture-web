@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
-import type { SessionPort } from "#application/ports/session.port";
-import type { UserPort } from "#application/ports/user.port";
+import type { SessionPort } from "../ports/session.port.js";
+import type { UserPort } from "../ports/user.port.js";
 
-import { SessionEntity } from "#entities/session.entity";
-import { UserEntity } from "#entities/user.entity";
+import { SessionEntity } from "../../domain/entities/session.entity.js";
+import { UserEntity } from "../../domain/entities/user.entity.js";
 
-import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
 import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
-import { StatusValueObject } from "#value-objects/status.value-object";
+import { StatusValueObject } from "../../domain/value-objects/status.value-object.js";
 
 /* -------------------------------------------------------------------------- */
 /*                                FAKE USER PORT                              */
@@ -82,7 +82,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "unauthorized",
+        kind: "session.unauthorized",
       });
     }
   });
@@ -100,7 +100,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "unauthorized",
+        kind: "session.unauthorized",
       });
     }
   });
@@ -120,7 +120,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "unauthorized",
+        kind: "session.unauthorized",
       });
     }
   });
@@ -146,7 +146,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "unauthorized",
+        kind: "session.unauthorized",
       });
     }
   });
@@ -196,7 +196,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "unauthorized",
+        kind: "session.unauthorized",
       });
     }
   });

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import { EmailValueObject } from "../value-objects/email.value-object.js";
+import { PasswordHashValueObject } from "../value-objects/password-hash.value-object.js";
+import { UserIdentifierValueObject } from "../value-objects/user-identifier.value-object.js";
 import { UserEntity } from "./user.entity.js";
-import { StatusValueObject } from "#value-objects/status.value-object";
+import { StatusValueObject } from "../value-objects/status.value-object.js";
 
 describe("UserEntity", () => {
   /* -------------------------------------------------- */
