@@ -19,3 +19,5 @@ export interface HttpSuccess<TData> {
     links?: Record<string, string>;
   };
 }
+
+export type EmptyResponse = Record<string, never>;

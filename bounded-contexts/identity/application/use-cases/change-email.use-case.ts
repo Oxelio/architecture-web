@@ -16,17 +16,21 @@ export type ChangeEmailError =
   | { kind: "not_found" }
   | { kind: "user.already_exists" };
 
-export type ChangeEmailResult = Result<{}, ChangeEmailError>;
+export type ChangeEmailResult = Result<void, ChangeEmailError>;
 
 export class ChangeEmailUseCase {
   constructor(private readonly userPort: UserPort) {}
 
   async execute(command: ChangeEmailInput): Promise<ChangeEmailResult> {
     const userId = UserIdentifierValueObject.create(command.userId);
-    if (!userId.success) return Result.failure({ kind: "not_found" });
+    if (!userId.success) {
+      return Result.failure({ kind: "not_found" });
+    }
 
     const email = EmailValueObject.create(command.email);
-    if (!email.success) return Result.failure(email.error);
+    if (!email.success) {
+      return Result.failure(email.error);
+    }
 
     // check existing email
     const existing = await this.userPort.findByEmail(email.value);
@@ -42,6 +46,6 @@ export class ChangeEmailUseCase {
     user.changeEmail(email.value);
     await this.userPort.save(user);
 
-    return Result.ok({});
+    return Result.ok();
   }
 }

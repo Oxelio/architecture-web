@@ -1,5 +1,3 @@
-// @ts-check
-
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
@@ -17,4 +15,20 @@ export default [
   },
   ...baseConfig,
   eslintConfigPrettier,
+  {
+    rules: {
+      curly: ["error", "all"],
+      eqeqeq: ["error", "always"],
+      "no-else-return": "error",
+
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ];

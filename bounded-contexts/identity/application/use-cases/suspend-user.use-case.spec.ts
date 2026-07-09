@@ -118,7 +118,7 @@ describe("SuspendUserUseCase", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.value).toEqual({});
+      expect(result.value).toBeUndefined();
     }
 
     const updatedUser = await userPort.findById(user.identifier);

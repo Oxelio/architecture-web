@@ -33,7 +33,9 @@ describe("StatusValueObject", () => {
 
       expect(result.success).toBe(true);
 
-      if (!result.success) return;
+      if (!result.success) {
+        return;
+      }
 
       expect(result.value.value).toBe(status);
     },
@@ -48,7 +50,9 @@ describe("StatusValueObject", () => {
 
     expect(result.success).toBe(false);
 
-    if (result.success) return;
+    if (result.success) {
+      return;
+    }
 
     expect(result.error.kind).toBe("status.empty");
   });
@@ -58,7 +62,9 @@ describe("StatusValueObject", () => {
 
     expect(result.success).toBe(false);
 
-    if (result.success) return;
+    if (result.success) {
+      return;
+    }
 
     expect(result.error.kind).toBe("status.invalid");
     expect(result.error).toStrictEqual({

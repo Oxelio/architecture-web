@@ -15,15 +15,17 @@ class FakeSessionPort implements SessionPort {
     this.sessions.set(session.identifier.value, session);
   }
 
-  async findById(id: any): Promise<SessionEntity | null> {
+  async findById(
+    id: SessionIdentifierValueObject,
+  ): Promise<SessionEntity | null> {
     return this.sessions.get(id.value) ?? null;
   }
 
-  async delete(id: any): Promise<void> {
+  async delete(id: SessionIdentifierValueObject): Promise<void> {
     this.sessions.delete(id.value);
   }
 
-  count() {
+  count(): number {
     return this.sessions.size;
   }
 }

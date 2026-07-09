@@ -42,6 +42,7 @@ class FakeEmailVerificationPort implements EmailVerificationPort {
       userId,
       expiresAt,
       used: false,
+      invalidated: false,
     });
   }
 
@@ -188,7 +189,7 @@ describe("VerifyEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        kind: "user.not_found",
       });
     }
   });
@@ -222,7 +223,7 @@ describe("VerifyEmailUseCase", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.value).toEqual({});
+      expect(result.value).toBeUndefined();
     }
 
     const updatedUser = await userPort.findById(user.identifier);

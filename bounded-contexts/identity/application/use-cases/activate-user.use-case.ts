@@ -6,23 +6,29 @@ export interface ActivateUserInput {
   userId: string;
 }
 
-export type ActivateUserError = { kind: "not_found" };
+export interface ActivateUserError {
+  kind: "not_found";
+}
 
-export type ActivateUserResult = Result<{}, ActivateUserError>;
+export type ActivateUserResult = Result<void, ActivateUserError>;
 
 export class ActivateUserUseCase {
   constructor(private readonly userPort: UserPort) {}
 
   async execute(command: ActivateUserInput): Promise<ActivateUserResult> {
     const userId = UserIdentifierValueObject.create(command.userId);
-    if (!userId.success) return Result.failure({ kind: "not_found" });
+    if (!userId.success) {
+      return Result.failure({ kind: "not_found" });
+    }
 
     const user = await this.userPort.findById(userId.value);
-    if (!user) return Result.failure({ kind: "not_found" });
+    if (!user) {
+      return Result.failure({ kind: "not_found" });
+    }
 
     user.activate();
     await this.userPort.save(user);
 
-    return Result.ok({});
+    return Result.ok();
   }
 }

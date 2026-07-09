@@ -17,7 +17,7 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
     token: string,
     expiresAt: Date,
   ): Promise<void> {
-    const row: Partial<IdentityEmailVerificationRow> = {
+    const row: IdentityEmailVerificationRow = {
       token,
       user_id: userId.value,
       expires_at: expiresAt,
@@ -28,7 +28,7 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
 
     await this.db
       .insertInto("identity_email_verifications")
-      .values(row as any)
+      .values(row)
       .execute();
   }
 
@@ -39,10 +39,14 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
       .where("token", "=", token)
       .executeTakeFirst();
 
-    if (!row) return null;
+    if (!row) {
+      return null;
+    }
 
     const userIdResult = UserIdentifierValueObject.create(row.user_id);
-    if (!userIdResult.success) return null;
+    if (!userIdResult.success) {
+      return null;
+    }
 
     return {
       token: row.token,
@@ -50,7 +54,7 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
       expiresAt: row.expires_at,
       used: row.used,
       invalidated: row.invalidated,
-    } as unknown as EmailVerificationRecord;
+    };
   }
 
   async markUsed(token: string): Promise<void> {

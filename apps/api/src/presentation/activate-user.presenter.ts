@@ -1,8 +1,8 @@
 import type { ActivateUserError } from "@architecture/identity/application";
-import type { HttpError, HttpSuccess } from "./http.types.js";
+import type { EmptyResponse, HttpError, HttpSuccess } from "./http.types.js";
 
 export const ActivateUserPresenter = {
-  toSuccessHttp(): HttpSuccess<{}> {
+  toSuccessHttp(): HttpSuccess<EmptyResponse> {
     return {
       status: 200,
       body: { data: {} },

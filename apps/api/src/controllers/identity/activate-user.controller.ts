@@ -3,17 +3,24 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { ActivateUserUseCase } from "@architecture/identity/application";
 import { ActivateUserPresenter } from "#presentation/activate-user.presenter";
+import type { ActivateUserParamsSchema } from "#schema/identity/activate-user.schema";
+import type { Static } from "@sinclair/typebox";
 
-interface RouteParams {
-  userId: string;
-}
+export type ActivateUserParams = Static<typeof ActivateUserParamsSchema>;
 
 export function buildActivateUserController(useCase: ActivateUserUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { userId } = request.params as RouteParams;
+    handle: async (
+      request: FastifyRequest<{
+        Params: ActivateUserParams;
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const command = {
+        userId: request.params.userId,
+      };
 
-      const result = await useCase.execute({ userId });
+      const result = await useCase.execute(command);
 
       if (!result.success) {
         const response = ActivateUserPresenter.toFailureHttp(result.error);

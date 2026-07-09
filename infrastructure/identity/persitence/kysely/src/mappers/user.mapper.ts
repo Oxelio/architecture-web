@@ -45,7 +45,7 @@ export const UserMapper = {
       isEmailVerified: row.is_email_verified,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
-    } as any);
+    });
   },
 
   toPersistence(user: UserEntity): UserRow {

@@ -2,10 +2,19 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { VerifyEmailUseCase } from "@architecture/identity/application";
 import { VerifyEmailPresenter } from "#presentation/verify-email.presenter";
 
+export type VerifyEmailQuery = {
+  token?: string;
+};
+
 export function buildVerifyEmailController(useCase: VerifyEmailUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const token = (request.query as any).token as string | undefined;
+    handle: async (
+      request: FastifyRequest<{
+        Querystring: VerifyEmailQuery;
+      }>,
+      reply: FastifyReply,
+    ) => {
+      const { token } = request.query;
 
       if (!token) {
         const response = VerifyEmailPresenter.toFailureHttp({

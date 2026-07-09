@@ -5,6 +5,7 @@ export interface EmailVerificationRecord {
   userId: UserIdentifierValueObject;
   expiresAt: Date;
   used: boolean;
+  invalidated: boolean;
 }
 
 export abstract class EmailVerificationPort {

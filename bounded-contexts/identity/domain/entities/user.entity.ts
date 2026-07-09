@@ -71,7 +71,9 @@ export class UserEntity extends Entity<UserProperties> {
   // ------------------------
 
   changeEmail(newEmail: EmailValueObject): void {
-    if (newEmail.equals(this.props.email)) return;
+    if (newEmail.equals(this.props.email)) {
+      return;
+    }
 
     this.props.email = newEmail;
     this.touch();
@@ -83,21 +85,27 @@ export class UserEntity extends Entity<UserProperties> {
   }
 
   verifyEmail(): void {
-    if (this.props.isEmailVerified) return;
+    if (this.props.isEmailVerified) {
+      return;
+    }
 
     this.props.isEmailVerified = true;
     this.touch();
   }
 
   suspend(): void {
-    if (this.props.status.isSuspended()) return;
+    if (this.props.status.isSuspended()) {
+      return;
+    }
 
     this.props.status = StatusValueObject.suspended();
     this.touch();
   }
 
   activate(): void {
-    if (this.props.status.isActive()) return;
+    if (this.props.status.isActive()) {
+      return;
+    }
 
     this.props.status = StatusValueObject.active();
     this.touch();

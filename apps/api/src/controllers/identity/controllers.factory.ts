@@ -1,4 +1,5 @@
 import type { IdentityContainer } from "../../composition-root/identity.container.js";
+import type { SessionCookieOptions } from "#controllers/identity/sign-in.controller";
 import { buildSignUpController } from "#controllers/identity/sign-up.controller";
 import { buildSignInController } from "#controllers/identity/sign-in.controller";
 import { buildSignOutController } from "#controllers/identity/sign-out.controller";
@@ -8,7 +9,6 @@ import { buildChangeEmailController } from "#controllers/identity/change-email.c
 import { buildChangePasswordController } from "#controllers/identity/change-password.controller";
 import { buildActivateUserController } from "#controllers/identity/activate-user.controller";
 import { buildSuspendUserController } from "#controllers/identity/suspend-user.controller";
-import type { SessionCookieOptions } from "#controllers/identity/sign-in.controller";
 import { buildResendEmailVerificationController } from "./resend-email-verification.controller.js";
 
 export function buildIdentityControllers(

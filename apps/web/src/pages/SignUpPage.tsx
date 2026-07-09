@@ -7,10 +7,10 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { signUp } from "../services/api";
 
-type SignUpFormValues = {
+interface SignUpFormValues {
   email: string;
   password: string;
-};
+}
 
 export function SignUpPage() {
   const { t } = useTranslation();

@@ -314,6 +314,9 @@ importers:
       "@fastify/cors":
         specifier: ^11.2.0
         version: 11.2.0
+      "@sinclair/typebox":
+        specifier: ^0.34.49
+        version: 0.34.49
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1565,6 +1568,12 @@ packages:
         integrity: sha512-fCTuZK4QBa+39Oz9l4OGfJfz+GpwCp3AqO7Zch3to99xHPgstVsRFpeQ8LNd2o1Gv8raL2mCFwiaHh7bFSp5DQ==,
       }
     engines: { node: ">=22" }
+
+  "@sinclair/typebox@0.34.49":
+    resolution:
+      {
+        integrity: sha512-brySQQs7Jtn0joV8Xh9ZV/hZb9Ozb0pmazDIASBkYKCjXrXU3mpcFahmK/z4YDhGkQvP9mWJbVyahdtU5wQA+A==,
+      }
 
   "@standard-schema/spec@1.1.0":
     resolution:
@@ -5205,6 +5214,8 @@ snapshots:
   "@simple-libs/stream-utils@1.2.0": {}
 
   "@simple-libs/stream-utils@2.0.0": {}
+
+  "@sinclair/typebox@0.34.49": {}
 
   "@standard-schema/spec@1.1.0": {}
 

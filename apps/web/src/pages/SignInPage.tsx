@@ -8,10 +8,10 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { signIn } from "../services/api";
 
-type SignInFormValues = {
+interface SignInFormValues {
   email: string;
   password: string;
-};
+}
 
 export function SignInPage() {
   const { t } = useTranslation();

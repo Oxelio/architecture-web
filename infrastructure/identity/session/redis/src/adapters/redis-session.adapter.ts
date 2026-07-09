@@ -37,12 +37,16 @@ export class RedisSessionAdapter implements SessionPort {
     id: SessionIdentifierValueObject,
   ): Promise<SessionEntity | null> {
     const data = await this.redis.get(`session:${id.value}`);
-    if (!data) return null;
+    if (!data) {
+      return null;
+    }
 
     const record: SessionRecord = JSON.parse(data);
 
     const userId = UserIdentifierValueObject.create(record.userId);
-    if (!userId.success) return null;
+    if (!userId.success) {
+      return null;
+    }
 
     return SessionEntity.rehydrate({
       identifier: id,

@@ -6,35 +6,59 @@ import { EmailValueObject } from "../../domain/value-objects/email.value-object.
 import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
 import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
 import { SignUpUseCase } from "./sign-up.use-case.js";
+import type {
+  EmailVerificationPort,
+  EmailVerificationRecord,
+} from "#application/ports/email-verification.port";
+import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import type { EmailSenderPort } from "#application/ports/email-sender.port";
+import type { UserPort } from "#application/ports/user.port";
 
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
 
-class FakeEmailVerificationPort {
+class FakeEmailVerificationPort implements EmailVerificationPort {
   public lastToken?: string;
 
-  async create(_userId: any, token: string, _expiresAt: Date): Promise<void> {
+  async create(
+    _userId: UserIdentifierValueObject,
+    token: string,
+    _expiresAt: Date,
+  ): Promise<void> {
     this.lastToken = token;
   }
 
-  async findByToken(): Promise<any> {
+  async findByToken(_token: string): Promise<EmailVerificationRecord | null> {
     return null;
   }
 
   async markUsed(): Promise<void> {
     return;
   }
+
+  async invalidatePrevious(_userId: UserIdentifierValueObject): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
 }
 
 /* ---------------- FAKE EMAIL SENDER ---------------- */
 
-class FakeEmailSenderPort {
-  public lastSent?: { to: string; token: string };
+class FakeEmailSenderPort implements EmailSenderPort {
+  public lastSent?: {
+    to: string;
+    token: string;
+  };
 
-  async sendVerificationEmail(to: any, token: string): Promise<void> {
-    this.lastSent = { to: to.value, token };
+  async sendVerificationEmail(
+    to: EmailValueObject,
+    token: string,
+  ): Promise<void> {
+    this.lastSent = {
+      to: to.value,
+      token,
+    };
   }
 
-  async send() {
+  async send(): Promise<void> {
     return;
   }
 }
@@ -59,13 +83,13 @@ class FakePasswordHasherPort {
   }
 
   async fakeVerify() {
-    /* TODO document why this async method 'fakeVerify' is empty */
+    throw new Error("Method not implemented.");
   }
 }
 
 /* ---------------- FAKE USER PORT ---------------- */
 
-class FakeUserPort {
+class FakeUserPort implements UserPort {
   private readonly usersByEmail = new Map<string, UserEntity>();
   private readonly usersById = new Map<string, UserEntity>();
 
@@ -73,7 +97,7 @@ class FakeUserPort {
     return this.usersByEmail.get(email.value) ?? null;
   }
 
-  async findById(id: any): Promise<UserEntity | null> {
+  async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
     return this.usersById.get(id.value) ?? null;
   }
 
@@ -100,8 +124,8 @@ describe("SignUpUseCase - full coverage", () => {
     useCase = new SignUpUseCase(
       userPort,
       passwordHasher,
-      emailVerificationPort as any,
-      emailSenderPort as any,
+      emailVerificationPort,
+      emailSenderPort,
     );
   });
 

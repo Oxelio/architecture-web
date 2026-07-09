@@ -10,6 +10,7 @@ import { signInSchema } from "#schema/identity/sign-in.schema";
 import { verifyEmailSchema } from "#schema/identity/verify-email.schema";
 import { changeEmailSchema } from "#schema/identity/change-email.schema";
 import { changePasswordSchema } from "#schema/identity/change-password.schema";
+import { activateUserSchema } from "#schema/identity/activate-user.schema";
 
 export function buildIdentityRoutes(
   container: IdentityContainer,
@@ -58,7 +59,13 @@ export function buildIdentityRoutes(
       controllers.changePassword.handle,
     );
 
-    app.patch("/users/:userId/activate", controllers.activateUser.handle);
+    app.patch(
+      "/users/:userId/activate",
+      {
+        schema: activateUserSchema,
+      },
+      controllers.activateUser.handle,
+    );
     app.patch("/users/:userId/suspend", controllers.suspendUser.handle);
   };
 }
