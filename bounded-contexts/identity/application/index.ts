@@ -59,7 +59,7 @@ export {
 
 export {
   ActivateUserUseCase,
-  type ActivateUserInput,
+  type ActivateUserCommand,
   type ActivateUserError,
   type ActivateUserResult,
 } from "#use-cases/activate-user.use-case";

@@ -2,10 +2,10 @@ import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
 
 const HashedPasswordErrors = {
   empty: {
-    kind: "hashed_password.empty",
+    code: "hashed_password.empty",
   },
   invalidCharacters: {
-    kind: "hashed_password.invalid_characters",
+    code: "hashed_password.invalid_characters",
   },
 } as const;
 

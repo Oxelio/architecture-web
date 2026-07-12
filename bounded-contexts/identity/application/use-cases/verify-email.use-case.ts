@@ -8,13 +8,13 @@ export interface VerifyEmailInput {
 
 const VerifyEmailErrors = {
   userNotFound: {
-    kind: "user.not_found",
+    code: "user.not_found",
   },
   tokenInvalid: {
-    kind: "token.invalid",
+    code: "token.invalid",
   },
   tokenExpired: {
-    kind: "token.expired",
+    code: "token.expired",
   },
 } as const;
 

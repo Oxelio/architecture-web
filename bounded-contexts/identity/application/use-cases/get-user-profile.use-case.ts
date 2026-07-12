@@ -8,7 +8,7 @@ export interface GetUserProfileInput {
 
 const GetUserProfileErrors = {
   notFound: {
-    kind: "user.not_found",
+    code: "user.not_found",
   },
 } as const;
 

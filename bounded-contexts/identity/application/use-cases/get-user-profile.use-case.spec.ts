@@ -48,7 +48,7 @@ describe("GetUserProfileUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -68,7 +68,7 @@ describe("GetUserProfileUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -118,7 +118,7 @@ describe("GetUserProfileUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("user.not_found");
+      expect(result.error.code).toBe("user.not_found");
     }
   });
 });

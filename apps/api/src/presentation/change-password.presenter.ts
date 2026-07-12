@@ -10,21 +10,21 @@ export const ChangePasswordPresenter = {
   },
 
   toFailureHttp(error: ChangePasswordError): HttpError {
-    if (error.kind === "password.empty") {
+    if (error.code === "password.empty") {
       return {
         status: 400,
         body: { error: { code: "PASSWORD_REQUIRED" } },
       };
     }
 
-    if (error.kind === "password.too_short") {
+    if (error.code === "password.too_short") {
       return {
         status: 400,
         body: { error: { code: "PASSWORD_TOO_SHORT" } },
       };
     }
 
-    if (error.kind === "user.not_found") {
+    if (error.code === "user.not_found") {
       return {
         status: 404,
         body: { error: { code: "NOT_FOUND" } },

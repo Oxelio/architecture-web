@@ -14,7 +14,7 @@ export interface ChangePasswordInput {
 
 const ChangePasswordErrors = {
   notFound: {
-    kind: "user.not_found",
+    code: "user.not_found",
   },
 } as const;
 

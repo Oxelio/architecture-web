@@ -122,7 +122,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.invalid_credentials",
+        code: "user.invalid_credentials",
       });
     }
   });
@@ -141,7 +141,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.invalid_credentials",
+        code: "user.invalid_credentials",
       });
     }
   });
@@ -164,7 +164,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.invalid_credentials",
+        code: "user.invalid_credentials",
       });
     }
   });
@@ -202,7 +202,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.invalid_credentials",
+        code: "user.invalid_credentials",
       });
     }
   });
@@ -350,7 +350,7 @@ describe("SignInUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.suspended",
+        code: "user.suspended",
       });
     }
   });

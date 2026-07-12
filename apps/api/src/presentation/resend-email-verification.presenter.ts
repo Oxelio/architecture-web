@@ -12,7 +12,7 @@ export const ResendEmailVerificationPresenter = {
   },
 
   toFailureHttp(error: ResendEmailVerificationError): HttpError {
-    switch (error.kind) {
+    switch (error.code) {
       case "user.email_already_verified":
         return {
           status: 409,

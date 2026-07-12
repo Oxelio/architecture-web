@@ -33,7 +33,7 @@ describe("PasswordPlainValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "password.empty",
+      code: "password.empty",
     });
   });
 
@@ -53,7 +53,7 @@ describe("PasswordPlainValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "password.too_short",
+      code: "password.too_short",
       min: 8,
       actual: password.length,
     });
@@ -75,7 +75,7 @@ describe("PasswordPlainValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "password.too_long",
+      code: "password.too_long",
       max: 32,
       actual: password.length,
     });
@@ -97,7 +97,7 @@ describe("PasswordPlainValueObject", () => {
       }
 
       expect(result.error).toEqual({
-        kind: "password.invalid_format",
+        code: "password.invalid_format",
         value: password,
       });
     },

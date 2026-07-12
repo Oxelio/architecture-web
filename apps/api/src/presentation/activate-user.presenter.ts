@@ -1,25 +1,44 @@
-import type { ActivateUserError } from "@architecture/identity/application";
-import type { EmptyResponse, HttpError, HttpSuccess } from "./http.types.js";
+import type {
+  ActivateUserError,
+  ActivateUserResult,
+} from "@architecture/identity/application";
+import type {
+  HttpErrorDefinitions,
+  HttpSuccessDefinitions,
+} from "./http.types.js";
+import { createHttpErrorMapper } from "#schema/http-error-schema";
 
-export const ActivateUserPresenter = {
-  toSuccessHttp(): HttpSuccess<EmptyResponse> {
-    return {
-      status: 200,
-      body: { data: {} },
-    };
+export const ActivateUserHttpErrors = {
+  "user.invalid_id": {
+    status: 400,
+    code: "INVALID_USER_ID",
+    message: "Invalid user identifier",
   },
 
-  toFailureHttp(error: ActivateUserError): HttpError {
-    if (error.kind === "not_found") {
+  "user.not_found": {
+    status: 404,
+    code: "USER_NOT_FOUND",
+    message: "User not found",
+  },
+} satisfies HttpErrorDefinitions<ActivateUserError["code"]>;
+
+export const ActivateUserHttpSuccess = {
+  activated: {
+    status: 204,
+    description: "User activated successfully",
+  },
+} satisfies HttpSuccessDefinitions<"activated">;
+
+const toHttpError = createHttpErrorMapper(ActivateUserHttpErrors);
+
+export const ActivateUserPresenter = {
+  toPresentation(result: ActivateUserResult) {
+    if (result.success) {
       return {
-        status: 404,
-        body: { error: { code: "NOT_FOUND" } },
+        status: ActivateUserHttpSuccess.activated.status,
       };
     }
 
-    return {
-      status: 500,
-      body: { error: { code: "UNKNOWN_ERROR" } },
-    };
+    return toHttpError(result.error);
   },
 };

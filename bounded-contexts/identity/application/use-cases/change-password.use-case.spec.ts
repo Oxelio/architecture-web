@@ -78,7 +78,7 @@ describe("ChangePasswordUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -110,7 +110,7 @@ describe("ChangePasswordUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("password.empty");
+      expect(result.error.code).toBe("password.empty");
     }
   });
 
@@ -130,7 +130,7 @@ describe("ChangePasswordUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -252,7 +252,7 @@ describe("ChangePasswordUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("password.too_short");
+      expect(result.error.code).toBe("password.too_short");
     }
   });
 });

@@ -45,7 +45,7 @@ describe("ActivateUserUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });
@@ -59,7 +59,7 @@ describe("ActivateUserUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });
@@ -75,7 +75,7 @@ describe("ActivateUserUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });

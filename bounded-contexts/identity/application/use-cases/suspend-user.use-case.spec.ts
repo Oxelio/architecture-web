@@ -49,7 +49,7 @@ describe("SuspendUserUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });
@@ -67,7 +67,7 @@ describe("SuspendUserUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });
@@ -87,7 +87,7 @@ describe("SuspendUserUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });

@@ -3,13 +3,13 @@ import { Identifier, Result, type ErrorOf } from "@architecture/foundation";
 
 const SessionIdentifierErrors = {
   empty: {
-    kind: "session_identifier.empty",
+    code: "session_identifier.empty",
   },
   invalidUuid: {
-    kind: "session_identifier.invalid_uuid",
+    code: "session_identifier.invalid_uuid",
   },
   invalidVersion: (expected: number) => ({
-    kind: "session_identifier.invalid_version",
+    code: "session_identifier.invalid_version",
     expected,
   }),
 } as const;

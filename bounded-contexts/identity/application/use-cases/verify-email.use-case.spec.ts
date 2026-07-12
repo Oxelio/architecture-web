@@ -89,7 +89,7 @@ describe("VerifyEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "token.invalid",
+        code: "token.invalid",
       });
     }
   });
@@ -128,7 +128,7 @@ describe("VerifyEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "token.invalid",
+        code: "token.invalid",
       });
     }
   });
@@ -166,7 +166,7 @@ describe("VerifyEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "token.expired",
+        code: "token.expired",
       });
     }
   });
@@ -189,7 +189,7 @@ describe("VerifyEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });

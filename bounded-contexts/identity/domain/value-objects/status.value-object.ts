@@ -2,10 +2,10 @@ import { ValueObject, Result, type ErrorOf } from "@architecture/foundation";
 
 const StatusErrors = {
   empty: {
-    kind: "status.empty",
+    code: "status.empty",
   },
   invalid: (value: string) => ({
-    kind: "status.invalid",
+    code: "status.invalid",
     value,
   }),
 } as const;

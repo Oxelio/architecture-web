@@ -23,7 +23,7 @@ export interface SignUpInput {
 
 const SignUpErrors = {
   userAlreadyExists: {
-    kind: "user.already_exists",
+    code: "user.already_exists",
   },
 } as const;
 

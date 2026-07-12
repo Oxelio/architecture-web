@@ -10,35 +10,35 @@ export const ChangeEmailPresenter = {
   },
 
   toFailureHttp(error: ChangeEmailError): HttpError {
-    if (error.kind === "email.empty") {
+    if (error.code === "email.empty") {
       return {
         status: 400,
         body: { error: { code: "EMAIL_REQUIRED" } },
       };
     }
 
-    if (error.kind === "email.invalid_format") {
+    if (error.code === "email.invalid_format") {
       return {
         status: 400,
         body: { error: { code: "EMAIL_INVALID" } },
       };
     }
 
-    if (error.kind === "email.too_long") {
+    if (error.code === "email.too_long") {
       return {
         status: 400,
         body: { error: { code: "EMAIL_TOO_LONG" } },
       };
     }
 
-    if (error.kind === "not_found") {
+    if (error.code === "not_found") {
       return {
         status: 404,
         body: { error: { code: "NOT_FOUND" } },
       };
     }
 
-    if (error.kind === "user.already_exists") {
+    if (error.code === "user.already_exists") {
       return {
         status: 409,
         body: { error: { code: "USER_ALREADY_EXISTS" } },

@@ -170,7 +170,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -188,7 +188,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -206,7 +206,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.not_found",
+        code: "user.not_found",
       });
     }
   });
@@ -226,7 +226,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.email_already_verified",
+        code: "user.email_already_verified",
       });
     }
   });
@@ -248,7 +248,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "email_verification.too_many_requests",
+        code: "email_verification.too_many_requests",
       });
     }
 

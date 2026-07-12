@@ -13,11 +13,11 @@ export interface SignInInput {
 
 const SignInErrors = {
   invalidCredentials: {
-    kind: "user.invalid_credentials",
+    code: "user.invalid_credentials",
   },
 
   userSuspended: {
-    kind: "user.suspended",
+    code: "user.suspended",
   },
 } as const;
 

@@ -161,7 +161,7 @@ describe("SignUpUseCase - full coverage", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("email.invalid_format");
+      expect(result.error.code).toBe("email.invalid_format");
     }
   });
 
@@ -178,7 +178,7 @@ describe("SignUpUseCase - full coverage", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("password.empty");
+      expect(result.error.code).toBe("password.empty");
     }
   });
 
@@ -202,7 +202,7 @@ describe("SignUpUseCase - full coverage", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.already_exists",
+        code: "user.already_exists",
       });
     }
   });

@@ -54,7 +54,7 @@ describe("StatusValueObject", () => {
       return;
     }
 
-    expect(result.error.kind).toBe("status.empty");
+    expect(result.error.code).toBe("status.empty");
   });
 
   it("should fail when value is invalid", () => {
@@ -66,9 +66,9 @@ describe("StatusValueObject", () => {
       return;
     }
 
-    expect(result.error.kind).toBe("status.invalid");
+    expect(result.error.code).toBe("status.invalid");
     expect(result.error).toStrictEqual({
-      kind: "status.invalid",
+      code: "status.invalid",
       value: "unknown",
     });
   });

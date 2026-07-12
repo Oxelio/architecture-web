@@ -10,7 +10,7 @@ export const SuspendUserPresenter = {
   },
 
   toFailureHttp(error: SuspendUserError): HttpError {
-    if (error.kind === "not_found") {
+    if (error.code === "not_found") {
       return {
         status: 404,
         body: { error: { code: "NOT_FOUND" } },

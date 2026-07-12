@@ -82,7 +82,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "session.unauthorized",
+        code: "session.unauthorized",
       });
     }
   });
@@ -100,7 +100,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "session.unauthorized",
+        code: "session.unauthorized",
       });
     }
   });
@@ -120,7 +120,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "session.unauthorized",
+        code: "session.unauthorized",
       });
     }
   });
@@ -146,7 +146,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "session.unauthorized",
+        code: "session.unauthorized",
       });
     }
   });
@@ -196,7 +196,7 @@ describe("ResolveSessionUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "session.unauthorized",
+        code: "session.unauthorized",
       });
     }
   });

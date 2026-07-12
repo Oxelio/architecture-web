@@ -8,7 +8,7 @@ export interface SignOutInput {
 
 const SignOutErrors = {
   invalidSessionId: {
-    kind: "invalid_session_id",
+    code: "invalid_session_id",
   },
 } as const;
 

@@ -12,15 +12,15 @@ export interface ResendEmailVerificationInput {
 
 const ResendEmailVerificationErrors = {
   userNotFound: {
-    kind: "user.not_found",
+    code: "user.not_found",
   },
 
   alreadyVerified: {
-    kind: "user.email_already_verified",
+    code: "user.email_already_verified",
   },
 
   tooManyRequests: {
-    kind: "email_verification.too_many_requests",
+    code: "email_verification.too_many_requests",
   },
 } as const;
 

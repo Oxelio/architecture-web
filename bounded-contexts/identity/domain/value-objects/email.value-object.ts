@@ -4,16 +4,16 @@ import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
 
 const EmailErrors = {
   empty: {
-    kind: "email.empty",
+    code: "email.empty",
   },
 
   tooLong: (max: number) => ({
-    kind: "email.too_long",
+    code: "email.too_long",
     max,
   }),
 
   invalidFormat: (value: string) => ({
-    kind: "email.invalid_format",
+    code: "email.invalid_format",
     value,
   }),
 } as const;

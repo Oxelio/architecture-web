@@ -10,7 +10,7 @@ export const VerifyEmailPresenter = {
   },
 
   toFailureHttp(error: VerifyEmailError): HttpError {
-    switch (error.kind) {
+    switch (error.code) {
       case "token.invalid":
         return {
           status: 400,
@@ -21,7 +21,7 @@ export const VerifyEmailPresenter = {
           status: 400,
           body: { error: { code: "TOKEN_EXPIRED" } },
         };
-      case "not_found":
+      case "user.not_found":
         return {
           status: 404,
           body: { error: { code: "NOT_FOUND" } },

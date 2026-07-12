@@ -52,7 +52,7 @@ describe("ChangeEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });
@@ -80,7 +80,7 @@ describe("ChangeEmailUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.kind).toBe("email.invalid_format");
+      expect(result.error.code).toBe("email.invalid_format");
     }
   });
 
@@ -96,7 +96,7 @@ describe("ChangeEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "not_found",
+        code: "not_found",
       });
     }
   });
@@ -132,7 +132,7 @@ describe("ChangeEmailUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        kind: "user.already_exists",
+        code: "user.already_exists",
       });
     }
   });

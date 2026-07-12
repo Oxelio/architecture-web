@@ -52,7 +52,7 @@ describe("UserIdentifierValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "user_identifier.empty",
+      code: "user_identifier.empty",
     });
   });
 
@@ -70,7 +70,7 @@ describe("UserIdentifierValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "user_identifier.invalid_uuid",
+      code: "user_identifier.invalid_uuid",
     });
   });
 
@@ -88,7 +88,7 @@ describe("UserIdentifierValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "user_identifier.invalid_version",
+      code: "user_identifier.invalid_version",
       expected: 7,
     });
   });

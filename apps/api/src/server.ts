@@ -2,6 +2,8 @@
 
 import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
+import swagger from "@fastify/swagger";
+import swaggerUI from "@fastify/swagger-ui";
 import pkg from "../package.json" with { type: "json" };
 import { errorHandler } from "./http/error-handler.js";
 import { buildApplicationContainer } from "./composition-root/application.container.js";
@@ -28,6 +30,24 @@ export async function buildServer() {
   });
 
   // =========================
+  // Documentation
+  // =========================
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: "Architecture API",
+        description: "API documentation",
+        version: "1.0.0",
+      },
+      servers: [
+        {
+          url: "http://localhost:3000",
+        },
+      ],
+    },
+  });
+
+  // =========================
   // Composition Root (DI)
   // =========================
   const container = buildApplicationContainer();
@@ -41,7 +61,7 @@ export async function buildServer() {
   // =========================
   // Routes registration
   // =========================
-  app.register(
+  await app.register(
     buildIdentityRoutes(container.identity, {
       name: SESSION_COOKIE_NAME,
       options: sessionCookieOptions,
@@ -50,6 +70,10 @@ export async function buildServer() {
       prefix: `/${apiVersion}/identity`,
     },
   );
+
+  await app.register(swaggerUI, {
+    routePrefix: "/docs",
+  });
 
   return app;
 }

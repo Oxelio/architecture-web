@@ -33,7 +33,7 @@ describe("PasswordHashValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "hashed_password.empty",
+      code: "hashed_password.empty",
     });
   });
 
@@ -53,7 +53,7 @@ describe("PasswordHashValueObject", () => {
       }
 
       expect(result.error).toEqual({
-        kind: "hashed_password.invalid_characters",
+        code: "hashed_password.invalid_characters",
       });
     },
   );

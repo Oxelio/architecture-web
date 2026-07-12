@@ -18,7 +18,7 @@ export function buildVerifyEmailController(useCase: VerifyEmailUseCase) {
 
       if (!token) {
         const response = VerifyEmailPresenter.toFailureHttp({
-          kind: "token.invalid",
+          code: "token.invalid",
         });
         return reply.status(response.status).send(response.body);
       }

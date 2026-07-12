@@ -45,7 +45,7 @@ describe("SessionIdentifierValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "session_identifier.empty",
+      code: "session_identifier.empty",
     });
   });
 
@@ -63,7 +63,7 @@ describe("SessionIdentifierValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "session_identifier.invalid_uuid",
+      code: "session_identifier.invalid_uuid",
     });
   });
 
@@ -81,7 +81,7 @@ describe("SessionIdentifierValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "session_identifier.invalid_version",
+      code: "session_identifier.invalid_version",
       expected: 7,
     });
   });

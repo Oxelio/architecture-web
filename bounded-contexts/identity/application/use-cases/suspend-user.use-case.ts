@@ -7,7 +7,7 @@ export interface SuspendUserInput {
 }
 
 export interface SuspendUserError {
-  kind: "not_found";
+  code: "not_found";
 }
 
 export type SuspendUserResult = Result<void, SuspendUserError>;
@@ -18,12 +18,12 @@ export class SuspendUserUseCase {
   async execute(command: SuspendUserInput): Promise<SuspendUserResult> {
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure({ kind: "not_found" });
+      return Result.failure({ code: "not_found" });
     }
 
     const user = await this.userPort.findById(userId.value);
     if (!user) {
-      return Result.failure({ kind: "not_found" });
+      return Result.failure({ code: "not_found" });
     }
 
     user.suspend();

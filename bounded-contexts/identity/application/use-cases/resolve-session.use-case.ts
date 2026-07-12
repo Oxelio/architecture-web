@@ -9,7 +9,7 @@ export interface ResolveSessionInput {
 
 const ResolveSessionErrors = {
   unauthorized: {
-    kind: "session.unauthorized",
+    code: "session.unauthorized",
   },
 } as const;
 

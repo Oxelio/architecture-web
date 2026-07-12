@@ -45,7 +45,7 @@ describe("EmailValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "email.empty",
+      code: "email.empty",
     });
   });
 
@@ -59,7 +59,7 @@ describe("EmailValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "email.empty",
+      code: "email.empty",
     });
   });
 
@@ -80,7 +80,7 @@ describe("EmailValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "email.too_long",
+      code: "email.too_long",
       max: 254,
     });
   });
@@ -108,7 +108,7 @@ describe("EmailValueObject", () => {
     }
 
     expect(result.error).toEqual({
-      kind: "email.invalid_format",
+      code: "email.invalid_format",
       value: email.trim().toLowerCase(),
     });
   });

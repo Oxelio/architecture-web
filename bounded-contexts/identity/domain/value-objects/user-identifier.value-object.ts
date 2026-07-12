@@ -3,13 +3,13 @@ import { Identifier, Result, type ErrorOf } from "@architecture/foundation";
 
 const UserIdentifierErrors = {
   empty: {
-    kind: "user_identifier.empty",
+    code: "user_identifier.empty",
   },
   invalidUuid: {
-    kind: "user_identifier.invalid_uuid",
+    code: "user_identifier.invalid_uuid",
   },
   invalidVersion: (expected: number) => ({
-    kind: "user_identifier.invalid_version",
+    code: "user_identifier.invalid_version",
     expected,
   }),
 } as const;

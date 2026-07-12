@@ -24,7 +24,7 @@ export const SignUpPresenter = {
   },
 
   toFailureHttp(error: SignUpError): HttpError {
-    switch (error.kind) {
+    switch (error.code) {
       case "email.empty":
         return {
           status: 400,

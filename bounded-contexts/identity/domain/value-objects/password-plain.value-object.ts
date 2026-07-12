@@ -2,23 +2,23 @@ import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
 
 const PlainPasswordErrors = {
   empty: {
-    kind: "password.empty",
+    code: "password.empty",
   },
 
   tooShort: (actual: number, min: number) => ({
-    kind: "password.too_short",
+    code: "password.too_short",
     actual,
     min,
   }),
 
   tooLong: (actual: number, max: number) => ({
-    kind: "password.too_long",
+    code: "password.too_long",
     actual,
     max,
   }),
 
   invalidFormat: (value: string) => ({
-    kind: "password.invalid_format",
+    code: "password.invalid_format",
     value,
   }),
 } as const;
