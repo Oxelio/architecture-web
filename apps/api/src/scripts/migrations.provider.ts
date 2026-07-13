@@ -1,7 +1,5 @@
 // @file apps/api/src/scripts/migrations.provider.ts
 
-// apps/api/src/scripts/migrations.provider.ts
-
 import {
   identityEmailVerificationMigrations,
   identityUserMigrations,

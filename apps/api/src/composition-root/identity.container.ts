@@ -1,7 +1,5 @@
 // @file apps/api/src/composition-root/identity.container.ts
 
-// apps/api/src/composition-root/identity.container.ts
-
 import {
   ActivateUserUseCase,
   ChangeEmailUseCase,

@@ -1,7 +1,5 @@
 // @file bounded-contexts/identity/domain/value-objects/email.value-object.ts
 
-// bounded-contexts/identity/domain/value-objects/email.value-object.ts
-
 import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
 
 const EmailErrors = {

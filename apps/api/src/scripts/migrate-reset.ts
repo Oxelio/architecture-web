@@ -1,7 +1,5 @@
 // @file apps/api/src/scripts/migrate-reset.ts
 
-// apps/api/src/scripts/migrate-reset.ts
-
 import { Migrator } from "kysely/migration";
 
 import { createDatabase } from "../composition-root/database.container.js";

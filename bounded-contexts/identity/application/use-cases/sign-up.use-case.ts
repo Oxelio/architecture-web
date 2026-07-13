@@ -1,7 +1,5 @@
 // @file bounded-contexts/identity/application/use-cases/sign-up.use-case.ts
 
-// bounded-contexts/identity/application/features/register-user/register-user.use-case.ts
-
 import { type ErrorOf, Result } from "@architecture/foundation";
 import { v4 as uuidv4 } from "uuid";
 

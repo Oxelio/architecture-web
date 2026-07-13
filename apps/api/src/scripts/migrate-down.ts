@@ -1,7 +1,5 @@
 // @file apps/api/src/scripts/migrate-down.ts
 
-// apps/api/src/scripts/migrate-down.ts
-
 import { Migrator } from "kysely/migration";
 
 import { createDatabase } from "#composition-root/database.container";
