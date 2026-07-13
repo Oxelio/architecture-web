@@ -2,18 +2,19 @@
 
 // src/server.ts
 
-import Fastify from "fastify";
 import fastifyCors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
+import Fastify from "fastify";
+
 import pkg from "../package.json" with { type: "json" };
-import { errorHandler } from "./http/error-handler.js";
-import { buildApplicationContainer } from "./composition-root/application.container.js";
 import {
   authPlugin,
   buildSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "./auth.js";
+import { buildApplicationContainer } from "./composition-root/application.container.js";
+import { errorHandler } from "./http/error-handler.js";
 import { buildIdentityRoutes } from "./routes/identity.routes.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;

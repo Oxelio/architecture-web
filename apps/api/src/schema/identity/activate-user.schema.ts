@@ -1,5 +1,7 @@
 // @file apps/api/src/schema/identity/activate-user.schema.ts
 
+import { Type } from "@sinclair/typebox";
+
 import {
   ActivateUserHttpErrors,
   ActivateUserHttpSuccess,
@@ -8,7 +10,6 @@ import {
   createErrorResponseSchemas,
   createHttpSuccessResponseSchemas,
 } from "#schema/http-error-schema";
-import { Type } from "@sinclair/typebox";
 
 export const ActivateUserParamsSchema = Type.Object({
   userId: Type.String({

@@ -4,11 +4,13 @@ import type {
   SignUpError,
   SignUpResult,
 } from "@architecture/identity/application";
+
+import { createHttpErrorMapper } from "#schema/http-error-schema";
+
 import type {
   HttpErrorDefinitions,
   HttpSuccessDefinitions,
 } from "./http.types.js";
-import { createHttpErrorMapper } from "#schema/http-error-schema";
 
 export const SignUpHttpErrors = {
   "email.empty": {

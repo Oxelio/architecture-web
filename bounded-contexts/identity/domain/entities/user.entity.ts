@@ -1,10 +1,11 @@
 // @file bounded-contexts/identity/domain/entities/user.entity.ts
 
 import { Entity } from "@architecture/foundation";
-import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+
 import type { EmailValueObject } from "#value-objects/email.value-object";
+import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
+import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 interface UserProperties {
   readonly identifier: UserIdentifierValueObject;

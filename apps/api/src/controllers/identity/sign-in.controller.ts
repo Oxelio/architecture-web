@@ -1,14 +1,16 @@
 // @file apps/api/src/controllers/identity/sign-in.controller.ts
 
-import type { FastifyReply, FastifyRequest } from "fastify";
-import type { CookieSerializeOptions } from "@fastify/cookie";
 import type {
   SignInInput,
   SignInUseCase,
 } from "@architecture/identity/application";
+import type { CookieSerializeOptions } from "@fastify/cookie";
+import type { Static } from "@sinclair/typebox";
+import type { FastifyReply, FastifyRequest } from "fastify";
+
 import { SignInPresenter } from "#presentation/sign-in.presenter";
 import type { SignInBodySchema } from "#schema/identity/sign-in.schema";
-import type { Static } from "@sinclair/typebox";
+
 import { sendControllerResponse } from "./controller-response.js";
 
 export interface SessionCookieOptions {

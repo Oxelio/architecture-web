@@ -1,9 +1,10 @@
 // @file apps/web/src/pages/ProfilePage.tsx
 
-import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import type { CurrentUser } from "../services/api";
 import {
   changeEmail,

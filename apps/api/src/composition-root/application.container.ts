@@ -3,9 +3,10 @@
 // apps/api/src/composition-root/application.container.ts
 
 import { Redis } from "ioredis";
+
+import { loadConfig } from "../config/app.config.js";
 import { createDatabase } from "./database.container.js";
 import { buildIdentityContainer } from "./identity.container.js";
-import { loadConfig } from "../config/app.config.js";
 
 export function buildApplicationContainer() {
   const config = loadConfig();

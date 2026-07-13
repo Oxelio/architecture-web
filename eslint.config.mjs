@@ -1,7 +1,9 @@
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
-import tseslint from "typescript-eslint";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 const baseConfig = defineConfig(
   js.configs.recommended,
@@ -13,13 +15,35 @@ export default [
   {
     ignores: ["**/dist/**", "node_modules/**"],
   },
+
   ...baseConfig,
-  eslintConfigPrettier,
+
+  // Configuration Node.js pour les scripts .mjs
   {
+    files: ["**/*.mjs"],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "no-console": "off",
+    },
+  },
+
+  eslintConfigPrettier,
+
+  {
+    plugins: {
+      "simple-import-sort": simpleImportSort,
+    },
     rules: {
       curly: ["error", "all"],
       eqeqeq: ["error", "always"],
       "no-else-return": "error",
+
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
 
       "@typescript-eslint/no-unused-vars": [
         "error",

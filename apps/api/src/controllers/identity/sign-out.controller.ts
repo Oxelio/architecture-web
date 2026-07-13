@@ -1,13 +1,15 @@
 // @file apps/api/src/controllers/identity/sign-out.controller.ts
 
-import type { FastifyReply, FastifyRequest } from "fastify";
 import type {
   SignOutInput,
   SignOutUseCase,
 } from "@architecture/identity/application";
+import type { FastifyReply, FastifyRequest } from "fastify";
+
 import { SignOutPresenter } from "#presentation/sign-out.presenter";
-import type { SessionCookieOptions } from "./sign-in.controller.js";
+
 import { sendControllerResponse } from "./controller-response.js";
+import type { SessionCookieOptions } from "./sign-in.controller.js";
 
 export function buildSignOutController(
   useCase: SignOutUseCase,

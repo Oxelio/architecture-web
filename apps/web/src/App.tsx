@@ -3,6 +3,7 @@
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { cn } from "./lib/cn";

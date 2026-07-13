@@ -1,13 +1,13 @@
 // @file bounded-contexts/identity/application/use-cases/suspend-user.use-case.spec.ts
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SuspendUserUseCase } from "./suspend-user.use-case.js";
-import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import { UserEntity } from "../../domain/entities/user.entity.js";
 import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
 import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
-import { UserEntity } from "../../domain/entities/user.entity.js";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
 import type { UserPort } from "../ports/user.port.js";
+import { SuspendUserUseCase } from "./suspend-user.use-case.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 

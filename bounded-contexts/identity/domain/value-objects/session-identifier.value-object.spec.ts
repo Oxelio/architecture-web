@@ -1,7 +1,7 @@
 // @file bounded-contexts/identity/domain/value-objects/session-identifier.value-object.spec.ts
 
-import { describe, it, expect } from "vitest";
 import { v4 as uuidv4, v7 as uuidv7 } from "uuid";
+import { describe, expect, it } from "vitest";
 
 import { SessionIdentifierValueObject } from "./session-identifier.value-object.js";
 

@@ -1,16 +1,17 @@
 // @file apps/api/src/controllers/identity/controllers.factory.ts
 
-import type { IdentityContainer } from "../../composition-root/identity.container.js";
-import type { SessionCookieOptions } from "#controllers/identity/sign-in.controller";
-import { buildSignUpController } from "#controllers/identity/sign-up.controller";
-import { buildSignInController } from "#controllers/identity/sign-in.controller";
-import { buildSignOutController } from "#controllers/identity/sign-out.controller";
-import { buildGetUserProfileController } from "#controllers/identity/get-user-profile.controller";
-import { buildVerifyEmailController } from "#controllers/identity/verify-email.controller";
+import { buildActivateUserController } from "#controllers/identity/activate-user.controller";
 import { buildChangeEmailController } from "#controllers/identity/change-email.controller";
 import { buildChangePasswordController } from "#controllers/identity/change-password.controller";
-import { buildActivateUserController } from "#controllers/identity/activate-user.controller";
+import { buildGetUserProfileController } from "#controllers/identity/get-user-profile.controller";
+import type { SessionCookieOptions } from "#controllers/identity/sign-in.controller";
+import { buildSignInController } from "#controllers/identity/sign-in.controller";
+import { buildSignOutController } from "#controllers/identity/sign-out.controller";
+import { buildSignUpController } from "#controllers/identity/sign-up.controller";
 import { buildSuspendUserController } from "#controllers/identity/suspend-user.controller";
+import { buildVerifyEmailController } from "#controllers/identity/verify-email.controller";
+
+import type { IdentityContainer } from "../../composition-root/identity.container.js";
 import { buildResendEmailVerificationController } from "./resend-email-verification.controller.js";
 
 export function buildIdentityControllers(

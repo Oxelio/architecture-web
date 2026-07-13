@@ -2,10 +2,11 @@
 
 // apps/api/src/scripts/migrate-reset.ts
 
-import { createDatabase } from "../composition-root/database.container.js";
-import { getAllMigrations } from "./migrations.provider.js";
 import { Migrator } from "kysely/migration";
+
+import { createDatabase } from "../composition-root/database.container.js";
 import { loadConfig } from "../config/app.config.js";
+import { getAllMigrations } from "./migrations.provider.js";
 
 const config = loadConfig();
 const db = createDatabase(config.database);

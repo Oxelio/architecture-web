@@ -1,7 +1,7 @@
 // @file infrastructure/identity/session/redis/src/adapters/redis-email-verification-rate-limit.adapter.ts
 
-import type { Redis } from "ioredis";
 import type { EmailVerificationRateLimitPort } from "@architecture/identity/application";
+import type { Redis } from "ioredis";
 
 export class RedisEmailVerificationRateLimitAdapter implements EmailVerificationRateLimitPort {
   private readonly prefix = "email-verification-rate";

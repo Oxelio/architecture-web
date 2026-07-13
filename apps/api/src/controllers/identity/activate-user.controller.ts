@@ -1,16 +1,15 @@
 // @file apps/api/src/controllers/identity/activate-user.controller.ts
 
-// apps/api/src/controllers/identity/activate-user.controller.ts
-
-import type { FastifyReply, FastifyRequest } from "fastify";
 import type {
   ActivateUserCommand,
   ActivateUserUseCase,
 } from "@architecture/identity/application";
+import type { Static } from "@sinclair/typebox";
+import type { FastifyReply, FastifyRequest } from "fastify";
+
+import { sendControllerResponse } from "#controllers/controller-response";
 import { ActivateUserPresenter } from "#presentation/activate-user.presenter";
 import type { ActivateUserParamsSchema } from "#schema/identity/activate-user.schema";
-import type { Static } from "@sinclair/typebox";
-import { sendControllerResponse } from "./controller-response.js";
 
 export type ActivateUserParams = Static<typeof ActivateUserParamsSchema>;
 

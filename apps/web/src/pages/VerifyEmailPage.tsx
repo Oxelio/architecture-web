@@ -1,9 +1,10 @@
 // @file apps/web/src/pages/VerifyEmailPage.tsx
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
+
 import { verifyEmail } from "../services/api";
 
 export function VerifyEmailPage() {

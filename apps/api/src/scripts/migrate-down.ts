@@ -3,9 +3,11 @@
 // apps/api/src/scripts/migrate-down.ts
 
 import { Migrator } from "kysely/migration";
+
 import { createDatabase } from "#composition-root/database.container";
-import { getAllMigrations } from "./migrations.provider.js";
+
 import { loadConfig } from "../config/app.config.js";
+import { getAllMigrations } from "./migrations.provider.js";
 
 const config = loadConfig();
 const db = createDatabase(config.database);

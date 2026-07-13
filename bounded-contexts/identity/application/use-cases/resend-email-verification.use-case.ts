@@ -1,11 +1,12 @@
 // @file bounded-contexts/identity/application/use-cases/resend-email-verification.use-case.ts
 
+import { type ErrorOf, Result } from "@architecture/foundation";
 import { v4 as uuidv4 } from "uuid";
-import type { UserPort } from "#ports/user.port";
+
 import type { EmailSenderPort } from "#ports/email-sender.port";
 import type { EmailVerificationPort } from "#ports/email-verification.port";
 import type { EmailVerificationRateLimitPort } from "#ports/email-verification-rate-limit.port";
-import { Result, type ErrorOf } from "@architecture/foundation";
+import type { UserPort } from "#ports/user.port";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 export interface ResendEmailVerificationInput {

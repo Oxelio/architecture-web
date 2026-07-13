@@ -1,18 +1,20 @@
 // @file bounded-contexts/identity/application/use-cases/resend-email-verification.use-case.spec.ts
 
+import { beforeEach, describe, expect, it } from "vitest";
+
 import type { EmailSenderPort } from "#application/ports/email-sender.port";
-import type { EmailVerificationRateLimitPort } from "#application/ports/email-verification-rate-limit.port";
 import type {
   EmailVerificationPort,
   EmailVerificationRecord,
 } from "#application/ports/email-verification.port";
+import type { EmailVerificationRateLimitPort } from "#application/ports/email-verification-rate-limit.port";
 import type { UserPort } from "#application/ports/user.port";
 import { UserEntity } from "#entities/user.entity";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import { beforeEach, describe, expect, it } from "vitest";
+
 import { ResendEmailVerificationUseCase } from "./resend-email-verification.use-case.js";
 
 /* -------------------------------------------------------------------------- */

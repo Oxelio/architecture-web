@@ -1,5 +1,7 @@
 // @file apps/api/src/schema/identity/change-email.schema.ts
 
+import { Type } from "@sinclair/typebox";
+
 import {
   ChangeEmailHttpErrors,
   ChangeEmailHttpSuccess,
@@ -8,7 +10,6 @@ import {
   createErrorResponseSchemas,
   createHttpSuccessResponseSchemas,
 } from "#schema/http-error-schema";
-import { Type } from "@sinclair/typebox";
 
 export const ChangeEmailBodySchema = Type.Object({
   email: Type.String({

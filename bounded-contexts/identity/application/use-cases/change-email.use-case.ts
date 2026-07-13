@@ -1,10 +1,11 @@
 // @file bounded-contexts/identity/application/use-cases/change-email.use-case.ts
 
+import { type ErrorOf, Result } from "@architecture/foundation";
+
 import type { UserPort } from "#application/ports/user.port";
-import { Result, type ErrorOf } from "@architecture/foundation";
 import {
-  EmailValueObject,
   type EmailError,
+  EmailValueObject,
 } from "#value-objects/email.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 

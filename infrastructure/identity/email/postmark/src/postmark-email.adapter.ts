@@ -2,7 +2,6 @@
 
 import type { EmailSenderPort } from "@architecture/identity/application";
 import type { EmailValueObject } from "@architecture/identity/domain";
-
 import { ServerClient } from "postmark";
 
 export class PostmarkEmailSenderAdapter implements EmailSenderPort {

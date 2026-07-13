@@ -1,12 +1,12 @@
 // @file bounded-contexts/identity/application/use-cases/sign-out.use-case.spec.ts
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SignOutUseCase } from "./sign-out.use-case.js";
-import { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
-import type { SessionPort } from "../ports/session.port.js";
 import { SessionEntity } from "../../domain/entities/session.entity.js";
+import { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
 import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import type { SessionPort } from "../ports/session.port.js";
+import { SignOutUseCase } from "./sign-out.use-case.js";
 
 /* ---------------- FAKE SESSION PORT ---------------- */
 

@@ -1,5 +1,7 @@
 // @file apps/api/src/schema/identity/sign-in.schema.ts
 
+import { Type } from "@sinclair/typebox";
+
 import {
   SignInHttpErrors,
   SignInHttpSuccess,
@@ -8,7 +10,6 @@ import {
   createErrorResponseSchemas,
   createHttpSuccessResponseSchemas,
 } from "#schema/http-error-schema";
-import { Type } from "@sinclair/typebox";
 
 export const SignInBodySchema = Type.Object({
   email: Type.String({

@@ -1,6 +1,7 @@
 // @file bounded-contexts/identity/domain/value-objects/status.value-object.spec.ts
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { StatusValueObject } from "./status.value-object.js";
 
 describe("StatusValueObject", () => {

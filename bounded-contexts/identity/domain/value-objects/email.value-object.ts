@@ -2,7 +2,7 @@
 
 // bounded-contexts/identity/domain/value-objects/email.value-object.ts
 
-import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
+import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
 
 const EmailErrors = {
   empty: {

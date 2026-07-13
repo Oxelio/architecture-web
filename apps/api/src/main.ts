@@ -2,8 +2,9 @@
 
 // src/main.ts
 
-import { buildServer } from "./server.js";
 import { config } from "dotenv";
+
+import { buildServer } from "./server.js";
 
 config({ path: new URL("../.env", import.meta.url) });
 

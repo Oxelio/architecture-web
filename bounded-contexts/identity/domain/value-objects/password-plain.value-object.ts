@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/password-plain.value-object.ts
 
-import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
+import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
 
 const PlainPasswordErrors = {
   empty: {

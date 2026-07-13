@@ -1,11 +1,13 @@
 // @file apps/api/src/presentation/get-user-profile.presenter.ts
 
 import type { GetUserProfileResult } from "@architecture/identity/application";
+
+import { createHttpErrorMapper } from "#schema/http-error-schema";
+
 import type {
   HttpErrorDefinitions,
   HttpSuccessDefinitions,
 } from "./http.types.js";
-import { createHttpErrorMapper } from "#schema/http-error-schema";
 
 export const GetUserProfileHttpErrors = {
   "user.invalid_id": {

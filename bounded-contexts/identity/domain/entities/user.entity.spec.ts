@@ -1,12 +1,12 @@
 // @file bounded-contexts/identity/domain/entities/user.entity.spec.ts
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { EmailValueObject } from "../value-objects/email.value-object.js";
 import { PasswordHashValueObject } from "../value-objects/password-hash.value-object.js";
+import { StatusValueObject } from "../value-objects/status.value-object.js";
 import { UserIdentifierValueObject } from "../value-objects/user-identifier.value-object.js";
 import { UserEntity } from "./user.entity.js";
-import { StatusValueObject } from "../value-objects/status.value-object.js";
 
 describe("UserEntity", () => {
   /* -------------------------------------------------- */

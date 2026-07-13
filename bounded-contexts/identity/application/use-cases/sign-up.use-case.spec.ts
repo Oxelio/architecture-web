@@ -1,20 +1,20 @@
 // @file bounded-contexts/identity/application/use-cases/sign-up.use-case.spec.ts
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UserEntity } from "../../domain/entities/user.entity.js";
-
-import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
-import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
-import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
-import { SignUpUseCase } from "./sign-up.use-case.js";
+import type { EmailSenderPort } from "#application/ports/email-sender.port";
 import type {
   EmailVerificationPort,
   EmailVerificationRecord,
 } from "#application/ports/email-verification.port";
-import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
-import type { EmailSenderPort } from "#application/ports/email-sender.port";
 import type { UserPort } from "#application/ports/user.port";
+import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
+import { UserEntity } from "../../domain/entities/user.entity.js";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
+import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
+import { SignUpUseCase } from "./sign-up.use-case.js";
 
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
 

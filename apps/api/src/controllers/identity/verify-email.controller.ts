@@ -1,13 +1,15 @@
 // @file apps/api/src/controllers/identity/verify-email.controller.ts
 
-import type { FastifyReply, FastifyRequest } from "fastify";
 import type {
   VerifyEmailInput,
   VerifyEmailUseCase,
 } from "@architecture/identity/application";
+import type { Static } from "@sinclair/typebox";
+import type { FastifyReply, FastifyRequest } from "fastify";
+
 import { VerifyEmailPresenter } from "#presentation/verify-email.presenter";
 import type { VerifyEmailQuerySchema } from "#schema/identity/verify-email.schema";
-import type { Static } from "@sinclair/typebox";
+
 import { sendControllerResponse } from "./controller-response.js";
 
 export type VerifyEmailQuery = Static<typeof VerifyEmailQuerySchema>;

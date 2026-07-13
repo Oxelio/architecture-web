@@ -1,7 +1,7 @@
 // @file bounded-contexts/identity/domain/value-objects/user-identifier.value-object.ts
 
+import { type ErrorOf, Identifier, Result } from "@architecture/foundation";
 import { v7 as uuid, validate, version } from "uuid";
-import { Identifier, Result, type ErrorOf } from "@architecture/foundation";
 
 const UserIdentifierErrors = {
   empty: {

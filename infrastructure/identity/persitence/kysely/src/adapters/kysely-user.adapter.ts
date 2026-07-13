@@ -1,11 +1,11 @@
 // @file infrastructure/identity/persitence/kysely/src/adapters/kysely-user.adapter.ts
 
+import type { UserPort } from "@architecture/identity/application";
 import type { UserEntity } from "@architecture/identity/domain";
 import {
   EmailValueObject,
   UserIdentifierValueObject,
 } from "@architecture/identity/domain";
-import type { UserPort } from "@architecture/identity/application";
 import type { Kysely } from "kysely";
 
 import { UserMapper } from "../mappers/user.mapper.js";

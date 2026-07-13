@@ -1,7 +1,7 @@
 // @file apps/api/src/auth.ts
 
-import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
 import type { ResolveSessionUseCase } from "@architecture/identity/application";
+import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
 import type {
   FastifyInstance,
   FastifyPluginAsync,

@@ -2,7 +2,6 @@
 
 import type { EmailSenderPort } from "@architecture/identity/application";
 import type { EmailValueObject } from "@architecture/identity/domain";
-
 import nodemailer, { type Transporter } from "nodemailer";
 
 export class NodemailerEmailSenderAdapter implements EmailSenderPort {

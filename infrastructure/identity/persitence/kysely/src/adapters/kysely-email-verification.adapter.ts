@@ -1,15 +1,16 @@
 // @file infrastructure/identity/persitence/kysely/src/adapters/kysely-email-verification.adapter.ts
 
-import type { Kysely } from "kysely";
 import type {
   EmailVerificationPort,
   EmailVerificationRecord,
 } from "@architecture/identity/application";
+import { UserIdentifierValueObject } from "@architecture/identity/domain";
+import type { Kysely } from "kysely";
+
 import type {
   IdentityDatabase,
   IdentityEmailVerificationRow,
 } from "../persistence/schema.js";
-import { UserIdentifierValueObject } from "@architecture/identity/domain";
 
 export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}

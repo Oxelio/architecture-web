@@ -1,15 +1,15 @@
 // @file bounded-contexts/identity/application/use-cases/verify-email.use-case.spec.ts
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { VerifyEmailUseCase } from "./verify-email.use-case.js";
-import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import { UserEntity } from "../../domain/entities/user.entity.js";
 import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
 import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
-import { UserEntity } from "../../domain/entities/user.entity.js";
-import type { UserPort } from "../ports/user.port.js";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
 import type { EmailVerificationPort } from "../ports/email-verification.port.js";
 import type { EmailVerificationRecord } from "../ports/email-verification.port.js";
+import type { UserPort } from "../ports/user.port.js";
+import { VerifyEmailUseCase } from "./verify-email.use-case.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 

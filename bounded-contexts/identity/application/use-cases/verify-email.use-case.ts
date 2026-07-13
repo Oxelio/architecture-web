@@ -1,8 +1,9 @@
 // @file bounded-contexts/identity/application/use-cases/verify-email.use-case.ts
 
-import type { UserPort } from "#application/ports/user.port";
+import { type ErrorOf, Result } from "@architecture/foundation";
+
 import type { EmailVerificationPort } from "#application/ports/email-verification.port";
-import { Result, type ErrorOf } from "@architecture/foundation";
+import type { UserPort } from "#application/ports/user.port";
 
 export interface VerifyEmailInput {
   token: string;

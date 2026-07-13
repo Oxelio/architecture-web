@@ -1,14 +1,16 @@
 // @file apps/api/src/controllers/identity/change-password.controller.ts
 
-import type { FastifyReply } from "fastify";
 import type {
   ChangePasswordInput,
   ChangePasswordUseCase,
 } from "@architecture/identity/application";
+import type { FastifyReply } from "fastify";
+
 import { ChangePasswordPresenter } from "#presentation/change-password.presenter";
+
 import {
-  sendControllerResponse,
   type AuthenticatedRequest,
+  sendControllerResponse,
 } from "./controller-response.js";
 
 type ChangePasswordHTTPRequest = AuthenticatedRequest;

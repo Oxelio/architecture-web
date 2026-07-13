@@ -1,12 +1,12 @@
 // @file bounded-contexts/identity/application/use-cases/get-user-profile.use-case.spec.ts
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { GetUserProfileUseCase } from "./get-user-profile.use-case.js";
-import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
-import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
-import type { UserPort } from "../ports/user.port.js";
 import type { UserEntity } from "../../domain/entities/user.entity.js";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import type { UserPort } from "../ports/user.port.js";
+import { GetUserProfileUseCase } from "./get-user-profile.use-case.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 

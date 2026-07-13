@@ -1,11 +1,11 @@
 // @file infrastructure/identity/session/redis/src/adapters/redis-session.adapter.ts
 
 import type { SessionPort } from "@architecture/identity/application";
+import type { SessionIdentifierValueObject } from "@architecture/identity/domain";
 import {
   SessionEntity,
   UserIdentifierValueObject,
 } from "@architecture/identity/domain";
-import type { SessionIdentifierValueObject } from "@architecture/identity/domain";
 import type { Redis } from "ioredis";
 
 interface SessionRecord {

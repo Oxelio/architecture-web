@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/password-plain.value-object.spec.ts
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { PasswordPlainValueObject } from "./password-plain.value-object.js";
 

@@ -1,14 +1,16 @@
 // @file apps/api/src/controllers/identity/change-email.controller.ts
 
-import type { FastifyReply } from "fastify";
 import type {
   ChangeEmailInput,
   ChangeEmailUseCase,
 } from "@architecture/identity/application";
+import type { FastifyReply } from "fastify";
+
 import { ChangeEmailPresenter } from "#presentation/change-email.presenter";
+
 import {
-  sendControllerResponse,
   type AuthenticatedRequest,
+  sendControllerResponse,
 } from "./controller-response.js";
 
 type ChangeEmailHTTPRequest = AuthenticatedRequest;

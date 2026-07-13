@@ -1,19 +1,17 @@
 // @file bounded-contexts/identity/application/use-cases/resolve-session.use-case.spec.ts
 
-import { describe, it, expect, beforeEach } from "vitest";
-
-import type { SessionPort } from "../ports/session.port.js";
-import type { UserPort } from "../ports/user.port.js";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { SessionEntity } from "../../domain/entities/session.entity.js";
 import { UserEntity } from "../../domain/entities/user.entity.js";
-
-import { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
-import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
 import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
 import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
-import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
+import { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
 import { StatusValueObject } from "../../domain/value-objects/status.value-object.js";
+import { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import type { SessionPort } from "../ports/session.port.js";
+import type { UserPort } from "../ports/user.port.js";
+import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
 
 /* -------------------------------------------------------------------------- */
 /*                                FAKE USER PORT                              */

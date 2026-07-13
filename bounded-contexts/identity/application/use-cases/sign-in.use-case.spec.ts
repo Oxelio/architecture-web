@@ -1,20 +1,17 @@
 // @file bounded-contexts/identity/application/use-cases/sign-in.use-case.spec.ts
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SignInUseCase } from "./sign-in.use-case.js";
-
-import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
-import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
-import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
-
-import { UserEntity } from "../../domain/entities/user.entity.js";
 import type { SessionEntity } from "../../domain/entities/session.entity.js";
-
-import type { SessionPort } from "../ports/session.port.js";
-import type { PasswordHasherPort } from "../ports/password-hasher.port.js";
+import { UserEntity } from "../../domain/entities/user.entity.js";
+import { EmailValueObject } from "../../domain/value-objects/email.value-object.js";
+import { PasswordHashValueObject } from "../../domain/value-objects/password-hash.value-object.js";
+import { PasswordPlainValueObject } from "../../domain/value-objects/password-plain.value-object.js";
 import type { SessionIdentifierValueObject } from "../../domain/value-objects/session-identifier.value-object.js";
 import type { UserIdentifierValueObject } from "../../domain/value-objects/user-identifier.value-object.js";
+import type { PasswordHasherPort } from "../ports/password-hasher.port.js";
+import type { SessionPort } from "../ports/session.port.js";
+import { SignInUseCase } from "./sign-in.use-case.js";
 
 /* -------------------------------------------------------------------------- */
 /*                                FAKE USER PORT                              */

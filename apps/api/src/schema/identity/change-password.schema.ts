@@ -1,5 +1,7 @@
 // @file apps/api/src/schema/identity/change-password.schema.ts
 
+import { Type } from "@sinclair/typebox";
+
 import {
   ChangePasswordHttpErrors,
   ChangePasswordHttpSuccess,
@@ -8,7 +10,6 @@ import {
   createErrorResponseSchemas,
   createHttpSuccessResponseSchemas,
 } from "#schema/http-error-schema";
-import { Type } from "@sinclair/typebox";
 
 export const ChangePasswordBodySchema = Type.Object({
   password: Type.String({

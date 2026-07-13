@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/password-hash.value-object.ts
 
-import { Result, ValueObject, type ErrorOf } from "@architecture/foundation";
+import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
 
 const HashedPasswordErrors = {
   empty: {

@@ -1,6 +1,7 @@
 // @file bounded-contexts/identity/application/use-cases/resolve-session.use-case.ts
 
-import { Result, type ErrorOf } from "@architecture/foundation";
+import { type ErrorOf, Result } from "@architecture/foundation";
+
 import type { SessionPort } from "#application/ports/session.port";
 import type { UserPort } from "#application/ports/user.port";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";

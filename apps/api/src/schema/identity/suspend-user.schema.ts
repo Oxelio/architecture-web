@@ -1,5 +1,7 @@
 // @file apps/api/src/schema/identity/suspend-user.schema.ts
 
+import { Type } from "@sinclair/typebox";
+
 import {
   SuspendUserHttpErrors,
   SuspendUserHttpSuccess,
@@ -8,7 +10,6 @@ import {
   createErrorResponseSchemas,
   createHttpSuccessResponseSchemas,
 } from "#schema/http-error-schema";
-import { Type } from "@sinclair/typebox";
 
 export const SuspendUserParamsSchema = Type.Object({
   userId: Type.String({

@@ -1,5 +1,7 @@
 // @file apps/api/src/schema/identity/verify-email.schema.ts
 
+import { Type } from "@sinclair/typebox";
+
 import {
   VerifyEmailHttpErrors,
   VerifyEmailHttpSuccess,
@@ -8,7 +10,6 @@ import {
   createErrorResponseSchemas,
   createHttpSuccessResponseSchemas,
 } from "#schema/http-error-schema";
-import { Type } from "@sinclair/typebox";
 
 export const VerifyEmailQuerySchema = Type.Object({
   token: Type.String({

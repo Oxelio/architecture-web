@@ -2,33 +2,34 @@
 
 // apps/api/src/composition-root/identity.container.ts
 
-import { Redis } from "ioredis";
 import {
-  SignInUseCase,
-  GetUserProfileUseCase,
-  SignOutUseCase,
-  SignUpUseCase,
-  VerifyEmailUseCase,
-  ResolveSessionUseCase,
+  ActivateUserUseCase,
   ChangeEmailUseCase,
   ChangePasswordUseCase,
-  ActivateUserUseCase,
-  SuspendUserUseCase,
+  GetUserProfileUseCase,
   ResendEmailVerificationUseCase,
+  ResolveSessionUseCase,
+  SignInUseCase,
+  SignOutUseCase,
+  SignUpUseCase,
+  SuspendUserUseCase,
+  VerifyEmailUseCase,
 } from "@architecture/identity/application";
+import { NodemailerEmailSenderAdapter } from "@architecture/identity-email-nodemailer";
+import { Argon2PasswordHasherAdapter } from "@architecture/identity-password-argon2";
+import {
+  KyselyEmailVerificationAdapter,
+  KyselyUserAdapter,
+} from "@architecture/identity-persistence-kysely";
 import {
   RedisEmailVerificationRateLimitAdapter,
   RedisSessionAdapter,
 } from "@architecture/identity-session-redis";
-import {
-  KyselyUserAdapter,
-  KyselyEmailVerificationAdapter,
-} from "@architecture/identity-persistence-kysely";
-import { Argon2PasswordHasherAdapter } from "@architecture/identity-password-argon2";
+import { Redis } from "ioredis";
 import type { Kysely } from "kysely";
-import type { AppDatabase } from "./database.container.js";
-import { NodemailerEmailSenderAdapter } from "@architecture/identity-email-nodemailer";
+
 import type { AppConfig } from "../config/app.config.js";
+import type { AppDatabase } from "./database.container.js";
 
 export interface IdentityContainer {
   readonly signUp: SignUpUseCase;

@@ -1,11 +1,13 @@
 // @file apps/api/src/presentation/suspend-user.presenter.ts
 
 import type { SuspendUserResult } from "@architecture/identity/application";
+
+import { createHttpErrorMapper } from "#schema/http-error-schema";
+
 import type {
   HttpErrorDefinitions,
   HttpSuccessDefinitions,
 } from "./http.types.js";
-import { createHttpErrorMapper } from "#schema/http-error-schema";
 
 export const SuspendUserHttpErrors = {
   "user.invalid_id": {

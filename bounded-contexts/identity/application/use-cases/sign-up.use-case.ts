@@ -2,16 +2,17 @@
 
 // bounded-contexts/identity/application/features/register-user/register-user.use-case.ts
 
+import { type ErrorOf, Result } from "@architecture/foundation";
 import { v4 as uuidv4 } from "uuid";
-import type { PasswordHasherPort } from "#ports/password-hasher.port";
-import type { UserPort } from "#ports/user.port";
+
+import { UserEntity } from "#entities/user.entity";
 import type { EmailSenderPort } from "#ports/email-sender.port";
 import type { EmailVerificationPort } from "#ports/email-verification.port";
-import { UserEntity } from "#entities/user.entity";
-import { Result, type ErrorOf } from "@architecture/foundation";
+import type { PasswordHasherPort } from "#ports/password-hasher.port";
+import type { UserPort } from "#ports/user.port";
 import {
-  EmailValueObject,
   type EmailError,
+  EmailValueObject,
 } from "#value-objects/email.value-object";
 import {
   PasswordPlainValueObject,

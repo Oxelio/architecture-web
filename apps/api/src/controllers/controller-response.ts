@@ -1,7 +1,8 @@
-// @file apps/api/src/controllers/identity/controller-response.ts
+// @file apps/api/src/controllers/controller-response.ts
 
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { AuthenticatedContext } from "../../auth.js";
+
+import type { AuthenticatedContext } from "../auth.js";
 
 export interface ControllerResponse {
   status: number;
