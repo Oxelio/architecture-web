@@ -1,3 +1,5 @@
+// @file infrastructure/identity/security/bcrypt/src/adapters/bcrypt-password-hasher.adapter.ts
+
 import bcrypt from "bcrypt";
 
 import type { PasswordHasherPort } from "@architecture/identity/application";

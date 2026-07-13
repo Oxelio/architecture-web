@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/suspend-user.use-case.spec.ts
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { SuspendUserUseCase } from "./suspend-user.use-case.js";

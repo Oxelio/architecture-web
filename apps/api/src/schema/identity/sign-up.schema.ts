@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/sign-up.schema.ts
+
 import {
   SignUpHttpErrors,
   SignUpHttpSuccess,

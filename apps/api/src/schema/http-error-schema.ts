@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/http-error-schema.ts
+
 import type {
   HttpError,
   HttpErrorDefinitions,

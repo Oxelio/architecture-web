@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/ports/email-verification.port.ts
+
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 export interface EmailVerificationRecord {

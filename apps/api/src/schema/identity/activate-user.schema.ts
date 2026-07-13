@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/activate-user.schema.ts
+
 import {
   ActivateUserHttpErrors,
   ActivateUserHttpSuccess,

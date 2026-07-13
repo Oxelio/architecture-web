@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/activate-user.presenter.ts
+
 import type {
   ActivateUserError,
   ActivateUserResult,

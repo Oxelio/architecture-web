@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/domain/index.ts
+
 export { UserEntity } from "#entities/user.entity";
 export { SessionEntity } from "#entities/session.entity";
 export { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";

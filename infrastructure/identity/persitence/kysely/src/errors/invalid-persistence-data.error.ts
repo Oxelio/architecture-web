@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/errors/invalid-persistence-data.error.ts
+
 export class InvalidPersistenceDataError extends Error {
   constructor(entity: string, field: string, value: unknown) {
     super(

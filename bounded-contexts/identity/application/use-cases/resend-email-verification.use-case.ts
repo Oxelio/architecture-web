@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/resend-email-verification.use-case.ts
+
 import { v4 as uuidv4 } from "uuid";
 import type { UserPort } from "#ports/user.port";
 import type { EmailSenderPort } from "#ports/email-sender.port";

@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/domain/entities/user.entity.spec.ts
+
 import { describe, it, expect } from "vitest";
 
 import { EmailValueObject } from "../value-objects/email.value-object.js";

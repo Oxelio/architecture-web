@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/index.ts
+
 // Use Cases
 export {
   SignUpUseCase,

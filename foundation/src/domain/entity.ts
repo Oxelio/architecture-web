@@ -1,3 +1,5 @@
+// @file foundation/src/domain/entity.ts
+
 import { Identifier } from "./identifier.js";
 
 export abstract class Entity<TProperties extends { identifier: Identifier }> {

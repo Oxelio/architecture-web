@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/resend-email-verification.schema.ts
+
 import {
   ResendEmailVerificationHttpErrors,
   ResendEmailVerificationHttpSuccess,

@@ -1,3 +1,5 @@
+// @file apps/web/src/services/api.ts
+
 export interface CurrentUser {
   userId: string;
   email: string;

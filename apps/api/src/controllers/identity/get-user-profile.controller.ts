@@ -1,3 +1,5 @@
+// @file apps/api/src/controllers/identity/get-user-profile.controller.ts
+
 import type { FastifyReply } from "fastify";
 import type {
   GetUserProfileInput,

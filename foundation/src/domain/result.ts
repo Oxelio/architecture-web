@@ -1,3 +1,5 @@
+// @file foundation/src/domain/result.ts
+
 export type Result<TValue, TError> =
   | {
       success: true;

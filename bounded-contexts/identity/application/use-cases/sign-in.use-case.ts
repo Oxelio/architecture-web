@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/sign-in.use-case.ts
+
 import type { PasswordHasherPort } from "../ports/password-hasher.port.js";
 import { Result, type ErrorOf } from "@architecture/foundation";
 import { EmailValueObject } from "#value-objects/email.value-object";

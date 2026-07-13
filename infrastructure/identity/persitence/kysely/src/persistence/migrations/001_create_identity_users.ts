@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/persistence/migrations/001_create_identity_users.ts
+
 import type { Migration } from "kysely/migration";
 
 export const identityUserMigrations: Record<string, Migration> = {

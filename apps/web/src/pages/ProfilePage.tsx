@@ -1,3 +1,5 @@
+// @file apps/web/src/pages/ProfilePage.tsx
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";

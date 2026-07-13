@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/sign-out.use-case.spec.ts
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { SignOutUseCase } from "./sign-out.use-case.js";

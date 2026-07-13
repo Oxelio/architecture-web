@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/persistence/schema.ts
+
 import type { Insertable, Selectable } from "kysely";
 
 export interface IdentityDatabase {

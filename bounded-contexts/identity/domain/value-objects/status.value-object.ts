@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/domain/value-objects/status.value-object.ts
+
 import { ValueObject, Result, type ErrorOf } from "@architecture/foundation";
 
 const StatusErrors = {

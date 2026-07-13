@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/adapters/kysely-user.adapter.ts
+
 import type { UserEntity } from "@architecture/identity/domain";
 import {
   EmailValueObject,

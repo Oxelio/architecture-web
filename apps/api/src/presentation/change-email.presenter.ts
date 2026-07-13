@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/change-email.presenter.ts
+
 import type {
   ChangeEmailError,
   ChangeEmailResult,

@@ -1,3 +1,5 @@
+// @file apps/api/src/main.ts
+
 // src/main.ts
 
 import { buildServer } from "./server.js";

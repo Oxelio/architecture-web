@@ -1,3 +1,5 @@
+// @file apps/api/src/controllers/identity/controller-response.ts
+
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuthenticatedContext } from "../../auth.js";
 

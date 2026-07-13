@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/sign-out.use-case.ts
+
 import type { SessionPort } from "#application/ports/session.port";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { Result, type ErrorOf } from "@architecture/foundation";

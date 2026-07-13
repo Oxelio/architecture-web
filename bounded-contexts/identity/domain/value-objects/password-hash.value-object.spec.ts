@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/domain/value-objects/password-hash.value-object.spec.ts
+
 import { describe, it, expect } from "vitest";
 
 import { PasswordHashValueObject } from "./password-hash.value-object.js";

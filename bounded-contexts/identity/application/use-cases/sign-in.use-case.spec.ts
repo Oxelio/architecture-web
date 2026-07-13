@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/sign-in.use-case.spec.ts
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { SignInUseCase } from "./sign-in.use-case.js";

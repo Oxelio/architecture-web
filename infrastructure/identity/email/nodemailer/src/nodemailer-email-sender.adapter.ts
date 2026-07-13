@@ -1,3 +1,5 @@
+// @file infrastructure/identity/email/nodemailer/src/nodemailer-email-sender.adapter.ts
+
 import type { EmailSenderPort } from "@architecture/identity/application";
 import type { EmailValueObject } from "@architecture/identity/domain";
 

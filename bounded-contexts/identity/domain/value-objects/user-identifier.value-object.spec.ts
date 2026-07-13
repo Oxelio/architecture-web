@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/domain/value-objects/user-identifier.value-object.spec.ts
+
 import { describe, it, expect } from "vitest";
 import { v4 as uuidv4, v7 as uuidv7, validate, version } from "uuid";
 

@@ -1,3 +1,5 @@
+// @file apps/api/src/http/error-handler.ts
+
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 
 export function errorHandler(

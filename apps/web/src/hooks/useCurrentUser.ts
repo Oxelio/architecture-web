@@ -1,3 +1,5 @@
+// @file apps/web/src/hooks/useCurrentUser.ts
+
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser, type CurrentUser } from "../services/api";
 

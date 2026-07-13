@@ -1,3 +1,5 @@
+// @file foundation/src/domain/value-object.ts
+
 import equal from "fast-deep-equal";
 
 export abstract class ValueObject<T extends object> {

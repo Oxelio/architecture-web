@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/change-password.presenter.ts
+
 import type {
   ChangePasswordError,
   ChangePasswordResult,

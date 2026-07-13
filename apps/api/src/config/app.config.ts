@@ -1,3 +1,5 @@
+// @file apps/api/src/config/app.config.ts
+
 import { z } from "zod";
 import "dotenv/config";
 

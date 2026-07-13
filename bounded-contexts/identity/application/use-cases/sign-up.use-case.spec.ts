@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/sign-up.use-case.spec.ts
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { UserEntity } from "../../domain/entities/user.entity.js";

@@ -1,3 +1,5 @@
+// @file apps/web/src/components/LanguageSwitcher.tsx
+
 import { useTranslation } from "react-i18next";
 import { changeLanguage, type Language } from "../i18n";
 

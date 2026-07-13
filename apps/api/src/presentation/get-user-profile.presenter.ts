@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/get-user-profile.presenter.ts
+
 import type { GetUserProfileResult } from "@architecture/identity/application";
 import type {
   HttpErrorDefinitions,

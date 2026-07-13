@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/resolve-session.use-case.spec.ts
+
 import { describe, it, expect, beforeEach } from "vitest";
 
 import type { SessionPort } from "../ports/session.port.js";

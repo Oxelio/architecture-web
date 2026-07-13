@@ -1,3 +1,5 @@
+// @file apps/web/src/App.tsx
+
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";

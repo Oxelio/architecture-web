@@ -1,3 +1,5 @@
+// @file infrastructure/identity/session/redis/src/adapters/redis-session.adapter.ts
+
 import type { SessionPort } from "@architecture/identity/application";
 import {
   SessionEntity,

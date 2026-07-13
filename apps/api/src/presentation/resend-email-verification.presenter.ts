@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/resend-email-verification.presenter.ts
+
 import type { ResendEmailVerificationResult } from "@architecture/identity/application";
 import type {
   HttpErrorDefinitions,

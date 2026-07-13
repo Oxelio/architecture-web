@@ -1,3 +1,5 @@
+// @file apps/api/src/controllers/identity/sign-up.controller.ts
+
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type {
   SignUpInput,

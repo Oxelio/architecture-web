@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/resend-email-verification.use-case.spec.ts
+
 import type { EmailSenderPort } from "#application/ports/email-sender.port";
 import type { EmailVerificationRateLimitPort } from "#application/ports/email-verification-rate-limit.port";
 import type {

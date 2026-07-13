@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/ports/password-hasher.port.ts
+
 import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 

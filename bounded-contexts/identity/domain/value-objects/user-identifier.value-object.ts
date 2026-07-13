@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/domain/value-objects/user-identifier.value-object.ts
+
 import { v7 as uuid, validate, version } from "uuid";
 import { Identifier, Result, type ErrorOf } from "@architecture/foundation";
 

@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/verify-email.schema.ts
+
 import {
   VerifyEmailHttpErrors,
   VerifyEmailHttpSuccess,

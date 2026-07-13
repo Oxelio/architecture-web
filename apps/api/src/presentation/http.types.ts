@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/http.types.ts
+
 export type HttpErrorStatus = 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500;
 
 export type HttpSuccessStatus = 200 | 201 | 202 | 204;

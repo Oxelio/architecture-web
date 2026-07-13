@@ -1,3 +1,5 @@
+// @file apps/api/src/scripts/migrate-reset.ts
+
 // apps/api/src/scripts/migrate-reset.ts
 
 import { createDatabase } from "../composition-root/database.container.js";

@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/sign-out.schema.ts
+
 import {
   SignOutHttpErrors,
   SignOutHttpSuccess,

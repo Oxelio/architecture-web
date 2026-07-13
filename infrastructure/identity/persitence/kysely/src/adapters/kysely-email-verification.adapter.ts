@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/adapters/kysely-email-verification.adapter.ts
+
 import type { Kysely } from "kysely";
 import type {
   EmailVerificationPort,

@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/ports/session.port.ts
+
 import type { SessionEntity } from "#entities/session.entity";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 

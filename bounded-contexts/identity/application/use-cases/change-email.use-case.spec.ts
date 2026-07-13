@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/change-email.use-case.spec.ts
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { ChangeEmailUseCase } from "./change-email.use-case.js";

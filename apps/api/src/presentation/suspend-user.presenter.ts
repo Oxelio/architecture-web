@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/suspend-user.presenter.ts
+
 import type { SuspendUserResult } from "@architecture/identity/application";
 import type {
   HttpErrorDefinitions,

@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/get-user-profile.use-case.ts
+
 import type { UserPort } from "#application/ports/user.port";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { Result, type ErrorOf } from "@architecture/foundation";

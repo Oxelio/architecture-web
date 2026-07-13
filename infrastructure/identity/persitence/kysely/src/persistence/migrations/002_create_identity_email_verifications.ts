@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/persistence/migrations/002_create_identity_email_verifications.ts
+
 import type { Migration } from "kysely/migration";
 
 export const identityEmailVerificationMigrations: Record<string, Migration> = {

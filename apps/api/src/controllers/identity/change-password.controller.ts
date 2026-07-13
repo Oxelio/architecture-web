@@ -1,3 +1,5 @@
+// @file apps/api/src/controllers/identity/change-password.controller.ts
+
 import type { FastifyReply } from "fastify";
 import type {
   ChangePasswordInput,

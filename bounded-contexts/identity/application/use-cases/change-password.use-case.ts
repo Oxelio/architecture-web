@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/change-password.use-case.ts
+
 import type { UserPort } from "#application/ports/user.port";
 import type { PasswordHasherPort } from "#application/ports/password-hasher.port";
 import { Result, type ErrorOf } from "@architecture/foundation";

@@ -1,3 +1,5 @@
+// @file infrastructure/identity/security/argon2/src/adapters/argon2-password-hasher.adapter.ts
+
 import argon2 from "argon2";
 
 import type { PasswordHasherPort } from "@architecture/identity/application";

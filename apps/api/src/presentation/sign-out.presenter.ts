@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/sign-out.presenter.ts
+
 import type { SignOutResult } from "@architecture/identity/application";
 import type {
   HttpErrorDefinitions,

@@ -1,3 +1,5 @@
+// @file infrastructure/identity/persitence/kysely/src/index.ts
+
 export { KyselyUserAdapter } from "./adapters/kysely-user.adapter.js";
 export { KyselyEmailVerificationAdapter } from "./adapters/kysely-email-verification.adapter.js";
 export type { IdentityDatabase } from "./persistence/schema.js";

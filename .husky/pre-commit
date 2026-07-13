@@ -1,1 +1,2 @@
+pnpm run headers:update:staged
 pnpm exec lint-staged

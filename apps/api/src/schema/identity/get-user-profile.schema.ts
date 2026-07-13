@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/get-user-profile.schema.ts
+
 import {
   GetUserProfileHttpErrors,
   GetUserProfileHttpSuccess,

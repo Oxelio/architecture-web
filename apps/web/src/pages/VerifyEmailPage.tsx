@@ -1,3 +1,5 @@
+// @file apps/web/src/pages/VerifyEmailPage.tsx
+
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";

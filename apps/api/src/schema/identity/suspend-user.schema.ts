@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/suspend-user.schema.ts
+
 import {
   SuspendUserHttpErrors,
   SuspendUserHttpSuccess,

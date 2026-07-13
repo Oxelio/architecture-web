@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/get-user-profile.use-case.spec.ts
+
 import { describe, it, expect, beforeEach } from "vitest";
 
 import { GetUserProfileUseCase } from "./get-user-profile.use-case.js";

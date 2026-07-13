@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/change-password.use-case.spec.ts
+
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { ChangePasswordUseCase } from "./change-password.use-case.js";

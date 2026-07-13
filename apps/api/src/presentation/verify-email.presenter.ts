@@ -1,3 +1,5 @@
+// @file apps/api/src/presentation/verify-email.presenter.ts
+
 import type {
   VerifyEmailError,
   VerifyEmailResult,

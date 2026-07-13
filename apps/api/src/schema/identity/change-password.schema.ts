@@ -1,3 +1,5 @@
+// @file apps/api/src/schema/identity/change-password.schema.ts
+
 import {
   ChangePasswordHttpErrors,
   ChangePasswordHttpSuccess,

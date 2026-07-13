@@ -1,3 +1,5 @@
+// @file apps/api/src/controllers/identity/change-email.controller.ts
+
 import type { FastifyReply } from "fastify";
 import type {
   ChangeEmailInput,

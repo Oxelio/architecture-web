@@ -1,3 +1,5 @@
+// @file apps/api/src/controllers/identity/activate-user.controller.ts
+
 // apps/api/src/controllers/identity/activate-user.controller.ts
 
 import type { FastifyReply, FastifyRequest } from "fastify";

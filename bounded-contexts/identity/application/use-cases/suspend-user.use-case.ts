@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/suspend-user.use-case.ts
+
 import type { UserPort } from "#application/ports/user.port";
 import { Result, type ErrorOf } from "@architecture/foundation";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";

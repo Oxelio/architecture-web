@@ -1,3 +1,5 @@
+// @file bounded-contexts/identity/application/use-cases/change-email.use-case.ts
+
 import type { UserPort } from "#application/ports/user.port";
 import { Result, type ErrorOf } from "@architecture/foundation";
 import {
