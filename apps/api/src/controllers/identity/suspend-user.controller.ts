@@ -1,25 +1,31 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { SuspendUserUseCase } from "@architecture/identity/application";
+import type {
+  SuspendUserInput,
+  SuspendUserUseCase,
+} from "@architecture/identity/application";
 import { SuspendUserPresenter } from "#presentation/suspend-user.presenter";
+import type { SuspendUserParamsSchema } from "#schema/identity/suspend-user.schema";
+import type { Static } from "@sinclair/typebox";
+import { sendControllerResponse } from "./controller-response.js";
 
-interface RouteParams {
-  userId: string;
-}
+export type SuspendUserParams = Static<typeof SuspendUserParamsSchema>;
+
+type SuspendUserHTTPRequest = FastifyRequest<{
+  Params: SuspendUserParams;
+}>;
 
 export function buildSuspendUserController(useCase: SuspendUserUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { userId } = request.params as RouteParams;
+    handle: async (request: SuspendUserHTTPRequest, reply: FastifyReply) => {
+      const command: SuspendUserInput = {
+        userId: request.params.userId,
+      };
 
-      const result = await useCase.execute({ userId });
+      const result = await useCase.execute(command);
 
-      if (!result.success) {
-        const response = SuspendUserPresenter.toFailureHttp(result.error);
-        return reply.status(response.status).send(response.body);
-      }
+      const response = SuspendUserPresenter.toPresentation(result);
 
-      const response = SuspendUserPresenter.toSuccessHttp();
-      return reply.status(response.status).send(response.body);
+      return sendControllerResponse(reply, response);
     },
   };
 }

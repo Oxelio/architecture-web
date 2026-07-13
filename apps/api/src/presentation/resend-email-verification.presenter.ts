@@ -1,57 +1,71 @@
-import type { ResendEmailVerificationError } from "@architecture/identity/application";
-import type { EmptyResponse, HttpError, HttpSuccess } from "./http.types.js";
+import type { ResendEmailVerificationResult } from "@architecture/identity/application";
+import type {
+  HttpErrorDefinitions,
+  HttpSuccessDefinitions,
+} from "./http.types.js";
+import { createHttpErrorMapper } from "#schema/http-error-schema";
 
-export const ResendEmailVerificationPresenter = {
-  toSuccessHttp(): HttpSuccess<EmptyResponse> {
-    return {
-      status: 200,
-      body: {
-        data: {},
-      },
-    };
+export const ResendEmailVerificationHttpErrors = {
+  "user.invalid_id": {
+    status: 400 as const,
+    code: "INVALID_USER_ID",
+    message: "Invalid user identifier",
   },
 
-  toFailureHttp(error: ResendEmailVerificationError): HttpError {
-    switch (error.code) {
-      case "user.email_already_verified":
-        return {
-          status: 409,
-          body: {
-            error: {
-              code: "EMAIL_ALREADY_VERIFIED",
-            },
-          },
-        };
+  "user.not_found": {
+    status: 404 as const,
+    code: "USER_NOT_FOUND",
+    message: "User not found",
+  },
 
-      case "email_verification.too_many_requests":
-        return {
-          status: 429,
-          body: {
-            error: {
-              code: "TOO_MANY_REQUESTS",
-            },
-          },
-        };
+  "user.email_already_verified": {
+    status: 409 as const,
+    code: "EMAIL_ALREADY_VERIFIED",
+    message: "Email already verified",
+  },
 
-      case "user.not_found":
-        return {
-          status: 404,
-          body: {
-            error: {
-              code: "NOT_FOUND",
-            },
-          },
-        };
+  "email_verification.too_many_requests": {
+    status: 429 as const,
+    code: "TOO_MANY_REQUESTS",
+    message: "Too many requests",
+  },
+} satisfies HttpErrorDefinitions<
+  | "user.invalid_id"
+  | "user.not_found"
+  | "user.email_already_verified"
+  | "email_verification.too_many_requests"
+>;
 
-      default:
-        return {
-          status: 500,
-          body: {
-            error: {
-              code: "UNKNOWN_ERROR",
-            },
-          },
-        };
+export const ResendEmailVerificationHttpSuccess = {
+  sent: {
+    status: 200 as const,
+    description: "Email verification sent successfully",
+    schema: {
+      type: "object",
+      properties: {
+        data: {
+          type: "object",
+          properties: {},
+        },
+      },
+      required: ["data"],
+    },
+  },
+} satisfies HttpSuccessDefinitions<"sent">;
+
+const toHttpError = createHttpErrorMapper(ResendEmailVerificationHttpErrors);
+
+export const ResendEmailVerificationPresenter = {
+  toPresentation(result: ResendEmailVerificationResult) {
+    if (result.success) {
+      return {
+        status: ResendEmailVerificationHttpSuccess.sent.status,
+        body: {
+          data: {},
+        },
+      };
     }
+
+    return toHttpError(result.error);
   },
 };

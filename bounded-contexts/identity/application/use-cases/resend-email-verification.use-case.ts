@@ -11,6 +11,10 @@ export interface ResendEmailVerificationInput {
 }
 
 const ResendEmailVerificationErrors = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
+
   userNotFound: {
     code: "user.not_found",
   },
@@ -50,7 +54,7 @@ export class ResendEmailVerificationUseCase {
   ): Promise<ResendEmailVerificationResult> {
     const userValueObject = UserIdentifierValueObject.create(payload.userId);
     if (!userValueObject.success) {
-      return Result.failure(ResendEmailVerificationErrors.userNotFound);
+      return Result.failure(ResendEmailVerificationErrors.invalidId);
     }
     const user = await this.user.findById(userValueObject.value);
 

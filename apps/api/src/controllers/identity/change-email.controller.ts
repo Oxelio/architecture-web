@@ -1,32 +1,42 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
-import type { ChangeEmailUseCase } from "@architecture/identity/application";
+import type { FastifyReply } from "fastify";
+import type {
+  ChangeEmailInput,
+  ChangeEmailUseCase,
+} from "@architecture/identity/application";
 import { ChangeEmailPresenter } from "#presentation/change-email.presenter";
+import {
+  sendControllerResponse,
+  type AuthenticatedRequest,
+} from "./controller-response.js";
 
-interface AuthenticatedRequest extends FastifyRequest {
-  auth: {
-    userId: string;
-    sessionId: string;
-  };
-}
+type ChangeEmailHTTPRequest = AuthenticatedRequest;
 
 export function buildChangeEmailController(useCase: ChangeEmailUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { auth } = request as AuthenticatedRequest;
-      const { email } = request.body as { email: string };
+    handle: async (request: ChangeEmailHTTPRequest, reply: FastifyReply) => {
+      const auth = request.auth;
 
-      const result = await useCase.execute({
-        userId: auth.userId,
-        email,
-      });
-
-      if (!result.success) {
-        const response = ChangeEmailPresenter.toFailureHttp(result.error);
-        return reply.status(response.status).send(response.body);
+      if (!auth) {
+        return reply.status(401).send({
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        });
       }
 
-      const response = ChangeEmailPresenter.toSuccessHttp();
-      return reply.status(response.status).send(response.body);
+      const { email } = request.body as { email: string };
+
+      const command: ChangeEmailInput = {
+        userId: auth.userId,
+        email,
+      };
+
+      const result = await useCase.execute(command);
+
+      const response = ChangeEmailPresenter.toPresentation(result);
+
+      return sendControllerResponse(reply, response);
     },
   };
 }

@@ -1,9 +1,29 @@
+import {
+  VerifyEmailHttpErrors,
+  VerifyEmailHttpSuccess,
+} from "#presentation/verify-email.presenter";
+import {
+  createErrorResponseSchemas,
+  createHttpSuccessResponseSchemas,
+} from "#schema/http-error-schema";
+import { Type } from "@sinclair/typebox";
+
+export const VerifyEmailQuerySchema = Type.Object({
+  token: Type.String({
+    minLength: 1,
+  }),
+});
+
 export const verifyEmailSchema = {
-  querystring: {
-    type: "object",
-    required: ["token"],
-    properties: {
-      token: { type: "string" },
-    },
+  tags: ["Identity"],
+
+  summary: "Verify email",
+
+  querystring: VerifyEmailQuerySchema,
+
+  response: {
+    ...createHttpSuccessResponseSchemas(VerifyEmailHttpSuccess),
+
+    ...createErrorResponseSchemas(VerifyEmailHttpErrors),
   },
-} as const;
+};

@@ -1,37 +1,31 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { VerifyEmailUseCase } from "@architecture/identity/application";
+import type {
+  VerifyEmailInput,
+  VerifyEmailUseCase,
+} from "@architecture/identity/application";
 import { VerifyEmailPresenter } from "#presentation/verify-email.presenter";
+import type { VerifyEmailQuerySchema } from "#schema/identity/verify-email.schema";
+import type { Static } from "@sinclair/typebox";
+import { sendControllerResponse } from "./controller-response.js";
 
-export type VerifyEmailQuery = {
-  token?: string;
-};
+export type VerifyEmailQuery = Static<typeof VerifyEmailQuerySchema>;
+
+type VerifyEmailHTTPRequest = FastifyRequest<{
+  Querystring: VerifyEmailQuery;
+}>;
 
 export function buildVerifyEmailController(useCase: VerifyEmailUseCase) {
   return {
-    handle: async (
-      request: FastifyRequest<{
-        Querystring: VerifyEmailQuery;
-      }>,
-      reply: FastifyReply,
-    ) => {
-      const { token } = request.query;
+    handle: async (request: VerifyEmailHTTPRequest, reply: FastifyReply) => {
+      const command: VerifyEmailInput = {
+        token: request.query.token,
+      };
 
-      if (!token) {
-        const response = VerifyEmailPresenter.toFailureHttp({
-          code: "token.invalid",
-        });
-        return reply.status(response.status).send(response.body);
-      }
+      const result = await useCase.execute(command);
 
-      const result = await useCase.execute({ token });
+      const response = VerifyEmailPresenter.toPresentation(result);
 
-      if (!result.success) {
-        const response = VerifyEmailPresenter.toFailureHttp(result.error);
-        return reply.status(response.status).send(response.body);
-      }
-
-      const response = VerifyEmailPresenter.toSuccessHttp();
-      return reply.status(response.status).send(response.body);
+      return sendControllerResponse(reply, response);
     },
   };
 }

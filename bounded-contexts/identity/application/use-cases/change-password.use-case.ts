@@ -13,6 +13,10 @@ export interface ChangePasswordInput {
 }
 
 const ChangePasswordErrors = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
+
   notFound: {
     code: "user.not_found",
   },
@@ -33,7 +37,7 @@ export class ChangePasswordUseCase {
   async execute(payload: ChangePasswordInput): Promise<ChangePasswordResult> {
     const userId = UserIdentifierValueObject.create(payload.userId);
     if (!userId.success) {
-      return Result.failure(ChangePasswordErrors.notFound);
+      return Result.failure(ChangePasswordErrors.invalidId);
     }
 
     const user = await this.userPort.findById(userId.value);

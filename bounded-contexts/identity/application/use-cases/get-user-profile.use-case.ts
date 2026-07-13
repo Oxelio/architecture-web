@@ -7,6 +7,10 @@ export interface GetUserProfileInput {
 }
 
 const GetUserProfileErrors = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
+
   notFound: {
     code: "user.not_found",
   },
@@ -33,7 +37,7 @@ export class GetUserProfileUseCase {
   ): Promise<GetUserProfileResult> {
     const userIdentifier = UserIdentifierValueObject.create(payload.userId);
     if (!userIdentifier.success) {
-      return Result.failure(GetUserProfileErrors.notFound);
+      return Result.failure(GetUserProfileErrors.invalidId);
     }
 
     const user = await this.user.findById(userIdentifier.value);

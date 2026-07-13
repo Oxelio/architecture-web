@@ -1,9 +1,29 @@
+import {
+  ChangePasswordHttpErrors,
+  ChangePasswordHttpSuccess,
+} from "#presentation/change-password.presenter";
+import {
+  createErrorResponseSchemas,
+  createHttpSuccessResponseSchemas,
+} from "#schema/http-error-schema";
+import { Type } from "@sinclair/typebox";
+
+export const ChangePasswordBodySchema = Type.Object({
+  password: Type.String({
+    minLength: 8,
+  }),
+});
+
 export const changePasswordSchema = {
-  body: {
-    type: "object",
-    required: ["password"],
-    properties: {
-      password: { type: "string", minLength: 8 },
-    },
+  tags: ["Identity"],
+
+  summary: "Change password",
+
+  body: ChangePasswordBodySchema,
+
+  response: {
+    ...createHttpSuccessResponseSchemas(ChangePasswordHttpSuccess),
+
+    ...createErrorResponseSchemas(ChangePasswordHttpErrors),
   },
-} as const;
+};

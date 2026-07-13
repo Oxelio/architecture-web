@@ -10,9 +10,7 @@ export function createErrorResponseSchemas<T extends string>(
 ) {
   const responses: Record<number, object> = {};
 
-  const definitions = Object.values(mapping) as Array<
-    HttpErrorDefinitions<T>[T]
-  >;
+  const definitions = Object.values(mapping) as HttpErrorDefinitions<T>[T][];
 
   for (const error of definitions) {
     if (responses[error.status]) {
@@ -42,7 +40,7 @@ export function createErrorResponseSchemas<T extends string>(
   return responses;
 }
 
-interface ApplicationError<T extends string> {
+interface ApplicationError<T extends string = string> {
   code: T;
   details?: unknown;
 }
@@ -50,8 +48,20 @@ interface ApplicationError<T extends string> {
 export function createHttpErrorMapper<TErrorCode extends string>(
   mapping: HttpErrorDefinitions<TErrorCode>,
 ) {
-  return (error: ApplicationError<TErrorCode>): HttpError => {
-    const definition = mapping[error.code];
+  return (error: ApplicationError<string>): HttpError => {
+    const definition = mapping[error.code as TErrorCode];
+
+    if (!definition) {
+      return {
+        status: 500,
+        body: {
+          error: {
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Unexpected error",
+          },
+        },
+      };
+    }
 
     return {
       status: definition.status,

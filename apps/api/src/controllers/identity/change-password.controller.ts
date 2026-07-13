@@ -1,32 +1,42 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
-import type { ChangePasswordUseCase } from "@architecture/identity/application";
+import type { FastifyReply } from "fastify";
+import type {
+  ChangePasswordInput,
+  ChangePasswordUseCase,
+} from "@architecture/identity/application";
 import { ChangePasswordPresenter } from "#presentation/change-password.presenter";
+import {
+  sendControllerResponse,
+  type AuthenticatedRequest,
+} from "./controller-response.js";
 
-interface AuthenticatedRequest extends FastifyRequest {
-  auth: {
-    userId: string;
-    sessionId: string;
-  };
-}
+type ChangePasswordHTTPRequest = AuthenticatedRequest;
 
 export function buildChangePasswordController(useCase: ChangePasswordUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { auth } = request as AuthenticatedRequest;
-      const { password } = request.body as { password: string };
+    handle: async (request: ChangePasswordHTTPRequest, reply: FastifyReply) => {
+      const auth = request.auth;
 
-      const result = await useCase.execute({
-        userId: auth.userId,
-        password,
-      });
-
-      if (!result.success) {
-        const response = ChangePasswordPresenter.toFailureHttp(result.error);
-        return reply.status(response.status).send(response.body);
+      if (!auth) {
+        return reply.status(401).send({
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        });
       }
 
-      const response = ChangePasswordPresenter.toSuccessHttp();
-      return reply.status(response.status).send(response.body);
+      const { password } = request.body as { password: string };
+
+      const command: ChangePasswordInput = {
+        userId: auth.userId,
+        password,
+      };
+
+      const result = await useCase.execute(command);
+
+      const response = ChangePasswordPresenter.toPresentation(result);
+
+      return sendControllerResponse(reply, response);
     },
   };
 }

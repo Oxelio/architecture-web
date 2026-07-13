@@ -1,25 +1,54 @@
-import type { SuspendUserError } from "@architecture/identity/application";
-import type { EmptyResponse, HttpError, HttpSuccess } from "./http.types.js";
+import type { SuspendUserResult } from "@architecture/identity/application";
+import type {
+  HttpErrorDefinitions,
+  HttpSuccessDefinitions,
+} from "./http.types.js";
+import { createHttpErrorMapper } from "#schema/http-error-schema";
 
-export const SuspendUserPresenter = {
-  toSuccessHttp(): HttpSuccess<EmptyResponse> {
-    return {
-      status: 200,
-      body: { data: {} },
-    };
+export const SuspendUserHttpErrors = {
+  "user.invalid_id": {
+    status: 400 as const,
+    code: "INVALID_USER_ID",
+    message: "Invalid user identifier",
   },
 
-  toFailureHttp(error: SuspendUserError): HttpError {
-    if (error.code === "not_found") {
+  "user.not_found": {
+    status: 404 as const,
+    code: "USER_NOT_FOUND",
+    message: "User not found",
+  },
+} satisfies HttpErrorDefinitions<"user.invalid_id" | "user.not_found">;
+
+export const SuspendUserHttpSuccess = {
+  suspended: {
+    status: 200 as const,
+    description: "User suspended successfully",
+    schema: {
+      type: "object",
+      properties: {
+        data: {
+          type: "object",
+          properties: {},
+        },
+      },
+      required: ["data"],
+    },
+  },
+} satisfies HttpSuccessDefinitions<"suspended">;
+
+const toHttpError = createHttpErrorMapper(SuspendUserHttpErrors);
+
+export const SuspendUserPresenter = {
+  toPresentation(result: SuspendUserResult) {
+    if (result.success) {
       return {
-        status: 404,
-        body: { error: { code: "NOT_FOUND" } },
+        status: SuspendUserHttpSuccess.suspended.status,
+        body: {
+          data: {},
+        },
       };
     }
 
-    return {
-      status: 500,
-      body: { error: { code: "UNKNOWN_ERROR" } },
-    };
+    return toHttpError(result.error);
   },
 };

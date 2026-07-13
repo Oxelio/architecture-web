@@ -1,39 +1,69 @@
-import type { ChangePasswordError } from "@architecture/identity/application";
-import type { EmptyResponse, HttpError, HttpSuccess } from "./http.types.js";
+import type {
+  ChangePasswordError,
+  ChangePasswordResult,
+} from "@architecture/identity/application";
+import type {
+  HttpErrorDefinitions,
+  HttpSuccessDefinitions,
+} from "./http.types.js";
+import { createHttpErrorMapper } from "#schema/http-error-schema";
 
-export const ChangePasswordPresenter = {
-  toSuccessHttp(): HttpSuccess<EmptyResponse> {
-    return {
-      status: 200,
-      body: { data: {} },
-    };
+export const ChangePasswordHttpErrors = {
+  "password.empty": {
+    status: 400 as const,
+    code: "PASSWORD_REQUIRED",
+    message: "Password is required",
   },
 
-  toFailureHttp(error: ChangePasswordError): HttpError {
-    if (error.code === "password.empty") {
+  "password.too_short": {
+    status: 400 as const,
+    code: "PASSWORD_TOO_SHORT",
+    message: "Password is too short",
+  },
+
+  "user.invalid_id": {
+    status: 400 as const,
+    code: "INVALID_USER_ID",
+    message: "Invalid user identifier",
+  },
+
+  "user.not_found": {
+    status: 404 as const,
+    code: "USER_NOT_FOUND",
+    message: "User not found",
+  },
+} satisfies HttpErrorDefinitions<ChangePasswordError["code"]>;
+
+export const ChangePasswordHttpSuccess = {
+  changed: {
+    status: 200 as const,
+    description: "Password changed successfully",
+    schema: {
+      type: "object",
+      properties: {
+        data: {
+          type: "object",
+          properties: {},
+        },
+      },
+      required: ["data"],
+    },
+  },
+} satisfies HttpSuccessDefinitions<"changed">;
+
+const toHttpError = createHttpErrorMapper(ChangePasswordHttpErrors);
+
+export const ChangePasswordPresenter = {
+  toPresentation(result: ChangePasswordResult) {
+    if (result.success) {
       return {
-        status: 400,
-        body: { error: { code: "PASSWORD_REQUIRED" } },
+        status: ChangePasswordHttpSuccess.changed.status,
+        body: {
+          data: {},
+        },
       };
     }
 
-    if (error.code === "password.too_short") {
-      return {
-        status: 400,
-        body: { error: { code: "PASSWORD_TOO_SHORT" } },
-      };
-    }
-
-    if (error.code === "user.not_found") {
-      return {
-        status: 404,
-        body: { error: { code: "NOT_FOUND" } },
-      };
-    }
-
-    return {
-      status: 500,
-      body: { error: { code: "UNKNOWN_ERROR" } },
-    };
+    return toHttpError(result.error);
   },
 };

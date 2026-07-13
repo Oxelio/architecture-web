@@ -32,15 +32,3 @@ export interface HttpSuccessDefinition {
 
 export type HttpSuccessDefinitions<TSuccessCode extends string = string> =
   Record<TSuccessCode, HttpSuccessDefinition>;
-
-// TODO: Remove
-export interface HttpSuccess<TData> {
-  status: number;
-  body: {
-    data: TData;
-    meta?: Record<string, unknown>;
-    links?: Record<string, string>;
-  };
-}
-
-export type EmptyResponse = Record<string, never>;

@@ -1,40 +1,44 @@
-// apps/api/src/controllers/identity/resend-email-verification.controller.ts
-
-import type { FastifyReply, FastifyRequest } from "fastify";
-
-import type { ResendEmailVerificationUseCase } from "@architecture/identity/application";
-
+import type { FastifyReply } from "fastify";
+import type {
+  ResendEmailVerificationInput,
+  ResendEmailVerificationUseCase,
+} from "@architecture/identity/application";
 import { ResendEmailVerificationPresenter } from "#presentation/resend-email-verification.presenter";
+import {
+  sendControllerResponse,
+  type AuthenticatedRequest,
+} from "./controller-response.js";
 
-interface AuthenticatedRequest extends FastifyRequest {
-  auth: {
-    userId: string;
-    sessionId: string;
-  };
-}
+type ResendEmailVerificationHTTPRequest = AuthenticatedRequest;
 
 export function buildResendEmailVerificationController(
   useCase: ResendEmailVerificationUseCase,
 ) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { auth } = request as AuthenticatedRequest;
+    handle: async (
+      request: ResendEmailVerificationHTTPRequest,
+      reply: FastifyReply,
+    ) => {
+      const auth = request.auth;
 
-      const result = await useCase.execute({
-        userId: auth.userId,
-      });
-
-      if (!result.success) {
-        const response = ResendEmailVerificationPresenter.toFailureHttp(
-          result.error,
-        );
-
-        return reply.status(response.status).send(response.body);
+      if (!auth) {
+        return reply.status(401).send({
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        });
       }
 
-      const response = ResendEmailVerificationPresenter.toSuccessHttp();
+      const command: ResendEmailVerificationInput = {
+        userId: auth.userId,
+      };
 
-      return reply.status(response.status).send(response.body);
+      const result = await useCase.execute(command);
+
+      const response = ResendEmailVerificationPresenter.toPresentation(result);
+
+      return sendControllerResponse(reply, response);
     },
   };
 }

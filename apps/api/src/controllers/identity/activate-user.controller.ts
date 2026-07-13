@@ -8,6 +8,7 @@ import type {
 import { ActivateUserPresenter } from "#presentation/activate-user.presenter";
 import type { ActivateUserParamsSchema } from "#schema/identity/activate-user.schema";
 import type { Static } from "@sinclair/typebox";
+import { sendControllerResponse } from "./controller-response.js";
 
 export type ActivateUserParams = Static<typeof ActivateUserParamsSchema>;
 
@@ -26,7 +27,7 @@ export function buildActivateUserController(useCase: ActivateUserUseCase) {
 
       const response = ActivateUserPresenter.toPresentation(result);
 
-      return reply.status(response.status).send();
+      return sendControllerResponse(reply, response);
     },
   };
 }

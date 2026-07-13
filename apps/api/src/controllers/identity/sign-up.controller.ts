@@ -1,27 +1,32 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { SignUpUseCase } from "@architecture/identity/application";
+import type {
+  SignUpInput,
+  SignUpUseCase,
+} from "@architecture/identity/application";
 import { SignUpPresenter } from "#presentation/sign-up.presenter";
+import type { SignUpBodySchema } from "#schema/identity/sign-up.schema";
+import type { Static } from "@sinclair/typebox";
+import { sendControllerResponse } from "./controller-response.js";
+
+export type SignUpBody = Static<typeof SignUpBodySchema>;
+
+type SignUpHTTPRequest = FastifyRequest<{
+  Body: SignUpBody;
+}>;
 
 export function buildSignUpController(useCase: SignUpUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { email, password } = request.body as {
-        email: string;
-        password: string;
+    handle: async (request: SignUpHTTPRequest, reply: FastifyReply) => {
+      const command: SignUpInput = {
+        email: request.body.email,
+        password: request.body.password,
       };
 
-      const result = await useCase.execute({
-        email,
-        password,
-      });
+      const result = await useCase.execute(command);
 
-      if (!result.success) {
-        const response = SignUpPresenter.toFailureHttp(result.error);
-        return reply.status(response.status).send(response.body);
-      }
+      const response = SignUpPresenter.toPresentation(result);
 
-      const response = SignUpPresenter.toSuccessHttp(result.value);
-      return reply.status(response.status).send(response.body);
+      return sendControllerResponse(reply, response);
     },
   };
 }

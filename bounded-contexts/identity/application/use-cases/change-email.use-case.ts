@@ -1,5 +1,5 @@
 import type { UserPort } from "#application/ports/user.port";
-import { Result } from "@architecture/foundation";
+import { Result, type ErrorOf } from "@architecture/foundation";
 import {
   EmailValueObject,
   type EmailError,
@@ -11,10 +11,21 @@ export interface ChangeEmailInput {
   email: string;
 }
 
-export type ChangeEmailError =
-  | EmailError
-  | { code: "not_found" }
-  | { code: "user.already_exists" };
+const ChangeEmailErrors = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
+
+  notFound: {
+    code: "user.not_found",
+  },
+
+  userAlreadyExists: {
+    code: "user.already_exists",
+  },
+} as const;
+
+export type ChangeEmailError = EmailError | ErrorOf<typeof ChangeEmailErrors>;
 
 export type ChangeEmailResult = Result<void, ChangeEmailError>;
 
@@ -24,7 +35,7 @@ export class ChangeEmailUseCase {
   async execute(command: ChangeEmailInput): Promise<ChangeEmailResult> {
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure({ code: "not_found" });
+      return Result.failure(ChangeEmailErrors.invalidId);
     }
 
     const email = EmailValueObject.create(command.email);
@@ -35,12 +46,12 @@ export class ChangeEmailUseCase {
     // check existing email
     const existing = await this.userPort.findByEmail(email.value);
     if (existing && existing.identifier.value !== userId.value.value) {
-      return Result.failure({ code: "user.already_exists" });
+      return Result.failure(ChangeEmailErrors.userAlreadyExists);
     }
 
     const user = await this.userPort.findById(userId.value);
     if (!user) {
-      return Result.failure({ code: "not_found" });
+      return Result.failure(ChangeEmailErrors.notFound);
     }
 
     user.changeEmail(email.value);

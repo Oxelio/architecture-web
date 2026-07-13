@@ -1,10 +1,30 @@
+import {
+  SignInHttpErrors,
+  SignInHttpSuccess,
+} from "#presentation/sign-in.presenter";
+import {
+  createErrorResponseSchemas,
+  createHttpSuccessResponseSchemas,
+} from "#schema/http-error-schema";
+import { Type } from "@sinclair/typebox";
+
+export const SignInBodySchema = Type.Object({
+  email: Type.String({
+    format: "email",
+  }),
+  password: Type.String(),
+});
+
 export const signInSchema = {
-  body: {
-    type: "object",
-    required: ["email", "password"],
-    properties: {
-      email: { type: "string" },
-      password: { type: "string" },
-    },
+  tags: ["Identity"],
+
+  summary: "Sign in",
+
+  body: SignInBodySchema,
+
+  response: {
+    ...createHttpSuccessResponseSchemas(SignInHttpSuccess),
+
+    ...createErrorResponseSchemas(SignInHttpErrors),
   },
-} as const;
+};

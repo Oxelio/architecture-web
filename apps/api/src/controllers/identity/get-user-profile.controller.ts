@@ -1,30 +1,39 @@
-// apps/api/src/controllers/get-my-profile.controller.ts
-
-import type { FastifyReply, FastifyRequest } from "fastify";
-import type { GetUserProfileUseCase } from "@architecture/identity/application";
+import type { FastifyReply } from "fastify";
+import type {
+  GetUserProfileInput,
+  GetUserProfileUseCase,
+} from "@architecture/identity/application";
 import { GetUserProfilePresenter } from "#presentation/get-user-profile.presenter";
+import {
+  sendControllerResponse,
+  type AuthenticatedRequest,
+} from "./controller-response.js";
 
-interface AuthenticatedRequest extends FastifyRequest {
-  auth: {
-    userId: string;
-    sessionId: string;
-  };
-}
+type GetUserProfileHTTPRequest = AuthenticatedRequest;
 
 export function buildGetUserProfileController(useCase: GetUserProfileUseCase) {
   return {
-    handle: async (request: FastifyRequest, reply: FastifyReply) => {
-      const { auth } = request as AuthenticatedRequest;
+    handle: async (request: GetUserProfileHTTPRequest, reply: FastifyReply) => {
+      const auth = request.auth;
 
-      const result = await useCase.execute({ userId: auth.userId });
-
-      if (!result.success) {
-        const response = GetUserProfilePresenter.toFailureHttp(result.error);
-        return reply.status(response.status).send(response.body);
+      if (!auth) {
+        return reply.status(401).send({
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        });
       }
 
-      const response = GetUserProfilePresenter.toSuccessHttp(result.value);
-      return reply.status(response.status).send(response.body);
+      const command: GetUserProfileInput = {
+        userId: auth.userId,
+      };
+
+      const result = await useCase.execute(command);
+
+      const response = GetUserProfilePresenter.toPresentation(result);
+
+      return sendControllerResponse(reply, response);
     },
   };
 }

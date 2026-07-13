@@ -1,99 +1,89 @@
-// bounded-contexts/identity/presentation/http/fastify/presenters/register-user.presenter.ts
 import type {
-  SignUpResponse,
   SignUpError,
+  SignUpResult,
 } from "@architecture/identity/application";
-import type { HttpError, HttpSuccess } from "./http.types.js";
+import type {
+  HttpErrorDefinitions,
+  HttpSuccessDefinitions,
+} from "./http.types.js";
+import { createHttpErrorMapper } from "#schema/http-error-schema";
 
-interface SignUpResponseDto {
-  userId: string;
-}
-
-export const SignUpPresenter = {
-  toSuccessHttp(data: SignUpResponse): HttpSuccess<SignUpResponseDto> {
-    const dto: SignUpResponseDto = {
-      userId: data.userId,
-    };
-
-    return {
-      status: 201,
-      body: {
-        data: dto,
-      },
-    };
+export const SignUpHttpErrors = {
+  "email.empty": {
+    status: 400 as const,
+    code: "EMAIL_REQUIRED",
+    message: "Email is required",
   },
 
-  toFailureHttp(error: SignUpError): HttpError {
-    switch (error.code) {
-      case "email.empty":
-        return {
-          status: 400,
-          body: {
-            error: {
-              code: "EMAIL_REQUIRED",
-            },
-          },
-        };
+  "email.invalid_format": {
+    status: 400 as const,
+    code: "EMAIL_INVALID",
+    message: "Invalid email format",
+  },
 
-      case "email.invalid_format":
-        return {
-          status: 400,
-          body: {
-            error: {
-              code: "EMAIL_INVALID",
-            },
-          },
-        };
+  "email.too_long": {
+    status: 400 as const,
+    code: "EMAIL_TOO_LONG",
+    message: "Email is too long",
+  },
 
-      case "email.too_long":
-        return {
-          status: 400,
-          body: {
-            error: {
-              code: "EMAIL_TOO_LONG",
-            },
-          },
-        };
+  "password.empty": {
+    status: 400 as const,
+    code: "PASSWORD_REQUIRED",
+    message: "Password is required",
+  },
 
-      case "password.empty":
-        return {
-          status: 400,
-          body: {
-            error: {
-              code: "PASSWORD_REQUIRED",
-            },
-          },
-        };
+  "password.too_short": {
+    status: 400 as const,
+    code: "PASSWORD_TOO_SHORT",
+    message: "Password is too short",
+  },
 
-      case "password.too_short":
-        return {
-          status: 400,
-          body: {
-            error: {
-              code: "PASSWORD_TOO_SHORT",
-            },
-          },
-        };
+  "user.already_exists": {
+    status: 409 as const,
+    code: "USER_ALREADY_EXISTS",
+    message: "User already exists",
+  },
+} satisfies HttpErrorDefinitions<SignUpError["code"]>;
 
-      case "user.already_exists":
-        return {
-          status: 409,
-          body: {
-            error: {
-              code: "USER_ALREADY_EXISTS",
+export const SignUpHttpSuccess = {
+  created: {
+    status: 201 as const,
+    description: "User created successfully",
+    schema: {
+      type: "object",
+      properties: {
+        data: {
+          type: "object",
+          properties: {
+            userId: {
+              type: "string",
+              format: "uuid",
             },
           },
-        };
+          required: ["userId"],
+        },
+      },
+      required: ["data"],
+    },
+  },
+} satisfies HttpSuccessDefinitions<"created">;
 
-      default:
-        return {
-          status: 500,
-          body: {
-            error: {
-              code: "UNKNOWN_ERROR",
-            },
+const toHttpError = createHttpErrorMapper(SignUpHttpErrors);
+
+export const SignUpPresenter = {
+  toPresentation(result: SignUpResult) {
+    if (result.success) {
+      return {
+        status: SignUpHttpSuccess.created.status,
+        body: {
+          data: {
+            userId: result.value.userId,
           },
-        };
+        },
+      };
     }
+
+    return toHttpError(result.error);
   },
 };
