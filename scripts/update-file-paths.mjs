@@ -67,3 +67,9 @@ for (const file of files) {
     console.log(`Updated ${file}`);
   }
 }
+
+if (mode === "--staged") {
+  for (const file of files) {
+    execSync(`git add -- "${file}"`);
+  }
+}

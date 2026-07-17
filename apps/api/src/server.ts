@@ -14,8 +14,8 @@ import {
   SESSION_COOKIE_NAME,
 } from "./auth.js";
 import { buildApplicationContainer } from "./composition-root/application.container.js";
-import { errorHandler } from "./http/error-handler.js";
-import { buildIdentityRoutes } from "./routes/identity.routes.js";
+import { errorHandler } from "./types/error-handler.js";
+import { buildIdentityRoutes } from "./features/identity/identity.routes.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;
 
@@ -40,7 +40,7 @@ export async function buildServer() {
       info: {
         title: "Architecture API",
         description: "API documentation",
-        version: "1.0.0",
+        version: pkg.version,
       },
       servers: [
         {
