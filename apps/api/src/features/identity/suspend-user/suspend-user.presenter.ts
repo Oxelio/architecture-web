@@ -1,55 +1,18 @@
 // @file apps/api/src/features/identity/suspend-user/suspend-user.presenter.ts
 
-import type { SuspendUserResult } from "@architecture/identity/application";
+import type { SuspendUserOutput } from "@architecture/identity/application";
 
-import type {
-  HttpErrorDefinitions,
-  HttpSuccessDefinitions,
-} from "../../../types/http.types.js";
 import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpSuccessMapper } from "../../../helpers/create-http-success-mapper.js";
+import { SuspendUserHttpContract } from "./suspend-user.http.js";
 
-export const SuspendUserHttpErrors = {
-  "user.invalid_id": {
-    status: 400 as const,
-    code: "INVALID_USER_ID",
-    message: "Invalid user identifier",
-  },
-
-  "user.not_found": {
-    status: 404 as const,
-    code: "USER_NOT_FOUND",
-    message: "User not found",
-  },
-} satisfies HttpErrorDefinitions<"user.invalid_id" | "user.not_found">;
-
-export const SuspendUserHttpSuccess = {
-  suspended: {
-    status: 200 as const,
-    description: "User suspended successfully",
-    schema: {
-      type: "object",
-      properties: {
-        data: {
-          type: "object",
-          properties: {},
-        },
-      },
-      required: ["data"],
-    },
-  },
-} satisfies HttpSuccessDefinitions<"suspended">;
-
-const toHttpError = createHttpErrorMapper(SuspendUserHttpErrors);
+const toHttpError = createHttpErrorMapper(SuspendUserHttpContract.errors);
+const toHttpSuccess = createHttpSuccessMapper(SuspendUserHttpContract.success);
 
 export const SuspendUserPresenter = {
-  toPresentation(result: SuspendUserResult) {
+  toPresentation(result: SuspendUserOutput) {
     if (result.success) {
-      return {
-        status: SuspendUserHttpSuccess.suspended.status,
-        body: {
-          data: {},
-        },
-      };
+      return toHttpSuccess(result.value.code);
     }
 
     return toHttpError(result.error);

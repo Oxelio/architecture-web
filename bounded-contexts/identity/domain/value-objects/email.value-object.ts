@@ -1,24 +1,26 @@
 // @file bounded-contexts/identity/domain/value-objects/email.value-object.ts
 
-import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
+import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const EmailErrors = {
   empty: {
     code: "email.empty",
   },
 
-  tooLong: (max: number) => ({
-    code: "email.too_long",
-    max,
-  }),
+  tooLong: (max: number) =>
+    ({
+      code: "email.too_long",
+      max,
+    }) as const,
 
-  invalidFormat: (value: string) => ({
-    code: "email.invalid_format",
-    value,
-  }),
+  invalidFormat: (value: string) =>
+    ({
+      code: "email.invalid_format",
+      value,
+    }) as const,
 } as const;
 
-export type EmailError = ErrorOf<typeof EmailErrors>;
+export type EmailError = ValueOf<typeof EmailErrors>;
 
 export class EmailValueObject extends ValueObject<{ value: string }> {
   private static readonly MAX_LENGTH = 254;
@@ -44,7 +46,7 @@ export class EmailValueObject extends ValueObject<{ value: string }> {
       return Result.failure(EmailErrors.invalidFormat(normalized));
     }
 
-    return Result.ok(new EmailValueObject({ value: normalized }));
+    return Result.success(new EmailValueObject({ value: normalized }));
   }
 
   private static normalize(email: string): string {

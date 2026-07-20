@@ -1,13 +1,11 @@
 // @file apps/api/src/features/identity/suspend-user/suspend-user.route-options.ts
 
 import { Type } from "@sinclair/typebox";
-import {
-  SuspendUserHttpSuccess,
-  SuspendUserHttpErrors,
-} from "./suspend-user.presenter.js";
 import type { RouteShorthandOptions } from "fastify";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { SuspendUserHttpContract } from "./suspend-user.http.js";
 
 export const SuspendUserParamsSchema = Type.Object({
   userId: Type.String({
@@ -24,9 +22,9 @@ export const suspendUserRouteOptions = {
     params: SuspendUserParamsSchema,
 
     response: {
-      ...createHttpSuccessResponseSchemas(SuspendUserHttpSuccess),
+      ...createHttpSuccessResponseSchemas(SuspendUserHttpContract.success),
 
-      ...createErrorResponseSchemas(SuspendUserHttpErrors),
+      ...createErrorResponseSchemas(SuspendUserHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

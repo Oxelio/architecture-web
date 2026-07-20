@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/password-hash.value-object.ts
 
-import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
+import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const HashedPasswordErrors = {
   empty: {
@@ -11,7 +11,7 @@ const HashedPasswordErrors = {
   },
 } as const;
 
-export type HashedPasswordError = ErrorOf<typeof HashedPasswordErrors>;
+export type HashedPasswordError = ValueOf<typeof HashedPasswordErrors>;
 
 export class PasswordHashValueObject extends ValueObject<{ value: string }> {
   get value(): string {
@@ -29,7 +29,7 @@ export class PasswordHashValueObject extends ValueObject<{ value: string }> {
       return Result.failure(HashedPasswordErrors.invalidCharacters);
     }
 
-    return Result.ok(
+    return Result.success(
       new PasswordHashValueObject({
         value: value,
       }),

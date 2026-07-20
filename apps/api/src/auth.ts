@@ -70,7 +70,7 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
       });
     }
 
-    request.auth = result.value;
+    request.auth = result.value.data;
   });
 };
 

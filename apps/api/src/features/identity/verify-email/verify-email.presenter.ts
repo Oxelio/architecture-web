@@ -1,64 +1,18 @@
 // @file apps/api/src/features/identity/verify-email/verify-email.presenter.ts
 
-import type {
-  VerifyEmailError,
-  VerifyEmailResult,
-} from "@architecture/identity/application";
+import type { VerifyEmailOutput } from "@architecture/identity/application";
 
-import type {
-  HttpErrorDefinitions,
-  HttpSuccessDefinitions,
-} from "../../../types/http.types.js";
 import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpSuccessMapper } from "../../../helpers/create-http-success-mapper.js";
+import { VerifyEmailHttpContract } from "./verify-email.http.js";
 
-export const VerifyEmailHttpErrors = {
-  "token.invalid": {
-    status: 400 as const,
-    code: "TOKEN_INVALID",
-    message: "Invalid token",
-  },
-
-  "token.expired": {
-    status: 400 as const,
-    code: "TOKEN_EXPIRED",
-    message: "Token expired",
-  },
-
-  "user.not_found": {
-    status: 404 as const,
-    code: "USER_NOT_FOUND",
-    message: "User not found",
-  },
-} satisfies HttpErrorDefinitions<VerifyEmailError["code"]>;
-
-export const VerifyEmailHttpSuccess = {
-  verified: {
-    status: 200 as const,
-    description: "Email verified successfully",
-    schema: {
-      type: "object",
-      properties: {
-        data: {
-          type: "object",
-          properties: {},
-        },
-      },
-      required: ["data"],
-    },
-  },
-} satisfies HttpSuccessDefinitions<"verified">;
-
-const toHttpError = createHttpErrorMapper(VerifyEmailHttpErrors);
+const toHttpError = createHttpErrorMapper(VerifyEmailHttpContract.errors);
+const toHttpSuccess = createHttpSuccessMapper(VerifyEmailHttpContract.success);
 
 export const VerifyEmailPresenter = {
-  toPresentation(result: VerifyEmailResult) {
+  toPresentation(result: VerifyEmailOutput) {
     if (result.success) {
-      return {
-        status: VerifyEmailHttpSuccess.verified.status,
-        body: {
-          data: {},
-        },
-      };
+      return toHttpSuccess(result.value.code);
     }
 
     return toHttpError(result.error);

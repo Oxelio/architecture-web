@@ -1,14 +1,11 @@
 // @file apps/api/src/features/identity/activate-user/activate-user.route-options.ts
 
 import { Type } from "@sinclair/typebox";
-
-import {
-  ActivateUserHttpSuccess,
-  ActivateUserHttpErrors,
-} from "./activate-user.presenter.js";
 import type { RouteShorthandOptions } from "fastify";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { ActivateUserHttpContract } from "./activate-user.http.js";
 
 export const ActivateUserParamsSchema = Type.Object({
   userId: Type.String({
@@ -25,9 +22,9 @@ export const activateUserRouteOptions = {
     params: ActivateUserParamsSchema,
 
     response: {
-      ...createHttpSuccessResponseSchemas(ActivateUserHttpSuccess),
+      ...createHttpSuccessResponseSchemas(ActivateUserHttpContract.success),
 
-      ...createErrorResponseSchemas(ActivateUserHttpErrors),
+      ...createErrorResponseSchemas(ActivateUserHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

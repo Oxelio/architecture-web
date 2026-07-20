@@ -10,19 +10,15 @@ export type Result<TValue, TError> =
       error: TError;
     };
 
-function ok(): Result<undefined, never>;
-function ok<T>(value: T): Result<T, never>;
-function ok<T>(value?: T): Result<T | undefined, never> {
-  return {
-    success: true,
-    value: value as T,
-  };
-}
-
 export const Result = {
-  ok,
+  success<TValue>(value: TValue): Result<TValue, never> {
+    return {
+      success: true,
+      value,
+    };
+  },
 
-  failure<E>(error: E): Result<never, E> {
+  failure<TError>(error: TError): Result<never, TError> {
     return {
       success: false,
       error,

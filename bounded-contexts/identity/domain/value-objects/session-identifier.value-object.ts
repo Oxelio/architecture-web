@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/session-identifier.value-object.ts
 
-import { type ErrorOf, Identifier, Result } from "@architecture/foundation";
+import { Identifier, Result, type ValueOf } from "@architecture/foundation";
 import { v7 as uuid, validate, version } from "uuid";
 
 const SessionIdentifierErrors = {
@@ -16,7 +16,7 @@ const SessionIdentifierErrors = {
   }),
 } as const;
 
-export type SessionIdentifierError = ErrorOf<typeof SessionIdentifierErrors>;
+export type SessionIdentifierError = ValueOf<typeof SessionIdentifierErrors>;
 
 export class SessionIdentifierValueObject extends Identifier {
   static generate(): SessionIdentifierValueObject {
@@ -40,7 +40,7 @@ export class SessionIdentifierValueObject extends Identifier {
       return Result.failure(SessionIdentifierErrors.invalidVersion(7));
     }
 
-    return Result.ok(
+    return Result.success(
       new SessionIdentifierValueObject({
         value,
       }),

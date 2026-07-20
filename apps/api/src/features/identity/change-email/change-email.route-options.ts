@@ -1,14 +1,11 @@
 // @file apps/api/src/features/identity/change-email/change-email.route-options.ts
 
 import { Type } from "@sinclair/typebox";
-
-import {
-  ChangeEmailHttpErrors,
-  ChangeEmailHttpSuccess,
-} from "../../../../src/features/identity/change-email/change-email.presenter.js";
 import type { RouteShorthandOptions } from "fastify";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { ChangeEmailHttpContract } from "./change-email.http.js";
 
 export const ChangeEmailBodySchema = Type.Object({
   email: Type.String({
@@ -25,9 +22,9 @@ export const changeEmailRouteOptions = {
     body: ChangeEmailBodySchema,
 
     response: {
-      ...createHttpSuccessResponseSchemas(ChangeEmailHttpSuccess),
+      ...createHttpSuccessResponseSchemas(ChangeEmailHttpContract.success),
 
-      ...createErrorResponseSchemas(ChangeEmailHttpErrors),
+      ...createErrorResponseSchemas(ChangeEmailHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

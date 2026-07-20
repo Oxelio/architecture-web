@@ -1,13 +1,14 @@
 // @file apps/api/src/features/identity/resend-email-verification/resend-email-verification.controller.ts
 
-import { type AuthenticatedRequest } from "../../../../src/types/controller-response.js";
 import type {
   ResendEmailVerificationInput,
   ResendEmailVerificationUseCase,
 } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
-import { ResendEmailVerificationPresenter } from "./resend-email-verification.presenter.js";
+
+import { type AuthenticatedRequest } from "../../../../src/types/controller-response.js";
 import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { ResendEmailVerificationPresenter } from "./resend-email-verification.presenter.js";
 
 type ResendEmailVerificationHTTPRequest = AuthenticatedRequest;
 

@@ -7,8 +7,8 @@ import type {
 import type { FastifyReply } from "fastify";
 
 import { type AuthenticatedRequest } from "../../../../src/types/controller-response.js";
-import { GetUserProfilePresenter } from "./get-user-profile.presenter.js";
 import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { GetUserProfilePresenter } from "./get-user-profile.presenter.js";
 
 type GetUserProfileHTTPRequest = AuthenticatedRequest;
 

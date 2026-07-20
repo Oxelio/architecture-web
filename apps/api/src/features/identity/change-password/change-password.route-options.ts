@@ -2,12 +2,10 @@
 
 import { Type } from "@sinclair/typebox";
 import type { RouteShorthandOptions } from "fastify";
-import {
-  ChangePasswordHttpSuccess,
-  ChangePasswordHttpErrors,
-} from "./change-password.presenter.js";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { ChangePasswordHttpContract } from "./change-password.http.js";
 
 export const ChangePasswordBodySchema = Type.Object({
   password: Type.String({
@@ -24,9 +22,9 @@ export const changePasswordRouteOptions = {
     body: ChangePasswordBodySchema,
 
     response: {
-      ...createHttpSuccessResponseSchemas(ChangePasswordHttpSuccess),
+      ...createHttpSuccessResponseSchemas(ChangePasswordHttpContract.success),
 
-      ...createErrorResponseSchemas(ChangePasswordHttpErrors),
+      ...createErrorResponseSchemas(ChangePasswordHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

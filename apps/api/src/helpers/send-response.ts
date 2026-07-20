@@ -1,5 +1,6 @@
 // @file apps/api/src/helpers/send-response.ts
 import type { FastifyReply } from "fastify";
+
 import type { ControllerResponse } from "../types/controller-response.js";
 
 export function sendControllerResponse(

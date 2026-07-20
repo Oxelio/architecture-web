@@ -1,12 +1,10 @@
 // @file apps/api/src/features/identity/resend-email-verification/resend-email-verification.route-options.ts
 
 import type { RouteShorthandOptions } from "fastify";
-import {
-  ResendEmailVerificationHttpSuccess,
-  ResendEmailVerificationHttpErrors,
-} from "./resend-email-verification.presenter.js";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { ResendEmailVerificationHttpContract } from "./resend-email-verification.http.js";
 
 export const resendEmailVerificationRouteOptions = {
   schema: {
@@ -15,9 +13,11 @@ export const resendEmailVerificationRouteOptions = {
     summary: "Resend email verification",
 
     response: {
-      ...createHttpSuccessResponseSchemas(ResendEmailVerificationHttpSuccess),
+      ...createHttpSuccessResponseSchemas(
+        ResendEmailVerificationHttpContract.success,
+      ),
 
-      ...createErrorResponseSchemas(ResendEmailVerificationHttpErrors),
+      ...createErrorResponseSchemas(ResendEmailVerificationHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

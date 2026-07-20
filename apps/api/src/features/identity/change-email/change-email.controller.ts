@@ -5,9 +5,10 @@ import type {
   ChangeEmailUseCase,
 } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
-import { ChangeEmailPresenter } from "./change-email.presenter.js";
-import { type AuthenticatedRequest } from "../../../types/controller-response.js";
+
 import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { type AuthenticatedRequest } from "../../../types/controller-response.js";
+import { ChangeEmailPresenter } from "./change-email.presenter.js";
 
 type ChangeEmailHTTPRequest = AuthenticatedRequest;
 

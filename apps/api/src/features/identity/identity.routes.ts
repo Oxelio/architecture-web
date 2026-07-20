@@ -3,31 +3,31 @@
 import type { FastifyInstance } from "fastify";
 
 import type { IdentityContainer } from "#composition-root/identity.container";
+
+import type { AuthenticatedFastifyInstance } from "../../auth.js";
+import { createActivateUserController } from "./activate-user/activate-user.controller.js";
+import { activateUserRouteOptions } from "./activate-user/activate-user.route-options.js";
+import { createChangeEmailController } from "./change-email/change-email.controller.js";
+import { changeEmailRouteOptions } from "./change-email/change-email.route-options.js";
+import { createChangePasswordController } from "./change-password/change-password.controller.js";
+import { changePasswordRouteOptions } from "./change-password/change-password.route-options.js";
+import { createGetUserProfileController } from "./get-user-profile/get-user-profile.controller.js";
+import { getUserProfileRouteOptions } from "./get-user-profile/get-user-profile.route-options.js";
+import { createResendEmailVerificationController } from "./resend-email-verification/resend-email-verification.controller.js";
+import { resendEmailVerificationRouteOptions } from "./resend-email-verification/resend-email-verification.route-options.js";
 import {
   createSignInController,
   type SessionCookieOptions,
 } from "./sign-in/sign-in.controller.js";
-import { signOutRouteOptions } from "./sign-out/sign-out.route-options.js";
-
-import type { AuthenticatedFastifyInstance } from "../../auth.js";
-import { getUserProfileRouteOptions } from "./get-user-profile/get-user-profile.route-options.js";
-import { resendEmailVerificationRouteOptions } from "./resend-email-verification/resend-email-verification.route-options.js";
-import { suspendUserRouteOptions } from "./suspend-user/suspend-user.route-options.js";
-import { createSignUpController } from "./sign-up/sign-up.controller.js";
-import { createSignOutController } from "./sign-out/sign-out.controller.js";
-import { createGetUserProfileController } from "./get-user-profile/get-user-profile.controller.js";
-import { createVerifyEmailController } from "./verify-email/verify-email.controller.js";
-import { createChangePasswordController } from "./change-password/change-password.controller.js";
-import { createActivateUserController } from "./activate-user/activate-user.controller.js";
-import { createSuspendUserController } from "./suspend-user/suspend-user.controller.js";
-import { createChangeEmailController } from "./change-email/change-email.controller.js";
-import { createResendEmailVerificationController } from "./resend-email-verification/resend-email-verification.controller.js";
-import { signUpRouteOptions } from "./sign-up/sign-up.route-options.js";
 import { signInRouteOptions } from "./sign-in/sign-in.route-options.js";
+import { createSignOutController } from "./sign-out/sign-out.controller.js";
+import { signOutRouteOptions } from "./sign-out/sign-out.route-options.js";
+import { createSignUpController } from "./sign-up/sign-up.controller.js";
+import { signUpRouteOptions } from "./sign-up/sign-up.route-options.js";
+import { createSuspendUserController } from "./suspend-user/suspend-user.controller.js";
+import { suspendUserRouteOptions } from "./suspend-user/suspend-user.route-options.js";
+import { createVerifyEmailController } from "./verify-email/verify-email.controller.js";
 import { verifyEmailRouteOptions } from "./verify-email/verify-email.route-options.js";
-import { changeEmailRouteOptions } from "./change-email/change-email.route-options.js";
-import { changePasswordRouteOptions } from "./change-password/change-password.route-options.js";
-import { activateUserRouteOptions } from "./activate-user/activate-user.route-options.js";
 
 export function buildIdentityRoutes(
   container: IdentityContainer,

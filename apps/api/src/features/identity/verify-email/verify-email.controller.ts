@@ -7,9 +7,9 @@ import type {
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
+import { sendControllerResponse } from "../../../helpers/send-response.js";
 import { VerifyEmailPresenter } from "./verify-email.presenter.js";
 import type { VerifyEmailQuerySchema } from "./verify-email.route-options.js";
-import { sendControllerResponse } from "../../../helpers/send-response.js";
 
 export type VerifyEmailQuery = Static<typeof VerifyEmailQuerySchema>;
 

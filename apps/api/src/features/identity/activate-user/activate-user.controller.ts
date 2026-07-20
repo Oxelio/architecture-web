@@ -1,15 +1,15 @@
 // @file apps/api/src/features/identity/activate-user/activate-user.controller.ts
 
 import type {
-  ActivateUserCommand,
+  ActivateUserInput,
   ActivateUserUseCase,
 } from "@architecture/identity/application";
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-import type { ActivateUserParamsSchema } from "./activate-user.route-options.js";
-import { ActivateUserPresenter } from "./activate-user.presenter.js";
 import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { ActivateUserPresenter } from "./activate-user.presenter.js";
+import type { ActivateUserParamsSchema } from "./activate-user.route-options.js";
 
 export type ActivateUserParams = Static<typeof ActivateUserParamsSchema>;
 
@@ -19,7 +19,7 @@ type ActivateUserHTTPRequest = FastifyRequest<{
 
 export function createActivateUserController(useCase: ActivateUserUseCase) {
   return async (request: ActivateUserHTTPRequest, reply: FastifyReply) => {
-    const command: ActivateUserCommand = {
+    const command: ActivateUserInput = {
       userId: request.params.userId,
     };
 

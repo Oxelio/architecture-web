@@ -5,9 +5,10 @@ import type {
   ChangePasswordUseCase,
 } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
+
+import { sendControllerResponse } from "../../../helpers/send-response.js";
 import { type AuthenticatedRequest } from "../../../types/controller-response.js";
 import { ChangePasswordPresenter } from "./change-password.presenter.js";
-import { sendControllerResponse } from "../../../helpers/send-response.js";
 
 type ChangePasswordHTTPRequest = AuthenticatedRequest;
 

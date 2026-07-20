@@ -1,7 +1,7 @@
 // @file apps/api/src/helpers/create-success-response-schemas.ts
 import type {
-  HttpSuccessDefinitions,
   HttpSuccessDefinition,
+  HttpSuccessDefinitions,
 } from "../types/http.types.js";
 
 export function createHttpSuccessResponseSchemas<TSuccessCode extends string>(
@@ -17,14 +17,6 @@ export function createHttpSuccessResponseSchemas<TSuccessCode extends string>(
 
         ...(definition.status === 204 && {
           type: "null",
-        }),
-
-        ...(definition.schema && {
-          content: {
-            "application/json": {
-              schema: definition.schema,
-            },
-          },
         }),
       },
     ]),

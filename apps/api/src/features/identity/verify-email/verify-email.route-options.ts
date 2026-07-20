@@ -1,14 +1,11 @@
 // @file apps/api/src/features/identity/verify-email/verify-email.route-options.ts
 
 import { Type } from "@sinclair/typebox";
-
 import type { RouteShorthandOptions } from "fastify";
-import {
-  VerifyEmailHttpSuccess,
-  VerifyEmailHttpErrors,
-} from "./verify-email.presenter.js";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { VerifyEmailHttpContract } from "./verify-email.http.js";
 
 export const VerifyEmailQuerySchema = Type.Object({
   token: Type.String({
@@ -25,9 +22,9 @@ export const verifyEmailRouteOptions = {
     querystring: VerifyEmailQuerySchema,
 
     response: {
-      ...createHttpSuccessResponseSchemas(VerifyEmailHttpSuccess),
+      ...createHttpSuccessResponseSchemas(VerifyEmailHttpContract.success),
 
-      ...createErrorResponseSchemas(VerifyEmailHttpErrors),
+      ...createErrorResponseSchemas(VerifyEmailHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

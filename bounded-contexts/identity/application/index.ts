@@ -1,77 +1,95 @@
 // @file bounded-contexts/identity/application/index.ts
 
+// ============================================================
 // Use Cases
-export {
-  type ResolveSessionError,
-  type ResolveSessionInput,
-  type ResolveSessionResponse,
-  type ResolveSessionResult,
-  ResolveSessionUseCase,
-} from "./use-cases/resolve-session.use-case.js";
-export {
-  type ActivateUserCommand,
-  type ActivateUserError,
-  type ActivateUserResult,
-  ActivateUserUseCase,
-} from "#use-cases/activate-user.use-case";
-export {
-  type ChangeEmailError,
-  type ChangeEmailInput,
-  type ChangeEmailResult,
-  ChangeEmailUseCase,
-} from "#use-cases/change-email.use-case";
-export {
-  type ChangePasswordError,
-  type ChangePasswordInput,
-  type ChangePasswordResult,
-  ChangePasswordUseCase,
-} from "#use-cases/change-password.use-case";
-export {
-  type GetUserProfileError,
-  type GetUserProfileInput,
-  type GetUserProfileResponse,
-  type GetUserProfileResult,
-  GetUserProfileUseCase,
-} from "#use-cases/get-user-profile.use-case";
-export {
-  type ResendEmailVerificationError,
-  type ResendEmailVerificationInput,
-  type ResendEmailVerificationResult,
-  ResendEmailVerificationUseCase,
-} from "#use-cases/resend-email-verification.use-case";
-export {
-  type SignInError,
-  type SignInInput,
-  type SignInResponse,
-  type SignInResult,
-  SignInUseCase,
-} from "#use-cases/sign-in.use-case";
-export {
-  type SignOutInput,
-  type SignOutResult,
-  SignOutUseCase,
-} from "#use-cases/sign-out.use-case";
-export {
-  type SignUpError,
-  type SignUpInput,
-  type SignUpResponse,
-  type SignUpResult,
-  SignUpUseCase,
-} from "#use-cases/sign-up.use-case";
-export {
-  type SuspendUserError,
-  type SuspendUserInput,
-  type SuspendUserResult,
-  SuspendUserUseCase,
-} from "#use-cases/suspend-user.use-case";
-export {
-  type VerifyEmailError,
-  type VerifyEmailInput,
-  type VerifyEmailResult,
-  VerifyEmailUseCase,
-} from "#use-cases/verify-email.use-case";
+// ============================================================
 
+export type {
+  ActivateUserError,
+  ActivateUserInput,
+  ActivateUserOutput,
+  ActivateUserSuccess,
+} from "./use-cases/activate-user/activate-user.types.js";
+export { ActivateUserUseCase } from "./use-cases/activate-user/activate-user.use-case.js";
+export type {
+  ChangeEmailError,
+  ChangeEmailInput,
+  ChangeEmailOutput,
+  ChangeEmailSuccess,
+} from "./use-cases/change-email/change-email.types.js";
+export { ChangeEmailUseCase } from "./use-cases/change-email/change-email.use-case.js";
+export type {
+  ChangePasswordError,
+  ChangePasswordInput,
+  ChangePasswordOutput,
+  ChangePasswordSuccess,
+} from "./use-cases/change-password/change-password.types.js";
+export { ChangePasswordUseCase } from "./use-cases/change-password/change-password.use-case.js";
+export type {
+  GetUserProfileError,
+  GetUserProfileInput,
+  GetUserProfileOutput,
+  GetUserProfileSuccess,
+  UserProfile,
+} from "./use-cases/get-user-profile/get-user-profile.types.js";
+export { GetUserProfileUseCase } from "./use-cases/get-user-profile/get-user-profile.use-case.js";
+export type {
+  ResendEmailVerificationError,
+  ResendEmailVerificationInput,
+  ResendEmailVerificationOutput,
+  ResendEmailVerificationSuccess,
+} from "./use-cases/resend-email-verification/resend-email-verification.types.js";
+export { ResendEmailVerificationUseCase } from "./use-cases/resend-email-verification/resend-email-verification.use-case.js";
+export type {
+  ResolveSessionError,
+  ResolveSessionInput,
+  ResolveSessionOutput,
+  ResolveSessionSuccess,
+  SessionResolution,
+} from "./use-cases/resolve-session/resolve-session.types.js";
+export { ResolveSessionUseCase } from "./use-cases/resolve-session/resolve-session.use-case.js";
+export type {
+  AuthenticationSession,
+  SignInError,
+  SignInInput,
+  SignInOutput,
+  SignInSuccess,
+} from "./use-cases/sign-in/sign-in.types.js";
+export { SignInUseCase } from "./use-cases/sign-in/sign-in.use-case.js";
+export type {
+  SignOutError,
+  SignOutInput,
+  SignOutOutput,
+  SignOutSuccess,
+} from "./use-cases/sign-out/sign-out.types.js";
+export { SignOutUseCase } from "./use-cases/sign-out/sign-out.use-case.js";
+export type {
+  SignUpError,
+  SignUpInput,
+  SignUpOutput,
+  SignUpSuccess,
+  UserRegistration,
+} from "./use-cases/sign-up/sign-up.types.js";
+export { SignUpUseCase } from "./use-cases/sign-up/sign-up.use-case.js";
+export type {
+  SuspendUserError,
+  SuspendUserInput,
+  SuspendUserOutput,
+  SuspendUserSuccess,
+} from "./use-cases/suspend-user/suspend-user.types.js";
+export { SuspendUserUseCase } from "./use-cases/suspend-user/suspend-user.use-case.js";
+export type {
+  VerifyEmailError,
+  VerifyEmailInput,
+  VerifyEmailOutput,
+  VerifyEmailSuccess,
+} from "./use-cases/verify-email/verify-email.types.js";
+export { VerifyEmailUseCase } from "./use-cases/verify-email/verify-email.use-case.js";
+
+// ============================================================
 // Ports
+// ============================================================
+
 export { EmailSenderPort } from "./ports/email-sender.port.js";
 export type { EmailVerificationRecord } from "./ports/email-verification.port.js";
 export { EmailVerificationPort } from "./ports/email-verification.port.js";

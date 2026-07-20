@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/user-identifier.value-object.ts
 
-import { type ErrorOf, Identifier, Result } from "@architecture/foundation";
+import { Identifier, Result, type ValueOf } from "@architecture/foundation";
 import { v7 as uuid, validate, version } from "uuid";
 
 const UserIdentifierErrors = {
@@ -10,13 +10,14 @@ const UserIdentifierErrors = {
   invalidUuid: {
     code: "user_identifier.invalid_uuid",
   },
-  invalidVersion: (expected: number) => ({
-    code: "user_identifier.invalid_version",
-    expected,
-  }),
+  invalidVersion: (expected: number) =>
+    ({
+      code: "user_identifier.invalid_version",
+      expected,
+    }) as const,
 } as const;
 
-export type UserIdentifierError = ErrorOf<typeof UserIdentifierErrors>;
+export type UserIdentifierError = ValueOf<typeof UserIdentifierErrors>;
 
 export class UserIdentifierValueObject extends Identifier {
   public static generate(): UserIdentifierValueObject {
@@ -40,7 +41,7 @@ export class UserIdentifierValueObject extends Identifier {
       return Result.failure(UserIdentifierErrors.invalidVersion(7));
     }
 
-    return Result.ok(
+    return Result.success(
       new UserIdentifierValueObject({
         value,
       }),

@@ -8,9 +8,9 @@ import type { CookieSerializeOptions } from "@fastify/cookie";
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
+import { sendControllerResponse } from "../../../helpers/send-response.js";
 import { SignInPresenter } from "./sign-in.presenter.js";
 import type { SignInBodySchema } from "./sign-in.route-options.js";
-import { sendControllerResponse } from "../../../helpers/send-response.js";
 
 export interface SessionCookieOptions {
   name: string;
@@ -41,11 +41,11 @@ export function createSignInController(
       const maxAge = Math.max(
         1,
         Math.floor(
-          (result.value.sessionExpiresAt.getTime() - Date.now()) / 1000,
+          (result.value.data.sessionExpiresAt.getTime() - Date.now()) / 1000,
         ),
       );
 
-      reply.setCookie(sessionCookie.name, result.value.sessionId, {
+      reply.setCookie(sessionCookie.name, result.value.data.sessionId, {
         ...sessionCookie.options,
         maxAge,
       });

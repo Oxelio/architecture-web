@@ -6,9 +6,10 @@ import type {
 } from "@architecture/identity/application";
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
+
+import { sendControllerResponse } from "../../../helpers/send-response.js";
 import { SuspendUserPresenter } from "./suspend-user.presenter.js";
 import type { SuspendUserParamsSchema } from "./suspend-user.route-options.js";
-import { sendControllerResponse } from "../../../helpers/send-response.js";
 
 export type SuspendUserParams = Static<typeof SuspendUserParamsSchema>;
 

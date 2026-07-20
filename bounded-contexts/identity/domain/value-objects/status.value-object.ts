@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/status.value-object.ts
 
-import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
+import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const StatusErrors = {
   empty: {
@@ -12,7 +12,7 @@ const StatusErrors = {
   }),
 } as const;
 
-export type StatusError = ErrorOf<typeof StatusErrors>;
+export type StatusError = ValueOf<typeof StatusErrors>;
 
 type UserStatusType = "active" | "suspended";
 
@@ -42,7 +42,9 @@ export class StatusValueObject extends ValueObject<StatusProperties> {
       return Result.failure(StatusErrors.invalid(value));
     }
 
-    return Result.ok(new StatusValueObject({ value: value as UserStatusType }));
+    return Result.success(
+      new StatusValueObject({ value: value as UserStatusType }),
+    );
   }
 
   public isActive(): boolean {

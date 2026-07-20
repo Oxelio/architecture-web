@@ -1,36 +1,18 @@
 // @file apps/api/src/features/identity/sign-out/sign-out.presenter.ts
 
-import type { SignOutResult } from "@architecture/identity/application";
+import type { SignOutOutput } from "@architecture/identity/application";
 
-import type {
-  HttpErrorDefinitions,
-  HttpSuccessDefinitions,
-} from "../../../types/http.types.js";
 import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpSuccessMapper } from "../../../helpers/create-http-success-mapper.js";
+import { SignOutHttpContract } from "./sign-out.http.js";
 
-export const SignOutHttpErrors = {
-  invalid_session_id: {
-    status: 400 as const,
-    code: "INVALID_SESSION_ID",
-    message: "Invalid session identifier",
-  },
-} satisfies HttpErrorDefinitions<"invalid_session_id">;
-
-export const SignOutHttpSuccess = {
-  signedOut: {
-    status: 204 as const,
-    description: "User signed out successfully",
-  },
-} satisfies HttpSuccessDefinitions<"signedOut">;
-
-const toHttpError = createHttpErrorMapper(SignOutHttpErrors);
+const toHttpError = createHttpErrorMapper(SignOutHttpContract.errors);
+const toHttpSuccess = createHttpSuccessMapper(SignOutHttpContract.success);
 
 export const SignOutPresenter = {
-  toPresentation(result: SignOutResult) {
+  toPresentation(result: SignOutOutput) {
     if (result.success) {
-      return {
-        status: SignOutHttpSuccess.signedOut.status,
-      };
+      return toHttpSuccess(result.value.code);
     }
 
     return toHttpError(result.error);

@@ -1,11 +1,11 @@
 // @file apps/api/src/features/identity/sign-in/sign-in.route-options.ts
 
 import { Type } from "@sinclair/typebox";
-
 import type { RouteShorthandOptions } from "fastify";
-import { SignInHttpSuccess, SignInHttpErrors } from "./sign-in.presenter.js";
+
 import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
 import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { SignInHttpContract } from "./sign-in.http.js";
 
 export const SignInBodySchema = Type.Object({
   email: Type.String({
@@ -23,9 +23,9 @@ export const signInRouteOptions = {
     body: SignInBodySchema,
 
     response: {
-      ...createHttpSuccessResponseSchemas(SignInHttpSuccess),
+      ...createHttpSuccessResponseSchemas(SignInHttpContract.success),
 
-      ...createErrorResponseSchemas(SignInHttpErrors),
+      ...createErrorResponseSchemas(SignInHttpContract.errors),
     },
   },
 } satisfies RouteShorthandOptions;

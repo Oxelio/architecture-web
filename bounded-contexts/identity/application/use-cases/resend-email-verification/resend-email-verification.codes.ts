@@ -1,0 +1,29 @@
+// @file bounded-contexts/identity/application/use-cases/resend-email-verification/resend-email-verification.codes.ts
+const ResendEmailVerificationSuccessCodes = {
+  sent: {
+    code: "email_verification.sent",
+  },
+} as const;
+
+const ResendEmailVerificationErrorCodes = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
+
+  userNotFound: {
+    code: "user.not_found",
+  },
+
+  alreadyVerified: {
+    code: "user.email_already_verified",
+  },
+
+  tooManyRequests: {
+    code: "email_verification.too_many_requests",
+  },
+} as const;
+
+export {
+  ResendEmailVerificationErrorCodes,
+  ResendEmailVerificationSuccessCodes,
+};

@@ -1,6 +1,6 @@
 // @file bounded-contexts/identity/domain/value-objects/password-plain.value-object.ts
 
-import { type ErrorOf, Result, ValueObject } from "@architecture/foundation";
+import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const PlainPasswordErrors = {
   empty: {
@@ -25,7 +25,7 @@ const PlainPasswordErrors = {
   }),
 } as const;
 
-export type PlainPasswordError = ErrorOf<typeof PlainPasswordErrors>;
+export type PlainPasswordError = ValueOf<typeof PlainPasswordErrors>;
 
 export class PasswordPlainValueObject extends ValueObject<{ value: string }> {
   private static readonly MIN_LENGTH = 8;
@@ -64,7 +64,7 @@ export class PasswordPlainValueObject extends ValueObject<{ value: string }> {
       return Result.failure(PlainPasswordErrors.invalidFormat(password));
     }
 
-    return Result.ok(new PasswordPlainValueObject({ value: password }));
+    return Result.success(new PasswordPlainValueObject({ value: password }));
   }
 
   private static isTooShort(password: string): boolean {

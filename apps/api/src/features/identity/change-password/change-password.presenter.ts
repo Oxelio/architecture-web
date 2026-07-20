@@ -1,70 +1,20 @@
 // @file apps/api/src/features/identity/change-password/change-password.presenter.ts
 
-import type {
-  ChangePasswordError,
-  ChangePasswordResult,
-} from "@architecture/identity/application";
+import type { ChangePasswordOutput } from "@architecture/identity/application";
 
-import type {
-  HttpErrorDefinitions,
-  HttpSuccessDefinitions,
-} from "../../../types/http.types.js";
 import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpSuccessMapper } from "../../../helpers/create-http-success-mapper.js";
+import { ChangePasswordHttpContract } from "./change-password.http.js";
 
-export const ChangePasswordHttpErrors = {
-  "password.empty": {
-    status: 400 as const,
-    code: "PASSWORD_REQUIRED",
-    message: "Password is required",
-  },
-
-  "password.too_short": {
-    status: 400 as const,
-    code: "PASSWORD_TOO_SHORT",
-    message: "Password is too short",
-  },
-
-  "user.invalid_id": {
-    status: 400 as const,
-    code: "INVALID_USER_ID",
-    message: "Invalid user identifier",
-  },
-
-  "user.not_found": {
-    status: 404 as const,
-    code: "USER_NOT_FOUND",
-    message: "User not found",
-  },
-} satisfies HttpErrorDefinitions<ChangePasswordError["code"]>;
-
-export const ChangePasswordHttpSuccess = {
-  changed: {
-    status: 200 as const,
-    description: "Password changed successfully",
-    schema: {
-      type: "object",
-      properties: {
-        data: {
-          type: "object",
-          properties: {},
-        },
-      },
-      required: ["data"],
-    },
-  },
-} satisfies HttpSuccessDefinitions<"changed">;
-
-const toHttpError = createHttpErrorMapper(ChangePasswordHttpErrors);
+const toHttpError = createHttpErrorMapper(ChangePasswordHttpContract.errors);
+const toHttpSuccess = createHttpSuccessMapper(
+  ChangePasswordHttpContract.success,
+);
 
 export const ChangePasswordPresenter = {
-  toPresentation(result: ChangePasswordResult) {
+  toPresentation(result: ChangePasswordOutput) {
     if (result.success) {
-      return {
-        status: ChangePasswordHttpSuccess.changed.status,
-        body: {
-          data: {},
-        },
-      };
+      return toHttpSuccess(result.value.code);
     }
 
     return toHttpError(result.error);
