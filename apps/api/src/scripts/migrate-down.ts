@@ -3,8 +3,8 @@
 import { Migrator } from "kysely/migration";
 
 import { createDatabase } from "#composition-root/database.module";
+import { loadConfig } from "#config/app.config";
 
-import { loadConfig } from "../config/app.config.js";
 import { getAllMigrations } from "./migrations.provider.js";
 
 const config = loadConfig();

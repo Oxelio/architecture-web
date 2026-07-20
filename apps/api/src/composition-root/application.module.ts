@@ -1,6 +1,7 @@
 // @file apps/api/src/composition-root/application.module.ts
 
-import { loadConfig } from "../config/app.config.js";
+import { loadConfig } from "#config/app.config";
+
 import { createDatabase } from "./database.module.js";
 import { buildIdentityModule, type IdentityModule } from "./identity.module.js";
 import { createRedis } from "./redis.module.js";

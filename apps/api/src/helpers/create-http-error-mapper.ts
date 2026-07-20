@@ -1,6 +1,7 @@
 // @file apps/api/src/helpers/create-http-error-mapper.ts
-import type { ApplicationError } from "../types/application-error.types.js";
-import type { HttpError, HttpErrorDefinitions } from "../types/http.types.js";
+
+import type { ApplicationError } from "#types/application-error.types";
+import type { HttpError, HttpErrorDefinitions } from "#types/http.types";
 
 export function createHttpErrorMapper<TErrorCode extends string>(
   mapping: HttpErrorDefinitions<TErrorCode>,

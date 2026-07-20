@@ -1,5 +1,6 @@
 // @file apps/api/src/helpers/create-error-response-schemas.ts
-import type { HttpErrorDefinitions } from "../types/http.types.js";
+
+import type { HttpErrorDefinitions } from "#types/http.types";
 
 export function createErrorResponseSchemas<T extends string>(
   mapping: HttpErrorDefinitions<T>,

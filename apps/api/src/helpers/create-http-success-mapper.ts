@@ -1,4 +1,6 @@
-import type { HttpSuccessDefinition } from "../types/http.types.js";
+// @file apps/api/src/helpers/create-http-success-mapper.ts
+
+import type { HttpSuccessDefinition } from "#types/http.types";
 
 export function createHttpSuccessMapper<
   const TSuccess extends Record<string, HttpSuccessDefinition>,

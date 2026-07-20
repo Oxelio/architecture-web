@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import { defineConfig } from "eslint/config";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
+import importPlugin from "eslint-plugin-import";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
 import tseslint from "typescript-eslint";
@@ -34,8 +35,15 @@ export default [
   eslintConfigPrettier,
 
   {
+    files: ["**/*.ts", "**/*.tsx"],
     plugins: {
       "simple-import-sort": simpleImportSort,
+      import: importPlugin,
+    },
+    settings: {
+      "import/resolver": {
+        typescript: true,
+      },
     },
     rules: {
       curly: ["error", "all"],
@@ -53,6 +61,8 @@ export default [
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+
+      "import/no-relative-parent-imports": "error",
     },
   },
 ];

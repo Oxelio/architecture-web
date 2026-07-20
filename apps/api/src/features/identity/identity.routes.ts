@@ -2,9 +2,9 @@
 
 import type { FastifyInstance } from "fastify";
 
+import type { AuthenticatedFastifyInstance } from "#app/auth";
 import type { IdentityModule } from "#composition-root/identity.module";
 
-import type { AuthenticatedFastifyInstance } from "../../auth.js";
 import { createActivateUserController } from "./activate-user/activate-user.controller.js";
 import { activateUserRouteOptions } from "./activate-user/activate-user.route-options.js";
 import { createChangeEmailController } from "./change-email/change-email.controller.js";

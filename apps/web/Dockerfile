@@ -1,7 +1,7 @@
 FROM node:26.4.0-trixie-slim AS build
 WORKDIR /repo
 
-RUN npm install -g pnpm@11.3.0
+RUN npm install -g pnpm@11.12.0
 ENV CI=true
 ENV NODE_ENV=development
 

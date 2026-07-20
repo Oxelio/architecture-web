@@ -5,7 +5,7 @@ import type {
   SignInSuccess,
 } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const SignInHttpContract = {
   success: {

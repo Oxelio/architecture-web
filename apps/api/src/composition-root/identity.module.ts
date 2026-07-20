@@ -34,7 +34,8 @@ import {
 import { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 
-import type { AppConfig } from "../config/app.config.js";
+import type { AppConfig } from "#config/app.config";
+
 import type { AppDatabase } from "./database.module.js";
 
 export interface IdentityModule {

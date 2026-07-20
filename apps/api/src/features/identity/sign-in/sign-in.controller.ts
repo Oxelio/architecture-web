@@ -8,7 +8,8 @@ import type { CookieSerializeOptions } from "@fastify/cookie";
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { sendControllerResponse } from "#helpers/send-response";
+
 import { SignInPresenter } from "./sign-in.presenter.js";
 import type { SignInBodySchema } from "./sign-in.route-options.js";
 
