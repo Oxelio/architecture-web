@@ -2,7 +2,7 @@
 
 import type { FastifyInstance } from "fastify";
 
-import type { IdentityContainer } from "#composition-root/identity.container";
+import type { IdentityModule } from "#composition-root/identity.module";
 
 import type { AuthenticatedFastifyInstance } from "../../auth.js";
 import { createActivateUserController } from "./activate-user/activate-user.controller.js";
@@ -30,7 +30,7 @@ import { createVerifyEmailController } from "./verify-email/verify-email.control
 import { verifyEmailRouteOptions } from "./verify-email/verify-email.route-options.js";
 
 export function buildIdentityRoutes(
-  container: IdentityContainer,
+  container: IdentityModule,
   sessionCookie: SessionCookieOptions,
 ) {
   return async (app: FastifyInstance) => {
@@ -89,7 +89,7 @@ export function buildIdentityRoutes(
 }
 
 function composeIdentityControllers(
-  container: IdentityContainer,
+  container: IdentityModule,
   sessionCookie: SessionCookieOptions,
 ) {
   return {

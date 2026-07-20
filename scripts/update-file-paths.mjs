@@ -44,7 +44,7 @@ for (const file of files) {
   }
 
   const relativePath = file.replaceAll("\\", "/");
-  const header = `// @file ${relativePath}`;
+  const header = `// @file ${relativePath}\n`;
 
   const content = readFileSync(file, "utf8");
 

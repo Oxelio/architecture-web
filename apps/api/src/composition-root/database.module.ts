@@ -1,4 +1,4 @@
-// @file apps/api/src/composition-root/database.container.ts
+// @file apps/api/src/composition-root/database.module.ts
 
 import type { IdentityDatabase } from "@architecture/identity-persistence-kysely";
 import { Kysely, PostgresDialect } from "kysely";

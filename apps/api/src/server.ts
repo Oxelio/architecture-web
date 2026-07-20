@@ -13,7 +13,7 @@ import {
   buildSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "./auth.js";
-import { buildApplicationContainer } from "./composition-root/application.container.js";
+import { buildApplicationModule } from "./composition-root/application.module.js";
 import { buildIdentityRoutes } from "./features/identity/identity.routes.js";
 import { errorHandler } from "./types/error-handler.js";
 
@@ -53,12 +53,16 @@ export async function buildServer() {
   // =========================
   // Composition Root (DI)
   // =========================
-  const container = buildApplicationContainer();
+  const container = buildApplicationModule();
   const sessionCookieOptions = buildSessionCookieOptions();
 
   await app.register(authPlugin, {
     resolveSession: container.identity.resolveSession,
     sessionCookieName: SESSION_COOKIE_NAME,
+  });
+
+  app.addHook("onClose", async () => {
+    await container.dispose();
   });
 
   // =========================

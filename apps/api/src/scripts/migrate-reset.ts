@@ -2,7 +2,7 @@
 
 import { Migrator } from "kysely/migration";
 
-import { createDatabase } from "../composition-root/database.container.js";
+import { createDatabase } from "../composition-root/database.module.js";
 import { loadConfig } from "../config/app.config.js";
 import { getAllMigrations } from "./migrations.provider.js";
 
