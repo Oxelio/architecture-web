@@ -1,7 +1,6 @@
 {
   "name": "@architecture/identity-password-argon2",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,10 +12,11 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@architecture/identity": "workspace:*",
+    "@architecture/identity": "^1.0.0-alpha.1",
     "argon2": "^0.44.0"
   },
   "devDependencies": {

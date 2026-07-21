@@ -21,5 +21,7 @@ export default defineConfig({
 
   dts: false,
 
-  external: ["pg", "ioredis"],
+  deps: {
+    neverBundle: ["pg", "ioredis"],
+  },
 });

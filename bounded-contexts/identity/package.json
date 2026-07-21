@@ -1,14 +1,14 @@
 {
   "name": "@architecture/identity",
-  "version": "1.0.0",
-  "private": true,
+  "version": "1.0.0-alpha.1",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "pnpm build"
   },
   "imports": {
     "#entities/*": "./dist/domain/entities/*.js",
@@ -37,7 +37,7 @@
     }
   },
   "dependencies": {
-    "@architecture/foundation": "workspace:*",
+    "@architecture/foundation": "^1.0.0-alpha.1",
     "ioredis": "^5.11.1",
     "uuid": "^14.0.0"
   },

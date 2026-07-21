@@ -35,8 +35,7 @@ services:
   api:
     image: architecture-web-api:latest
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./apps/api
     container_name: architecture-web-api
     restart: unless-stopped
     depends_on:
@@ -66,8 +65,7 @@ services:
   web:
     image: architecture-web-web:latest
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+      context: ./apps/web
     container_name: architecture-web-web
     restart: unless-stopped
     depends_on:
@@ -76,7 +74,7 @@ services:
     environment:
       NODE_ENV: production
     ports:
-      - "5173:80"
+      - "5173:8080"
 
   mailpit:
     image: axllent/mailpit:latest

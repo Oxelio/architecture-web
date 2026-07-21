@@ -1,42 +1,31 @@
-FROM node:26.5.0-trixie-slim AS builder
+FROM node:26.5.0-alpine3.24 AS builder
 
-WORKDIR /repo
+WORKDIR /app
 
-ENV CI=true
-ENV NODE_ENV=development
+RUN npm install -g pnpm@11.15.1
 
-RUN npm install -g pnpm@11.12.0
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-
-COPY apps ./apps
-COPY bounded-contexts ./bounded-contexts
-COPY foundation ./foundation
-COPY infrastructure ./infrastructure
+COPY package.json pnpm-lock.yaml .npmrc pnpm-workspace.yaml ./
 
 RUN pnpm install --frozen-lockfile
 
-RUN pnpm --filter foundation build
-RUN pnpm --filter identity build
-RUN pnpm --filter identity-persistence-kysely build
-RUN pnpm --filter identity-password-argon2 build
-RUN pnpm --filter identity-session-redis build
-RUN pnpm --filter identity-email-nodemailer build
+COPY . .
 
-RUN pnpm --filter api build
+RUN pnpm build
 
 
-FROM node:26.5.0-alpine AS production
+FROM node:26.5.0-alpine3.24 AS production
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN apk add --no-cache libc6-compat
+RUN npm install -g pnpm@11.15.1
 
-COPY --from=builder /repo/apps/api/package.json ./package.json
-COPY --from=builder /repo/apps/api/dist ./dist
-COPY --from=builder /repo/node_modules ./node_modules
+COPY package.json pnpm-lock.yaml .npmrc pnpm-workspace.yaml ./
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --from=builder /app/dist ./dist
 
 RUN chown -R node:node /app
 

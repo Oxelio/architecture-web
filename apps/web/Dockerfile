@@ -1,23 +1,35 @@
-FROM node:26.4.0-trixie-slim AS build
-WORKDIR /repo
+FROM node:26.5.0-alpine3.24 AS build
+
+WORKDIR /app
 
 RUN npm install -g pnpm@11.12.0
-ENV CI=true
-ENV NODE_ENV=development
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY commitlint.config.js eslint.config.mjs ./
-COPY apps ./apps
-COPY bounded-contexts ./bounded-contexts
-COPY foundation ./foundation
-COPY infrastructure ./infrastructure
+COPY package.json pnpm-lock.yaml .npmrc ./
 
-RUN pnpm install --frozen-lockfile --ignore-scripts
-RUN pnpm --filter ./apps/web build
+RUN pnpm install --frozen-lockfile
 
-FROM nginx:alpine AS production
-COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY . .
 
-EXPOSE 80
+RUN pnpm build
+
+FROM nginx:1.30.4-alpine-slim AS production
+
+RUN addgroup -S nginx-user && adduser -S nginx-user -G nginx-user
+
+WORKDIR /app
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+
+RUN mkdir -p /var/cache/nginx /var/run \
+    && chown -R nginx-user:nginx-user \
+    /usr/share/nginx/html \
+    /var/cache/nginx \
+    /var/run \
+    /etc/nginx
+
+USER nginx-user
+
+EXPOSE 8080
+
 CMD ["nginx", "-g", "daemon off;"]
