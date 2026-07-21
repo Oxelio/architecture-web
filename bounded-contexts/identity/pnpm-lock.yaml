@@ -8,11 +8,11 @@ importers:
   .:
     dependencies:
       "@architecture/foundation":
-        specifier: link:../../foundation
-        version: link:../../foundation
+        specifier: ^1.0.0-alpha.1
+        version: 1.0.0-alpha.1
       ioredis:
         specifier: ^5.11.1
-        version: 5.11.1
+        version: 5.11.1(supports-color@7.2.0)
       uuid:
         specifier: ^14.0.0
         version: 14.0.1
@@ -31,6 +31,13 @@ importers:
         version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5))
 
 packages:
+  "@architecture/foundation@1.0.0-alpha.1":
+    resolution:
+      {
+        integrity: sha1-7TpVDyvZcoWt9U/+K9blDeUQwmU=,
+        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/foundation/-/@architecture/foundation-1.0.0-alpha.1.tgz,
+      }
+
   "@babel/helper-string-parser@7.29.7":
     resolution:
       {
@@ -446,6 +453,12 @@ packages:
         integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==,
       }
     engines: { node: ">=12.0.0" }
+
+  fast-deep-equal@3.1.3:
+    resolution:
+      {
+        integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==,
+      }
 
   fdir@6.5.0:
     resolution:
@@ -911,6 +924,11 @@ packages:
     hasBin: true
 
 snapshots:
+  "@architecture/foundation@1.0.0-alpha.1":
+    dependencies:
+      fast-deep-equal: 3.1.3
+      uuid: 14.0.1
+
   "@babel/helper-string-parser@7.29.7": {}
 
   "@babel/helper-validator-identifier@7.29.7": {}
@@ -1102,9 +1120,11 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  debug@4.4.3:
+  debug@4.4.3(supports-color@7.2.0):
     dependencies:
       ms: 2.1.3
+    optionalDependencies:
+      supports-color: 7.2.0
 
   denque@2.1.0: {}
 
@@ -1118,6 +1138,8 @@ snapshots:
 
   expect-type@1.4.0: {}
 
+  fast-deep-equal@3.1.3: {}
+
   fdir@6.5.0(picomatch@4.0.5):
     optionalDependencies:
       picomatch: 4.0.5
@@ -1129,11 +1151,11 @@ snapshots:
 
   html-escaper@2.0.2: {}
 
-  ioredis@5.11.1:
+  ioredis@5.11.1(supports-color@7.2.0):
     dependencies:
       "@ioredis/commands": 1.10.0
       cluster-key-slot: 1.1.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       denque: 2.1.0
       redis-errors: 1.2.0
       redis-parser: 3.0.0
