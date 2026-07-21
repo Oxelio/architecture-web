@@ -7,73 +7,73 @@ importers:
     packageManagerDependencies:
       "@pnpm/exe":
         specifier: ^11.1.3
-        version: 11.2.2
+        version: 11.15.1
       pnpm:
         specifier: ^11.1.3
-        version: 11.2.2
+        version: 11.15.1
 
 packages:
-  "@pnpm/exe@11.2.2":
+  "@pnpm/exe@11.15.1":
     resolution:
       {
-        integrity: sha512-9AGho6f10GYF/XHvnpO6wnzDIAiHNSs2PyOTelrNNyUiHwfTVtnJoXwRz/6yPJAYOF3erhPauv5oxf62uh581w==,
+        integrity: sha512-+e+DQrUPtDqH+9blSre23l7od3P3lRy43HN8TOKHNvbtuTNDRQtqQ0seHk/kn7iJl+ZSKBALFrQXPvbItNgRwA==,
       }
     hasBin: true
 
-  "@pnpm/linux-arm64@11.2.2":
+  "@pnpm/linux-arm64@11.15.1":
     resolution:
       {
-        integrity: sha512-cMEqyEwpghHb1UggKuowTuGKvbWe1Ra6bK3SF9CWoIrz36mzQz3FXxYXx1Theo8lmkwWH2MZdUGHKgtUoqEGKg==,
+        integrity: sha512-8QOTdBeklXcE/AY4cAR2RJ4809I38kLxtInAYW4sVDfQoWYjmEIoU/ZxpHsk78KM8VU0BehtOB+iZsMxSCyiLQ==,
       }
     cpu: [arm64]
     os: [linux]
 
-  "@pnpm/linux-x64@11.2.2":
+  "@pnpm/linux-x64@11.15.1":
     resolution:
       {
-        integrity: sha512-AShxDdan9wfAFbIGAO5YnbGRf3zuETOZVMuWqmx4mJLaAOR3kiA3Rwhzj3jyTsAoodn7Xdaxq9G1M3FpB92mkQ==,
+        integrity: sha512-hbhuC2Rh5Zw9ERUsQhOSLPnwfWSRTU6phtuFdK2I2raYCXa7v5C4i+XKTH+sKLPG5vJiKPyi4Hd62UECHZoy2w==,
       }
     cpu: [x64]
     os: [linux]
 
-  "@pnpm/linuxstatic-arm64@11.2.2":
+  "@pnpm/linuxstatic-arm64@11.15.1":
     resolution:
       {
-        integrity: sha512-m7BCdqFdMFo3fkiOpcOLa70c3Ppy5OKv78HXSIfzL4ajHBdPQfmv03VgC3U08l1ST/EeQFuSt+Za0azmOJyYqA==,
+        integrity: sha512-xEL9kDvLXnNYAgQak9tfIhO/BaBf1R/1+/dzzntuquzSqrEaPs0x0P4qMmwq02hVBDfAGA2MAD4n9kmc6Q//tw==,
       }
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  "@pnpm/linuxstatic-x64@11.2.2":
+  "@pnpm/linuxstatic-x64@11.15.1":
     resolution:
       {
-        integrity: sha512-UABTQUhdn6eCx/IlGVrdwklKT00pTHrjLNXdviP4OReJa1trM5HDWcDnreIg89ghCFmee+UTBKDx1FYlLON8EQ==,
+        integrity: sha512-SLJ4neJx649ri4qHdseQN6SnAy6nNFnsLGi7g+EH32cVux4aWX7tjMNTPHrUKJ6Oc7C6oPGXUpLmemEvAwCPOg==,
       }
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  "@pnpm/macos-arm64@11.2.2":
+  "@pnpm/macos-arm64@11.15.1":
     resolution:
       {
-        integrity: sha512-EakwHSWIxzza6fO6zQkmkUphoadjer9VXCsWRax1D4qNWmChKfn2muYFj6BOChS999lwb4fb42gc61Nbx0X6iw==,
+        integrity: sha512-GbIUQcDZgO/i1Ql38Pk269KNYpEbSCWYcSXBHgT62y8qVTrpEbmi+TKNaLVYuUkK0k/hMibySRa5GUs7/vnNyw==,
       }
     cpu: [arm64]
     os: [darwin]
 
-  "@pnpm/win-arm64@11.2.2":
+  "@pnpm/win-arm64@11.15.1":
     resolution:
       {
-        integrity: sha512-eXzlXAnwRAI9Uff1U2pfTJxC78vL8aGxU/fsUt/RzWjS09xMQZ2qtAunKg869fAi6xfsquDbogkdTZA3163lIw==,
+        integrity: sha512-pLlcpdtoaHJxVfhWahoQg5U7Mv9b6/X/8og+dY1GX1GvsZU3Wf7Y+LlA1sfxqoPcohtQdo6MdJkWiOZ3nIFMCQ==,
       }
     cpu: [arm64]
     os: [win32]
 
-  "@pnpm/win-x64@11.2.2":
+  "@pnpm/win-x64@11.15.1":
     resolution:
       {
-        integrity: sha512-X74bQ4bvjSCYapcupRsGrse8cAg7XhPKXRn1o1qOouux1nJquz9lh2h5uKz8GPx816OUsYo9FS8DV3N9W+L8QA==,
+        integrity: sha512-gAvQjBOrNb8zHXRQawBfZRtjDWEFe6p9aSBi8uuMtWB4XAaj0+YuzstsR93llZ/UgP67oTkbkCOITBLayRVGGQ==,
       }
     cpu: [x64]
     os: [win32]
@@ -168,47 +168,47 @@ packages:
       }
     engines: { node: ">=8" }
 
-  pnpm@11.2.2:
+  pnpm@11.15.1:
     resolution:
       {
-        integrity: sha512-NuZiH61QYXiTZFXnAke4gI707CV5ep9DepMoGgIEhOJgf2pGmiLpgph8PbuIZuMHFRSrEKShdJ4G7c0ewRhDbw==,
+        integrity: sha512-gTULB+U8lTigLx8jA7QpD6LXvgTlbiqXDEzEtBfcdh3hlu2r1J1Vx9yVgNuBAHxEFD5OPX5GKzAA0jwlUSLQZQ==,
       }
     engines: { node: ">=22.13" }
     hasBin: true
 
 snapshots:
-  "@pnpm/exe@11.2.2":
+  "@pnpm/exe@11.15.1":
     dependencies:
       "@reflink/reflink": 0.1.19
       detect-libc: 2.1.2
     optionalDependencies:
-      "@pnpm/linux-arm64": 11.2.2
-      "@pnpm/linux-x64": 11.2.2
-      "@pnpm/linuxstatic-arm64": 11.2.2
-      "@pnpm/linuxstatic-x64": 11.2.2
-      "@pnpm/macos-arm64": 11.2.2
-      "@pnpm/win-arm64": 11.2.2
-      "@pnpm/win-x64": 11.2.2
+      "@pnpm/linux-arm64": 11.15.1
+      "@pnpm/linux-x64": 11.15.1
+      "@pnpm/linuxstatic-arm64": 11.15.1
+      "@pnpm/linuxstatic-x64": 11.15.1
+      "@pnpm/macos-arm64": 11.15.1
+      "@pnpm/win-arm64": 11.15.1
+      "@pnpm/win-x64": 11.15.1
 
-  "@pnpm/linux-arm64@11.2.2":
+  "@pnpm/linux-arm64@11.15.1":
     optional: true
 
-  "@pnpm/linux-x64@11.2.2":
+  "@pnpm/linux-x64@11.15.1":
     optional: true
 
-  "@pnpm/linuxstatic-arm64@11.2.2":
+  "@pnpm/linuxstatic-arm64@11.15.1":
     optional: true
 
-  "@pnpm/linuxstatic-x64@11.2.2":
+  "@pnpm/linuxstatic-x64@11.15.1":
     optional: true
 
-  "@pnpm/macos-arm64@11.2.2":
+  "@pnpm/macos-arm64@11.15.1":
     optional: true
 
-  "@pnpm/win-arm64@11.2.2":
+  "@pnpm/win-arm64@11.15.1":
     optional: true
 
-  "@pnpm/win-x64@11.2.2":
+  "@pnpm/win-x64@11.15.1":
     optional: true
 
   "@reflink/reflink-darwin-arm64@0.1.19":
@@ -248,7 +248,7 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  pnpm@11.2.2: {}
+  pnpm@11.15.1: {}
 
 ---
 lockfileVersion: "9.0"
@@ -268,13 +268,13 @@ importers:
         version: 1.0.0-alpha.1
       "@architecture/identity-password-argon2":
         specifier: ^1.0.0-alpha.1
-        version: 1.0.0
+        version: 1.0.0-alpha.1
       "@architecture/identity-persistence-kysely":
         specifier: ^1.0.0-alpha.1
-        version: 1.0.0
+        version: 1.0.0-alpha.1
       "@architecture/identity-session-redis":
         specifier: ^1.0.0-alpha.1
-        version: 1.0.0
+        version: 1.0.0-alpha.1
       "@fastify/cookie":
         specifier: ^11.1.2
         version: 11.1.2
@@ -343,25 +343,25 @@ packages:
         tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-email-nodemailer/-/@architecture/identity-email-nodemailer-1.0.0-alpha.1.tgz,
       }
 
-  "@architecture/identity-password-argon2@1.0.0":
+  "@architecture/identity-password-argon2@1.0.0-alpha.1":
     resolution:
       {
-        integrity: sha1-bA4fRGBA1x1Niz+9mCoLH2YUufw=,
-        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-password-argon2/-/@architecture/identity-password-argon2-1.0.0.tgz,
+        integrity: sha1-nOYbuBSIoPM/9wbew0UMSBPiPhM=,
+        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-password-argon2/-/@architecture/identity-password-argon2-1.0.0-alpha.1.tgz,
       }
 
-  "@architecture/identity-persistence-kysely@1.0.0":
+  "@architecture/identity-persistence-kysely@1.0.0-alpha.1":
     resolution:
       {
-        integrity: sha1-cHya7at5cUADd2ovG6I+l9J3ptg=,
-        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-persistence-kysely/-/@architecture/identity-persistence-kysely-1.0.0.tgz,
+        integrity: sha1-z8dtxIsgnRJrR9pcT98z/TpnjLY=,
+        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-persistence-kysely/-/@architecture/identity-persistence-kysely-1.0.0-alpha.1.tgz,
       }
 
-  "@architecture/identity-session-redis@1.0.0":
+  "@architecture/identity-session-redis@1.0.0-alpha.1":
     resolution:
       {
-        integrity: sha1-l3nsn5arxjQYCnPYL0xahIQ6G48=,
-        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-session-redis/-/@architecture/identity-session-redis-1.0.0.tgz,
+        integrity: sha1-OPPzpegVJAxX0CJ+kI96Kbaswlo=,
+        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity-session-redis/-/@architecture/identity-session-redis-1.0.0-alpha.1.tgz,
       }
 
   "@architecture/identity@1.0.0-alpha.1":
@@ -659,10 +659,10 @@ packages:
         integrity: sha512-RSo3sVDXfHskiBZKBPRgnQTtIqpi/7zhJOEmAxCiBcM7d0uwdGdxLlsCaLzGs8v8NnxIRlfG0N51p5yFaOentQ==,
       }
 
-  "@fastify/fast-json-stringify-compiler@5.0.3":
+  "@fastify/fast-json-stringify-compiler@5.1.0":
     resolution:
       {
-        integrity: sha512-uik7yYHkLr6fxd8hJSZ8c+xF4WafPK+XzneQDPU+D10r5X19GW8lJcom2YijX2+qtFF1ENJlHXKFM9ouXNJYgQ==,
+        integrity: sha512-PxcYtKLbQ8Z+yApiqjK8FwxIwvEj38k2OiLc17u8dkJSlmfi2wHHPaSnaoqBPQqtvF8YVsDgDpP2snDCfFrpfw==,
       }
 
   "@fastify/forwarded@3.0.1":
@@ -910,12 +910,6 @@ packages:
     resolution:
       {
         integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==,
-      }
-
-  "@types/node@25.9.1":
-    resolution:
-      {
-        integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==,
       }
 
   "@types/node@25.9.5":
@@ -1168,10 +1162,10 @@ packages:
       }
     engines: { node: ">=8.0.0" }
 
-  avvio@9.2.0:
+  avvio@9.3.0:
     resolution:
       {
-        integrity: sha512-2t/sy01ArdHHE0vRH5Hsay+RtCZt3dLPji7W7/MMOCEgze5b7SNDC4j5H6FnVgPkI1MTNFGzHdHrVXDDl7QSSQ==,
+        integrity: sha512-g2tQ7LE7oOSqDfwEm3M+ZCMTJc7KiZCdJ4UwyZJb5ckTKyYu50OYmvv0mCFXPuYXoM4zkSt8zM9XQ9KCvxA74A==,
       }
 
   balanced-match@4.0.4:
@@ -1329,12 +1323,6 @@ packages:
         integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==,
       }
 
-  fast-json-stringify@6.4.0:
-    resolution:
-      {
-        integrity: sha512-ibRCQ0GZKJIQ+P3Et1h0LhPgp3PMTYk0MH8O+kW3lNYsvmaQww5Nn3f1jf73Q0jR1Yz3a1CDP4/NZD3vOajWJQ==,
-      }
-
   fast-json-stringify@7.0.1:
     resolution:
       {
@@ -1347,10 +1335,10 @@ packages:
         integrity: sha512-g6KuKWmFXc0fID8WWH0jit4g0AGBoJhCkJMb1RmbsSEUNvQ+ZC8D6CUZ+GtF8nMzSPXnhiePyyqqipzNNEnHjg==,
       }
 
-  fast-uri@3.1.2:
+  fast-uri@3.1.4:
     resolution:
       {
-        integrity: sha512-rVjf7ArG3LTk+FS6Yw81V1DLuZl1bRbNrev6Tmd/9RaroeeRRJhAt7jg/6YFxbvAQXUCavSoZhPPj6oOx+5KjQ==,
+        integrity: sha512-8JnbkQ4juDyvYs4mgFGQqg4yCYtFDtUtmp2QIQq11ZZe5CFQ5wcqm1rqDgAh/QdMySuBnPzMUiJUNZG5N/AiQw==,
       }
 
   fast-uri@4.1.1:
@@ -1832,10 +1820,10 @@ packages:
         integrity: sha512-l4KnYfEyqYJxDwlNVyRfO2E4NTHfMKAWdUuA8J0yve2Dz/E/PdBepY03RvyJpssIpRFwJoCD55wA+mEDs6ByWA==,
       }
 
-  semver@7.8.0:
+  semver@7.8.5:
     resolution:
       {
-        integrity: sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA==,
+        integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==,
       }
     engines: { node: ">=10" }
     hasBin: true
@@ -1913,10 +1901,10 @@ packages:
       }
     engines: { node: ">=12.0.0" }
 
-  toad-cache@3.7.1:
+  toad-cache@3.7.4:
     resolution:
       {
-        integrity: sha512-5DXWzE4Vz7xNHsv+xQ+MGfJYyC78Aok3tEr0MNwHoRf7vZnga1mQXZ4/Nsodld4VR6Wd+VhfmqnNrsRJyYPfrQ==,
+        integrity: sha512-m1TdR/rvT7kgGJZhspNtXdsdYk0fddFpJJFlG5s+UkPFo6lkLoZ3YLOaovPYjq1R75NP5JfeTlSHaOsE09peCg==,
       }
     engines: { node: ">=20" }
 
@@ -2079,21 +2067,21 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  "@architecture/identity-password-argon2@1.0.0":
+  "@architecture/identity-password-argon2@1.0.0-alpha.1":
     dependencies:
       "@architecture/identity": 1.0.0-alpha.1
       argon2: 0.44.0
     transitivePeerDependencies:
       - supports-color
 
-  "@architecture/identity-persistence-kysely@1.0.0":
+  "@architecture/identity-persistence-kysely@1.0.0-alpha.1":
     dependencies:
       "@architecture/identity": 1.0.0-alpha.1
       kysely: 0.29.4
     transitivePeerDependencies:
       - supports-color
 
-  "@architecture/identity-session-redis@1.0.0":
+  "@architecture/identity-session-redis@1.0.0-alpha.1":
     dependencies:
       "@architecture/identity": 1.0.0-alpha.1
       ioredis: 5.11.1
@@ -2210,7 +2198,7 @@ snapshots:
     dependencies:
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
-      fast-uri: 3.1.2
+      fast-uri: 3.1.4
 
   "@fastify/cookie@11.1.2":
     dependencies:
@@ -2220,13 +2208,13 @@ snapshots:
   "@fastify/cors@11.3.0":
     dependencies:
       fastify-plugin: 6.0.0
-      toad-cache: 3.7.1
+      toad-cache: 3.7.4
 
   "@fastify/error@4.2.0": {}
 
-  "@fastify/fast-json-stringify-compiler@5.0.3":
+  "@fastify/fast-json-stringify-compiler@5.1.0":
     dependencies:
-      fast-json-stringify: 6.4.0
+      fast-json-stringify: 7.0.1
 
   "@fastify/forwarded@3.0.1": {}
 
@@ -2353,17 +2341,13 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  "@types/node@25.9.1":
-    dependencies:
-      undici-types: 7.24.6
-
   "@types/node@25.9.5":
     dependencies:
       undici-types: 7.24.6
 
   "@types/pg@8.20.0":
     dependencies:
-      "@types/node": 25.9.1
+      "@types/node": 25.9.5
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 
@@ -2444,7 +2428,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.2
+      fast-uri: 3.1.4
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -2459,7 +2443,7 @@ snapshots:
 
   atomic-sleep@1.0.0: {}
 
-  avvio@9.2.0:
+  avvio@9.3.0:
     dependencies:
       "@fastify/error": 4.2.0
       fastq: 1.20.1
@@ -2544,15 +2528,6 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
-  fast-json-stringify@6.4.0:
-    dependencies:
-      "@fastify/merge-json-schemas": 0.2.1
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-      fast-uri: 3.1.2
-      json-schema-ref-resolver: 3.0.0
-      rfdc: 1.4.1
-
   fast-json-stringify@7.0.1:
     dependencies:
       "@fastify/merge-json-schemas": 0.2.1
@@ -2566,7 +2541,7 @@ snapshots:
     dependencies:
       fast-decode-uri-component: 1.0.1
 
-  fast-uri@3.1.2: {}
+  fast-uri@3.1.4: {}
 
   fast-uri@4.1.1: {}
 
@@ -2576,10 +2551,10 @@ snapshots:
     dependencies:
       "@fastify/ajv-compiler": 4.0.5
       "@fastify/error": 4.2.0
-      "@fastify/fast-json-stringify-compiler": 5.0.3
+      "@fastify/fast-json-stringify-compiler": 5.1.0
       "@fastify/proxy-addr": 5.1.0
       abstract-logging: 2.0.1
-      avvio: 9.2.0
+      avvio: 9.3.0
       fast-json-stringify: 7.0.1
       find-my-way: 9.6.0
       light-my-request: 6.6.0
@@ -2587,8 +2562,8 @@ snapshots:
       process-warning: 5.0.0
       rfdc: 1.4.1
       secure-json-parse: 4.1.0
-      semver: 7.8.0
-      toad-cache: 3.7.1
+      semver: 7.8.5
+      toad-cache: 3.7.4
 
   fastq@1.20.1:
     dependencies:
@@ -2654,7 +2629,7 @@ snapshots:
   json-schema-resolver@3.0.0:
     dependencies:
       debug: 4.4.3
-      fast-uri: 3.1.2
+      fast-uri: 3.1.4
       rfdc: 1.4.1
     transitivePeerDependencies:
       - supports-color
@@ -2838,7 +2813,7 @@ snapshots:
 
   secure-json-parse@4.1.0: {}
 
-  semver@7.8.0: {}
+  semver@7.8.5: {}
 
   set-cookie-parser@2.7.2: {}
 
@@ -2871,7 +2846,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.5)
       picomatch: 4.0.5
 
-  toad-cache@3.7.1: {}
+  toad-cache@3.7.4: {}
 
   toidentifier@1.0.1: {}
 

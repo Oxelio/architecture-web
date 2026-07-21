@@ -8,8 +8,8 @@ importers:
   .:
     dependencies:
       "@architecture/identity":
-        specifier: link:../../../../bounded-contexts/identity
-        version: link:../../../../bounded-contexts/identity
+        specifier: ^1.0.0-alpha.1
+        version: 1.0.0-alpha.1
       argon2:
         specifier: ^0.44.0
         version: 0.44.0
@@ -22,10 +22,30 @@ importers:
         version: 5.9.3
 
 packages:
+  "@architecture/foundation@1.0.0-alpha.1":
+    resolution:
+      {
+        integrity: sha1-7TpVDyvZcoWt9U/+K9blDeUQwmU=,
+        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/foundation/-/@architecture/foundation-1.0.0-alpha.1.tgz,
+      }
+
+  "@architecture/identity@1.0.0-alpha.1":
+    resolution:
+      {
+        integrity: sha1-IDFxVoa6rs6aTggxCpCLT0PiL2o=,
+        tarball: https://gitlab.com/api/v4/projects/82320180/packages/npm/@architecture/identity/-/@architecture/identity-1.0.0-alpha.1.tgz,
+      }
+
   "@epic-web/invariant@1.0.0":
     resolution:
       {
         integrity: sha512-lrTPqgvfFQtR/eY/qkIzp98OGdNJu0m5ji3q/nJI8v3SXkRKEnWiOxMmbvcSoAIzv/cGiuvRy57k4suKQSAdwA==,
+      }
+
+  "@ioredis/commands@1.10.0":
+    resolution:
+      {
+        integrity: sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q==,
       }
 
   "@phc/format@1.0.0":
@@ -48,6 +68,13 @@ packages:
       }
     engines: { node: ">=16.17.0" }
 
+  cluster-key-slot@1.1.1:
+    resolution:
+      {
+        integrity: sha512-rwHwUfXL40Chm1r08yrhU3qpUvdVlgkKNeyeGPOxnW8/SyVDvgRaed/Uz54AqWNaTCAThlj6QAs3TZcKI0xDEw==,
+      }
+    engines: { node: ">=0.10.0" }
+
   cross-env@10.1.0:
     resolution:
       {
@@ -63,10 +90,48 @@ packages:
       }
     engines: { node: ">= 8" }
 
+  debug@4.4.3:
+    resolution:
+      {
+        integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==,
+      }
+    engines: { node: ">=6.0" }
+    peerDependencies:
+      supports-color: "*"
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
+
+  denque@2.1.0:
+    resolution:
+      {
+        integrity: sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw==,
+      }
+    engines: { node: ">=0.10" }
+
+  fast-deep-equal@3.1.3:
+    resolution:
+      {
+        integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==,
+      }
+
+  ioredis@5.11.1:
+    resolution:
+      {
+        integrity: sha512-ehuGcf94bQXhfagULNXrJdfnWO38v070jxSx/qE87Kjzmu2fU7ro5EFAb+OPituLqgfyuQaym5DlrNydW2sJ9A==,
+      }
+    engines: { node: ">=12.22.0" }
+
   isexe@2.0.0:
     resolution:
       {
         integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==,
+      }
+
+  ms@2.1.3:
+    resolution:
+      {
+        integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==,
       }
 
   node-addon-api@8.9.0:
@@ -90,6 +155,20 @@ packages:
       }
     engines: { node: ">=8" }
 
+  redis-errors@1.2.0:
+    resolution:
+      {
+        integrity: sha512-1qny3OExCf0UvUV/5wpYKf2YwPcOqXzkwKKSmKHiE6ZMQs5heeE/c8eXK+PNllPvmjgAbfnsbpkGZWy8cBpn9w==,
+      }
+    engines: { node: ">=4" }
+
+  redis-parser@3.0.0:
+    resolution:
+      {
+        integrity: sha512-DJnGAeenTdpMEH6uAJRK/uiyEIH9WVsUmoLwzudwGJUwZPp80PDBWPHXSAGNPwNvIXAbe7MSUB1zQFugFml66A==,
+      }
+    engines: { node: ">=4" }
+
   shebang-command@2.0.0:
     resolution:
       {
@@ -103,6 +182,12 @@ packages:
         integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==,
       }
     engines: { node: ">=8" }
+
+  standard-as-callback@2.1.0:
+    resolution:
+      {
+        integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==,
+      }
 
   typescript@5.9.3:
     resolution:
@@ -118,6 +203,13 @@ packages:
         integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==,
       }
 
+  uuid@14.0.1:
+    resolution:
+      {
+        integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==,
+      }
+    hasBin: true
+
   which@2.0.2:
     resolution:
       {
@@ -127,7 +219,22 @@ packages:
     hasBin: true
 
 snapshots:
+  "@architecture/foundation@1.0.0-alpha.1":
+    dependencies:
+      fast-deep-equal: 3.1.3
+      uuid: 14.0.1
+
+  "@architecture/identity@1.0.0-alpha.1":
+    dependencies:
+      "@architecture/foundation": 1.0.0-alpha.1
+      ioredis: 5.11.1
+      uuid: 14.0.1
+    transitivePeerDependencies:
+      - supports-color
+
   "@epic-web/invariant@1.0.0": {}
+
+  "@ioredis/commands@1.10.0": {}
 
   "@phc/format@1.0.0": {}
 
@@ -142,6 +249,8 @@ snapshots:
       node-addon-api: 8.9.0
       node-gyp-build: 4.8.4
 
+  cluster-key-slot@1.1.1: {}
+
   cross-env@10.1.0:
     dependencies:
       "@epic-web/invariant": 1.0.0
@@ -153,7 +262,29 @@ snapshots:
       shebang-command: 2.0.0
       which: 2.0.2
 
+  debug@4.4.3:
+    dependencies:
+      ms: 2.1.3
+
+  denque@2.1.0: {}
+
+  fast-deep-equal@3.1.3: {}
+
+  ioredis@5.11.1:
+    dependencies:
+      "@ioredis/commands": 1.10.0
+      cluster-key-slot: 1.1.1
+      debug: 4.4.3
+      denque: 2.1.0
+      redis-errors: 1.2.0
+      redis-parser: 3.0.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   isexe@2.0.0: {}
+
+  ms@2.1.3: {}
 
   node-addon-api@8.9.0: {}
 
@@ -161,15 +292,25 @@ snapshots:
 
   path-key@3.1.1: {}
 
+  redis-errors@1.2.0: {}
+
+  redis-parser@3.0.0:
+    dependencies:
+      redis-errors: 1.2.0
+
   shebang-command@2.0.0:
     dependencies:
       shebang-regex: 3.0.0
 
   shebang-regex@3.0.0: {}
 
+  standard-as-callback@2.1.0: {}
+
   typescript@5.9.3: {}
 
   undici-types@7.24.6: {}
+
+  uuid@14.0.1: {}
 
   which@2.0.2:
     dependencies:

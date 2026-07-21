@@ -1,9 +1,12 @@
 {
   "name": "@architecture/identity-persistence-kysely",
-  "version": "1.0.0",
+  "version": "1.0.0-alpha.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "imports": {
+    "#persistence/*": "./src/persistence/*.ts"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
