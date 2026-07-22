@@ -11,26 +11,20 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 RUN pnpm build
+RUN pnpm prune --prod
 
-
-FROM node:26.5.0-alpine3.24 AS production
+FROM gcr.io/distroless/nodejs26-debian13:debug-nonroot
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN npm install -g pnpm@11.15.1
-
-COPY package.json pnpm-lock.yaml .npmrc pnpm-workspace.yaml ./
-
-RUN pnpm install --frozen-lockfile --prod
-
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
-RUN chown -R node:node /app
-
-USER node
+# Just for sonarcube
+USER nonroot:nonroot
 
 EXPOSE 3000
 
-CMD ["node", "dist/main.mjs"]
+CMD ["dist/main.mjs"]
