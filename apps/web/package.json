@@ -21,6 +21,7 @@
     "framer-motion": "^11.18.2",
     "i18next": "^26.3.6",
     "lucide-react": "^0.516.0",
+    "prettier": "^3.9.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.82.0",

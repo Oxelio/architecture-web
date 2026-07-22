@@ -15,7 +15,6 @@ export interface ChangeEmailInput {
 
 export type ChangeEmailSuccess = ValueOf<typeof ChangeEmailSuccessCodes>;
 export type ChangeEmailError =
-  | EmailError
-  | ValueOf<typeof ChangeEmailErrorsCodes>;
+  EmailError | ValueOf<typeof ChangeEmailErrorsCodes>;
 
 export type ChangeEmailOutput = Result<ChangeEmailSuccess, ChangeEmailError>;

@@ -273,6 +273,9 @@ importers:
       eslint:
         specifier: ^9.39.5
         version: 9.39.5(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1828,6 +1831,14 @@ packages:
       }
     engines: { node: ">= 0.8.0" }
 
+  prettier@3.9.6:
+    resolution:
+      {
+        integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==,
+      }
+    engines: { node: ">=14" }
+    hasBin: true
+
   prop-types@15.8.1:
     resolution:
       {
@@ -3325,6 +3336,8 @@ snapshots:
   possible-typed-array-names@1.1.0: {}
 
   prelude-ls@1.2.1: {}
+
+  prettier@3.9.6: {}
 
   prop-types@15.8.1:
     dependencies:

@@ -10,6 +10,8 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "prepublishOnly": "pnpm build"
   },
   "imports": {
@@ -48,6 +50,7 @@
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
     "typescript": "^5.9.3",
     "vitest": "^4.1.9"
   }

@@ -14,9 +14,7 @@ export interface SignUpInput {
 export type SignUpSuccess = ValueOf<typeof SignUpSuccessCodes>;
 
 export type SignUpError =
-  | EmailError
-  | PlainPasswordError
-  | ValueOf<typeof SignUpErrorCodes>;
+  EmailError | PlainPasswordError | ValueOf<typeof SignUpErrorCodes>;
 
 export interface UserRegistration {
   userId: string;

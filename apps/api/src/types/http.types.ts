@@ -1,16 +1,7 @@
 // @file apps/api/src/types/http.types.ts
 
 export type HttpErrorStatus =
-  | 400
-  | 401
-  | 403
-  | 404
-  | 409
-  | 410
-  | 412
-  | 422
-  | 429
-  | 500;
+  400 | 401 | 403 | 404 | 409 | 410 | 412 | 422 | 429 | 500;
 
 export interface HttpError {
   readonly status: HttpErrorStatus;

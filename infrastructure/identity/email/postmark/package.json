@@ -15,16 +15,19 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "postmark": "^4.0.7",
-    "@architecture/identity": "^1.0.0-alpha.1"
+    "@architecture/identity": "^1.0.0-alpha.1",
+    "postmark": "^4.0.7"
   },
   "devDependencies": {
     "@architecture/eslint-config": "1.0.0-alpha.1",
-    "eslint": "^9.39.5",
     "@types/node": "^25.9.0",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
     "typescript": "^5.9.3"
   }
 }

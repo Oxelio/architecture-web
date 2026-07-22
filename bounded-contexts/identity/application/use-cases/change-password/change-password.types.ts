@@ -15,8 +15,7 @@ export interface ChangePasswordInput {
 
 export type ChangePasswordSuccess = ValueOf<typeof ChangePasswordSuccessCodes>;
 export type ChangePasswordError =
-  | PlainPasswordError
-  | ValueOf<typeof ChangePasswordErrorsCodes>;
+  PlainPasswordError | ValueOf<typeof ChangePasswordErrorsCodes>;
 
 export type ChangePasswordOutput = Result<
   ChangePasswordSuccess,

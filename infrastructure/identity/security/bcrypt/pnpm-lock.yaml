@@ -20,6 +20,9 @@ importers:
       "@types/node":
         specifier: ^25.9.0
         version: 25.9.5
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -123,6 +126,14 @@ packages:
       }
     hasBin: true
 
+  prettier@3.9.6:
+    resolution:
+      {
+        integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==,
+      }
+    engines: { node: ">=14" }
+    hasBin: true
+
   redis-errors@1.2.0:
     resolution:
       {
@@ -220,6 +231,8 @@ snapshots:
   node-addon-api@8.9.0: {}
 
   node-gyp-build@4.8.4: {}
+
+  prettier@3.9.6: {}
 
   redis-errors@1.2.0: {}
 

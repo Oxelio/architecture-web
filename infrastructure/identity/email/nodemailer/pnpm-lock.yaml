@@ -9,7 +9,7 @@ importers:
     dependencies:
       "@architecture/identity":
         specifier: ^1.0.0-alpha.1
-        version: 1.0.0-alpha.1
+        version: 1.0.0-alpha.1(supports-color@7.2.0)
       nodemailer:
         specifier: ^9.0.3
         version: 9.0.3
@@ -23,6 +23,9 @@ importers:
       "@types/nodemailer":
         specifier: ^8.0.1
         version: 8.0.1
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1638,6 +1641,14 @@ packages:
       }
     engines: { node: ">= 0.8.0" }
 
+  prettier@3.9.6:
+    resolution:
+      {
+        integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==,
+      }
+    engines: { node: ">=14" }
+    hasBin: true
+
   prop-types@15.8.1:
     resolution:
       {
@@ -2063,10 +2074,10 @@ snapshots:
       fast-deep-equal: 3.1.3
       uuid: 14.0.1
 
-  "@architecture/identity@1.0.0-alpha.1":
+  "@architecture/identity@1.0.0-alpha.1(supports-color@7.2.0)":
     dependencies:
       "@architecture/foundation": 1.0.0-alpha.1
-      ioredis: 5.11.1
+      ioredis: 5.11.1(supports-color@7.2.0)
       uuid: 14.0.1
     transitivePeerDependencies:
       - supports-color
@@ -2524,10 +2535,6 @@ snapshots:
       es-errors: 1.3.0
       is-data-view: 1.0.2
 
-  debug@4.4.3:
-    dependencies:
-      ms: 2.1.3
-
   debug@4.4.3(supports-color@7.2.0):
     dependencies:
       ms: 2.1.3
@@ -2924,11 +2931,11 @@ snapshots:
       hasown: 2.0.4
       side-channel: 1.1.1
 
-  ioredis@5.11.1:
+  ioredis@5.11.1(supports-color@7.2.0):
     dependencies:
       "@ioredis/commands": 1.10.0
       cluster-key-slot: 1.1.1
-      debug: 4.4.3
+      debug: 4.4.3(supports-color@7.2.0)
       denque: 2.1.0
       redis-errors: 1.2.0
       redis-parser: 3.0.0
@@ -3206,6 +3213,8 @@ snapshots:
   possible-typed-array-names@1.1.0: {}
 
   prelude-ls@1.2.1: {}
+
+  prettier@3.9.6: {}
 
   prop-types@15.8.1:
     dependencies:
