@@ -8,8 +8,8 @@ import {
 } from "@architecture/identity/domain";
 import type { Kysely } from "kysely";
 
-import { UserMapper } from "../mappers/user.mapper.js";
-import type { IdentityDatabase } from "../persistence/schema.js";
+import { UserMapper } from "#mappers/user.mapper";
+import type { IdentityDatabase } from "#persistence/schema";
 
 export class KyselyUserAdapter implements UserPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}

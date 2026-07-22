@@ -8,6 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "prepublishOnly": "pnpm build"
   },
   "imports": {
@@ -42,8 +44,10 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "@architecture/eslint-config": "1.0.0-alpha.1",
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.9",
+    "eslint": "^9.39.5",
     "typescript": "^5.9.3",
     "vitest": "^4.1.9"
   }

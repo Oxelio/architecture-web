@@ -1,7 +1,6 @@
 // @file foundation/src/application/application-result.ts
-// foundation/src/application/application-result.ts
 
-import type { Result } from "../domain/result.js";
+import type { Result } from "#domain/result";
 
 export interface SuccessResult<TCode extends string, TData> {
   code: TCode;

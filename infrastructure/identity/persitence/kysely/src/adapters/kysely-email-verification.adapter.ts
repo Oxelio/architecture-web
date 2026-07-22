@@ -10,7 +10,7 @@ import type { Kysely } from "kysely";
 import type {
   IdentityDatabase,
   IdentityEmailVerificationRow,
-} from "../persistence/schema.js";
+} from "#persistence/schema";
 
 export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}

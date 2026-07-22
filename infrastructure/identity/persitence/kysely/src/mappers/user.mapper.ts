@@ -8,9 +8,8 @@ import {
   UserIdentifierValueObject,
 } from "@architecture/identity/domain";
 
+import { InvalidPersistenceDataError } from "#errors/invalid-persistence-data.error";
 import type { IdentityDatabase } from "#persistence/schema";
-
-import { InvalidPersistenceDataError } from "../errors/invalid-persistence-data.error.js";
 
 type UserRow = IdentityDatabase["identity_users"];
 
