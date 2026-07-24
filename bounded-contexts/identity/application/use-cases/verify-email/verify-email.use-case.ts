@@ -2,22 +2,19 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { EmailVerificationPort } from "#application/ports/email-verification.port";
-import type { UserPort } from "#application/ports/user.port";
+import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
+import type { UserRepository } from "#repositories/user.repository";
 
-import {
-  VerifyEmailErrorCodes,
-  VerifyEmailSuccessCodes,
-} from "./verify-email.codes.js";
+import { VerifyEmailErrorCodes } from "./verify-email.codes.js";
 import type {
   VerifyEmailInput,
   VerifyEmailOutput,
-} from "./verify-email.types.js";
+} from "./verify-email.contracts.js";
 
 export class VerifyEmailUseCase {
   constructor(
-    private readonly userPort: UserPort,
-    private readonly emailVerification: EmailVerificationPort,
+    private readonly userPort: UserRepository,
+    private readonly emailVerification: EmailVerificationRepository,
   ) {}
 
   async execute(command: VerifyEmailInput): Promise<VerifyEmailOutput> {
@@ -45,6 +42,6 @@ export class VerifyEmailUseCase {
 
     await this.emailVerification.markUsed(record.token);
 
-    return Result.success(VerifyEmailSuccessCodes.verified);
+    return Result.success(undefined);
   }
 }

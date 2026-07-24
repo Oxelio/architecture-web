@@ -2,8 +2,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SessionPort } from "#application/ports/session.port";
 import { SessionEntity } from "#entities/session.entity";
+import type { SessionRepository } from "#repositories/session.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -11,10 +11,10 @@ import { SignOutUseCase } from "./sign-out.use-case.js";
 
 /* ---------------- FAKE SESSION PORT ---------------- */
 
-class FakeSessionPort implements SessionPort {
+class FakeSessionPort implements SessionRepository {
   private readonly sessions = new Map<string, SessionEntity>();
 
-  async create(session: SessionEntity): Promise<void> {
+  async save(session: SessionEntity): Promise<void> {
     this.sessions.set(session.identifier.value, session);
   }
 
@@ -106,7 +106,7 @@ describe("SignOutUseCase", () => {
       userId,
     });
 
-    await sessionPort.create(session);
+    await sessionPort.save(session);
 
     expect(sessionPort.count()).toBe(1);
 

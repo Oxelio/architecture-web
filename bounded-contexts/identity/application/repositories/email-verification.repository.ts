@@ -10,8 +10,8 @@ export interface EmailVerificationRecord {
   invalidated: boolean;
 }
 
-export abstract class EmailVerificationPort {
-  abstract create(
+export abstract class EmailVerificationRepository {
+  abstract save(
     userId: UserIdentifierValueObject,
     token: string,
     expiresAt: Date,

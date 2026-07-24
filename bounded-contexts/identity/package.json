@@ -15,16 +15,11 @@
     "prepublishOnly": "pnpm build"
   },
   "imports": {
-    "#entities/*": "./dist/domain/entities/*.js",
-    "#value-objects/*": "./dist/domain/value-objects/*.js",
-    "#contracts/*": "./dist/application/contracts/*.js",
-    "#dtos/*": "./dist/application/dtos/*.js",
-    "#adapters/*": "./dist/infrastructure/adapters/*.js",
-    "#application/*": "./dist/application/*.js",
-    "#errors/*": "./dist/domain/errors/*.js",
-    "#policies/*": "./dist/domain/policies/*.js",
-    "#ports/*": "./dist/application/ports/*.js",
-    "#use-cases/*": "./dist/application/use-cases/*.js"
+    "#entities/*": "./domain/entities/*.js",
+    "#value-objects/*": "./domain/value-objects/*.js",
+    "#use-cases/*": "./application/use-cases/*.js",
+    "#services/*": "./application/services/*.js",
+    "#repositories/*": "./application/repositories/*.js"
   },
   "exports": {
     "./domain": {
@@ -34,14 +29,10 @@
     "./application": {
       "types": "./dist/application/index.d.ts",
       "default": "./dist/application/index.js"
-    },
-    "./infrastructure": {
-      "types": "./dist/infrastructure/index.d.ts",
-      "default": "./dist/infrastructure/index.js"
     }
   },
   "dependencies": {
-    "@architecture/foundation": "^1.0.0-alpha.1",
+    "@architecture/foundation": "1.0.0-alpha.1",
     "ioredis": "^5.11.1",
     "uuid": "^14.0.0"
   },

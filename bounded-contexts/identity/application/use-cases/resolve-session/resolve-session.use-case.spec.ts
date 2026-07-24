@@ -2,10 +2,10 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { SessionPort } from "#application/ports/session.port";
-import type { UserPort } from "#application/ports/user.port";
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
+import type { SessionRepository } from "#repositories/session.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
@@ -18,7 +18,7 @@ import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
 /*                                FAKE USER PORT                              */
 /* -------------------------------------------------------------------------- */
 
-class FakeUserPort implements UserPort {
+class FakeUserPort implements UserRepository {
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {
@@ -38,10 +38,10 @@ class FakeUserPort implements UserPort {
 /*                              FAKE SESSION PORT                             */
 /* -------------------------------------------------------------------------- */
 
-class FakeSessionPort implements SessionPort {
+class FakeSessionPort implements SessionRepository {
   private readonly sessions = new Map<string, SessionEntity>();
 
-  async create(session: SessionEntity): Promise<void> {
+  async save(session: SessionEntity): Promise<void> {
     this.sessions.set(session.identifier.value, session);
   }
 
@@ -137,7 +137,7 @@ describe("ResolveSessionUseCase", () => {
       userId,
     });
 
-    await sessionPort.create(session);
+    await sessionPort.save(session);
 
     const result = await useCase.execute({
       sessionId: session.identifier.value,
@@ -165,7 +165,7 @@ describe("ResolveSessionUseCase", () => {
       expiresAt: new Date(Date.now() - 60_000),
     });
 
-    await sessionPort.create(session);
+    await sessionPort.save(session);
 
     const email = EmailValueObject.create("john@doe.com");
     if (!email.success) {
@@ -235,7 +235,7 @@ describe("ResolveSessionUseCase", () => {
       userId,
     });
 
-    await sessionPort.create(session);
+    await sessionPort.save(session);
 
     const result = await useCase.execute({
       sessionId: session.identifier.value,

@@ -3,15 +3,16 @@ import type { Result, ValueOf } from "@architecture/foundation";
 
 import type {
   VerifyEmailErrorCodes,
-  VerifyEmailSuccessCodes,
 } from "./verify-email.codes.js";
+
+export type VerifyEmailError = ValueOf<typeof VerifyEmailErrorCodes>;
 
 export interface VerifyEmailInput {
   token: string;
 }
 
-export type VerifyEmailSuccess = ValueOf<typeof VerifyEmailSuccessCodes>;
+export type VerifyEmailOutput = Result<undefined, VerifyEmailError>;
 
-export type VerifyEmailError = ValueOf<typeof VerifyEmailErrorCodes>;
-
-export type VerifyEmailOutput = Result<VerifyEmailSuccess, VerifyEmailError>;
+export interface VerifyEmail {
+  execute(command: VerifyEmailInput): Promise<VerifyEmailOutput>;
+}

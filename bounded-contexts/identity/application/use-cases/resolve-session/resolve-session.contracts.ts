@@ -1,18 +1,12 @@
 // @file bounded-contexts/identity/application/use-cases/resolve-session/resolve-session.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type {
-  ResolveSessionErrorCodes,
-  ResolveSessionSuccessCodes,
-} from "./resolve-session.codes.js";
+import type { ResolveSessionErrorCodes } from "./resolve-session.codes.js";
 
+export type ResolveSessionError = ValueOf<typeof ResolveSessionErrorCodes>;
 export interface ResolveSessionInput {
   sessionId: string;
 }
-
-export type ResolveSessionSuccess = ValueOf<typeof ResolveSessionSuccessCodes>;
-
-export type ResolveSessionError = ValueOf<typeof ResolveSessionErrorCodes>;
 
 export interface SessionResolution {
   userId: string;
@@ -20,9 +14,10 @@ export interface SessionResolution {
 }
 
 export type ResolveSessionOutput = Result<
-  {
-    code: ResolveSessionSuccess["code"];
-    data: SessionResolution;
-  },
+  SessionResolution,
   ResolveSessionError
 >;
+
+export interface ResolveSession {
+  execute(payload: ResolveSessionInput): Promise<ResolveSessionOutput>;
+}

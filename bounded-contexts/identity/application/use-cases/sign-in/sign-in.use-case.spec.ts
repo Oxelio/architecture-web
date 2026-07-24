@@ -2,15 +2,16 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SessionEntity } from "../../../domain/entities/session.entity.js";
-import { UserEntity } from "../../../domain/entities/user.entity.js";
-import { EmailValueObject } from "../../../domain/value-objects/email.value-object.js";
-import { PasswordHashValueObject } from "../../../domain/value-objects/password-hash.value-object.js";
-import { PasswordPlainValueObject } from "../../../domain/value-objects/password-plain.value-object.js";
-import type { SessionIdentifierValueObject } from "../../../domain/value-objects/session-identifier.value-object.js";
-import type { UserIdentifierValueObject } from "../../../domain/value-objects/user-identifier.value-object.js";
-import type { PasswordHasherPort } from "../../ports/password-hasher.port.js";
-import type { SessionPort } from "../../ports/session.port.js";
+import type { SessionEntity } from "#entities/session.entity";
+import { UserEntity } from "#entities/user.entity";
+import type { SessionRepository } from "#repositories/session.repository";
+import type { PasswordHasher } from "#services/password-hasher.service";
+import { EmailValueObject } from "#value-objects/email.value-object";
+import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
+import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
+import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
 import { SignInUseCase } from "./sign-in.use-case.js";
 
 /* -------------------------------------------------------------------------- */
@@ -39,7 +40,7 @@ class FakeUserPort {
 /*                             FAKE PASSWORD HASHER                           */
 /* -------------------------------------------------------------------------- */
 
-class FakePasswordHasherPort implements PasswordHasherPort {
+class FakePasswordHasherPort implements PasswordHasher {
   async hash(password: PasswordPlainValueObject) {
     const hash = PasswordHashValueObject.create("hashed-" + password.value);
 
@@ -66,10 +67,10 @@ class FakePasswordHasherPort implements PasswordHasherPort {
 /*                              FAKE SESSION PORT                             */
 /* -------------------------------------------------------------------------- */
 
-class FakeSessionPort implements SessionPort {
+class FakeSessionPort implements SessionRepository {
   private readonly sessions = new Map<string, SessionEntity>();
 
-  async create(session: SessionEntity): Promise<void> {
+  async save(session: SessionEntity): Promise<void> {
     this.sessions.set(session.identifier.value, session);
   }
 
@@ -272,10 +273,10 @@ describe("SignInUseCase", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.value.data.userId).toBe(user.identifier.value);
+      expect(result.value.userId).toBe(user.identifier.value);
 
-      expect(result.value.data.sessionId).toBeDefined();
-      expect(result.value.data.sessionExpiresAt).toBeInstanceOf(Date);
+      expect(result.value.sessionId).toBeDefined();
+      expect(result.value.sessionExpiresAt).toBeInstanceOf(Date);
     }
   });
 

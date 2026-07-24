@@ -2,24 +2,22 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { PasswordHasherPort } from "#application/ports/password-hasher.port";
-import type { UserPort } from "#application/ports/user.port";
+import type { UserRepository } from "#repositories/user.repository";
+import type { PasswordHasher } from "#services/password-hasher.service";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import {
-  ChangePasswordErrorsCodes,
-  ChangePasswordSuccessCodes,
-} from "./change-password.codes.js";
+import { ChangePasswordErrorsCodes } from "./change-password.codes.js";
 import type {
+  ChangePassword,
   ChangePasswordInput,
   ChangePasswordOutput,
-} from "./change-password.types.js";
+} from "./change-password.contracts.js";
 
-export class ChangePasswordUseCase {
+export class ChangePasswordUseCase implements ChangePassword {
   constructor(
-    private readonly userPort: UserPort,
-    private readonly passwordHasher: PasswordHasherPort,
+    private readonly userPort: UserRepository,
+    private readonly passwordHasher: PasswordHasher,
   ) {}
 
   async execute(payload: ChangePasswordInput): Promise<ChangePasswordOutput> {
@@ -41,8 +39,9 @@ export class ChangePasswordUseCase {
     const hashed = await this.passwordHasher.hash(password.value);
 
     user.changePassword(hashed);
+
     await this.userPort.save(user);
 
-    return Result.success(ChangePasswordSuccessCodes.changed);
+    return Result.success(undefined);
   }
 }

@@ -2,26 +2,26 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { EmailSenderPort } from "#application/ports/email-sender.port";
+import type { UserEntity } from "#entities/user.entity";
 import type {
-  EmailVerificationPort,
   EmailVerificationRecord,
-} from "#application/ports/email-verification.port";
-import type { UserPort } from "#application/ports/user.port";
+  EmailVerificationRepository,
+} from "#repositories/email-verification.repository";
+import type { UserRepository } from "#repositories/user.repository";
+import type { EmailSender } from "#services/email-sender.service";
+import type { EmailValueObject } from "#value-objects/email.value-object";
+import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { UserEntity } from "../../../domain/entities/user.entity.js";
-import { EmailValueObject } from "../../../domain/value-objects/email.value-object.js";
-import { PasswordHashValueObject } from "../../../domain/value-objects/password-hash.value-object.js";
-import { PasswordPlainValueObject } from "../../../domain/value-objects/password-plain.value-object.js";
 import { SignUpUseCase } from "./sign-up.use-case.js";
 
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
 
-class FakeEmailVerificationPort implements EmailVerificationPort {
+class FakeEmailVerificationPort implements EmailVerificationRepository {
   public lastToken?: string;
 
-  async create(
+  async save(
     _userId: UserIdentifierValueObject,
     token: string,
     _expiresAt: Date,
@@ -44,7 +44,7 @@ class FakeEmailVerificationPort implements EmailVerificationPort {
 
 /* ---------------- FAKE EMAIL SENDER ---------------- */
 
-class FakeEmailSenderPort implements EmailSenderPort {
+class FakeEmailSenderPort implements EmailSender {
   public lastSent?: {
     to: string;
     token: string;
@@ -91,7 +91,7 @@ class FakePasswordHasherPort {
 
 /* ---------------- FAKE USER PORT ---------------- */
 
-class FakeUserPort implements UserPort {
+class FakeUserPort implements UserRepository {
   private readonly usersByEmail = new Map<string, UserEntity>();
   private readonly usersById = new Map<string, UserEntity>();
 
@@ -144,7 +144,7 @@ describe("SignUpUseCase - full coverage", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.value.data.userId).toBeDefined();
+      expect(result.value.userId).toBeDefined();
       expect(emailVerificationPort.lastToken).toBeDefined();
       expect(emailSenderPort.lastSent).toBeDefined();
     }

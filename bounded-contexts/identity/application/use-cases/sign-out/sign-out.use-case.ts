@@ -2,14 +2,18 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { SessionPort } from "#application/ports/session.port";
+import type { SessionRepository } from "#repositories/session.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 
-import { SignOutErrorCodes, SignOutSuccessCodes } from "./sign-out.codes.js";
-import type { SignOutInput, SignOutOutput } from "./sign-out.types.js";
+import { SignOutErrorCodes } from "./sign-out.codes.js";
+import type {
+  SignOut,
+  SignOutInput,
+  SignOutOutput,
+} from "./sign-out.contracts.js";
 
-export class SignOutUseCase {
-  constructor(private readonly sessionPort: SessionPort) {}
+export class SignOutUseCase implements SignOut {
+  constructor(private readonly sessionPort: SessionRepository) {}
 
   async execute(payload: SignOutInput): Promise<SignOutOutput> {
     if (!payload.sessionId) {
@@ -23,6 +27,6 @@ export class SignOutUseCase {
 
     await this.sessionPort.delete(sessionId.value);
 
-    return Result.success(SignOutSuccessCodes.signedOut);
+    return Result.success(undefined);
   }
 }

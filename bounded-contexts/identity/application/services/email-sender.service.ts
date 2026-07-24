@@ -2,7 +2,7 @@
 
 import type { EmailValueObject } from "#value-objects/email.value-object";
 
-export abstract class EmailSenderPort {
+export abstract class EmailSender {
   abstract sendVerificationEmail(
     to: EmailValueObject,
     token: string,

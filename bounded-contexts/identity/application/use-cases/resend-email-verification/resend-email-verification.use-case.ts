@@ -3,27 +3,25 @@
 import { Result } from "@architecture/foundation";
 import { v4 as uuidv4 } from "uuid";
 
-import type { EmailSenderPort } from "#ports/email-sender.port";
-import type { EmailVerificationPort } from "#ports/email-verification.port";
-import type { EmailVerificationRateLimitPort } from "#ports/email-verification-rate-limit.port";
-import type { UserPort } from "#ports/user.port";
+import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
+import type { UserRepository } from "#repositories/user.repository";
+import type { EmailSender } from "#services/email-sender.service";
+import type { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import {
-  ResendEmailVerificationErrorCodes,
-  ResendEmailVerificationSuccessCodes,
-} from "./resend-email-verification.codes.js";
+import { ResendEmailVerificationErrorCodes } from "./resend-email-verification.codes.js";
 import type {
+  ResendEmailVerification,
   ResendEmailVerificationInput,
   ResendEmailVerificationOutput,
-} from "./resend-email-verification.types.js";
+} from "./resend-email-verification.contracts.js";
 
-export class ResendEmailVerificationUseCase {
+export class ResendEmailVerificationUseCase implements ResendEmailVerification {
   constructor(
-    private readonly user: UserPort,
-    private readonly emailVerification: EmailVerificationPort,
-    private readonly emailSender: EmailSenderPort,
-    private readonly rateLimit: EmailVerificationRateLimitPort,
+    private readonly user: UserRepository,
+    private readonly emailVerification: EmailVerificationRepository,
+    private readonly emailSender: EmailSender,
+    private readonly rateLimiter: EmailVerificationRateLimiter,
   ) {}
 
   async execute(
@@ -33,8 +31,8 @@ export class ResendEmailVerificationUseCase {
     if (!userValueObject.success) {
       return Result.failure(ResendEmailVerificationErrorCodes.invalidId);
     }
-    const user = await this.user.findById(userValueObject.value);
 
+    const user = await this.user.findById(userValueObject.value);
     if (!user) {
       return Result.failure(ResendEmailVerificationErrorCodes.userNotFound);
     }
@@ -43,8 +41,7 @@ export class ResendEmailVerificationUseCase {
       return Result.failure(ResendEmailVerificationErrorCodes.alreadyVerified);
     }
 
-    const allowed = await this.rateLimit.canSend(user.identifier.value);
-
+    const allowed = await this.rateLimiter.isAllowed(user.identifier);
     if (!allowed) {
       return Result.failure(ResendEmailVerificationErrorCodes.tooManyRequests);
     }
@@ -55,12 +52,12 @@ export class ResendEmailVerificationUseCase {
 
     await this.emailVerification.invalidatePrevious(user.identifier);
 
-    await this.emailVerification.create(user.identifier, token, expiresAt);
+    await this.emailVerification.save(user.identifier, token, expiresAt);
 
     await this.emailSender.sendVerificationEmail(user.email, token);
 
-    await this.rateLimit.registerSend(user.identifier.value);
+    await this.rateLimiter.recordSuccess(user.identifier);
 
-    return Result.success(ResendEmailVerificationSuccessCodes.sent);
+    return Result.success(undefined);
   }
 }

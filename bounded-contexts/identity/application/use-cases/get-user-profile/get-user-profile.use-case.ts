@@ -2,21 +2,19 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { UserPort } from "#application/ports/user.port";
+import type { UserRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import {
-  GetUserProfileErrorCodes,
-  GetUserProfileSuccessCodes,
-} from "./get-user-profile.codes.js";
+import { GetUserProfileErrorCodes } from "./get-user-profile.codes.js";
 import type {
+  GetUserProfile,
   GetUserProfileInput,
   GetUserProfileOutput,
   UserProfile,
-} from "./get-user-profile.types.js";
+} from "./get-user-profile.contracts.js";
 
-export class GetUserProfileUseCase {
-  constructor(private readonly user: UserPort) {}
+export class GetUserProfileUseCase implements GetUserProfile {
+  constructor(private readonly user: UserRepository) {}
 
   public async execute(
     payload: GetUserProfileInput,
@@ -37,9 +35,6 @@ export class GetUserProfileUseCase {
       isEmailVerified: user.isEmailVerified,
     };
 
-    return Result.success({
-      code: GetUserProfileSuccessCodes.retrieved.code,
-      data,
-    });
+    return Result.success(data);
   }
 }

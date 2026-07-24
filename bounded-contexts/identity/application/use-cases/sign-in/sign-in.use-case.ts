@@ -2,25 +2,26 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { SessionPort } from "#application/ports/session.port";
-import type { UserPort } from "#application/ports/user.port";
 import { SessionEntity } from "#entities/session.entity";
+import type { SessionRepository } from "#repositories/session.repository";
+import type { UserRepository } from "#repositories/user.repository";
+import type { PasswordHasher } from "#services/password-hasher.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
-import type { PasswordHasherPort } from "../../ports/password-hasher.port.js";
-import { SignInErrorCodes, SignInSuccessCodes } from "./sign-in.codes.js";
+import { SignInErrorCodes } from "./sign-in.codes.js";
 import type {
   AuthenticationSession,
+  SignIn,
   SignInInput,
   SignInOutput,
-} from "./sign-in.types.js";
+} from "./sign-in.contracts.js";
 
-export class SignInUseCase {
+export class SignInUseCase implements SignIn {
   constructor(
-    private readonly user: UserPort,
-    private readonly password: PasswordHasherPort,
-    private readonly session: SessionPort,
+    private readonly user: UserRepository,
+    private readonly password: PasswordHasher,
+    private readonly session: SessionRepository,
   ) {}
 
   async execute(payload: SignInInput): Promise<SignInOutput> {
@@ -56,7 +57,7 @@ export class SignInUseCase {
     const sessionEntity = SessionEntity.createForUser({
       userId: user.identifier,
     });
-    await this.session.create(sessionEntity);
+    await this.session.save(sessionEntity);
 
     const data: AuthenticationSession = {
       userId: user.identifier.value,
@@ -64,9 +65,6 @@ export class SignInUseCase {
       sessionExpiresAt: sessionEntity.expiresAt,
     };
 
-    return Result.success({
-      code: SignInSuccessCodes.authenticated.code,
-      data,
-    });
+    return Result.success(data);
   }
 }

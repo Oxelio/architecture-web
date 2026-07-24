@@ -1,6 +1,6 @@
 // @file apps/api/src/auth.ts
 
-import type { ResolveSessionUseCase } from "@architecture/identity/application";
+import type { ResolveSession } from "@architecture/identity/application";
 import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
 import type {
   FastifyInstance,
@@ -31,7 +31,7 @@ declare module "fastify" {
 }
 
 interface AuthPluginOptions {
-  resolveSession: ResolveSessionUseCase;
+  resolveSession: ResolveSession;
   sessionCookieName: string;
 }
 
@@ -70,7 +70,7 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
       });
     }
 
-    request.auth = result.value.data;
+    request.auth = result.value;
   });
 };
 

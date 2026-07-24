@@ -2,9 +2,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PasswordHasherPort } from "#application/ports/password-hasher.port";
-import type { UserPort } from "#application/ports/user.port";
 import { UserEntity } from "#entities/user.entity";
+import type { UserRepository } from "#repositories/user.repository";
+import type { PasswordHasher } from "#services/password-hasher.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
@@ -14,7 +14,7 @@ import { ChangePasswordUseCase } from "./change-password.use-case.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 
-class FakeUserPort implements UserPort {
+class FakeUserPort implements UserRepository {
   private readonly users = new Map<string, UserEntity>();
 
   async findByEmail(_email: EmailValueObject): Promise<UserEntity | null> {
@@ -32,7 +32,7 @@ class FakeUserPort implements UserPort {
 
 /* ---------------- FAKE PASSWORD HASHER ---------------- */
 
-class FakePasswordHasherPort implements PasswordHasherPort {
+class FakePasswordHasherPort implements PasswordHasher {
   async hash(
     password: PasswordPlainValueObject,
   ): Promise<PasswordHashValueObject> {

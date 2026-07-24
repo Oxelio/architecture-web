@@ -2,14 +2,14 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { EmailSenderPort } from "#application/ports/email-sender.port";
-import type {
-  EmailVerificationPort,
-  EmailVerificationRecord,
-} from "#application/ports/email-verification.port";
-import type { EmailVerificationRateLimitPort } from "#application/ports/email-verification-rate-limit.port";
-import type { UserPort } from "#application/ports/user.port";
 import { UserEntity } from "#entities/user.entity";
+import type {
+  EmailVerificationRecord,
+  EmailVerificationRepository,
+} from "#repositories/email-verification.repository";
+import type { UserRepository } from "#repositories/user.repository";
+import type { EmailSender } from "#services/email-sender.service";
+import type { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
@@ -21,7 +21,7 @@ import { ResendEmailVerificationUseCase } from "./resend-email-verification.use-
 /*                                FAKE USER PORT                              */
 /* -------------------------------------------------------------------------- */
 
-class FakeUserPort implements UserPort {
+class FakeUserPort implements UserRepository {
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {
@@ -41,7 +41,16 @@ class FakeUserPort implements UserPort {
 /*                      FAKE EMAIL VERIFICATION PORT                           */
 /* -------------------------------------------------------------------------- */
 
-class FakeEmailVerificationPort implements EmailVerificationPort {
+class FakeEmailVerificationPort implements EmailVerificationRepository {
+  async save(
+    _userId: UserIdentifierValueObject,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    this.created = true;
+    this.token = token;
+    this.expiresAt = expiresAt;
+  }
   async findByToken(_token: string): Promise<EmailVerificationRecord | null> {
     throw new Error("Method not implemented.");
   }
@@ -60,23 +69,13 @@ class FakeEmailVerificationPort implements EmailVerificationPort {
   async invalidatePrevious(): Promise<void> {
     this.invalidated = true;
   }
-
-  async create(
-    _userId: UserIdentifierValueObject,
-    token: string,
-    expiresAt: Date,
-  ): Promise<void> {
-    this.created = true;
-    this.token = token;
-    this.expiresAt = expiresAt;
-  }
 }
 
 /* -------------------------------------------------------------------------- */
 /*                          FAKE EMAIL SENDER PORT                            */
 /* -------------------------------------------------------------------------- */
 
-class FakeEmailSenderPort implements EmailSenderPort {
+class FakeEmailSenderPort implements EmailSender {
   public sent = false;
 
   public email: string | null = null;
@@ -97,16 +96,16 @@ class FakeEmailSenderPort implements EmailSenderPort {
 /*                        FAKE RATE LIMIT PORT                                */
 /* -------------------------------------------------------------------------- */
 
-class FakeRateLimitPort implements EmailVerificationRateLimitPort {
+class FakeRateLimitPort implements EmailVerificationRateLimiter {
   public allowed = true;
 
   public registerCalled = false;
 
-  async canSend(): Promise<boolean> {
+  async isAllowed(): Promise<boolean> {
     return this.allowed;
   }
 
-  async registerSend(): Promise<void> {
+  async recordSuccess(): Promise<void> {
     this.registerCalled = true;
   }
 }

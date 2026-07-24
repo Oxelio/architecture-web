@@ -1,11 +1,6 @@
 // @file bounded-contexts/identity/application/use-cases/change-email/change-email.codes.ts
-const ChangeEmailSuccessCodes = {
-  changed: {
-    code: "user.email_changed",
-  },
-} as const;
 
-const ChangeEmailErrorsCodes = {
+export const ChangeEmailErrorsCodes = {
   invalidId: {
     code: "user.invalid_id",
   },
@@ -18,5 +13,3 @@ const ChangeEmailErrorsCodes = {
     code: "user.already_exists",
   },
 } as const;
-
-export { ChangeEmailErrorsCodes, ChangeEmailSuccessCodes };

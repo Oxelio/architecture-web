@@ -1,11 +1,6 @@
 // @file bounded-contexts/identity/application/use-cases/activate-user/activate-user.codes.ts
-const ActivateUserSuccessCodes = {
-  activated: {
-    code: "user.activated",
-  },
-} as const;
 
-const ActivateUserErrorsCodes = {
+export const ActivateUserErrorsCodes = {
   invalidId: {
     code: "user.invalid_id",
   },
@@ -14,5 +9,3 @@ const ActivateUserErrorsCodes = {
     code: "user.not_found",
   },
 } as const;
-
-export { ActivateUserErrorsCodes, ActivateUserSuccessCodes };

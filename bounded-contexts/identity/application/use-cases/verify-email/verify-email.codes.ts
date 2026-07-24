@@ -1,11 +1,6 @@
 // @file bounded-contexts/identity/application/use-cases/verify-email/verify-email.codes.ts
-const VerifyEmailSuccessCodes = {
-  verified: {
-    code: "user.email_verified",
-  },
-} as const;
 
-const VerifyEmailErrorCodes = {
+export const VerifyEmailErrorCodes = {
   userNotFound: {
     code: "user.not_found",
   },
@@ -18,5 +13,3 @@ const VerifyEmailErrorCodes = {
     code: "token.expired",
   },
 } as const;
-
-export { VerifyEmailErrorCodes, VerifyEmailSuccessCodes };

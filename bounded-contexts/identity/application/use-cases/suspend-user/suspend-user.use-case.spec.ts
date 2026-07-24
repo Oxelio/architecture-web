@@ -2,8 +2,8 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { UserPort } from "#application/ports/user.port";
 import { UserEntity } from "#entities/user.entity";
+import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -12,7 +12,7 @@ import { SuspendUserUseCase } from "./suspend-user.use-case.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 
-class FakeUserPort implements UserPort {
+class FakeUserPort implements UserRepository {
   private readonly users = new Map<string, UserEntity>();
 
   async findByEmail(_email: EmailValueObject): Promise<UserEntity | null> {

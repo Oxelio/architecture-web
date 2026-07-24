@@ -2,18 +2,21 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UserEntity } from "../../../domain/entities/user.entity.js";
-import { EmailValueObject } from "../../../domain/value-objects/email.value-object.js";
-import { PasswordHashValueObject } from "../../../domain/value-objects/password-hash.value-object.js";
-import { UserIdentifierValueObject } from "../../../domain/value-objects/user-identifier.value-object.js";
-import type { EmailVerificationPort } from "../../ports/email-verification.port.js";
-import type { EmailVerificationRecord } from "../../ports/email-verification.port.js";
-import type { UserPort } from "../../ports/user.port.js";
+import { UserEntity } from "#entities/user.entity";
+import type {
+  EmailVerificationRecord,
+  EmailVerificationRepository,
+} from "#repositories/email-verification.repository";
+import type { UserRepository } from "#repositories/user.repository";
+import { EmailValueObject } from "#value-objects/email.value-object";
+import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
+import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
 import { VerifyEmailUseCase } from "./verify-email.use-case.js";
 
 /* ---------------- FAKE USER PORT ---------------- */
 
-class FakeUserPort implements UserPort {
+class FakeUserPort implements UserRepository {
   private readonly users = new Map<string, UserEntity>();
 
   async findByEmail(_email: EmailValueObject): Promise<UserEntity | null> {
@@ -31,10 +34,10 @@ class FakeUserPort implements UserPort {
 
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
 
-class FakeEmailVerificationPort implements EmailVerificationPort {
+class FakeEmailVerificationPort implements EmailVerificationRepository {
   private readonly records = new Map<string, EmailVerificationRecord>();
 
-  async create(
+  async save(
     userId: UserIdentifierValueObject,
     token: string,
     expiresAt: Date,
@@ -121,7 +124,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "used-token";
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await emailVerificationPort.create(user.identifier, token, expiresAt);
+    await emailVerificationPort.save(user.identifier, token, expiresAt);
     await emailVerificationPort.markUsed(token);
 
     const result = await useCase.execute({ token });
@@ -160,7 +163,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "expired-token";
     const expiresAt = new Date(Date.now() - 60_000);
 
-    await emailVerificationPort.create(user.identifier, token, expiresAt);
+    await emailVerificationPort.save(user.identifier, token, expiresAt);
 
     const result = await useCase.execute({ token });
 
@@ -183,7 +186,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "valid-token";
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await emailVerificationPort.create(userId, token, expiresAt);
+    await emailVerificationPort.save(userId, token, expiresAt);
 
     const result = await useCase.execute({ token });
 
@@ -218,7 +221,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "valid-token";
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await emailVerificationPort.create(user.identifier, token, expiresAt);
+    await emailVerificationPort.save(user.identifier, token, expiresAt);
 
     const result = await useCase.execute({ token });
 
@@ -256,7 +259,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "valid-token";
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await emailVerificationPort.create(user.identifier, token, expiresAt);
+    await emailVerificationPort.save(user.identifier, token, expiresAt);
 
     const spy = vi.spyOn(emailVerificationPort, "markUsed");
 
@@ -287,7 +290,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "valid-token";
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await emailVerificationPort.create(user.identifier, token, expiresAt);
+    await emailVerificationPort.save(user.identifier, token, expiresAt);
 
     const spy = vi.spyOn(userPort, "save");
 
@@ -320,7 +323,7 @@ describe("VerifyEmailUseCase", () => {
     const token = "valid-token";
     const expiresAt = new Date(Date.now() + 60_000);
 
-    await emailVerificationPort.create(user.identifier, token, expiresAt);
+    await emailVerificationPort.save(user.identifier, token, expiresAt);
 
     const result = await useCase.execute({ token });
 

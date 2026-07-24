@@ -2,7 +2,7 @@
 
 import type {
   ActivateUserInput,
-  ActivateUserUseCase,
+  ActivateUser,
 } from "@architecture/identity/application";
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -17,7 +17,7 @@ type ActivateUserHTTPRequest = FastifyRequest<{
   Params: ActivateUserParams;
 }>;
 
-export function createActivateUserController(useCase: ActivateUserUseCase) {
+export function createActivateUserController(useCase: ActivateUser) {
   return async (request: ActivateUserHTTPRequest, reply: FastifyReply) => {
     const command: ActivateUserInput = {
       userId: request.params.userId,

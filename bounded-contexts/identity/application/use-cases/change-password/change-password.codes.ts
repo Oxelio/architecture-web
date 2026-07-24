@@ -1,11 +1,6 @@
 // @file bounded-contexts/identity/application/use-cases/change-password/change-password.codes.ts
-const ChangePasswordSuccessCodes = {
-  changed: {
-    code: "user.password_changed",
-  },
-} as const;
 
-const ChangePasswordErrorsCodes = {
+export const ChangePasswordErrorsCodes = {
   invalidId: {
     code: "user.invalid_id",
   },
@@ -14,5 +9,3 @@ const ChangePasswordErrorsCodes = {
     code: "user.not_found",
   },
 } as const;
-
-export { ChangePasswordErrorsCodes, ChangePasswordSuccessCodes };

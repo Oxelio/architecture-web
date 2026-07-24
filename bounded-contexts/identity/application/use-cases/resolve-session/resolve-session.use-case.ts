@@ -2,24 +2,22 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { SessionPort } from "#application/ports/session.port";
-import type { UserPort } from "#application/ports/user.port";
+import type { SessionRepository } from "#repositories/session.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 
-import {
-  ResolveSessionErrorCodes,
-  ResolveSessionSuccessCodes,
-} from "./resolve-session.codes.js";
+import { ResolveSessionErrorCodes } from "./resolve-session.codes.js";
 import type {
+  ResolveSession,
   ResolveSessionInput,
   ResolveSessionOutput,
   SessionResolution,
-} from "./resolve-session.types.js";
+} from "./resolve-session.contracts.js";
 
-export class ResolveSessionUseCase {
+export class ResolveSessionUseCase implements ResolveSession {
   constructor(
-    private readonly sessionPort: SessionPort,
-    private readonly userPort: UserPort,
+    private readonly sessionPort: SessionRepository,
+    private readonly userPort: UserRepository,
   ) {}
 
   async execute(payload: ResolveSessionInput): Promise<ResolveSessionOutput> {
@@ -47,9 +45,6 @@ export class ResolveSessionUseCase {
       sessionId: session.identifier.value,
     };
 
-    return Result.success({
-      code: ResolveSessionSuccessCodes.resolved.code,
-      data,
-    });
+    return Result.success(data);
   }
 }

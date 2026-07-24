@@ -2,23 +2,21 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { UserPort } from "#application/ports/user.port";
+import type { UserRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import {
-  SuspendUserErrorCodes,
-  SuspendUserSuccessCodes,
-} from "./suspend-user.codes.js";
+import { SuspendUserErrorCodes } from "./suspend-user.codes.js";
 import type {
+  SuspendUser,
   SuspendUserInput,
   SuspendUserOutput,
-} from "./suspend-user.types.js";
+} from "./suspend-user.contracts.js";
 
-export class SuspendUserUseCase {
-  constructor(private readonly userPort: UserPort) {}
+export class SuspendUserUseCase implements SuspendUser {
+  constructor(private readonly userPort: UserRepository) {}
 
-  async execute(command: SuspendUserInput): Promise<SuspendUserOutput> {
-    const userId = UserIdentifierValueObject.create(command.userId);
+  async execute(input: SuspendUserInput): Promise<SuspendUserOutput> {
+    const userId = UserIdentifierValueObject.create(input.userId);
     if (!userId.success) {
       return Result.failure(SuspendUserErrorCodes.invalidId);
     }
@@ -31,6 +29,6 @@ export class SuspendUserUseCase {
     user.suspend();
     await this.userPort.save(user);
 
-    return Result.success(SuspendUserSuccessCodes.suspended);
+    return Result.success(undefined);
   }
 }

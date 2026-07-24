@@ -2,8 +2,9 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SessionIdentifierValueObject } from "../value-objects/session-identifier.value-object.js";
-import { UserIdentifierValueObject } from "../value-objects/user-identifier.value-object.js";
+import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
+import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
 import { SessionEntity } from "./session.entity.js";
 
 describe("SessionEntity", () => {

@@ -1,14 +1,17 @@
 // @file foundation/src/domain/result.ts
 
-export type Result<TValue, TError> =
-  | {
-      success: true;
-      value: TValue;
-    }
-  | {
-      success: false;
-      error: TError;
-    };
+// type Success<T> = T extends void
+//   ? { success: true }
+//   : { success: true; value: T };
+
+type Success<TValue> = { success: true; value: TValue };
+
+type Failure<TError> = {
+  success: false;
+  error: TError;
+};
+
+export type Result<TValue, TError> = Success<TValue> | Failure<TError>;
 
 export const Result = {
   success<TValue>(value: TValue): Result<TValue, never> {

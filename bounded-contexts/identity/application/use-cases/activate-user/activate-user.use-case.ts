@@ -2,20 +2,18 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { UserPort } from "#application/ports/user.port";
+import type { UserRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import {
-  ActivateUserErrorsCodes,
-  ActivateUserSuccessCodes,
-} from "./activate-user.codes.js";
+import { ActivateUserErrorsCodes } from "./activate-user.codes.js";
 import type {
+  ActivateUser,
   ActivateUserInput,
   ActivateUserOutput,
-} from "./activate-user.types.js";
+} from "./activate-user.contracts.js";
 
-export class ActivateUserUseCase {
-  constructor(private readonly userPort: UserPort) {}
+export class ActivateUserUseCase implements ActivateUser {
+  constructor(private readonly userPort: UserRepository) {}
 
   async execute(command: ActivateUserInput): Promise<ActivateUserOutput> {
     const userId = UserIdentifierValueObject.create(command.userId);
@@ -29,8 +27,9 @@ export class ActivateUserUseCase {
     }
 
     user.activate();
+
     await this.userPort.save(user);
 
-    return Result.success(ActivateUserSuccessCodes.activated);
+    return Result.success(undefined);
   }
 }

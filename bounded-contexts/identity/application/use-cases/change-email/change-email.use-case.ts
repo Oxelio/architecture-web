@@ -2,21 +2,19 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { UserPort } from "#application/ports/user.port";
+import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import {
-  ChangeEmailErrorsCodes,
-  ChangeEmailSuccessCodes,
-} from "./change-email.codes.js";
+import { ChangeEmailErrorsCodes } from "./change-email.codes.js";
 import type {
+  ChangeEmail,
   ChangeEmailInput,
   ChangeEmailOutput,
-} from "./change-email.types.js";
+} from "./change-email.contracts.js";
 
-export class ChangeEmailUseCase {
-  constructor(private readonly userPort: UserPort) {}
+export class ChangeEmailUseCase implements ChangeEmail {
+  constructor(private readonly userPort: UserRepository) {}
 
   async execute(command: ChangeEmailInput): Promise<ChangeEmailOutput> {
     const userId = UserIdentifierValueObject.create(command.userId);
@@ -43,6 +41,6 @@ export class ChangeEmailUseCase {
     user.changeEmail(email.value);
     await this.userPort.save(user);
 
-    return Result.success(ChangeEmailSuccessCodes.changed);
+    return Result.success(undefined);
   }
 }

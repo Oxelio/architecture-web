@@ -1,11 +1,6 @@
 // @file bounded-contexts/identity/application/use-cases/suspend-user/suspend-user.codes.ts
-const SuspendUserSuccessCodes = {
-  suspended: {
-    code: "user.suspended",
-  },
-} as const;
 
-const SuspendUserErrorCodes = {
+export const SuspendUserErrorCodes = {
   invalidId: {
     code: "user.invalid_id",
   },
@@ -14,5 +9,3 @@ const SuspendUserErrorCodes = {
     code: "user.not_found",
   },
 } as const;
-
-export { SuspendUserErrorCodes, SuspendUserSuccessCodes };
