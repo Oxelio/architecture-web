@@ -66,7 +66,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     throw new Error(apiError?.error?.code ?? `HTTP_${response.status}`);
   }
 
-  return (body as ApiResponse<T>).data;
+  return (body as ApiResponse<T> | null)?.data as T;
 }
 
 export async function signUp(payload: SignUpPayload) {

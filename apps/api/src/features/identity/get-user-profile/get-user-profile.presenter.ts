@@ -9,7 +9,12 @@ const toHttpError = createHttpErrorMapper(GetUserProfileHttpContract.errors);
 export const GetUserProfilePresenter = {
   toPresentation(result: GetUserProfileOutput) {
     if (result.success) {
-      return GetUserProfileHttpContract.success["user.profile_retrieved"];
+      return {
+        ...GetUserProfileHttpContract.success["user.profile_retrieved"],
+        body: {
+          data: result.value,
+        },
+      };
     }
 
     return toHttpError(result.error);

@@ -46,6 +46,8 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # localhost is served over HTTP; set this to true behind HTTPS in production.
+      COOKIE_SECURE: "false"
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: architecture

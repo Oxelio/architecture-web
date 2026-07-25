@@ -37,12 +37,15 @@ interface AuthPluginOptions {
 
 export function buildSessionCookieOptions(): CookieSerializeOptions {
   const isProduction = process.env["NODE_ENV"] === "production";
+  const isSecure =
+    process.env["COOKIE_SECURE"] === "true" ||
+    (isProduction && process.env["COOKIE_SECURE"] !== "false");
 
   return {
     httpOnly: true,
     path: "/",
-    sameSite: isProduction ? "none" : "lax",
-    secure: isProduction,
+    sameSite: isSecure ? "none" : "lax",
+    secure: isSecure,
   };
 }
 
