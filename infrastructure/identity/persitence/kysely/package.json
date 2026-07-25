@@ -5,9 +5,18 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "imports": {
-    "#persistence/*": "./src/persistence/*.ts",
-    "#mappers/*": "./src/mappers/*.ts",
-    "#errors/*": "./src/errors/*.ts"
+    "#persistence/*": {
+      "types": "./src/persistence/*.ts",
+      "default": "./dist/persistence/*.js"
+    },
+    "#mappers/*": {
+      "types": "./src/mappers/*.ts",
+      "default": "./dist/mappers/*.js"
+    },
+    "#errors/*": {
+      "types": "./src/errors/*.ts",
+      "default": "./dist/errors/*.js"
+    }
   },
   "exports": {
     ".": {
@@ -25,11 +34,11 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@architecture/identity": "^1.0.0-alpha.1",
+    "@architecture/identity": "workspace:*",
     "kysely": "^0.29.2"
   },
   "devDependencies": {
-    "@architecture/eslint-config": "1.0.0-alpha.1",
+    "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.0",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",

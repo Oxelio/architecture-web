@@ -35,7 +35,8 @@ services:
   api:
     image: architecture-web-api:latest
     build:
-      context: ./apps/api
+      context: .
+      dockerfile: apps/api/Dockerfile
     container_name: architecture-web-api
     restart: unless-stopped
     depends_on:
@@ -65,7 +66,8 @@ services:
   web:
     image: architecture-web-web:latest
     build:
-      context: ./apps/web
+      context: .
+      dockerfile: apps/web/Dockerfile
     container_name: architecture-web-web
     restart: unless-stopped
     depends_on:

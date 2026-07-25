@@ -20,7 +20,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@architecture/identity": "^1.0.0-alpha.1",
+    "@architecture/identity": "workspace:*",
     "bcrypt": "^6.0.0"
   },
   "devDependencies": {

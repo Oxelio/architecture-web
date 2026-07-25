@@ -6,6 +6,11 @@
   "main": "index.js",
   "scripts": {
     "prepare": "husky",
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "test": "pnpm -r --if-present run test",
+    "format:check": "pnpm -r --if-present run format:check",
     "headers:update": "node scripts/update-file-paths.mjs --all",
     "headers:update:staged": "node scripts/update-file-paths.mjs --staged"
   },
@@ -22,6 +27,7 @@
     }
   },
   "type": "module",
+  "packageManager": "pnpm@11.15.1",
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",

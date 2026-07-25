@@ -8,7 +8,7 @@
 
 ## Installation
 
-Depuis la racine du dépôt :
+Depuis la racine du dépôt (le dépôt est un workspace pnpm unique) :
 
 ```bash
 pnpm install
@@ -37,8 +37,12 @@ pnpm migrate:up
 ## Build et vérification
 
 ```bash
+pnpm build
+pnpm typecheck
+pnpm test
+
+# ou un package précis
 pnpm --filter api build
-pnpm --filter @architecture/identity build
 ```
 
 ## Débogage

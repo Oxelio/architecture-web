@@ -37,11 +37,11 @@
   },
   "type": "module",
   "dependencies": {
-    "@architecture/identity": "1.0.0-alpha.1",
-    "@architecture/identity-email-nodemailer": "^1.0.0-alpha.1",
-    "@architecture/identity-password-argon2": "^1.0.0-alpha.1",
-    "@architecture/identity-persistence-kysely": "^1.0.0-alpha.1",
-    "@architecture/identity-session-redis": "^1.0.0-alpha.1",
+    "@architecture/identity": "workspace:*",
+    "@architecture/identity-email-nodemailer": "workspace:*",
+    "@architecture/identity-password-argon2": "workspace:*",
+    "@architecture/identity-persistence-kysely": "workspace:*",
+    "@architecture/identity-session-redis": "workspace:*",
     "@fastify/cookie": "^11.1.2",
     "@fastify/cors": "^11.3.0",
     "@fastify/swagger": "^9.8.1",
@@ -56,7 +56,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@architecture/eslint-config": "1.0.0-alpha.1",
+    "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.5",
     "@types/pg": "^8.20.0",
     "eslint": "^9.39.5",

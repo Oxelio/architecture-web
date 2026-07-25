@@ -8,7 +8,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "imports": {
-    "#domain/*": "./src/domain/*.js"
+    "#domain/*": {
+      "types": "./src/domain/*.ts",
+      "default": "./dist/domain/*.js"
+    }
   },
   "exports": {
     ".": {
@@ -37,7 +40,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@architecture/eslint-config": "1.0.0-alpha.1",
+    "@architecture/eslint-config": "workspace:*",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",
     "typescript": "^5.9.3"

@@ -1,6 +1,6 @@
 // @file infrastructure/identity/session/redis/src/adapters/redis-session.adapter.ts
 
-import type { SessionPort } from "@architecture/identity/application";
+import type { SessionRepository } from "@architecture/identity/application";
 import type { SessionIdentifierValueObject } from "@architecture/identity/domain";
 import {
   SessionEntity,
@@ -13,10 +13,10 @@ interface SessionRecord {
   expiresAt: string;
 }
 
-export class RedisSessionAdapter implements SessionPort {
+export class RedisSessionAdapter implements SessionRepository {
   constructor(private readonly redis: Redis) {}
 
-  async create(session: SessionEntity): Promise<void> {
+  async save(session: SessionEntity): Promise<void> {
     const record: SessionRecord = {
       userId: session.userId.value,
       expiresAt: session.expiresAt.toISOString(),

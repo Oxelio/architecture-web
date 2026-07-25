@@ -20,11 +20,11 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@architecture/identity": "^1.0.0-alpha.1",
+    "@architecture/identity": "workspace:*",
     "nodemailer": "^9.0.3"
   },
   "devDependencies": {
-    "@architecture/eslint-config": "1.0.0-alpha.1",
+    "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.0",
     "@types/nodemailer": "^8.0.1",
     "prettier": "^3.9.6",

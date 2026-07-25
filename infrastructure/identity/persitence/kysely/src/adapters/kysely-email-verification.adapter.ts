@@ -1,7 +1,7 @@
 // @file infrastructure/identity/persitence/kysely/src/adapters/kysely-email-verification.adapter.ts
 
 import type {
-  EmailVerificationPort,
+  EmailVerificationRepository,
   EmailVerificationRecord,
 } from "@architecture/identity/application";
 import { UserIdentifierValueObject } from "@architecture/identity/domain";
@@ -12,10 +12,10 @@ import type {
   IdentityEmailVerificationRow,
 } from "#persistence/schema";
 
-export class KyselyEmailVerificationAdapter implements EmailVerificationPort {
+export class KyselyEmailVerificationAdapter implements EmailVerificationRepository {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
 
-  async create(
+  async save(
     userId: UserIdentifierValueObject,
     token: string,
     expiresAt: Date,

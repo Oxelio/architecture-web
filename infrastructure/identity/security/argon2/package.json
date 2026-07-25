@@ -20,11 +20,11 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@architecture/identity": "^1.0.0-alpha.1",
+    "@architecture/identity": "workspace:*",
     "argon2": "^0.44.0"
   },
   "devDependencies": {
-    "@architecture/eslint-config": "1.0.0-alpha.1",
+    "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.0",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",

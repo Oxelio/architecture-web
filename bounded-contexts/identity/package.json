@@ -15,11 +15,26 @@
     "prepublishOnly": "pnpm build"
   },
   "imports": {
-    "#entities/*": "./domain/entities/*.js",
-    "#value-objects/*": "./domain/value-objects/*.js",
-    "#use-cases/*": "./application/use-cases/*.js",
-    "#services/*": "./application/services/*.js",
-    "#repositories/*": "./application/repositories/*.js"
+    "#entities/*": {
+      "types": "./domain/entities/*.ts",
+      "default": "./dist/domain/entities/*.js"
+    },
+    "#value-objects/*": {
+      "types": "./domain/value-objects/*.ts",
+      "default": "./dist/domain/value-objects/*.js"
+    },
+    "#use-cases/*": {
+      "types": "./application/use-cases/*.ts",
+      "default": "./dist/application/use-cases/*.js"
+    },
+    "#services/*": {
+      "types": "./application/services/*.ts",
+      "default": "./dist/application/services/*.js"
+    },
+    "#repositories/*": {
+      "types": "./application/repositories/*.ts",
+      "default": "./dist/application/repositories/*.js"
+    }
   },
   "exports": {
     "./domain": {
@@ -32,12 +47,12 @@
     }
   },
   "dependencies": {
-    "@architecture/foundation": "1.0.0-alpha.1",
+    "@architecture/foundation": "workspace:*",
     "ioredis": "^5.11.1",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@architecture/eslint-config": "1.0.0-alpha.1",
+    "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9.39.5",

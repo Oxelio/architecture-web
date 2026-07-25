@@ -1,10 +1,10 @@
 // @file infrastructure/identity/email/postmark/src/postmark-email.adapter.ts
 
-import type { EmailSenderPort } from "@architecture/identity/application";
+import type { EmailSender } from "@architecture/identity/application";
 import type { EmailValueObject } from "@architecture/identity/domain";
 import { ServerClient } from "postmark";
 
-export class PostmarkEmailSenderAdapter implements EmailSenderPort {
+export class PostmarkEmailSenderAdapter implements EmailSender {
   private readonly client: ServerClient;
   private readonly fromAddress: string;
   private readonly appUrl: string;

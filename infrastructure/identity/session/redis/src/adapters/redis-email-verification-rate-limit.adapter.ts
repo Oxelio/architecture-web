@@ -1,25 +1,26 @@
 // @file infrastructure/identity/session/redis/src/adapters/redis-email-verification-rate-limit.adapter.ts
 
-import type { EmailVerificationRateLimitPort } from "@architecture/identity/application";
+import type { EmailVerificationRateLimiter } from "@architecture/identity/application";
+import type { UserIdentifierValueObject } from "@architecture/identity/domain";
 import type { Redis } from "ioredis";
 
-export class RedisEmailVerificationRateLimitAdapter implements EmailVerificationRateLimitPort {
+export class RedisEmailVerificationRateLimitAdapter implements EmailVerificationRateLimiter {
   private readonly prefix = "email-verification-rate";
 
   private readonly cooldownSeconds = 120;
 
   constructor(private readonly redis: Redis) {}
 
-  async canSend(userId: string): Promise<boolean> {
-    const key = `${this.prefix}:${userId}`;
+  async isAllowed(userId: UserIdentifierValueObject): Promise<boolean> {
+    const key = `${this.prefix}:${userId.value}`;
 
     const exists = await this.redis.exists(key);
 
     return exists === 0;
   }
 
-  async registerSend(userId: string): Promise<void> {
-    const key = `${this.prefix}:${userId}`;
+  async recordSuccess(userId: UserIdentifierValueObject): Promise<void> {
+    const key = `${this.prefix}:${userId.value}`;
 
     await this.redis.set(key, "1", "EX", this.cooldownSeconds);
   }

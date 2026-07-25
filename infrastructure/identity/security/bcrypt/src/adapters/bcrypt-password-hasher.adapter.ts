@@ -1,13 +1,13 @@
 // @file infrastructure/identity/security/bcrypt/src/adapters/bcrypt-password-hasher.adapter.ts
 
-import type { PasswordHasherPort } from "@architecture/identity/application";
+import type { PasswordHasher } from "@architecture/identity/application";
 import {
   PasswordHashValueObject,
   type PasswordPlainValueObject,
 } from "@architecture/identity/domain";
 import bcrypt from "bcrypt";
 
-export class BcryptPasswordHasherAdapter implements PasswordHasherPort {
+export class BcryptPasswordHasherAdapter implements PasswordHasher {
   private readonly SALT_ROUNDS = 12;
 
   async hash(
