@@ -3,18 +3,13 @@
 import type { ChangePasswordOutput } from "@architecture/identity/application";
 
 import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
-import { createHttpSuccessMapper } from "../../../helpers/create-http-success-mapper.js";
 import { ChangePasswordHttpContract } from "./change-password.http.js";
 
 const toHttpError = createHttpErrorMapper(ChangePasswordHttpContract.errors);
-const toHttpSuccess = createHttpSuccessMapper(
-  ChangePasswordHttpContract.success,
-);
-
 export const ChangePasswordPresenter = {
   toPresentation(result: ChangePasswordOutput) {
     if (result.success) {
-      return toHttpSuccess(result.value.code);
+      return ChangePasswordHttpContract.success["user.password_changed"];
     }
 
     return toHttpError(result.error);

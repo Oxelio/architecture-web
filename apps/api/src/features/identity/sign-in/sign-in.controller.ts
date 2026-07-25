@@ -42,11 +42,11 @@ export function createSignInController(
       const maxAge = Math.max(
         1,
         Math.floor(
-          (result.value.data.sessionExpiresAt.getTime() - Date.now()) / 1000,
+          (result.value.sessionExpiresAt.getTime() - Date.now()) / 1000,
         ),
       );
 
-      reply.setCookie(sessionCookie.name, result.value.data.sessionId, {
+      reply.setCookie(sessionCookie.name, result.value.sessionId, {
         ...sessionCookie.options,
         maxAge,
       });
