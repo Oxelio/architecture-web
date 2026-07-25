@@ -9,7 +9,12 @@ export function errorHandler(
 ) {
   request.log.error(error);
 
-  return reply.status(error.statusCode ?? 500).send({
-    message: error.message,
+  const statusCode = error.statusCode ?? 500;
+
+  return reply.status(statusCode).send({
+    error: {
+      code: error.code ?? "INTERNAL_SERVER_ERROR",
+      message: statusCode >= 500 ? "Internal server error" : error.message,
+    },
   });
 }
