@@ -289,19 +289,19 @@ importers:
     dependencies:
       "@architecture/identity":
         specifier: workspace:*
-        version: link:../../bounded-contexts/identity
+        version: link:../../packages/identity/core
       "@architecture/identity-email-nodemailer":
         specifier: workspace:*
-        version: link:../../infrastructure/identity/email/nodemailer
+        version: link:../../packages/identity/infrastructure/email/nodemailer
       "@architecture/identity-password-argon2":
         specifier: workspace:*
-        version: link:../../infrastructure/identity/security/argon2
+        version: link:../../packages/identity/infrastructure/security/argon2
       "@architecture/identity-persistence-kysely":
         specifier: workspace:*
-        version: link:../../infrastructure/identity/persitence/kysely
+        version: link:../../packages/identity/infrastructure/persitence/kysely
       "@architecture/identity-session-redis":
         specifier: workspace:*
-        version: link:../../infrastructure/identity/session/redis
+        version: link:../../packages/identity/infrastructure/session/redis
       "@fastify/cookie":
         specifier: ^11.1.2
         version: 11.1.2
@@ -467,230 +467,6 @@ importers:
         specifier: ^8.1.5
         version: 8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(jiti@1.21.7)(tsx@4.23.1)(yaml@2.9.0)
 
-  bounded-contexts/identity:
-    dependencies:
-      "@architecture/foundation":
-        specifier: workspace:*
-        version: link:../../foundation
-      ioredis:
-        specifier: ^5.11.1
-        version: 5.11.1(supports-color@7.2.0)
-      uuid:
-        specifier: ^14.0.0
-        version: 14.0.1
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../../packages/eslint-config
-      "@types/node":
-        specifier: ^25.9.1
-        version: 25.9.5
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.9
-        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
-
-  foundation:
-    dependencies:
-      fast-deep-equal:
-        specifier: ^3.1.3
-        version: 3.1.3
-      uuid:
-        specifier: ^14.0.0
-        version: 14.0.1
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../packages/eslint-config
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  infrastructure/identity/email/nodemailer:
-    dependencies:
-      "@architecture/identity":
-        specifier: workspace:*
-        version: link:../../../../bounded-contexts/identity
-      nodemailer:
-        specifier: ^9.0.3
-        version: 9.0.3
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../../../../packages/eslint-config
-      "@types/node":
-        specifier: ^25.9.0
-        version: 25.9.5
-      "@types/nodemailer":
-        specifier: ^8.0.1
-        version: 8.0.1
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  infrastructure/identity/email/postmark:
-    dependencies:
-      "@architecture/identity":
-        specifier: workspace:*
-        version: link:../../../../bounded-contexts/identity
-      postmark:
-        specifier: ^4.0.7
-        version: 4.0.7(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../../../../packages/eslint-config
-      "@types/node":
-        specifier: ^25.9.0
-        version: 25.9.5
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  infrastructure/identity/persitence/kysely:
-    dependencies:
-      "@architecture/identity":
-        specifier: workspace:*
-        version: link:../../../../bounded-contexts/identity
-      kysely:
-        specifier: ^0.29.2
-        version: 0.29.4
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../../../../packages/eslint-config
-      "@types/node":
-        specifier: ^25.9.0
-        version: 25.9.5
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  infrastructure/identity/security/argon2:
-    dependencies:
-      "@architecture/identity":
-        specifier: workspace:*
-        version: link:../../../../bounded-contexts/identity
-      argon2:
-        specifier: ^0.44.0
-        version: 0.44.0
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../../../../packages/eslint-config
-      "@types/node":
-        specifier: ^25.9.0
-        version: 25.9.5
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  infrastructure/identity/security/bcrypt:
-    dependencies:
-      "@architecture/identity":
-        specifier: workspace:*
-        version: link:../../../../bounded-contexts/identity
-      bcrypt:
-        specifier: ^6.0.0
-        version: 6.0.0
-    devDependencies:
-      "@types/bcrypt":
-        specifier: ^6.0.0
-        version: 6.0.0
-      "@types/node":
-        specifier: ^25.9.0
-        version: 25.9.5
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  infrastructure/identity/session/redis:
-    dependencies:
-      "@architecture/identity":
-        specifier: workspace:*
-        version: link:../../../../bounded-contexts/identity
-      ioredis:
-        specifier: ^5.11.1
-        version: 5.11.1(supports-color@7.2.0)
-    devDependencies:
-      "@architecture/eslint-config":
-        specifier: workspace:*
-        version: link:../../../../packages/eslint-config
-      "@types/node":
-        specifier: ^25.9.0
-        version: 25.9.5
-      "@vitest/coverage-v8":
-        specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
-      eslint:
-        specifier: ^9.39.5
-        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
-      prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   packages/eslint-config:
     dependencies:
       "@eslint/js":
@@ -724,6 +500,230 @@ importers:
       "@vitest/coverage-v8":
         specifier: ^4.1.10
         version: 4.1.10(vitest@4.1.10)
+
+  packages/foundation:
+    dependencies:
+      fast-deep-equal:
+        specifier: ^3.1.3
+        version: 3.1.3
+      uuid:
+        specifier: ^14.0.0
+        version: 14.0.1
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../eslint-config
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/core:
+    dependencies:
+      "@architecture/foundation":
+        specifier: workspace:*
+        version: link:../../foundation
+      ioredis:
+        specifier: ^5.11.1
+        version: 5.11.1(supports-color@7.2.0)
+      uuid:
+        specifier: ^14.0.0
+        version: 14.0.1
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../eslint-config
+      "@types/node":
+        specifier: ^25.9.1
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/identity/infrastructure/email/nodemailer:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+      nodemailer:
+        specifier: ^9.0.3
+        version: 9.0.3
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.5
+      "@types/nodemailer":
+        specifier: ^8.0.1
+        version: 8.0.1
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/infrastructure/email/postmark:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+      postmark:
+        specifier: ^4.0.7
+        version: 4.0.7(debug@4.4.3(supports-color@7.2.0))(supports-color@7.2.0)
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/infrastructure/persitence/kysely:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+      kysely:
+        specifier: ^0.29.2
+        version: 0.29.4
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/infrastructure/security/argon2:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+      argon2:
+        specifier: ^0.44.0
+        version: 0.44.0
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/infrastructure/security/bcrypt:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+      bcrypt:
+        specifier: ^6.0.0
+        version: 6.0.0
+    devDependencies:
+      "@types/bcrypt":
+        specifier: ^6.0.0
+        version: 6.0.0
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/infrastructure/session/redis:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+      ioredis:
+        specifier: ^5.11.1
+        version: 5.11.1(supports-color@7.2.0)
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.0
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
   "@alloc/quick-lru@5.2.0":
@@ -6690,7 +6690,7 @@ snapshots:
 
   "@types/bcrypt@6.0.0":
     dependencies:
-      "@types/node": 26.1.1
+      "@types/node": 25.9.5
 
   "@types/chai@5.2.3":
     dependencies:
@@ -6719,7 +6719,7 @@ snapshots:
 
   "@types/nodemailer@8.0.1":
     dependencies:
-      "@types/node": 26.1.1
+      "@types/node": 25.9.5
 
   "@types/pg@8.20.0":
     dependencies:

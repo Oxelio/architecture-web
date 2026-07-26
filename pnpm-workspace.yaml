@@ -1,10 +1,6 @@
 packages:
   - "apps/*"
-  - "bounded-contexts/*"
-  - "foundation"
-  - "infrastructure/*/*"
-  - "infrastructure/*/*/*"
-  - "packages/*"
+  - "packages/**"
 
 allowBuilds:
   argon2: true

@@ -7,14 +7,14 @@ RUN npm install -g pnpm@11.15.1
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
-COPY bounded-contexts/identity/package.json bounded-contexts/identity/package.json
-COPY foundation/package.json foundation/package.json
-COPY infrastructure/identity/email/nodemailer/package.json infrastructure/identity/email/nodemailer/package.json
-COPY infrastructure/identity/email/postmark/package.json infrastructure/identity/email/postmark/package.json
-COPY infrastructure/identity/persitence/kysely/package.json infrastructure/identity/persitence/kysely/package.json
-COPY infrastructure/identity/security/argon2/package.json infrastructure/identity/security/argon2/package.json
-COPY infrastructure/identity/security/bcrypt/package.json infrastructure/identity/security/bcrypt/package.json
-COPY infrastructure/identity/session/redis/package.json infrastructure/identity/session/redis/package.json
+COPY packages/foundation/package.json packages/foundation/package.json
+COPY packages/identity/core/package.json packages/identity/core/package.json
+COPY packages/identity/infrastructure/email/nodemailer/package.json packages/identity/infrastructure/email/nodemailer/package.json
+COPY packages/identity/infrastructure/email/postmark/package.json packages/identity/infrastructure/email/postmark/package.json
+COPY packages/identity/infrastructure/persitence/kysely/package.json packages/identity/infrastructure/persitence/kysely/package.json
+COPY packages/identity/infrastructure/security/argon2/package.json packages/identity/infrastructure/security/argon2/package.json
+COPY packages/identity/infrastructure/security/bcrypt/package.json packages/identity/infrastructure/security/bcrypt/package.json
+COPY packages/identity/infrastructure/session/redis/package.json packages/identity/infrastructure/session/redis/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 
 RUN pnpm install --frozen-lockfile
