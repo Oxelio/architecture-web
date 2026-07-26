@@ -1,10 +1,7 @@
 // @file apps/api/src/features/identity/change-email/change-email.http.ts
-import type {
-  ChangeEmailError,
-  ChangeEmailSuccess,
-} from "@architecture/identity/application";
+import type { ChangeEmailError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const ChangeEmailHttpContract = {
   success: {
@@ -66,5 +63,5 @@ export const ChangeEmailHttpContract = {
   },
 } as const satisfies HttpContract<
   ChangeEmailError["code"],
-  ChangeEmailSuccess["code"]
+  "user.email_changed"
 >;

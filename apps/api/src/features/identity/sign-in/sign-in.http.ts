@@ -1,9 +1,6 @@
 // @file apps/api/src/features/identity/sign-in/sign-in.http.ts
 
-import type {
-  SignInError,
-  SignInSuccess,
-} from "@architecture/identity/application";
+import type { SignInError } from "@architecture/identity/application";
 
 import type { HttpContract } from "#types/http.types";
 
@@ -33,4 +30,4 @@ export const SignInHttpContract = {
       message: "User suspended",
     },
   },
-} as const satisfies HttpContract<SignInError["code"], SignInSuccess["code"]>;
+} as const satisfies HttpContract<SignInError["code"], "user.authenticated">;

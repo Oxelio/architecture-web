@@ -4,18 +4,14 @@ import type {
   ActivateUser,
   ActivateUserInput,
 } from "@architecture/identity/application";
-import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { sendControllerResponse } from "#helpers/send-response";
+
 import { ActivateUserPresenter } from "./activate-user.presenter.js";
-import type { ActivateUserParamsSchema } from "./activate-user.route-options.js";
+import type { ActivateRoute } from "./activate-user.route-options.js";
 
-export type ActivateUserParams = Static<typeof ActivateUserParamsSchema>;
-
-type ActivateUserHTTPRequest = FastifyRequest<{
-  Params: ActivateUserParams;
-}>;
+type ActivateUserHTTPRequest = FastifyRequest<ActivateRoute>;
 
 export function createActivateUserController(useCase: ActivateUser) {
   return async (request: ActivateUserHTTPRequest, reply: FastifyReply) => {

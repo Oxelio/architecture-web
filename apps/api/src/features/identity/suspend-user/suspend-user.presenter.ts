@@ -2,7 +2,8 @@
 
 import type { SuspendUserOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { SuspendUserHttpContract } from "./suspend-user.http.js";
 
 const toHttpError = createHttpErrorMapper(SuspendUserHttpContract.errors);

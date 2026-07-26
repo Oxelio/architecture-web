@@ -1,10 +1,7 @@
 // @file apps/api/src/features/identity/activate-user/activate-user.http.ts
-import type {
-  ActivateUserError,
-  ActivateUserSuccess,
-} from "@architecture/identity/application";
+import type { ActivateUserError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const ActivateUserHttpContract = {
   success: {
@@ -32,7 +29,4 @@ export const ActivateUserHttpContract = {
       message: "User not found",
     },
   },
-} as const satisfies HttpContract<
-  ActivateUserError["code"],
-  ActivateUserSuccess["code"]
->;
+} as const satisfies HttpContract<ActivateUserError["code"], "user.activated">;

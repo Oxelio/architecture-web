@@ -2,7 +2,8 @@
 
 import type { GetUserProfileOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { GetUserProfileHttpContract } from "./get-user-profile.http.js";
 
 const toHttpError = createHttpErrorMapper(GetUserProfileHttpContract.errors);

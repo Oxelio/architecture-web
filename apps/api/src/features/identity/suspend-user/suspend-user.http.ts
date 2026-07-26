@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/suspend-user/suspend-user.http.ts
 
-import type {
-  SuspendUserError,
-  SuspendUserSuccess,
-} from "@architecture/identity/application";
+import type { SuspendUserError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const SuspendUserHttpContract = {
   success: {
@@ -33,7 +30,4 @@ export const SuspendUserHttpContract = {
       message: "User not found",
     },
   },
-} as const satisfies HttpContract<
-  SuspendUserError["code"],
-  SuspendUserSuccess["code"]
->;
+} as const satisfies HttpContract<SuspendUserError["code"], "user.suspended">;

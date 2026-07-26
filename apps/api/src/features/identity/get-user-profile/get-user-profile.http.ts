@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/get-user-profile/get-user-profile.http.ts
 
-import type {
-  GetUserProfileError,
-  GetUserProfileSuccess,
-} from "@architecture/identity/application";
+import type { GetUserProfileError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const GetUserProfileHttpContract = {
   success: {
@@ -35,5 +32,5 @@ export const GetUserProfileHttpContract = {
   },
 } as const satisfies HttpContract<
   GetUserProfileError["code"],
-  GetUserProfileSuccess["code"]
+  "user.profile_retrieved"
 >;

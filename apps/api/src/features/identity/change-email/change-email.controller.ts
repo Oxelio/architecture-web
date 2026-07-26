@@ -1,18 +1,20 @@
 // @file apps/api/src/features/identity/change-email/change-email.controller.ts
 
 import type {
+  ChangeEmail,
   ChangeEmailInput,
-  ChangeEmailUseCase,
 } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
 
-import { sendControllerResponse } from "../../../helpers/send-response.js";
-import { type AuthenticatedRequest } from "../../../types/controller-response.js";
+import { sendControllerResponse } from "#helpers/send-response";
+import { type AuthenticatedRequest } from "#types/controller-response";
+
 import { ChangeEmailPresenter } from "./change-email.presenter.js";
+import type { ChangeEmailRoute } from "./change-email.route-options.js";
 
-type ChangeEmailHTTPRequest = AuthenticatedRequest;
+type ChangeEmailHTTPRequest = AuthenticatedRequest<ChangeEmailRoute>;
 
-export function createChangeEmailController(useCase: ChangeEmailUseCase) {
+export function createChangeEmailController(useCase: ChangeEmail) {
   return async (request: ChangeEmailHTTPRequest, reply: FastifyReply) => {
     const auth = request.auth;
 
@@ -25,7 +27,7 @@ export function createChangeEmailController(useCase: ChangeEmailUseCase) {
       });
     }
 
-    const { email } = request.body as { email: string };
+    const { email } = request.body;
 
     const command: ChangeEmailInput = {
       userId: auth.userId,

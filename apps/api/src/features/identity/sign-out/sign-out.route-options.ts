@@ -2,8 +2,9 @@
 
 import type { RouteShorthandOptions } from "fastify";
 
-import { createErrorResponseSchemas } from "../../../helpers/create-error-response-schemas.js";
-import { createHttpSuccessResponseSchemas } from "../../../helpers/create-success-response-schemas.js";
+import { createErrorResponseSchemas } from "#helpers/create-error-response-schemas";
+import { createHttpSuccessResponseSchemas } from "#helpers/create-success-response-schemas";
+
 import { SignOutHttpContract } from "./sign-out.http.js";
 
 export const signOutRouteOptions = {

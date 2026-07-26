@@ -1,6 +1,6 @@
 // @file apps/api/src/types/controller-response.ts
 
-import type { FastifyRequest } from "fastify";
+import type { FastifyRequest, RouteGenericInterface } from "fastify";
 
 import type { AuthenticatedContext } from "../auth.js";
 
@@ -9,6 +9,8 @@ export interface ControllerResponse {
   body?: unknown;
 }
 
-export type AuthenticatedRequest = FastifyRequest & {
+export type AuthenticatedRequest<
+  TRouteGeneric extends RouteGenericInterface = RouteGenericInterface,
+> = FastifyRequest<TRouteGeneric> & {
   auth: AuthenticatedContext | null;
 };

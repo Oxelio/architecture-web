@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/verify-email/verify-email.http.ts
 
-import type {
-  VerifyEmailError,
-  VerifyEmailSuccess,
-} from "@architecture/identity/application";
+import type { VerifyEmailError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const VerifyEmailHttpContract = {
   success: {
@@ -43,5 +40,5 @@ export const VerifyEmailHttpContract = {
   },
 } as const satisfies HttpContract<
   VerifyEmailError["code"],
-  VerifyEmailSuccess["code"]
+  "user.email_verified"
 >;

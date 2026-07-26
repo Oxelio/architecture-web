@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/sign-out/sign-out.http.ts
 
-import type {
-  SignOutError,
-  SignOutSuccess,
-} from "@architecture/identity/application";
+import type { SignOutError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const SignOutHttpContract = {
   success: {
@@ -25,4 +22,4 @@ export const SignOutHttpContract = {
       message: "Invalid session identifier",
     },
   },
-} as const satisfies HttpContract<SignOutError["code"], SignOutSuccess["code"]>;
+} as const satisfies HttpContract<SignOutError["code"], "session.signed_out">;

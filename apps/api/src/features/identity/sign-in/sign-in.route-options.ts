@@ -1,6 +1,6 @@
 // @file apps/api/src/features/identity/sign-in/sign-in.route-options.ts
 
-import { Type } from "@sinclair/typebox";
+import { type Static, Type } from "@sinclair/typebox";
 import type { RouteShorthandOptions } from "fastify";
 
 import { createErrorResponseSchemas } from "#helpers/create-error-response-schemas";
@@ -8,7 +8,11 @@ import { createHttpSuccessResponseSchemas } from "#helpers/create-success-respon
 
 import { SignInHttpContract } from "./sign-in.http.js";
 
-export const SignInBodySchema = Type.Object({
+export interface SignInRoute {
+  Body: Static<typeof SignInBodySchema>;
+}
+
+const SignInBodySchema = Type.Object({
   email: Type.String({
     format: "email",
   }),

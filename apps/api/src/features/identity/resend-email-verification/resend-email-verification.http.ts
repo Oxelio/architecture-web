@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/resend-email-verification/resend-email-verification.http.ts
 
-import type {
-  ResendEmailVerificationError,
-  ResendEmailVerificationSuccess,
-} from "@architecture/identity/application";
+import type { ResendEmailVerificationError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const ResendEmailVerificationHttpContract = {
   success: {
@@ -51,5 +48,5 @@ export const ResendEmailVerificationHttpContract = {
   },
 } as const satisfies HttpContract<
   ResendEmailVerificationError["code"],
-  ResendEmailVerificationSuccess["code"]
+  "email_verification.sent"
 >;

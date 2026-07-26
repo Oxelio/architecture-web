@@ -2,7 +2,8 @@
 
 import type { ChangeEmailOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { ChangeEmailHttpContract } from "./change-email.http.js";
 
 const toHttpError = createHttpErrorMapper(ChangeEmailHttpContract.errors);

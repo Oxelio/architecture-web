@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/change-password/change-password.http.ts
 
-import type {
-  ChangePasswordError,
-  ChangePasswordSuccess,
-} from "@architecture/identity/application";
+import type { ChangePasswordError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const ChangePasswordHttpContract = {
   success: {
@@ -51,5 +48,5 @@ export const ChangePasswordHttpContract = {
   },
 } as const satisfies HttpContract<
   ChangePasswordError["code"],
-  ChangePasswordSuccess["code"]
+  "user.password_changed"
 >;

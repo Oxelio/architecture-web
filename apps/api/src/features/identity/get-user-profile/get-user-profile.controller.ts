@@ -1,18 +1,19 @@
 // @file apps/api/src/features/identity/get-user-profile/get-user-profile.controller.ts
 
 import type {
+  GetUserProfile,
   GetUserProfileInput,
-  GetUserProfileUseCase,
 } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
 
-import { type AuthenticatedRequest } from "../../../../src/types/controller-response.js";
-import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { sendControllerResponse } from "#helpers/send-response";
+import { type AuthenticatedRequest } from "#types/controller-response";
+
 import { GetUserProfilePresenter } from "./get-user-profile.presenter.js";
 
 type GetUserProfileHTTPRequest = AuthenticatedRequest;
 
-export function createGetUserProfileController(useCase: GetUserProfileUseCase) {
+export function createGetUserProfileController(useCase: GetUserProfile) {
   return async (request: GetUserProfileHTTPRequest, reply: FastifyReply) => {
     const auth = request.auth;
 

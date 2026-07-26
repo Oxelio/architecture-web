@@ -1,11 +1,8 @@
 // @file apps/api/src/features/identity/sign-up/sign-up.http.ts
 
-import type {
-  SignUpError,
-  SignUpSuccess,
-} from "@architecture/identity/application";
+import type { SignUpError } from "@architecture/identity/application";
 
-import type { HttpContract } from "../../../types/http.types.js";
+import type { HttpContract } from "#types/http.types";
 
 export const SignUpHttpContract = {
   success: {
@@ -65,4 +62,4 @@ export const SignUpHttpContract = {
       message: "User already exists",
     },
   },
-} as const satisfies HttpContract<SignUpError["code"], SignUpSuccess["code"]>;
+} as const satisfies HttpContract<SignUpError["code"], "user.created">;

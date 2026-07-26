@@ -1,23 +1,16 @@
 // @file apps/api/src/features/identity/sign-up/sign-up.controller.ts
 
-import type {
-  SignUpInput,
-  SignUpUseCase,
-} from "@architecture/identity/application";
-import type { Static } from "@sinclair/typebox";
+import type { SignUp, SignUpInput } from "@architecture/identity/application";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
-import { sendControllerResponse } from "../../../helpers/send-response.js";
+import { sendControllerResponse } from "#helpers/send-response";
+
 import { SignUpPresenter } from "./sign-up.presenter.js";
-import type { SignUpBodySchema } from "./sign-up.route-options.js";
+import type { SignUpRoute } from "./sign-up.route-options.js";
 
-export type SignUpBody = Static<typeof SignUpBodySchema>;
+type SignUpHTTPRequest = FastifyRequest<SignUpRoute>;
 
-type SignUpHTTPRequest = FastifyRequest<{
-  Body: SignUpBody;
-}>;
-
-export function createSignUpController(useCase: SignUpUseCase) {
+export function createSignUpController(useCase: SignUp) {
   return async (request: SignUpHTTPRequest, reply: FastifyReply) => {
     const command: SignUpInput = {
       email: request.body.email,

@@ -2,7 +2,8 @@
 
 import type { SignOutOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { SignOutHttpContract } from "./sign-out.http.js";
 
 const toHttpError = createHttpErrorMapper(SignOutHttpContract.errors);

@@ -1,31 +1,23 @@
 // @file apps/api/src/features/identity/sign-in/sign-in.controller.ts
 
-import type {
-  SignInInput,
-  SignInUseCase,
-} from "@architecture/identity/application";
+import type { SignIn, SignInInput } from "@architecture/identity/application";
 import type { CookieSerializeOptions } from "@fastify/cookie";
-import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import { sendControllerResponse } from "#helpers/send-response";
 
 import { SignInPresenter } from "./sign-in.presenter.js";
-import type { SignInBodySchema } from "./sign-in.route-options.js";
+import type { SignInRoute } from "./sign-in.route-options.js";
 
 export interface SessionCookieOptions {
   name: string;
   options: CookieSerializeOptions;
 }
 
-export type SignInBody = Static<typeof SignInBodySchema>;
-
-type SignInHTTPRequest = FastifyRequest<{
-  Body: SignInBody;
-}>;
+type SignInHTTPRequest = FastifyRequest<SignInRoute>;
 
 export function createSignInController(
-  useCase: SignInUseCase,
+  useCase: SignIn,
   sessionCookie: SessionCookieOptions,
 ) {
   return async (request: SignInHTTPRequest, reply: FastifyReply) => {

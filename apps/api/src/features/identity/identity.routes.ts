@@ -1,16 +1,22 @@
 // @file apps/api/src/features/identity/identity.routes.ts
 
+import type { IdentityApplication } from "@architecture/identity/application";
 import type { FastifyInstance } from "fastify";
 
 import type { AuthenticatedFastifyInstance } from "#app/auth";
-import type { IdentityModule } from "#composition-root/identity.module";
 
 import { createActivateUserController } from "./activate-user/activate-user.controller.js";
 import { activateUserRouteOptions } from "./activate-user/activate-user.route-options.js";
 import { createChangeEmailController } from "./change-email/change-email.controller.js";
-import { changeEmailRouteOptions } from "./change-email/change-email.route-options.js";
+import {
+  type ChangeEmailRoute,
+  changeEmailRouteOptions,
+} from "./change-email/change-email.route-options.js";
 import { createChangePasswordController } from "./change-password/change-password.controller.js";
-import { changePasswordRouteOptions } from "./change-password/change-password.route-options.js";
+import {
+  type ChangePasswordRoute,
+  changePasswordRouteOptions,
+} from "./change-password/change-password.route-options.js";
 import { createGetUserProfileController } from "./get-user-profile/get-user-profile.controller.js";
 import { getUserProfileRouteOptions } from "./get-user-profile/get-user-profile.route-options.js";
 import { createResendEmailVerificationController } from "./resend-email-verification/resend-email-verification.controller.js";
@@ -30,7 +36,7 @@ import { createVerifyEmailController } from "./verify-email/verify-email.control
 import { verifyEmailRouteOptions } from "./verify-email/verify-email.route-options.js";
 
 export function buildIdentityRoutes(
-  container: IdentityModule,
+  container: IdentityApplication,
   sessionCookie: SessionCookieOptions,
 ) {
   return async (app: FastifyInstance) => {
@@ -73,13 +79,13 @@ export function buildIdentityRoutes(
         controllers.getUserProfile,
       );
 
-      protectedApp.patch(
+      protectedApp.patch<ChangeEmailRoute>(
         "/me/email",
         changeEmailRouteOptions,
         controllers.changeEmail,
       );
 
-      protectedApp.patch(
+      protectedApp.patch<ChangePasswordRoute>(
         "/me/password",
         changePasswordRouteOptions,
         controllers.changePassword,
@@ -89,7 +95,7 @@ export function buildIdentityRoutes(
 }
 
 function composeIdentityControllers(
-  container: IdentityModule,
+  container: IdentityApplication,
   sessionCookie: SessionCookieOptions,
 ) {
   return {

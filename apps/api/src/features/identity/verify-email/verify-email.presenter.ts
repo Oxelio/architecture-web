@@ -2,7 +2,8 @@
 
 import type { VerifyEmailOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { VerifyEmailHttpContract } from "./verify-email.http.js";
 
 const toHttpError = createHttpErrorMapper(VerifyEmailHttpContract.errors);

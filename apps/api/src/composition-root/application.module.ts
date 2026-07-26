@@ -1,13 +1,15 @@
 // @file apps/api/src/composition-root/application.module.ts
 
+import type { IdentityApplication } from "@architecture/identity/application";
+
 import { loadConfig } from "#config/app.config";
 
 import { createDatabase } from "./database.module.js";
-import { buildIdentityModule, type IdentityModule } from "./identity.module.js";
+import { buildIdentityModule } from "./identity.module.js";
 import { createRedis } from "./redis.module.js";
 
 export interface ApplicationModule {
-  readonly identity: IdentityModule;
+  readonly identity: IdentityApplication;
 
   dispose(): Promise<void>;
 }

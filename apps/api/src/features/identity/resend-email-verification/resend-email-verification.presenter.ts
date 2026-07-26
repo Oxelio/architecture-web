@@ -2,7 +2,8 @@
 
 import type { ResendEmailVerificationOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { ResendEmailVerificationHttpContract } from "./resend-email-verification.http.js";
 
 const toHttpError = createHttpErrorMapper(

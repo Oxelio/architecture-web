@@ -1,18 +1,20 @@
 // @file apps/api/src/features/identity/change-password/change-password.controller.ts
 
 import type {
+  ChangePassword,
   ChangePasswordInput,
-  ChangePasswordUseCase,
 } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
 
-import { sendControllerResponse } from "../../../helpers/send-response.js";
-import { type AuthenticatedRequest } from "../../../types/controller-response.js";
+import { sendControllerResponse } from "#helpers/send-response";
+import { type AuthenticatedRequest } from "#types/controller-response";
+
 import { ChangePasswordPresenter } from "./change-password.presenter.js";
+import type { ChangePasswordRoute } from "./change-password.route-options.js";
 
-type ChangePasswordHTTPRequest = AuthenticatedRequest;
+type ChangePasswordHTTPRequest = AuthenticatedRequest<ChangePasswordRoute>;
 
-export function createChangePasswordController(useCase: ChangePasswordUseCase) {
+export function createChangePasswordController(useCase: ChangePassword) {
   return async (request: ChangePasswordHTTPRequest, reply: FastifyReply) => {
     const auth = request.auth;
 
@@ -25,7 +27,7 @@ export function createChangePasswordController(useCase: ChangePasswordUseCase) {
       });
     }
 
-    const { password } = request.body as { password: string };
+    const { password } = request.body;
 
     const command: ChangePasswordInput = {
       userId: auth.userId,

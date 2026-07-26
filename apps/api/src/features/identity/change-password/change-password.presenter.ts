@@ -2,7 +2,8 @@
 
 import type { ChangePasswordOutput } from "@architecture/identity/application";
 
-import { createHttpErrorMapper } from "../../../helpers/create-http-error-mapper.js";
+import { createHttpErrorMapper } from "#helpers/create-http-error-mapper";
+
 import { ChangePasswordHttpContract } from "./change-password.http.js";
 
 const toHttpError = createHttpErrorMapper(ChangePasswordHttpContract.errors);
