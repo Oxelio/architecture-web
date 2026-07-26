@@ -35,7 +35,8 @@
     "#helpers/*": "./src/helpers/*.ts",
     "#features/*": "./src/features/*.ts",
     "#composition-root/*": "./src/composition-root/*.ts",
-    "#types/*": "./src/types/*.ts"
+    "#types/*": "./src/types/*.ts",
+    "#identity/*": "./src/features/identity/*.ts"
   },
   "type": "module",
   "dependencies": {

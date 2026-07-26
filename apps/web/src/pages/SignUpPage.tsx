@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { signUp } from "../services/api";
+import { signUp } from "#services/api";
 
 interface SignUpFormValues {
   email: string;

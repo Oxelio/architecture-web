@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
-import type { CurrentUser } from "../services/api";
+import type { CurrentUser } from "#services/api";
 
 interface HomePageProps {
   user: CurrentUser | null | undefined;

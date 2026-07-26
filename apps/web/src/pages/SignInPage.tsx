@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { signIn } from "../services/api";
+import { signIn } from "#services/api";
 
 interface SignInFormValues {
   email: string;

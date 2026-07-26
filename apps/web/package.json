@@ -15,6 +15,9 @@
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "pnpm build"
   },
+  "imports": {
+    "#services/*": "./src/services/*.ts"
+  },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@tanstack/react-query": "^5.101.3",

@@ -5,13 +5,13 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { CurrentUser } from "../services/api";
+import type { CurrentUser } from "#services/api";
 import {
   changeEmail,
   changePassword,
   resendEmailVerification,
   signOut,
-} from "../services/api";
+} from "#services/api";
 
 interface ProfilePageProps {
   user: CurrentUser;

@@ -4,8 +4,8 @@ import type { SignOut, SignOutInput } from "@architecture/identity/application";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import { sendControllerResponse } from "#helpers/send-response";
+import type { SessionCookieOptions } from "#identity/sign-in/sign-in.controller";
 
-import type { SessionCookieOptions } from "../sign-in/sign-in.controller.js";
 import { SignOutPresenter } from "./sign-out.presenter.js";
 
 export function createSignOutController(
