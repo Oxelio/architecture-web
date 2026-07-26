@@ -7,8 +7,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@architecture/identity": "workspace:*"
@@ -16,6 +21,9 @@
   "devDependencies": {
     "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.5",
-    "typescript": "^5.9.3"
+    "@vitest/coverage-v8": "^4.1.10",
+    "typescript": "^5.9.3",
+    "prettier": "^3.9.6",
+    "vitest": "^4.1.10"
   }
 }

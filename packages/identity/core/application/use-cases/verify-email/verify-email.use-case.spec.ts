@@ -149,6 +149,47 @@ describe("VerifyEmailUseCase", () => {
     }
   });
 
+  it("should fail when a valid token has no matching verification", async () => {
+    const result = await useCase.execute({
+      token: EmailVerificationTokenValueObject.generate().value,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "token.invalid" },
+    });
+  });
+
+  it("should fail when a concurrent consumption does not update the verification", async () => {
+    const email = EmailValueObject.create("test@test.com");
+    const password = PasswordHashValueObject.create("hashed-password");
+    if (!email.success || !password.success) {
+      throw new Error("Invalid fixture");
+    }
+    const user = UserEntity.create({
+      email: email.value,
+      password: password.value,
+    });
+    await userPort.save(user);
+    await emailVerificationPort.save(
+      EmailVerificationEntity.create({
+        userId: user.identifier,
+        tokenHash: FakeTokenHasher.hashValue(),
+        expiresAt: new Date(Date.now() + 60_000),
+      }),
+    );
+    vi.spyOn(emailVerificationPort, "consume").mockResolvedValue(false);
+
+    await expect(
+      useCase.execute({
+        token: EmailVerificationTokenValueObject.generate().value,
+      }),
+    ).resolves.toEqual({
+      success: false,
+      error: { code: "token.invalid" },
+    });
+  });
+
   /* -------------------------------------------------- */
   /* 2. TOKEN ALREADY USED                              */
   /* -------------------------------------------------- */

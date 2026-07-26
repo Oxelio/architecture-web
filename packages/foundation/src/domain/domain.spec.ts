@@ -5,23 +5,41 @@ import { Identifier } from "./identifier.js";
 import { Result } from "./result.js";
 import { ValueObject } from "./value-object.js";
 
-class TestValueObject extends ValueObject<{ value: string }> {}
+class TestValueObject extends ValueObject<{ value: string }> {
+  static create(properties: { value: string }): TestValueObject {
+    return new TestValueObject(properties);
+  }
+}
 
-class TestEntity extends Entity<{ identifier: Identifier }> {}
+class TestEntity extends Entity<{ identifier: Identifier }> {
+  static create(properties: { identifier: Identifier }): TestEntity {
+    return new TestEntity(properties);
+  }
+}
+
+class TestIdentifier extends Identifier {
+  constructor(value: string) {
+    super({ value });
+  }
+}
 
 describe("foundation domain primitives", () => {
   it("compares value objects and entities by their values and type", () => {
     expect(
-      new TestValueObject({ value: "a" }).equals(
-        new TestValueObject({ value: "a" }),
+      TestValueObject.create({ value: "a" }).equals(
+        TestValueObject.create({ value: "a" }),
       ),
     ).toBe(true);
 
-    const identifier = new Identifier({ value: "user-1" });
+    const identifier = new TestIdentifier("user-1");
     expect(
-      new TestEntity({ identifier }).equals(new TestEntity({ identifier })),
+      TestEntity.create({ identifier }).equals(
+        TestEntity.create({ identifier }),
+      ),
     ).toBe(true);
-    expect(new TestEntity({ identifier }).equals({} as TestEntity)).toBe(false);
+    expect(TestEntity.create({ identifier }).equals({} as TestEntity)).toBe(
+      false,
+    );
   });
 
   it("creates discriminated success and failure results", () => {

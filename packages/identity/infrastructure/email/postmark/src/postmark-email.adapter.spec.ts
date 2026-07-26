@@ -29,4 +29,26 @@ describe("PostmarkEmailSenderAdapter", () => {
       }),
     );
   });
+
+  it("sends a plain email without a text body when none is provided", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({});
+    vi.spyOn(ServerClient.prototype, "sendEmail").mockImplementation(sendEmail);
+    const email = EmailValueObject.create("user@example.com");
+    if (!email.success) {
+      throw new Error("Expected a valid email");
+    }
+
+    await new PostmarkEmailSenderAdapter(
+      "token",
+      "noreply@example.com",
+      "https://app.example.com/verify",
+    ).send(email.value, "Subject", "<p>Body</p>");
+
+    expect(sendEmail).toHaveBeenCalledWith({
+      From: "noreply@example.com",
+      To: "user@example.com",
+      Subject: "Subject",
+      HtmlBody: "<p>Body</p>",
+    });
+  });
 });
