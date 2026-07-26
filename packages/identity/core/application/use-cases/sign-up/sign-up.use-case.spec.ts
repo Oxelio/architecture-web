@@ -2,14 +2,15 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import type { UserEntity } from "#entities/user.entity";
-import type {
-  EmailVerificationRecord,
-  EmailVerificationRepository,
-} from "#repositories/email-verification.repository";
+import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
+import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import type { EmailValueObject } from "#value-objects/email.value-object";
+import type { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
+import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -21,23 +22,26 @@ import { SignUpUseCase } from "./sign-up.use-case.js";
 class FakeEmailVerificationPort implements EmailVerificationRepository {
   public lastToken?: string;
 
-  async save(
-    _userId: UserIdentifierValueObject,
-    token: string,
-    _expiresAt: Date,
-  ): Promise<void> {
-    this.lastToken = token;
+  async save(verification: EmailVerificationEntity): Promise<void> {
+    this.lastToken = verification.tokenHash.value;
   }
 
-  async findByToken(_token: string): Promise<EmailVerificationRecord | null> {
+  async findByToken(
+    _token: EmailVerificationTokenHashValueObject,
+  ): Promise<EmailVerificationEntity | null> {
     return null;
   }
 
-  async markUsed(): Promise<void> {
-    return;
+  async consume(
+    _token: EmailVerificationTokenHashValueObject,
+    _now: Date,
+  ): Promise<boolean> {
+    return false;
   }
 
-  async invalidatePrevious(_userId: UserIdentifierValueObject): Promise<void> {
+  async invalidatePreviousFor(
+    _userId: UserIdentifierValueObject,
+  ): Promise<void> {
     throw new Error("Method not implemented.");
   }
 }
@@ -89,6 +93,18 @@ class FakePasswordHasherPort {
   }
 }
 
+class FakeTokenHasher implements EmailVerificationTokenHasher {
+  async hash(
+    _token: EmailVerificationTokenValueObject,
+  ): Promise<EmailVerificationTokenHashValueObject> {
+    const result = EmailVerificationTokenHashValueObject.create("a".repeat(64));
+    if (!result.success) {
+      throw new Error("Invalid hash");
+    }
+    return result.value;
+  }
+}
+
 /* ---------------- FAKE USER PORT ---------------- */
 
 class FakeUserPort implements UserRepository {
@@ -128,6 +144,7 @@ describe("SignUpUseCase - full coverage", () => {
       passwordHasher,
       emailVerificationPort,
       emailSenderPort,
+      new FakeTokenHasher(),
     );
   });
 

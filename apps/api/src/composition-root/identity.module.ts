@@ -6,6 +6,7 @@ import {
   type IdentityDependencies,
 } from "@architecture/identity/application";
 import { NodemailerEmailSenderAdapter } from "@architecture/identity-email-nodemailer";
+import { Sha256EmailVerificationTokenHasherAdapter } from "@architecture/identity-email-verification-sha256";
 import { Argon2PasswordHasherAdapter } from "@architecture/identity-password-argon2";
 import {
   KyselyEmailVerificationAdapter,
@@ -29,6 +30,8 @@ function buildIdentityDependencies(
 ): IdentityDependencies {
   return {
     passwordHasher: new Argon2PasswordHasherAdapter(),
+    emailVerificationTokenHasher:
+      new Sha256EmailVerificationTokenHasherAdapter(),
 
     userRepository: new KyselyUserAdapter(db),
 

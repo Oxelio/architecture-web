@@ -2,15 +2,16 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { UserEntity } from "#entities/user.entity";
-import type {
-  EmailVerificationRecord,
-  EmailVerificationRepository,
-} from "#repositories/email-verification.repository";
+import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
+import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
+import type { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
+import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -42,19 +43,20 @@ class FakeUserPort implements UserRepository {
 /* -------------------------------------------------------------------------- */
 
 class FakeEmailVerificationPort implements EmailVerificationRepository {
-  async save(
-    _userId: UserIdentifierValueObject,
-    token: string,
-    expiresAt: Date,
-  ): Promise<void> {
+  async save(verification: EmailVerificationEntity): Promise<void> {
     this.created = true;
-    this.token = token;
-    this.expiresAt = expiresAt;
+    this.token = verification.tokenHash.value;
+    this.expiresAt = verification.expiresAt;
   }
-  async findByToken(_token: string): Promise<EmailVerificationRecord | null> {
+  async findByToken(
+    _token: EmailVerificationTokenHashValueObject,
+  ): Promise<EmailVerificationEntity | null> {
     throw new Error("Method not implemented.");
   }
-  async markUsed(_token: string): Promise<void> {
+  async consume(
+    _token: EmailVerificationTokenHashValueObject,
+    _now: Date,
+  ): Promise<boolean> {
     throw new Error("Method not implemented.");
   }
 
@@ -66,7 +68,7 @@ class FakeEmailVerificationPort implements EmailVerificationRepository {
 
   public expiresAt: Date | null = null;
 
-  async invalidatePrevious(): Promise<void> {
+  async invalidatePreviousFor(): Promise<void> {
     this.invalidated = true;
   }
 }
@@ -110,6 +112,18 @@ class FakeRateLimitPort implements EmailVerificationRateLimiter {
   }
 }
 
+class FakeTokenHasher implements EmailVerificationTokenHasher {
+  async hash(
+    _token: EmailVerificationTokenValueObject,
+  ): Promise<EmailVerificationTokenHashValueObject> {
+    const result = EmailVerificationTokenHashValueObject.create("a".repeat(64));
+    if (!result.success) {
+      throw new Error("Invalid hash");
+    }
+    return result.value;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 
 describe("ResendEmailVerificationUseCase", () => {
@@ -131,6 +145,7 @@ describe("ResendEmailVerificationUseCase", () => {
       emailVerification,
       emailSender,
       rateLimit,
+      new FakeTokenHasher(),
     );
   });
 
@@ -285,7 +300,10 @@ describe("ResendEmailVerificationUseCase", () => {
 
     expect(emailSender.sent).toBe(true);
     expect(emailSender.email).toBe(user.email.value);
-    expect(emailSender.token).toBe(emailVerification.token);
+    expect(emailSender.token).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(emailSender.token).not.toBe(emailVerification.token);
 
     expect(rateLimit.registerCalled).toBe(true);
   });

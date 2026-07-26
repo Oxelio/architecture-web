@@ -85,10 +85,10 @@ export type {
 export { createIdentity } from "./create-identity.js";
 
 // Ports
-export type { EmailVerificationRecord } from "./repositories/email-verification.repository.js";
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
 export { SessionRepository } from "./repositories/session.repository.js";
 export { UserRepository } from "./repositories/user.repository.js";
 export { EmailSender } from "./services/email-sender.service.js";
 export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
+export { EmailVerificationTokenHasher } from "./services/email-verification-token-hasher.service.js";
 export { PasswordHasher } from "./services/password-hasher.service.js";

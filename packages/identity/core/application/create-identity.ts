@@ -3,6 +3,7 @@ import { SessionRepository } from "#repositories/session.repository";
 import { UserRepository } from "#repositories/user.repository";
 import { EmailSender } from "#services/email-sender.service";
 import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
+import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import { PasswordHasher } from "#services/password-hasher.service";
 import type { ActivateUser } from "#use-cases/activate-user/activate-user.contracts";
 import { ActivateUserUseCase } from "#use-cases/activate-user/activate-user.use-case";
@@ -34,6 +35,7 @@ export interface IdentityDependencies {
   emailSender: EmailSender;
   emailVerificationRepository: EmailVerificationRepository;
   rateLimiter: EmailVerificationRateLimiter;
+  emailVerificationTokenHasher: EmailVerificationTokenHasher;
 }
 
 export interface IdentityApplication {
@@ -66,6 +68,7 @@ export function createIdentity(
       dependencies.emailVerificationRepository,
       dependencies.emailSender,
       dependencies.rateLimiter,
+      dependencies.emailVerificationTokenHasher,
     ),
     resolveSession: new ResolveSessionUseCase(
       dependencies.sessionRepository,
@@ -82,11 +85,13 @@ export function createIdentity(
       dependencies.passwordHasher,
       dependencies.emailVerificationRepository,
       dependencies.emailSender,
+      dependencies.emailVerificationTokenHasher,
     ),
     suspendUser: new SuspendUserUseCase(dependencies.userRepository),
     verifyEmail: new VerifyEmailUseCase(
       dependencies.userRepository,
       dependencies.emailVerificationRepository,
+      dependencies.emailVerificationTokenHasher,
     ),
   };
 }

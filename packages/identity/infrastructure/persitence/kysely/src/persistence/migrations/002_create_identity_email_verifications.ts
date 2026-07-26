@@ -7,7 +7,9 @@ export const identityEmailVerificationMigrations: Record<string, Migration> = {
     async up(db) {
       await db.schema
         .createTable("identity_email_verifications")
-        .addColumn("token", "varchar", (col) => col.primaryKey().notNull())
+        .addColumn("token_hash", "char(64)", (col) =>
+          col.primaryKey().notNull(),
+        )
         .addColumn("user_id", "uuid", (col) => col.notNull())
         .addColumn("expires_at", "timestamp", (col) => col.notNull())
         .addColumn("used", "boolean", (col) => col.notNull())

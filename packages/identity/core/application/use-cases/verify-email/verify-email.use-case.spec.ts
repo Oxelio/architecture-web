@@ -2,13 +2,13 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { UserEntity } from "#entities/user.entity";
-import type {
-  EmailVerificationRecord,
-  EmailVerificationRepository,
-} from "#repositories/email-verification.repository";
+import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
+import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
+import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -35,36 +35,82 @@ class FakeUserPort implements UserRepository {
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
 
 class FakeEmailVerificationPort implements EmailVerificationRepository {
-  private readonly records = new Map<string, EmailVerificationRecord>();
+  private readonly records = new Map<string, EmailVerificationEntity>();
 
+  async save(verification: EmailVerificationEntity): Promise<void>;
   async save(
     userId: UserIdentifierValueObject,
     token: string,
     expiresAt: Date,
+  ): Promise<void>;
+  async save(
+    verificationOrUserId: EmailVerificationEntity | UserIdentifierValueObject,
+    rawToken?: string,
+    expiresAt?: Date,
   ): Promise<void> {
-    this.records.set(token, {
-      token,
-      userId,
-      expiresAt,
-      used: false,
-      invalidated: false,
-    });
-  }
-
-  async findByToken(token: string): Promise<EmailVerificationRecord | null> {
-    return this.records.get(token) ?? null;
-  }
-
-  async markUsed(token: string): Promise<void> {
-    const record = this.records.get(token);
-
-    if (record) {
-      record.used = true;
+    if (verificationOrUserId instanceof EmailVerificationEntity) {
+      this.records.set(
+        verificationOrUserId.tokenHash.value,
+        verificationOrUserId,
+      );
+      return;
     }
+
+    const token = EmailVerificationTokenValueObject.create(rawToken ?? "");
+    if (!token.success || !expiresAt) {
+      throw new Error("Invalid verification");
+    }
+    const verification = EmailVerificationEntity.create({
+      userId: verificationOrUserId,
+      tokenHash: FakeTokenHasher.hashValue(),
+      expiresAt,
+    });
+    this.records.set(verification.tokenHash.value, verification);
   }
 
-  async invalidatePrevious(_userId: UserIdentifierValueObject): Promise<void> {
-    throw new Error("Method not implemented.");
+  async findByToken(
+    token: EmailVerificationTokenHashValueObject,
+  ): Promise<EmailVerificationEntity | null>;
+  async findByToken(
+    token: EmailVerificationTokenHashValueObject,
+  ): Promise<EmailVerificationEntity | null> {
+    return this.records.get(token.value) ?? null;
+  }
+
+  async consume(
+    token: EmailVerificationTokenHashValueObject,
+    now: Date,
+  ): Promise<boolean> {
+    const verification = this.records.get(token.value);
+    if (!verification?.isUsableAt(now)) {
+      return false;
+    }
+    verification.consume();
+    return true;
+  }
+
+  async markUsed(_token: string): Promise<void> {
+    await this.consume(FakeTokenHasher.hashValue(), new Date());
+  }
+
+  async invalidatePreviousFor(
+    _userId: UserIdentifierValueObject,
+  ): Promise<void> {
+    return;
+  }
+}
+
+class FakeTokenHasher {
+  static hashValue(): EmailVerificationTokenHashValueObject {
+    const result = EmailVerificationTokenHashValueObject.create("a".repeat(64));
+    if (!result.success) {
+      throw new Error("Invalid hash");
+    }
+    return result.value;
+  }
+
+  async hash(): Promise<EmailVerificationTokenHashValueObject> {
+    return FakeTokenHasher.hashValue();
   }
 }
 
@@ -78,7 +124,11 @@ describe("VerifyEmailUseCase", () => {
   beforeEach(() => {
     userPort = new FakeUserPort();
     emailVerificationPort = new FakeEmailVerificationPort();
-    useCase = new VerifyEmailUseCase(userPort, emailVerificationPort);
+    useCase = new VerifyEmailUseCase(
+      userPort,
+      emailVerificationPort,
+      new FakeTokenHasher(),
+    );
   });
 
   /* -------------------------------------------------- */
@@ -121,7 +171,7 @@ describe("VerifyEmailUseCase", () => {
 
     await userPort.save(user);
 
-    const token = "used-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() + 60_000);
 
     await emailVerificationPort.save(user.identifier, token, expiresAt);
@@ -160,7 +210,7 @@ describe("VerifyEmailUseCase", () => {
 
     await userPort.save(user);
 
-    const token = "expired-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() - 60_000);
 
     await emailVerificationPort.save(user.identifier, token, expiresAt);
@@ -183,7 +233,7 @@ describe("VerifyEmailUseCase", () => {
   it("should fail when user does not exist", async () => {
     const userId = UserIdentifierValueObject.generate();
 
-    const token = "valid-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() + 60_000);
 
     await emailVerificationPort.save(userId, token, expiresAt);
@@ -218,7 +268,7 @@ describe("VerifyEmailUseCase", () => {
 
     await userPort.save(user);
 
-    const token = "valid-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() + 60_000);
 
     await emailVerificationPort.save(user.identifier, token, expiresAt);
@@ -256,16 +306,16 @@ describe("VerifyEmailUseCase", () => {
 
     await userPort.save(user);
 
-    const token = "valid-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() + 60_000);
 
     await emailVerificationPort.save(user.identifier, token, expiresAt);
 
-    const spy = vi.spyOn(emailVerificationPort, "markUsed");
+    const spy = vi.spyOn(emailVerificationPort, "consume");
 
     await useCase.execute({ token });
 
-    expect(spy).toHaveBeenCalledWith(token);
+    expect(spy).toHaveBeenCalled();
   });
 
   /* -------------------------------------------------- */
@@ -287,7 +337,7 @@ describe("VerifyEmailUseCase", () => {
 
     await userPort.save(user);
 
-    const token = "valid-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() + 60_000);
 
     await emailVerificationPort.save(user.identifier, token, expiresAt);
@@ -320,7 +370,7 @@ describe("VerifyEmailUseCase", () => {
 
     await userPort.save(user);
 
-    const token = "valid-token";
+    const token = EmailVerificationTokenValueObject.generate().value;
     const expiresAt = new Date(Date.now() + 60_000);
 
     await emailVerificationPort.save(user.identifier, token, expiresAt);

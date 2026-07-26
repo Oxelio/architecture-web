@@ -43,6 +43,7 @@
     "@architecture/identity": "workspace:*",
     "@architecture/identity-email-nodemailer": "workspace:*",
     "@architecture/identity-password-argon2": "workspace:*",
+    "@architecture/identity-email-verification-sha256": "workspace:*",
     "@architecture/identity-persistence-kysely": "workspace:*",
     "@architecture/identity-session-redis": "workspace:*",
     "@fastify/cookie": "^11.1.2",

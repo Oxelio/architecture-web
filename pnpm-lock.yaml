@@ -293,6 +293,9 @@ importers:
       "@architecture/identity-email-nodemailer":
         specifier: workspace:*
         version: link:../../packages/identity/infrastructure/email/nodemailer
+      "@architecture/identity-email-verification-sha256":
+        specifier: workspace:*
+        version: link:../../packages/identity/infrastructure/security/sha256
       "@architecture/identity-password-argon2":
         specifier: workspace:*
         version: link:../../packages/identity/infrastructure/security/argon2
@@ -693,6 +696,22 @@ importers:
       prettier:
         specifier: ^3.9.6
         version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/identity/infrastructure/security/sha256:
+    dependencies:
+      "@architecture/identity":
+        specifier: workspace:*
+        version: link:../../../core
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.1
+        version: 25.9.5
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

@@ -1,25 +1,22 @@
 // @file bounded-contexts/identity/application/ports/email-verification.port.ts
 
+import type { EmailVerificationEntity } from "#entities/email-verification.entity";
+import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-export interface EmailVerificationRecord {
-  token: string;
-  userId: UserIdentifierValueObject;
-  expiresAt: Date;
-  used: boolean;
-  invalidated: boolean;
-}
-
 export abstract class EmailVerificationRepository {
-  abstract save(
+  abstract save(verification: EmailVerificationEntity): Promise<void>;
+
+  abstract findByToken(
+    tokenHash: EmailVerificationTokenHashValueObject,
+  ): Promise<EmailVerificationEntity | null>;
+
+  abstract consume(
+    tokenHash: EmailVerificationTokenHashValueObject,
+    now: Date,
+  ): Promise<boolean>;
+
+  abstract invalidatePreviousFor(
     userId: UserIdentifierValueObject,
-    token: string,
-    expiresAt: Date,
   ): Promise<void>;
-
-  abstract findByToken(token: string): Promise<EmailVerificationRecord | null>;
-
-  abstract markUsed(token: string): Promise<void>;
-
-  abstract invalidatePrevious(userId: UserIdentifierValueObject): Promise<void>;
 }

@@ -1,10 +1,11 @@
 // @file infrastructure/identity/persitence/kysely/src/adapters/kysely-email-verification.adapter.ts
 
-import type {
-  EmailVerificationRecord,
-  EmailVerificationRepository,
-} from "@architecture/identity/application";
-import { UserIdentifierValueObject } from "@architecture/identity/domain";
+import type { EmailVerificationRepository } from "@architecture/identity/application";
+import {
+  EmailVerificationEntity,
+  EmailVerificationTokenHashValueObject,
+  UserIdentifierValueObject,
+} from "@architecture/identity/domain";
 import type { Kysely } from "kysely";
 
 import type {
@@ -15,17 +16,13 @@ import type {
 export class KyselyEmailVerificationAdapter implements EmailVerificationRepository {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
 
-  async save(
-    userId: UserIdentifierValueObject,
-    token: string,
-    expiresAt: Date,
-  ): Promise<void> {
+  async save(verification: EmailVerificationEntity): Promise<void> {
     const row: IdentityEmailVerificationRow = {
-      token,
-      user_id: userId.value,
-      expires_at: expiresAt,
-      used: false,
-      invalidated: false,
+      token_hash: verification.tokenHash.value,
+      user_id: verification.userId.value,
+      expires_at: verification.expiresAt,
+      used: verification.isUsed,
+      invalidated: verification.isInvalidated,
       created_at: new Date(),
     };
 
@@ -35,11 +32,13 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationReposito
       .execute();
   }
 
-  async findByToken(token: string): Promise<EmailVerificationRecord | null> {
+  async findByToken(
+    tokenHash: EmailVerificationTokenHashValueObject,
+  ): Promise<EmailVerificationEntity | null> {
     const row = await this.db
       .selectFrom("identity_email_verifications")
       .selectAll()
-      .where("token", "=", token)
+      .where("token_hash", "=", tokenHash.value)
       .executeTakeFirst();
 
     if (!row) {
@@ -51,24 +50,41 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationReposito
       return null;
     }
 
-    return {
-      token: row.token,
+    const persistedTokenHash = EmailVerificationTokenHashValueObject.create(
+      row.token_hash,
+    );
+    if (!persistedTokenHash.success) {
+      return null;
+    }
+
+    return EmailVerificationEntity.rehydrate({
+      tokenHash: persistedTokenHash.value,
       userId: userIdResult.value,
       expiresAt: row.expires_at,
       used: row.used,
       invalidated: row.invalidated,
-    };
+    });
   }
 
-  async markUsed(token: string): Promise<void> {
-    await this.db
+  async consume(
+    tokenHash: EmailVerificationTokenHashValueObject,
+    now: Date,
+  ): Promise<boolean> {
+    const result = await this.db
       .updateTable("identity_email_verifications")
       .set({ used: true })
-      .where("token", "=", token)
-      .execute();
+      .where("token_hash", "=", tokenHash.value)
+      .where("used", "=", false)
+      .where("invalidated", "=", false)
+      .where("expires_at", ">=", now)
+      .executeTakeFirst();
+
+    return result.numUpdatedRows > 0n;
   }
 
-  async invalidatePrevious(userId: UserIdentifierValueObject): Promise<void> {
+  async invalidatePreviousFor(
+    userId: UserIdentifierValueObject,
+  ): Promise<void> {
     await this.db
       .updateTable("identity_email_verifications")
       .set({

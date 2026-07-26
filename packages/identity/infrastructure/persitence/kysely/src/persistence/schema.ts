@@ -21,7 +21,7 @@ export type IdentityUserRow = Selectable<IdentityUserTable>;
 export type NewIdentityUserRow = Insertable<IdentityUserTable>;
 
 export interface IdentityEmailVerificationTable {
-  token: string;
+  token_hash: string;
   user_id: string;
   expires_at: Date;
   used: boolean;
