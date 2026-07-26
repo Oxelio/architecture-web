@@ -6,11 +6,13 @@ import type { EmailValueObject } from "#value-objects/email.value-object";
 import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 interface UserProperties {
   readonly identifier: UserIdentifierValueObject;
   email: EmailValueObject;
   password: PasswordHashValueObject;
+  role: UserRoleValueObject;
   status: StatusValueObject;
   isEmailVerified: boolean;
   readonly createdAt: Date;
@@ -30,6 +32,7 @@ export class UserEntity extends Entity<UserProperties> {
       identifier: UserIdentifierValueObject.generate(),
       email: properties.email,
       password: properties.password,
+      role: UserRoleValueObject.user(),
       status: StatusValueObject.active(),
       isEmailVerified: false,
       createdAt: now,
@@ -37,8 +40,15 @@ export class UserEntity extends Entity<UserProperties> {
     });
   }
 
-  public static rehydrate(props: UserProperties): UserEntity {
-    return new UserEntity(props);
+  public static rehydrate(
+    props: Omit<UserProperties, "role"> & {
+      readonly role?: UserRoleValueObject;
+    },
+  ): UserEntity {
+    return new UserEntity({
+      ...props,
+      role: props.role ?? UserRoleValueObject.user(),
+    });
   }
 
   // ------------------------
@@ -51,6 +61,10 @@ export class UserEntity extends Entity<UserProperties> {
 
   public get password(): PasswordHashValueObject {
     return this.props.password;
+  }
+
+  public get role(): UserRoleValueObject {
+    return this.props.role;
   }
 
   public get status(): StatusValueObject {
@@ -79,11 +93,21 @@ export class UserEntity extends Entity<UserProperties> {
     }
 
     this.props.email = newEmail;
+    this.props.isEmailVerified = false;
     this.touch();
   }
 
   changePassword(newPassword: PasswordHashValueObject): void {
     this.props.password = newPassword;
+    this.touch();
+  }
+
+  changeRole(newRole: UserRoleValueObject): void {
+    if (newRole.equals(this.props.role)) {
+      return;
+    }
+
+    this.props.role = newRole;
     this.touch();
   }
 

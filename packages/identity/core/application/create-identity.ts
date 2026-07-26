@@ -7,6 +7,8 @@ import { EmailVerificationTokenHasher } from "#services/email-verification-token
 import { PasswordHasher } from "#services/password-hasher.service";
 import type { ActivateUser } from "#use-cases/activate-user/activate-user.contracts";
 import { ActivateUserUseCase } from "#use-cases/activate-user/activate-user.use-case";
+import type { AssignUserRole } from "#use-cases/assign-user-role/assign-user-role.contracts";
+import { AssignUserRoleUseCase } from "#use-cases/assign-user-role/assign-user-role.use-case";
 import type { ChangeEmail } from "#use-cases/change-email/change-email.contracts";
 import { ChangeEmailUseCase } from "#use-cases/change-email/change-email.use-case";
 import type { ChangePassword } from "#use-cases/change-password/change-password.contracts";
@@ -39,6 +41,7 @@ export interface IdentityDependencies {
 }
 
 export interface IdentityApplication {
+  assignUserRole: AssignUserRole;
   activateUser: ActivateUser;
   changeEmail: ChangeEmail;
   changePassword: ChangePassword;
@@ -56,11 +59,18 @@ export function createIdentity(
   dependencies: IdentityDependencies,
 ): IdentityApplication {
   return {
+    assignUserRole: new AssignUserRoleUseCase(dependencies.userRepository),
     activateUser: new ActivateUserUseCase(dependencies.userRepository),
-    changeEmail: new ChangeEmailUseCase(dependencies.userRepository),
+    changeEmail: new ChangeEmailUseCase(
+      dependencies.userRepository,
+      dependencies.emailVerificationRepository,
+      dependencies.emailSender,
+      dependencies.emailVerificationTokenHasher,
+    ),
     changePassword: new ChangePasswordUseCase(
       dependencies.userRepository,
       dependencies.passwordHasher,
+      dependencies.sessionRepository,
     ),
     getUserProfile: new GetUserProfileUseCase(dependencies.userRepository),
     resendEmailVerification: new ResendEmailVerificationUseCase(
@@ -87,7 +97,10 @@ export function createIdentity(
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
     ),
-    suspendUser: new SuspendUserUseCase(dependencies.userRepository),
+    suspendUser: new SuspendUserUseCase(
+      dependencies.userRepository,
+      dependencies.sessionRepository,
+    ),
     verifyEmail: new VerifyEmailUseCase(
       dependencies.userRepository,
       dependencies.emailVerificationRepository,

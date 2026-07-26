@@ -2,6 +2,7 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
@@ -18,6 +19,7 @@ export class ChangePasswordUseCase implements ChangePassword {
   constructor(
     private readonly userPort: UserRepository,
     private readonly passwordHasher: PasswordHasher,
+    private readonly sessionPort: SessionRepository,
   ) {}
 
   async execute(payload: ChangePasswordInput): Promise<ChangePasswordOutput> {
@@ -41,6 +43,7 @@ export class ChangePasswordUseCase implements ChangePassword {
     user.changePassword(hashed);
 
     await this.userPort.save(user);
+    await this.sessionPort.deleteAllForUser(user.identifier);
 
     return Result.success(undefined);
   }

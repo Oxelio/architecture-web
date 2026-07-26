@@ -40,9 +40,14 @@ export class ResolveSessionUseCase implements ResolveSession {
       return Result.failure(ResolveSessionErrorCodes.unauthorized);
     }
 
+    if (user.status.isSuspended()) {
+      return Result.failure(ResolveSessionErrorCodes.unauthorized);
+    }
+
     const data: SessionResolution = {
       userId: user.identifier.value,
       sessionId: session.identifier.value,
+      role: user.role.value,
     };
 
     return Result.success(data);

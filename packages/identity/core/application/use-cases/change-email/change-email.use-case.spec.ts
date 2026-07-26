@@ -3,8 +3,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserEntity } from "#entities/user.entity";
+import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import type { EmailSender } from "#services/email-sender.service";
+import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
+import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -38,11 +42,35 @@ class FakeUserPort implements UserRepository {
 
 describe("ChangeEmailUseCase", () => {
   let userPort: FakeUserPort;
+  let emailVerification: EmailVerificationRepository;
+  let emailSender: EmailSender;
+  let tokenHasher: EmailVerificationTokenHasher;
   let useCase: ChangeEmailUseCase;
 
   beforeEach(() => {
     userPort = new FakeUserPort();
-    useCase = new ChangeEmailUseCase(userPort);
+    emailVerification = {
+      invalidatePreviousFor: vi.fn(),
+      save: vi.fn(),
+    } as unknown as EmailVerificationRepository;
+    emailSender = { sendVerificationEmail: vi.fn() } as EmailSender;
+    tokenHasher = {
+      hash: vi.fn(async () => {
+        const hash = EmailVerificationTokenHashValueObject.create(
+          "a".repeat(64),
+        );
+        if (!hash.success) {
+          throw new Error("Invalid hash");
+        }
+        return hash.value;
+      }),
+    } as EmailVerificationTokenHasher;
+    useCase = new ChangeEmailUseCase(
+      userPort,
+      emailVerification,
+      emailSender,
+      tokenHasher,
+    );
   });
 
   it("should fail when userId is invalid", async () => {
@@ -153,6 +181,7 @@ describe("ChangeEmailUseCase", () => {
       email: oldEmail.value,
       password: password.value,
     });
+    user.verifyEmail();
 
     await userPort.save(user);
 
@@ -171,6 +200,11 @@ describe("ChangeEmailUseCase", () => {
 
     expect(updatedUser).not.toBeNull();
     expect(updatedUser?.email.value).toBe("new@test.com");
+    expect(updatedUser?.isEmailVerified).toBe(false);
+    expect(emailVerification.invalidatePreviousFor).toHaveBeenCalledWith(
+      user.identifier,
+    );
+    expect(emailSender.sendVerificationEmail).toHaveBeenCalledOnce();
   });
 
   it("should succeed when changing to same email", async () => {

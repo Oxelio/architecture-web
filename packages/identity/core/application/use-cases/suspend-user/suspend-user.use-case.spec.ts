@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserEntity } from "#entities/user.entity";
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
@@ -32,11 +33,13 @@ class FakeUserPort implements UserRepository {
 
 describe("SuspendUserUseCase", () => {
   let userPort: FakeUserPort;
+  let sessionPort: SessionRepository;
   let useCase: SuspendUserUseCase;
 
   beforeEach(() => {
     userPort = new FakeUserPort();
-    useCase = new SuspendUserUseCase(userPort);
+    sessionPort = { deleteAllForUser: vi.fn() } as unknown as SessionRepository;
+    useCase = new SuspendUserUseCase(userPort, sessionPort);
   });
 
   /* -------------------------------------------------- */
@@ -127,6 +130,7 @@ describe("SuspendUserUseCase", () => {
     const updatedUser = await userPort.findById(user.identifier);
 
     expect(updatedUser?.status.isSuspended()).toBe(true);
+    expect(sessionPort.deleteAllForUser).toHaveBeenCalledWith(user.identifier);
   });
 
   /* -------------------------------------------------- */

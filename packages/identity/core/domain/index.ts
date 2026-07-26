@@ -11,3 +11,7 @@ export { PasswordPlainValueObject } from "#value-objects/password-plain.value-ob
 export { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 export { StatusValueObject } from "#value-objects/status.value-object";
 export { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+export {
+  type UserRole,
+  UserRoleValueObject,
+} from "#value-objects/user-role.value-object";

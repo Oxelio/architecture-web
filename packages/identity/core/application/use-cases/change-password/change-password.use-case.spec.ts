@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserEntity } from "#entities/user.entity";
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
@@ -59,12 +60,14 @@ class FakePasswordHasherPort implements PasswordHasher {
 describe("ChangePasswordUseCase", () => {
   let userPort: FakeUserPort;
   let passwordHasher: FakePasswordHasherPort;
+  let sessionPort: SessionRepository;
   let useCase: ChangePasswordUseCase;
 
   beforeEach(() => {
     userPort = new FakeUserPort();
     passwordHasher = new FakePasswordHasherPort();
-    useCase = new ChangePasswordUseCase(userPort, passwordHasher);
+    sessionPort = { deleteAllForUser: vi.fn() } as unknown as SessionRepository;
+    useCase = new ChangePasswordUseCase(userPort, passwordHasher, sessionPort);
   });
 
   /* -------------------------------------------------- */
@@ -168,6 +171,7 @@ describe("ChangePasswordUseCase", () => {
 
     expect(updatedUser).not.toBeNull();
     expect(updatedUser?.password.value).toBe("hashed-newPassword123");
+    expect(sessionPort.deleteAllForUser).toHaveBeenCalledWith(user.identifier);
   });
 
   /* -------------------------------------------------- */

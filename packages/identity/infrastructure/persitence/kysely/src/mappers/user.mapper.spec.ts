@@ -7,6 +7,7 @@ const row = {
   id: UserIdentifierValueObject.generate().value,
   email: "user@example.com",
   password_hash: "hash",
+  role: "user",
   status: "pending",
   is_email_verified: false,
   created_at: new Date("2025-01-01"),
@@ -24,6 +25,7 @@ describe("UserMapper", () => {
     ["password_hash", ""],
     ["id", "invalid"],
     ["status", "invalid"],
+    ["role", "invalid"],
   ])("rejects invalid persisted %s", (field, value) => {
     expect(() => UserMapper.toDomain({ ...row, [field]: value })).toThrow();
   });

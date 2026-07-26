@@ -33,6 +33,11 @@ export class RedisSessionAdapter implements SessionRepository {
       "EX",
       ttl,
     );
+    await this.redis.zadd(
+      this.userSessionsKey(session.userId),
+      session.expiresAt.getTime(),
+      session.identifier.value,
+    );
   }
 
   async findById(
@@ -58,6 +63,30 @@ export class RedisSessionAdapter implements SessionRepository {
   }
 
   async delete(id: SessionIdentifierValueObject): Promise<void> {
+    const session = await this.findById(id);
     await this.redis.del(`session:${id.value}`);
+    if (session) {
+      await this.redis.zrem(this.userSessionsKey(session.userId), id.value);
+    }
+  }
+
+  async deleteAllForUser(userId: UserIdentifierValueObject): Promise<void> {
+    const key = this.userSessionsKey(userId);
+    const now = Date.now();
+    await this.redis.zremrangebyscore(key, "-inf", now);
+    const sessionIds = await this.redis.zrangebyscore(key, now, "+inf");
+
+    if (sessionIds.length > 0) {
+      const pipeline = this.redis.multi();
+      for (const sessionId of sessionIds) {
+        pipeline.del(`session:${sessionId}`);
+      }
+      pipeline.del(key);
+      await pipeline.exec();
+    }
+  }
+
+  private userSessionsKey(userId: UserIdentifierValueObject): string {
+    return `user-sessions:${userId.value}`;
   }
 }

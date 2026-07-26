@@ -2,6 +2,7 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -13,7 +14,10 @@ import type {
 } from "./suspend-user.contracts.js";
 
 export class SuspendUserUseCase implements SuspendUser {
-  constructor(private readonly userPort: UserRepository) {}
+  constructor(
+    private readonly userPort: UserRepository,
+    private readonly sessionPort: SessionRepository,
+  ) {}
 
   async execute(input: SuspendUserInput): Promise<SuspendUserOutput> {
     const userId = UserIdentifierValueObject.create(input.userId);
@@ -28,6 +32,7 @@ export class SuspendUserUseCase implements SuspendUser {
 
     user.suspend();
     await this.userPort.save(user);
+    await this.sessionPort.deleteAllForUser(user.identifier);
 
     return Result.success(undefined);
   }

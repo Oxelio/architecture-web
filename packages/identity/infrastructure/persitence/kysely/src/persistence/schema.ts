@@ -11,6 +11,7 @@ export interface IdentityUserTable {
   id: string;
   email: string;
   password_hash: string;
+  role: string;
   status: string;
   is_email_verified: boolean;
   created_at: Date;

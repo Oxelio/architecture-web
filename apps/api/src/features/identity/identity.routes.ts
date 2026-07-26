@@ -51,17 +51,26 @@ export function buildIdentityRoutes(
     app.post("/signin", signInRouteOptions, controllers.signIn);
     app.post("/signout", signOutRouteOptions, controllers.signOut);
 
-    app.patch(
-      "/users/:userId/activate",
-      activateUserRouteOptions,
-      controllers.activateUser,
-    );
+    app.register(async (adminApp) => {
+      adminApp.addHook("preHandler", authenticate);
+      adminApp.addHook("preHandler", async (request, reply) => {
+        if (request.auth?.role !== "admin") {
+          return reply.status(403).send({ error: { code: "FORBIDDEN" } });
+        }
+      });
 
-    app.patch(
-      "/users/:userId/suspend",
-      suspendUserRouteOptions,
-      controllers.suspendUser,
-    );
+      adminApp.patch(
+        "/users/:userId/activate",
+        activateUserRouteOptions,
+        controllers.activateUser,
+      );
+
+      adminApp.patch(
+        "/users/:userId/suspend",
+        suspendUserRouteOptions,
+        controllers.suspendUser,
+      );
+    });
 
     // Protected
     app.register(async (protectedApp) => {

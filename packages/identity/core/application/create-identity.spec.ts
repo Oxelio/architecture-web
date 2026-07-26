@@ -15,6 +15,7 @@ describe("createIdentity", () => {
     });
 
     expect(Object.keys(identity)).toEqual([
+      "assignUserRole",
       "activateUser",
       "changeEmail",
       "changePassword",

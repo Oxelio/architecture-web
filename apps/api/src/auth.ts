@@ -14,6 +14,7 @@ export const SESSION_COOKIE_NAME = "sid";
 export interface AuthenticatedContext {
   userId: string;
   sessionId: string;
+  role: "user" | "admin";
 }
 
 export interface AuthenticatedFastifyInstance extends FastifyInstance {

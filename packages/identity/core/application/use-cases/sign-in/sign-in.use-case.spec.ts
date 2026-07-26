@@ -84,6 +84,14 @@ class FakeSessionPort implements SessionRepository {
     this.sessions.delete(id.value);
   }
 
+  async deleteAllForUser(userId: UserIdentifierValueObject): Promise<void> {
+    for (const [id, session] of this.sessions) {
+      if (session.userId.equals(userId)) {
+        this.sessions.delete(id);
+      }
+    }
+  }
+
   count() {
     return this.sessions.size;
   }

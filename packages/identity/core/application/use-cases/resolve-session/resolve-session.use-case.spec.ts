@@ -54,6 +54,14 @@ class FakeSessionPort implements SessionRepository {
   async delete(id: SessionIdentifierValueObject): Promise<void> {
     this.sessions.delete(id.value);
   }
+
+  async deleteAllForUser(userId: UserIdentifierValueObject): Promise<void> {
+    for (const [id, session] of this.sessions) {
+      if (session.userId.equals(userId)) {
+        this.sessions.delete(id);
+      }
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -247,6 +255,7 @@ describe("ResolveSessionUseCase", () => {
       expect(result.value).toEqual({
         userId: user.identifier.value,
         sessionId: session.identifier.value,
+        role: "user",
       });
     }
   });

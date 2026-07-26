@@ -11,6 +11,13 @@ export type {
   ActivateUserOutput,
 } from "./use-cases/activate-user/activate-user.contracts.js";
 export type {
+  AssignUserRole,
+  AssignUserRoleError,
+  AssignUserRoleInput,
+  AssignUserRoleOutput,
+} from "./use-cases/assign-user-role/assign-user-role.contracts.js";
+export { AssignUserRoleUseCase } from "./use-cases/assign-user-role/assign-user-role.use-case.js";
+export type {
   ChangeEmail,
   ChangeEmailError,
   ChangeEmailInput,

@@ -9,7 +9,13 @@ import { RedisSessionAdapter } from "./redis-session.adapter.js";
 
 describe("RedisSessionAdapter", () => {
   it("saves, retrieves and deletes a session", async () => {
-    const redis = { set: vi.fn(), get: vi.fn(), del: vi.fn() };
+    const redis = {
+      set: vi.fn(),
+      get: vi.fn(),
+      del: vi.fn(),
+      zadd: vi.fn(),
+      zrem: vi.fn(),
+    };
     const id = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();
     const expiresAt = new Date(Date.now() + 60_000);
@@ -29,6 +35,11 @@ describe("RedisSessionAdapter", () => {
       }),
       "EX",
       expect.any(Number),
+    );
+    expect(redis.zadd).toHaveBeenCalledWith(
+      `user-sessions:${userId.value}`,
+      expiresAt.getTime(),
+      id.value,
     );
 
     redis.get.mockResolvedValueOnce(null);

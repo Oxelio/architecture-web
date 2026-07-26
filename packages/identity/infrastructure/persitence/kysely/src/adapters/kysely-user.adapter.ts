@@ -24,6 +24,7 @@ export class KyselyUserAdapter implements UserRepository {
         oc.column("id").doUpdateSet({
           email: row.email,
           password_hash: row.password_hash,
+          role: row.role,
           status: row.status,
           is_email_verified: row.is_email_verified,
           updated_at: row.updated_at,
