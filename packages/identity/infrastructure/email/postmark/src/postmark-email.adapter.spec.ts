@@ -16,7 +16,7 @@ describe("PostmarkEmailSenderAdapter", () => {
     const adapter = new PostmarkEmailSenderAdapter(
       "token",
       "noreply@example.com",
-      "https://app.example.com",
+      "https://app.example.com/verify",
     );
     await adapter.sendVerificationEmail(email.value, "token-123");
 

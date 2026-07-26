@@ -7,23 +7,24 @@ import { ServerClient } from "postmark";
 export class PostmarkEmailSenderAdapter implements EmailSender {
   private readonly client: ServerClient;
   private readonly fromAddress: string;
-  private readonly appUrl: string;
+  private readonly verificationUrl: string;
 
-  constructor(apiToken: string, fromAddress: string, appUrl: string) {
+  constructor(apiToken: string, fromAddress: string, verificationUrl: string) {
     this.client = new ServerClient(apiToken);
     this.fromAddress = fromAddress;
-    this.appUrl = appUrl;
+    this.verificationUrl = verificationUrl;
   }
 
   async sendVerificationEmail(
     to: EmailValueObject,
     token: string,
   ): Promise<void> {
-    const verifyUrl = `${this.appUrl}/verify?token=${token}`;
+    const verifyUrl = new URL(this.verificationUrl);
+    verifyUrl.searchParams.set("token", token);
 
     const subject = "Please verify your email";
-    const html = `<p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>`;
-    const text = `Open this link to verify your email: ${verifyUrl}`;
+    const html = `<p>Click <a href="${verifyUrl.href}">here</a> to verify your email.</p>`;
+    const text = `Open this link to verify your email: ${verifyUrl.href}`;
 
     await this.send(to, subject, html, text);
   }

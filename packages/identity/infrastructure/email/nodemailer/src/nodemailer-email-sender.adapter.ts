@@ -7,7 +7,7 @@ import nodemailer, { type Transporter } from "nodemailer";
 export class NodemailerEmailSenderAdapter implements EmailSender {
   private readonly transporter: Transporter;
   private readonly fromAddress: string;
-  private readonly appUrl: string;
+  private readonly verificationUrl: string;
 
   constructor(
     host: string,
@@ -15,7 +15,7 @@ export class NodemailerEmailSenderAdapter implements EmailSender {
     user: string,
     password: string,
     fromAddress: string,
-    appUrl: string,
+    verificationUrl: string,
   ) {
     this.transporter = nodemailer.createTransport({
       host,
@@ -28,20 +28,21 @@ export class NodemailerEmailSenderAdapter implements EmailSender {
     });
 
     this.fromAddress = fromAddress;
-    this.appUrl = appUrl;
+    this.verificationUrl = verificationUrl;
   }
 
   async sendVerificationEmail(
     to: EmailValueObject,
     token: string,
   ): Promise<void> {
-    const verifyUrl = `${this.appUrl}/verify?token=${token}`;
+    const verifyUrl = new URL(this.verificationUrl);
+    verifyUrl.searchParams.set("token", token);
 
     await this.send(
       to,
       "Please verify your email",
-      `<p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>`,
-      `Open this link: ${verifyUrl}`,
+      `<p>Click <a href="${verifyUrl.href}">here</a> to verify your email.</p>`,
+      `Open this link: ${verifyUrl.href}`,
     );
   }
 

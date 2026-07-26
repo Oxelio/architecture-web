@@ -61,7 +61,8 @@ services:
       SMTP_USERNAME: user
       SMTP_PASSWORD: user
       SMTP_FROM_ADDRESS: no-reply@architecture.local
-      SMTP_VERIFY_URL: http://localhost:3000/v1/identity
+      # Complete web URL; the page forwards the token to the API.
+      SMTP_VERIFY_URL: http://localhost:5173/verify
     ports:
       - "3000:3000"
 
