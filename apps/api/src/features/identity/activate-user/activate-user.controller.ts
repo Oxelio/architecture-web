@@ -1,8 +1,8 @@
 // @file apps/api/src/features/identity/activate-user/activate-user.controller.ts
 
 import type {
-  ActivateUserInput,
   ActivateUser,
+  ActivateUserInput,
 } from "@architecture/identity/application";
 import type { Static } from "@sinclair/typebox";
 import type { FastifyReply, FastifyRequest } from "fastify";

@@ -1,8 +1,8 @@
 // @file infrastructure/identity/persitence/kysely/src/adapters/kysely-email-verification.adapter.ts
 
 import type {
-  EmailVerificationRepository,
   EmailVerificationRecord,
+  EmailVerificationRepository,
 } from "@architecture/identity/application";
 import { UserIdentifierValueObject } from "@architecture/identity/domain";
 import type { Kysely } from "kysely";

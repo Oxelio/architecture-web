@@ -78,17 +78,17 @@ export type {
 // ============================================================
 // Factories
 // ============================================================
-export { createIdentity } from "./create-identity.js";
 export type {
-  IdentityDependencies,
   IdentityApplication,
+  IdentityDependencies,
 } from "./create-identity.js";
+export { createIdentity } from "./create-identity.js";
 
 // Ports
-export { PasswordHasher } from "./services/password-hasher.service.js";
+export type { EmailVerificationRecord } from "./repositories/email-verification.repository.js";
+export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
+export { SessionRepository } from "./repositories/session.repository.js";
+export { UserRepository } from "./repositories/user.repository.js";
 export { EmailSender } from "./services/email-sender.service.js";
 export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
-export { UserRepository } from "./repositories/user.repository.js";
-export { SessionRepository } from "./repositories/session.repository.js";
-export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
-export type { EmailVerificationRecord } from "./repositories/email-verification.repository.js";
+export { PasswordHasher } from "./services/password-hasher.service.js";

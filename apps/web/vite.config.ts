@@ -12,16 +12,24 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("react-router-dom")) return "vendor-react-router";
+            if (id.includes("react-router-dom")) {
+              return "vendor-react-router";
+            }
             if (
               id.includes("@tanstack/react-query") ||
               id.includes("@tanstack/query-core")
-            )
+            ) {
               return "vendor-react-query";
-            if (id.includes("framer-motion")) return "vendor-framer-motion";
-            if (id.includes("react")) return "vendor-react";
-            if (id.includes("clsx") || id.includes("tailwind-merge"))
+            }
+            if (id.includes("framer-motion")) {
+              return "vendor-framer-motion";
+            }
+            if (id.includes("react")) {
+              return "vendor-react";
+            }
+            if (id.includes("clsx") || id.includes("tailwind-merge")) {
               return "vendor-helpers";
+            }
             return "vendor";
           }
         },

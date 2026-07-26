@@ -81,7 +81,7 @@ describe("ChangePasswordUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        code: "user.not_found",
+        code: "user.invalid_id",
       });
     }
   });

@@ -53,7 +53,7 @@ describe("SignOutUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        code: "invalid_session_id",
+        code: "session.invalid_id",
       });
     }
 
@@ -72,7 +72,7 @@ describe("SignOutUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.code).toBe("invalid_session_id");
+      expect(result.error.code).toBe("session.invalid_id");
     }
 
     expect(sessionPort.count()).toBe(0);

@@ -22,6 +22,9 @@ export default [
       ...react.configs.flat.recommended.rules,
       ...reactHooks.configs.recommended.rules,
 
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
+
       "react-refresh/only-export-components": [
         "warn",
         {

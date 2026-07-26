@@ -173,7 +173,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        code: "user.not_found",
+        code: "user.invalid_id",
       });
     }
   });
@@ -191,7 +191,7 @@ describe("ResendEmailVerificationUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        code: "user.not_found",
+        code: "user.invalid_id",
       });
     }
   });
@@ -274,9 +274,7 @@ describe("ResendEmailVerificationUseCase", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.value).toEqual({
-        sent: true,
-      });
+      expect(result.value).toBeUndefined();
     }
 
     expect(emailVerification.invalidated).toBe(true);

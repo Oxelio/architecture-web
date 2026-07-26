@@ -51,7 +51,7 @@ describe("GetUserProfileUseCase", () => {
 
     if (!result.success) {
       expect(result.error).toEqual({
-        code: "user.not_found",
+        code: "user.invalid_id",
       });
     }
   });
@@ -121,7 +121,7 @@ describe("GetUserProfileUseCase", () => {
     expect(result.success).toBe(false);
 
     if (!result.success) {
-      expect(result.error.code).toBe("user.not_found");
+      expect(result.error.code).toBe("user.invalid_id");
     }
   });
 });

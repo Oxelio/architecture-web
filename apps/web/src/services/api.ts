@@ -41,7 +41,7 @@ interface ApiError {
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const headers: Record<string, string> = {};
 
-  if (init.body != null) {
+  if (init.body !== undefined && init.body !== null) {
     headers["Content-Type"] = "application/json";
   }
 

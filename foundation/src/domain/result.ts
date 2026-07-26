@@ -4,12 +4,15 @@
 //   ? { success: true }
 //   : { success: true; value: T };
 
-type Success<TValue> = { success: true; value: TValue };
+interface Success<TValue> {
+  success: true;
+  value: TValue;
+}
 
-type Failure<TError> = {
+interface Failure<TError> {
   success: false;
   error: TError;
-};
+}
 
 export type Result<TValue, TError> = Success<TValue> | Failure<TError>;
 

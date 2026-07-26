@@ -11,7 +11,9 @@ const toHttpError = createHttpErrorMapper(
 export const ResendEmailVerificationPresenter = {
   toPresentation(result: ResendEmailVerificationOutput) {
     if (result.success) {
-      return ResendEmailVerificationHttpContract.success["email_verification.sent"];
+      return ResendEmailVerificationHttpContract.success[
+        "email_verification.sent"
+      ];
     }
 
     return toHttpError(result.error);

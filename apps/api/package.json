@@ -15,6 +15,7 @@
     "format:check": "prettier . --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },
