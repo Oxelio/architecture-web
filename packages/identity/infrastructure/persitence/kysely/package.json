@@ -37,11 +37,11 @@
   },
   "dependencies": {
     "@architecture/identity": "workspace:*",
-    "kysely": "^0.29.2"
+    "kysely": "^0.29.4"
   },
   "devDependencies": {
     "@architecture/eslint-config": "workspace:*",
-    "@types/node": "^25.9.0",
+    "@types/node": "^25.9.5",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",

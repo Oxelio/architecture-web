@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18.4-alpine3.24
     container_name: architecture-web-postgres
     restart: unless-stopped
     environment:
@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U architecture -d architecture"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.8.1-alpine3.23
     container_name: architecture-web-redis
     restart: unless-stopped
     ports:
@@ -82,7 +82,7 @@ services:
       - "5173:8080"
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.30.5
     container_name: architecture-web-mailpit
     ports:
       - "1025:1025" # SMTP

@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@architecture/eslint-config": "workspace:*",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.5",
     "typescript": "^5.9.3"
   }
 }

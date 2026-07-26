@@ -276,8 +276,8 @@ importers:
         specifier: ^9.1.7
         version: 9.1.7
       lint-staged:
-        specifier: ^17.1.0
-        version: 17.1.0
+        specifier: ^17.2.0
+        version: 17.2.0
       prettier:
         specifier: ^3.9.6
         version: 3.9.6
@@ -361,7 +361,7 @@ importers:
         specifier: ^3.9.6
         version: 3.9.6
       tsdown:
-        specifier: ^0.22.12
+        specifier: ^0.22.14
         version: 0.22.14(tsx@4.23.1)(typescript@5.9.3)
       tsx:
         specifier: ^4.23.1
@@ -374,12 +374,12 @@ importers:
     dependencies:
       "@hookform/resolvers":
         specifier: ^3.10.0
-        version: 3.10.0(react-hook-form@7.82.0(react@19.2.8))
+        version: 3.10.0(react-hook-form@7.83.0(react@19.2.8))
       "@tanstack/react-query":
-        specifier: ^5.101.3
+        specifier: ^5.101.4
         version: 5.101.4(react@19.2.8)
       "@tanstack/react-query-devtools":
-        specifier: ^5.101.3
+        specifier: ^5.101.4
         version: 5.101.4(@tanstack/react-query@5.101.4(react@19.2.8))(react@19.2.8)
       clsx:
         specifier: ^2.1.1
@@ -397,16 +397,16 @@ importers:
         specifier: ^3.9.6
         version: 3.9.6
       react:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8
       react-dom:
-        specifier: ^19.2.7
+        specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
       react-hook-form:
-        specifier: ^7.82.0
-        version: 7.82.0(react@19.2.8)
+        specifier: ^7.83.0
+        version: 7.83.0(react@19.2.8)
       react-i18next:
-        specifier: ^17.0.10
+        specifier: ^17.0.11
         version: 17.0.11(i18next@26.3.6(typescript@5.9.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
       react-router-dom:
         specifier: ^6.30.4
@@ -443,7 +443,7 @@ importers:
         specifier: ^5.3.3
         version: 5.3.3
       "@vitejs/plugin-react":
-        specifier: ^6.0.3
+        specifier: ^6.0.4
         version: 6.0.4(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7(supports-color@7.2.0))(@babel/runtime@7.29.7)(rolldown@1.2.0)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(jiti@1.21.7)(tsx@4.23.1)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.1.5(@types/node@24.13.3)(esbuild@0.28.1)(jiti@1.21.7)(tsx@4.23.1)(yaml@2.9.0))
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -458,7 +458,7 @@ importers:
         specifier: ^17.7.0
         version: 17.7.0
       postcss:
-        specifier: ^8.5.21
+        specifier: ^8.5.23
         version: 8.5.23
       tailwindcss:
         specifier: ^3.4.19
@@ -510,7 +510,7 @@ importers:
         specifier: ^3.1.3
         version: 3.1.3
       uuid:
-        specifier: ^14.0.0
+        specifier: ^14.0.1
         version: 14.0.1
     devDependencies:
       "@architecture/eslint-config":
@@ -538,14 +538,14 @@ importers:
         specifier: ^5.11.1
         version: 5.11.1(supports-color@7.2.0)
       uuid:
-        specifier: ^14.0.0
+        specifier: ^14.0.1
         version: 14.0.1
     devDependencies:
       "@architecture/eslint-config":
         specifier: workspace:*
         version: link:../../eslint-config
       "@types/node":
-        specifier: ^25.9.1
+        specifier: ^25.9.5
         version: 25.9.5
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -560,7 +560,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       vitest:
-        specifier: ^4.1.9
+        specifier: ^4.1.10
         version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
 
   packages/identity/infrastructure/email/nodemailer:
@@ -576,7 +576,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../eslint-config
       "@types/node":
-        specifier: ^25.9.0
+        specifier: ^25.9.5
         version: 25.9.5
       "@types/nodemailer":
         specifier: ^8.0.1
@@ -604,7 +604,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../eslint-config
       "@types/node":
-        specifier: ^25.9.0
+        specifier: ^25.9.5
         version: 25.9.5
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -625,14 +625,14 @@ importers:
         specifier: workspace:*
         version: link:../../../core
       kysely:
-        specifier: ^0.29.2
+        specifier: ^0.29.4
         version: 0.29.4
     devDependencies:
       "@architecture/eslint-config":
         specifier: workspace:*
         version: link:../../../../eslint-config
       "@types/node":
-        specifier: ^25.9.0
+        specifier: ^25.9.5
         version: 25.9.5
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -660,7 +660,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../eslint-config
       "@types/node":
-        specifier: ^25.9.0
+        specifier: ^25.9.5
         version: 25.9.5
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -688,7 +688,7 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       "@types/node":
-        specifier: ^25.9.0
+        specifier: ^25.9.5
         version: 25.9.5
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -710,7 +710,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../eslint-config
       "@types/node":
-        specifier: ^25.9.1
+        specifier: ^25.9.5
         version: 25.9.5
       typescript:
         specifier: ^5.9.3
@@ -729,7 +729,7 @@ importers:
         specifier: workspace:*
         version: link:../../../../eslint-config
       "@types/node":
-        specifier: ^25.9.0
+        specifier: ^25.9.5
         version: 25.9.5
       "@vitest/coverage-v8":
         specifier: ^4.1.10
@@ -2684,10 +2684,10 @@ packages:
       }
     engines: { node: 18 || 20 || >=22 }
 
-  baseline-browser-mapping@2.11.1:
+  baseline-browser-mapping@2.11.3:
     resolution:
       {
-        integrity: sha512-HYXq73DDpCtNzOmrFsm9eSwCvWCql0RzqjpDzXN9EadiLJ4DNat0nsZ/Bzmy+Ud12mb4/zKDY0cQ805ZzN+i0A==,
+        integrity: sha512-sbT0Ui/CZwyAyy7icT1Gw5P1LKRlFaHwaF6tDCW5YHq2X5SeeZFphBuIagopSfwSSZq3sQcbmEL072yphxm7ew==,
       }
     engines: { node: ">=6.0.0" }
     hasBin: true
@@ -3198,10 +3198,10 @@ packages:
       }
     engines: { node: ">= 0.4" }
 
-  es-toolkit@1.49.0:
+  es-toolkit@1.50.0:
     resolution:
       {
-        integrity: sha512-G5iZ6Pc/FNRY/soKZHC+TxGDD83rHUDXxzaWhGCX44vAv/tMs56WMusnm/KMNK+luUPsgA9U28cGr4RDlSzL2g==,
+        integrity: sha512-OyZKhUVvEep9ITEiwHn8GKnMRQIVqoSIX7WnRbkWgJkllCujilqP2rD0u979tkl8wqyc8ICwlc1UBVv/Sl1G6w==,
       }
 
   esbuild@0.28.1:
@@ -4348,10 +4348,10 @@ packages:
         integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==,
       }
 
-  lint-staged@17.1.0:
+  lint-staged@17.2.0:
     resolution:
       {
-        integrity: sha512-d7UQRu/9ZPgfu4+hu/k0wny5GEaIxo+2jb2LJqQDkE7cHRTm1HGqNUDq5UOwsGPpjpaNAFmgAsYo3TR+i9cSJw==,
+        integrity: sha512-FchGnFe4i4B1C/a35SPU9bNGPEHSC1+1iV0plLjzBmKVe9klZrlRfSgK6Cw4VeHyqOXbJUXP0vON61uRftNQ0A==,
       }
     engines: { node: ">=22.22.1" }
     hasBin: true
@@ -5003,10 +5003,10 @@ packages:
     peerDependencies:
       react: ^19.2.8
 
-  react-hook-form@7.82.0:
+  react-hook-form@7.83.0:
     resolution:
       {
-        integrity: sha512-Zw/uFZ2dO+02GHlBn7JFGn8kZJ7LdM33B/0BXOovzFay+CMhf94JMw5BVu+F1tVkUKjNvBuaE3fz5BJhga10Tg==,
+        integrity: sha512-AXt8cMCmx5a7u4uvpb2uRFVrWQhllI4pV+LSykxIac/hjt44TnQkmX9BKuQi2i+LDC62esmiLpilkav+kjVf/A==,
       }
     engines: { node: ">=18.0.0" }
     peerDependencies:
@@ -6151,7 +6151,7 @@ snapshots:
   "@commitlint/ensure@21.2.0":
     dependencies:
       "@commitlint/types": 21.2.0
-      es-toolkit: 1.49.0
+      es-toolkit: 1.50.0
 
   "@commitlint/execute-rule@21.0.1": {}
 
@@ -6180,7 +6180,7 @@ snapshots:
       "@commitlint/types": 21.2.0
       cosmiconfig: 9.0.2(typescript@5.9.3)
       cosmiconfig-typescript-loader: 6.3.0(@types/node@26.1.1)(cosmiconfig@9.0.2(typescript@5.9.3))(typescript@5.9.3)
-      es-toolkit: 1.49.0
+      es-toolkit: 1.50.0
       is-plain-obj: 4.1.0
       picocolors: 1.1.1
     transitivePeerDependencies:
@@ -6209,7 +6209,7 @@ snapshots:
     dependencies:
       "@commitlint/config-validator": 21.2.0
       "@commitlint/types": 21.2.0
-      es-toolkit: 1.49.0
+      es-toolkit: 1.50.0
       global-directory: 5.0.0
       resolve-from: 5.0.0
 
@@ -6464,9 +6464,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  "@hookform/resolvers@3.10.0(react-hook-form@7.82.0(react@19.2.8))":
+  "@hookform/resolvers@3.10.0(react-hook-form@7.83.0(react@19.2.8))":
     dependencies:
-      react-hook-form: 7.82.0(react@19.2.8)
+      react-hook-form: 7.83.0(react@19.2.8)
 
   "@humanfs/core@0.19.2":
     dependencies:
@@ -6742,7 +6742,7 @@ snapshots:
 
   "@types/pg@8.20.0":
     dependencies:
-      "@types/node": 26.1.1
+      "@types/node": 25.9.5
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 
@@ -7164,7 +7164,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  baseline-browser-mapping@2.11.1: {}
+  baseline-browser-mapping@2.11.3: {}
 
   bcrypt@6.0.0:
     dependencies:
@@ -7188,7 +7188,7 @@ snapshots:
 
   browserslist@4.28.7:
     dependencies:
-      baseline-browser-mapping: 2.11.1
+      baseline-browser-mapping: 2.11.3
       caniuse-lite: 1.0.30001806
       electron-to-chromium: 1.5.396
       node-releases: 2.0.51
@@ -7507,7 +7507,7 @@ snapshots:
       is-date-object: 1.1.0
       is-symbol: 1.1.1
 
-  es-toolkit@1.49.0: {}
+  es-toolkit@1.50.0: {}
 
   esbuild@0.28.1:
     optionalDependencies:
@@ -8216,7 +8216,7 @@ snapshots:
 
   lines-and-columns@1.2.4: {}
 
-  lint-staged@17.1.0:
+  lint-staged@17.2.0:
     dependencies:
       picomatch: 4.0.5
       string-argv: 0.3.2
@@ -8564,7 +8564,7 @@ snapshots:
       react: 19.2.8
       scheduler: 0.27.0
 
-  react-hook-form@7.82.0(react@19.2.8):
+  react-hook-form@7.83.0(react@19.2.8):
     dependencies:
       react: 19.2.8
 

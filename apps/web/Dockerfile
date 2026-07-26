@@ -23,7 +23,7 @@ COPY . .
 
 RUN pnpm --filter web run build
 
-FROM nginx:1.30.4-alpine-slim AS production
+FROM nginx:1.31.3-alpine3.24-slim AS production
 
 RUN addgroup -S nginx-user && adduser -S nginx-user -G nginx-user
 
@@ -33,10 +33,10 @@ COPY apps/web/nginx.conf /etc/nginx/nginx.conf
 
 RUN mkdir -p /var/cache/nginx /tmp \
     && chown -R nginx-user:nginx-user \
-       /usr/share/nginx/html \
-       /var/cache/nginx \
-       /etc/nginx \
-       /tmp
+    /usr/share/nginx/html \
+    /var/cache/nginx \
+    /etc/nginx \
+    /tmp
 
 USER nginx-user
 

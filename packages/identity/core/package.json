@@ -49,15 +49,15 @@
   "dependencies": {
     "@architecture/foundation": "workspace:*",
     "ioredis": "^5.11.1",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@architecture/eslint-config": "workspace:*",
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.5",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }
