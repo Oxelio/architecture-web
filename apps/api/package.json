@@ -16,6 +16,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },
@@ -60,6 +61,7 @@
     "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.5",
     "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",
     "tsdown": "^0.22.12",

@@ -16,6 +16,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "prepublishOnly": "pnpm build"
@@ -28,6 +29,7 @@
     "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.0",
     "@types/nodemailer": "^8.0.1",
+    "@vitest/coverage-v8": "^4.1.10",
     "prettier": "^3.9.6",
     "typescript": "^5.9.3"
   }

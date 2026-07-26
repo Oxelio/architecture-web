@@ -11,6 +11,7 @@
     "lint": "pnpm -r --if-present run lint",
     "lint:fix": "pnpm -r --if-present run lint:fix",
     "test": "pnpm -r --if-present run test",
+    "test:coverage": "pnpm -r --if-present run test:coverage",
     "format": "pnpm -r --if-present run format",
     "format:check": "pnpm -r --if-present run format:check"
   },
