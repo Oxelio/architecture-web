@@ -139,7 +139,7 @@ function App() {
               path="/admin"
               element={
                 user?.role === "admin" ? (
-                  <AdminPage />
+                  <AdminPage currentUserId={user.userId} />
                 ) : (
                   <Navigate to="/" replace />
                 )

@@ -19,6 +19,9 @@ export class AssignUserRoleUseCase implements AssignUserRole {
     if (!userId.success) {
       return Result.failure(AssignUserRoleErrorCodes.invalidId);
     }
+    if (command.actorUserId === userId.value.value) {
+      return Result.failure(AssignUserRoleErrorCodes.selfOperation);
+    }
 
     const role = UserRoleValueObject.create(command.role);
     if (!role.success) {

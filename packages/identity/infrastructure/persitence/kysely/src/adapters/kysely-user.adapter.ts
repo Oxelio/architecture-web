@@ -1,6 +1,6 @@
 // @file infrastructure/identity/persitence/kysely/src/adapters/kysely-user.adapter.ts
 
-import type { UserRepository } from "@architecture/identity/application";
+import type { UserAdministrationRepository } from "@architecture/identity/application";
 import type { UserEntity } from "@architecture/identity/domain";
 import {
   EmailValueObject,
@@ -11,7 +11,7 @@ import type { Kysely } from "kysely";
 import { UserMapper } from "#mappers/user.mapper";
 import type { IdentityDatabase } from "#persistence/schema";
 
-export class KyselyUserAdapter implements UserRepository {
+export class KyselyUserAdapter implements UserAdministrationRepository {
   constructor(private readonly db: Kysely<IdentityDatabase>) {}
 
   async save(user: UserEntity): Promise<void> {
@@ -59,5 +59,15 @@ export class KyselyUserAdapter implements UserRepository {
     }
 
     return UserMapper.toDomain(user);
+  }
+
+  async findAll(): Promise<readonly UserEntity[]> {
+    const users = await this.db
+      .selectFrom("identity_users")
+      .selectAll()
+      .orderBy("created_at", "desc")
+      .execute();
+
+    return users.map(UserMapper.toDomain);
   }
 }

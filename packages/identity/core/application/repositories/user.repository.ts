@@ -9,3 +9,7 @@ export abstract class UserRepository {
   abstract findByEmail(email: EmailValueObject): Promise<UserEntity | null>;
   abstract findById(id: UserIdentifierValueObject): Promise<UserEntity | null>;
 }
+
+export abstract class UserAdministrationRepository extends UserRepository {
+  abstract findAll(): Promise<readonly UserEntity[]>;
+}

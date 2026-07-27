@@ -7,6 +7,21 @@ export interface CurrentUser {
   role: "user" | "admin";
 }
 
+export interface AdminUser {
+  userId: string;
+  email: string;
+  isEmailVerified: boolean;
+  role: "user" | "admin";
+  status: "active" | "suspended";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSession {
+  sessionId: string;
+  expiresAt: string;
+}
+
 export interface SignInPayload {
   email: string;
   password: string;
@@ -154,5 +169,25 @@ export async function suspendUser(userId: string): Promise<void> {
 export async function activateUser(userId: string): Promise<void> {
   await request<unknown>(`/identity/users/${userId}/activate`, {
     method: "PATCH",
+  });
+}
+
+export function listUsers(): Promise<AdminUser[]> {
+  return request<AdminUser[]>("/identity/users", { method: "GET" });
+}
+
+export function listUserSessions(userId: string): Promise<AdminSession[]> {
+  return request<AdminSession[]>(`/identity/users/${userId}/sessions`, {
+    method: "GET",
+  });
+}
+
+export async function revokeUserSession(
+  userId: string,
+  sessionId?: string,
+): Promise<void> {
+  const suffix = sessionId ? `/${sessionId}` : "";
+  await request<unknown>(`/identity/users/${userId}/sessions${suffix}`, {
+    method: "DELETE",
   });
 }

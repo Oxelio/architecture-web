@@ -8,4 +8,8 @@ export const SuspendUserErrorCodes = {
   notFound: {
     code: "user.not_found",
   },
+
+  selfOperation: {
+    code: "user.self_administration_forbidden",
+  },
 } as const;

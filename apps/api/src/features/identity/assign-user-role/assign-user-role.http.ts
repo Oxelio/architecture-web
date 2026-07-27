@@ -30,6 +30,11 @@ export const AssignUserRoleHttpContract = {
       code: "USER_NOT_FOUND",
       message: "User not found",
     },
+    "user.self_administration_forbidden": {
+      status: 409,
+      code: "SELF_ADMINISTRATION_FORBIDDEN",
+      message: "Administrators cannot change their own role",
+    },
   },
 } as const satisfies HttpContract<
   AssignUserRoleError["code"],

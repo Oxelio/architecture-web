@@ -29,5 +29,13 @@ export const SuspendUserHttpContract = {
 
       message: "User not found",
     },
+
+    "user.self_administration_forbidden": {
+      status: 409,
+
+      code: "SELF_ADMINISTRATION_FORBIDDEN",
+
+      message: "Administrators cannot suspend their own account",
+    },
   },
 } as const satisfies HttpContract<SuspendUserError["code"], "user.suspended">;

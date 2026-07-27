@@ -220,4 +220,17 @@ describe("SuspendUserUseCase", () => {
 
     expect(spy).toHaveBeenCalled();
   });
+
+  it("prevents an administrator from suspending themselves", async () => {
+    const userId = UserIdentifierValueObject.generate().value;
+    const result = await useCase.execute({
+      userId,
+      actorUserId: userId,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "user.self_administration_forbidden" },
+    });
+  });
 });

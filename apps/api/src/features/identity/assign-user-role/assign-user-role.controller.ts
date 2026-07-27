@@ -2,19 +2,25 @@ import type {
   AssignUserRole,
   AssignUserRoleInput,
 } from "@architecture/identity/application";
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyReply } from "fastify";
 
 import { sendControllerResponse } from "#helpers/send-response";
+import type { AuthenticatedRequest } from "#types/controller-response";
 
 import { AssignUserRolePresenter } from "./assign-user-role.presenter.js";
 import type { AssignUserRoleRoute } from "./assign-user-role.route-options.js";
 
-type AssignUserRoleHTTPRequest = FastifyRequest<AssignUserRoleRoute>;
+type AssignUserRoleHTTPRequest = AuthenticatedRequest<AssignUserRoleRoute>;
 
 export function createAssignUserRoleController(useCase: AssignUserRole) {
   return async (request: AssignUserRoleHTTPRequest, reply: FastifyReply) => {
+    if (!request.auth) {
+      return reply.status(401).send({ error: { code: "UNAUTHORIZED" } });
+    }
+
     const command: AssignUserRoleInput = {
       userId: request.params.userId,
+      actorUserId: request.auth.userId,
       role: request.body.role,
     };
     const result = await useCase.execute(command);

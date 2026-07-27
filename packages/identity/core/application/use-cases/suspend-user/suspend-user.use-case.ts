@@ -24,6 +24,9 @@ export class SuspendUserUseCase implements SuspendUser {
     if (!userId.success) {
       return Result.failure(SuspendUserErrorCodes.invalidId);
     }
+    if (input.actorUserId === userId.value.value) {
+      return Result.failure(SuspendUserErrorCodes.selfOperation);
+    }
 
     const user = await this.userPort.findById(userId.value);
     if (!user) {

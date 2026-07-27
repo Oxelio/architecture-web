@@ -1,9 +1,9 @@
 // @file infrastructure/identity/session/redis/src/adapters/redis-session.adapter.ts
 
-import type { SessionRepository } from "@architecture/identity/application";
-import type { SessionIdentifierValueObject } from "@architecture/identity/domain";
+import type { SessionAdministrationRepository } from "@architecture/identity/application";
 import {
   SessionEntity,
+  SessionIdentifierValueObject,
   UserIdentifierValueObject,
 } from "@architecture/identity/domain";
 import type { Redis } from "ioredis";
@@ -13,7 +13,7 @@ interface SessionRecord {
   expiresAt: string;
 }
 
-export class RedisSessionAdapter implements SessionRepository {
+export class RedisSessionAdapter implements SessionAdministrationRepository {
   constructor(private readonly redis: Redis) {}
 
   async save(session: SessionEntity): Promise<void> {
@@ -84,6 +84,25 @@ export class RedisSessionAdapter implements SessionRepository {
       pipeline.del(key);
       await pipeline.exec();
     }
+  }
+
+  async findAllForUser(
+    userId: UserIdentifierValueObject,
+  ): Promise<readonly SessionEntity[]> {
+    const key = this.userSessionsKey(userId);
+    const now = Date.now();
+    await this.redis.zremrangebyscore(key, "-inf", now);
+    const sessionIds = await this.redis.zrangebyscore(key, now, "+inf");
+    const sessions = await Promise.all(
+      sessionIds.map((sessionId) => {
+        const id = SessionIdentifierValueObject.create(sessionId);
+        return id.success ? this.findById(id.value) : Promise.resolve(null);
+      }),
+    );
+
+    return sessions.filter(
+      (session): session is SessionEntity => session !== null,
+    );
   }
 
   private userSessionsKey(userId: UserIdentifierValueObject): string {

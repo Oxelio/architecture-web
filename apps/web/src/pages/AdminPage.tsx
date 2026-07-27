@@ -1,117 +1,541 @@
-import { useMutation } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Ban,
+  CheckCircle2,
+  ChevronRight,
+  CircleUserRound,
+  KeyRound,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  UserCheck,
+  Users,
+  X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { activateUser, assignUserRole, suspendUser } from "#services/api";
+import {
+  activateUser,
+  type AdminUser,
+  assignUserRole,
+  listUsers,
+  listUserSessions,
+  revokeUserSession,
+  suspendUser,
+} from "#services/api";
 
-export function AdminPage() {
-  const { t } = useTranslation();
-  const [userId, setUserId] = useState("");
-  const [role, setRole] = useState<"user" | "admin">("user");
-  const [message, setMessage] = useState<string | null>(null);
+type Filter = "all" | "active" | "suspended" | "admin";
+
+interface AdminPageProps {
+  currentUserId: string;
+}
+
+export function AdminPage({ currentUserId }: AdminPageProps) {
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const usersQuery = useQuery({
+    queryKey: ["admin", "users"],
+    queryFn: listUsers,
+  });
+  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
+  const selectedUser =
+    users.find((user) => user.userId === selectedUserId) ?? null;
+
+  const visibleUsers = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    return users.filter((user) => {
+      const matchesSearch =
+        !term ||
+        user.email.toLocaleLowerCase().includes(term) ||
+        user.userId.toLocaleLowerCase().includes(term);
+      const matchesFilter =
+        filter === "all" ||
+        user.status === filter ||
+        (filter === "admin" && user.role === "admin");
+      return matchesSearch && matchesFilter;
+    });
+  }, [filter, search, users]);
+
+  const stats = {
+    total: users.length,
+    active: users.filter((user) => user.status === "active").length,
+    suspended: users.filter((user) => user.status === "suspended").length,
+    admins: users.filter((user) => user.role === "admin").length,
+  };
+
+  const refreshUsers = async (message: string) => {
+    await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    setNotice(message);
+  };
 
   const roleMutation = useMutation({
-    mutationFn: () => assignUserRole(userId, role),
-    onSuccess: () => setMessage(t("admin.roleSuccess")),
-    onError: (error: unknown) =>
-      setMessage(
-        `${t("admin.error")}: ${error instanceof Error ? error.message : ""}`,
-      ),
+    mutationFn: ({ userId, role }: Pick<AdminUser, "userId" | "role">) =>
+      assignUserRole(userId, role),
+    onSuccess: () => refreshUsers(t("admin.roleSuccess")),
+    onError: (error: Error) =>
+      setNotice(`${t("admin.error")}: ${error.message}`),
   });
-  const suspendMutation = useMutation({
-    mutationFn: () => suspendUser(userId),
-    onSuccess: () => setMessage(t("admin.suspendSuccess")),
-    onError: (error: unknown) =>
-      setMessage(
-        `${t("admin.error")}: ${error instanceof Error ? error.message : ""}`,
+  const statusMutation = useMutation({
+    mutationFn: (user: AdminUser) =>
+      user.status === "active"
+        ? suspendUser(user.userId)
+        : activateUser(user.userId),
+    onSuccess: (_data, user) =>
+      refreshUsers(
+        t(
+          user.status === "active"
+            ? "admin.suspendSuccess"
+            : "admin.activateSuccess",
+        ),
       ),
+    onError: (error: Error) =>
+      setNotice(`${t("admin.error")}: ${error.message}`),
   });
-  const activateMutation = useMutation({
-    mutationFn: () => activateUser(userId),
-    onSuccess: () => setMessage(t("admin.activateSuccess")),
-    onError: (error: unknown) =>
-      setMessage(
-        `${t("admin.error")}: ${error instanceof Error ? error.message : ""}`,
-      ),
-  });
-  const isPending =
-    roleMutation.isPending ||
-    suspendMutation.isPending ||
-    activateMutation.isPending;
+
+  const isMutating = roleMutation.isPending || statusMutation.isPending;
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 18 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-3xl rounded-[2rem] border border-slate-800/90 bg-slate-900/80 p-8 shadow-glow sm:p-10"
+      className="mx-auto max-w-7xl"
     >
-      <p className="text-sm uppercase tracking-[0.3em] text-sky-400/80">
-        {t("admin.eyebrow")}
-      </p>
-      <h2 className="mt-3 text-3xl font-semibold text-white">
-        {t("admin.title")}
-      </h2>
-      <p className="mt-3 text-sm leading-7 text-slate-300">
-        {t("admin.description")}
-      </p>
-      <div className="mt-8 space-y-6">
-        <label className="block text-sm font-medium text-slate-200">
-          {t("admin.userId")}
-          <input
-            value={userId}
-            onChange={(event) => setUserId(event.target.value)}
-            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none focus:border-sky-400/80"
+      <div className="overflow-hidden rounded-[2rem] border border-slate-800/90 bg-slate-900/70 shadow-glow">
+        <div className="border-b border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 px-6 py-8 sm:px-9">
+          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+            <div>
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-sky-400">
+                <ShieldCheck className="h-4 w-4" />
+                {t("admin.eyebrow")}
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">
+                {t("admin.title")}
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                {t("admin.description")}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void usersQuery.refetch()}
+              disabled={usersQuery.isFetching}
+              className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-sky-500/50 hover:text-white disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${usersQuery.isFetching ? "animate-spin" : ""}`}
+              />
+              {t("admin.refresh")}
+            </button>
+          </div>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat
+              icon={Users}
+              label={t("admin.totalUsers")}
+              value={stats.total}
+            />
+            <Stat
+              icon={UserCheck}
+              label={t("admin.activeUsers")}
+              value={stats.active}
+              tone="emerald"
+            />
+            <Stat
+              icon={Ban}
+              label={t("admin.suspendedUsers")}
+              value={stats.suspended}
+              tone="rose"
+            />
+            <Stat
+              icon={ShieldCheck}
+              label={t("admin.adminUsers")}
+              value={stats.admins}
+              tone="violet"
+            />
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-7">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <label className="relative block w-full xl:max-w-md">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <span className="sr-only">{t("admin.search")}</span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("admin.searchPlaceholder")}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-sky-500/70"
+              />
+            </label>
+            <div
+              className="flex flex-wrap gap-2"
+              aria-label={t("admin.filters")}
+            >
+              {(["all", "active", "suspended", "admin"] as const).map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setFilter(item)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      filter === item
+                        ? "bg-sky-500 text-slate-950"
+                        : "border border-slate-700 bg-slate-950/60 text-slate-300 hover:border-slate-600"
+                    }`}
+                  >
+                    {t(`admin.filter.${item}`)}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+
+          {usersQuery.isLoading ? (
+            <div className="py-20 text-center text-slate-400">
+              {t("common.loading")}
+            </div>
+          ) : usersQuery.isError ? (
+            <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200">
+              {t("admin.loadError")}
+            </div>
+          ) : (
+            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
+              <div className="hidden grid-cols-[minmax(15rem,1fr)_9rem_9rem_11rem_3rem] gap-4 border-b border-slate-800 bg-slate-950/80 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 md:grid">
+                <span>{t("admin.user")}</span>
+                <span>{t("admin.role")}</span>
+                <span>{t("admin.status")}</span>
+                <span>{t("admin.createdAt")}</span>
+                <span />
+              </div>
+              {visibleUsers.length === 0 ? (
+                <p className="px-5 py-14 text-center text-sm text-slate-500">
+                  {t("admin.empty")}
+                </p>
+              ) : (
+                visibleUsers.map((user) => (
+                  <button
+                    key={user.userId}
+                    type="button"
+                    onClick={() => setSelectedUserId(user.userId)}
+                    className="grid w-full gap-3 border-b border-slate-800/80 bg-slate-900/30 px-5 py-4 text-left transition last:border-b-0 hover:bg-slate-800/50 md:grid-cols-[minmax(15rem,1fr)_9rem_9rem_11rem_3rem] md:items-center md:gap-4"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sky-300">
+                        <CircleUserRound className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium text-white">
+                          {user.email}
+                          {user.userId === currentUserId ? (
+                            <span className="ml-2 text-xs text-sky-400">
+                              {t("admin.you")}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="block truncate font-mono text-xs text-slate-500">
+                          {user.userId}
+                        </span>
+                      </span>
+                    </span>
+                    <Badge tone={user.role === "admin" ? "violet" : "slate"}>
+                      {t(`admin.roleValue.${user.role}`)}
+                    </Badge>
+                    <Badge tone={user.status === "active" ? "emerald" : "rose"}>
+                      {t(`admin.statusValue.${user.status}`)}
+                    </Badge>
+                    <span className="text-sm text-slate-400">
+                      {new Intl.DateTimeFormat(i18n.language, {
+                        dateStyle: "medium",
+                      }).format(new Date(user.createdAt))}
+                    </span>
+                    <ChevronRight className="hidden h-5 w-5 text-slate-600 md:block" />
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {selectedUser ? (
+          <UserPanel
+            key={selectedUser.userId}
+            user={selectedUser}
+            isSelf={selectedUser.userId === currentUserId}
+            isMutating={isMutating}
+            onClose={() => setSelectedUserId(null)}
+            onRoleChange={(role) =>
+              roleMutation.mutate({ userId: selectedUser.userId, role })
+            }
+            onStatusChange={() => statusMutation.mutate(selectedUser)}
           />
-        </label>
-        <div className="rounded-3xl border border-slate-800 bg-slate-950/80 p-6">
-          <label className="block text-sm font-medium text-slate-200">
+        ) : null}
+      </AnimatePresence>
+
+      {notice ? (
+        <div className="fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 shadow-2xl">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+          <span>{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label={t("admin.close")}
+          >
+            <X className="h-4 w-4 text-slate-400" />
+          </button>
+        </div>
+      ) : null}
+    </motion.section>
+  );
+}
+
+function UserPanel({
+  user,
+  isSelf,
+  isMutating,
+  onClose,
+  onRoleChange,
+  onStatusChange,
+}: {
+  user: AdminUser;
+  isSelf: boolean;
+  isMutating: boolean;
+  onClose: () => void;
+  onRoleChange: (role: AdminUser["role"]) => void;
+  onStatusChange: () => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const sessionsQuery = useQuery({
+    queryKey: ["admin", "sessions", user.userId],
+    queryFn: () => listUserSessions(user.userId),
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (sessionId?: string) =>
+      revokeUserSession(user.userId, sessionId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "sessions", user.userId],
+      }),
+  });
+
+  const confirmRevoke = (sessionId?: string) => {
+    const message = sessionId
+      ? t("admin.confirmRevokeOne")
+      : t("admin.confirmRevokeAll");
+    if (window.confirm(message)) {
+      revokeMutation.mutate(sessionId);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 14 }}
+      className="mt-6 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6 shadow-glow sm:p-8"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-400">
+            {t("admin.userDetails")}
+          </p>
+          <h3 className="mt-2 truncate text-2xl font-semibold text-white">
+            {user.email}
+          </h3>
+          <p className="mt-1 break-all font-mono text-xs text-slate-500">
+            {user.userId}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full border border-slate-700 p-2 text-slate-400 hover:text-white"
+          aria-label={t("admin.close")}
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="mt-7 grid gap-5 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
+          <h4 className="font-semibold text-white">
+            {t("admin.accountManagement")}
+          </h4>
+          <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <dt className="text-slate-500">{t("admin.emailVerification")}</dt>
+              <dd className="mt-1 text-slate-200">
+                {t(
+                  user.isEmailVerified ? "admin.verified" : "admin.notVerified",
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">{t("admin.lastUpdate")}</dt>
+              <dd className="mt-1 text-slate-200">
+                {new Intl.DateTimeFormat(i18n.language, {
+                  dateStyle: "medium",
+                }).format(new Date(user.updatedAt))}
+              </dd>
+            </div>
+          </dl>
+          <label className="mt-5 block text-sm text-slate-300">
             {t("admin.role")}
             <select
-              value={role}
+              value={user.role}
+              disabled={isSelf || isMutating}
               onChange={(event) =>
-                setRole(event.target.value as "user" | "admin")
+                onRoleChange(event.target.value as AdminUser["role"])
               }
-              className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-sky-400/80"
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-sky-500 disabled:opacity-50"
             >
-              <option value="user">{t("admin.roleUser")}</option>
-              <option value="admin">{t("admin.roleAdmin")}</option>
+              <option value="user">{t("admin.roleValue.user")}</option>
+              <option value="admin">{t("admin.roleValue.admin")}</option>
             </select>
           </label>
           <button
             type="button"
-            disabled={!userId || isPending}
-            onClick={() => roleMutation.mutate()}
-            className="mt-4 rounded-full bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+            disabled={isSelf || isMutating}
+            onClick={onStatusChange}
+            className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-40 ${user.status === "active" ? "bg-rose-500/90 hover:bg-rose-500" : "bg-emerald-500/90 hover:bg-emerald-500"}`}
           >
-            {t("admin.assignRole")}
+            {t(user.status === "active" ? "admin.suspend" : "admin.activate")}
           </button>
+          {isSelf ? (
+            <p className="mt-3 text-xs leading-5 text-amber-300">
+              {t("admin.selfProtection")}
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled={!userId || isPending}
-            onClick={() => suspendMutation.mutate()}
-            className="rounded-full bg-rose-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {t("admin.suspend")}
-          </button>
-          <button
-            type="button"
-            disabled={!userId || isPending}
-            onClick={() => activateMutation.mutate()}
-            className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {t("admin.activate")}
-          </button>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h4 className="flex items-center gap-2 font-semibold text-white">
+                <KeyRound className="h-4 w-4 text-sky-400" />
+                {t("admin.sessions")}
+              </h4>
+              <p className="mt-1 text-xs text-slate-500">
+                {t("admin.sessionsDescription")}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={!sessionsQuery.data?.length || revokeMutation.isPending}
+              onClick={() => confirmRevoke()}
+              className="rounded-full border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+            >
+              {t("admin.revokeAll")}
+            </button>
+          </div>
+          <div className="mt-4 space-y-2">
+            {sessionsQuery.isLoading ? (
+              <p className="py-6 text-center text-sm text-slate-500">
+                {t("common.loading")}
+              </p>
+            ) : null}
+            {sessionsQuery.data?.length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-500">
+                {t("admin.noSessions")}
+              </p>
+            ) : null}
+            {sessionsQuery.data?.map((session) => (
+              <div
+                key={session.sessionId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-xs text-slate-300">
+                    {session.sessionId}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {t("admin.expiresAt", {
+                      date: new Intl.DateTimeFormat(i18n.language, {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      }).format(new Date(session.expiresAt)),
+                    })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={revokeMutation.isPending}
+                  onClick={() => confirmRevoke(session.sessionId)}
+                  className="shrink-0 rounded-lg p-2 text-rose-400 hover:bg-rose-500/10"
+                  title={t("admin.revokeOne")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {sessionsQuery.isError || revokeMutation.isError ? (
+              <p className="text-xs text-rose-300">
+                {t("admin.sessionsError")}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
-      {message ? (
-        <p className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm text-slate-200">
-          {message}
-        </p>
-      ) : null}
-    </motion.section>
+    </motion.div>
+  );
+}
+
+function Badge({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "slate" | "emerald" | "rose" | "violet";
+}) {
+  const tones = {
+    slate: "border-slate-700 bg-slate-800/70 text-slate-300",
+    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+    rose: "border-rose-500/30 bg-rose-500/10 text-rose-300",
+    violet: "border-violet-500/30 bg-violet-500/10 text-violet-300",
+  };
+  return (
+    <span
+      className={`w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  tone = "sky",
+}: {
+  icon: typeof Users;
+  label: string;
+  value: number;
+  tone?: "sky" | "emerald" | "rose" | "violet";
+}) {
+  const tones = {
+    sky: "text-sky-300 bg-sky-500/10",
+    emerald: "text-emerald-300 bg-emerald-500/10",
+    rose: "text-rose-300 bg-rose-500/10",
+    violet: "text-violet-300 bg-violet-500/10",
+  };
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-800/80 bg-slate-950/50 p-4">
+      <span className={`rounded-xl p-2.5 ${tones[tone]}`}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <span>
+        <span className="block text-2xl font-semibold text-white">{value}</span>
+        <span className="text-xs text-slate-400">{label}</span>
+      </span>
+    </div>
   );
 }

@@ -12,3 +12,9 @@ export abstract class SessionRepository {
   abstract delete(id: SessionIdentifierValueObject): Promise<void>;
   abstract deleteAllForUser(userId: UserIdentifierValueObject): Promise<void>;
 }
+
+export abstract class SessionAdministrationRepository extends SessionRepository {
+  abstract findAllForUser(
+    userId: UserIdentifierValueObject,
+  ): Promise<readonly SessionEntity[]>;
+}

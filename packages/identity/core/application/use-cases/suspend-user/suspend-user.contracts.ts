@@ -7,6 +7,7 @@ export type SuspendUserError = ValueOf<typeof SuspendUserErrorCodes>;
 
 export interface SuspendUserInput {
   userId: string;
+  actorUserId?: string;
 }
 
 export type SuspendUserOutput = Result<undefined, SuspendUserError>;

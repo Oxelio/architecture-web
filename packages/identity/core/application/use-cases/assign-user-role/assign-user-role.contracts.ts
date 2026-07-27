@@ -9,6 +9,7 @@ export type AssignUserRoleError =
 
 export interface AssignUserRoleInput {
   readonly userId: string;
+  readonly actorUserId?: string;
   readonly role: string;
 }
 

@@ -37,6 +37,18 @@ export type {
   UserProfile,
 } from "./use-cases/get-user-profile/get-user-profile.contracts.js";
 export type {
+  AdminSession,
+  ListUserSessions,
+  ListUserSessionsError,
+  ListUserSessionsInput,
+  ListUserSessionsOutput,
+} from "./use-cases/list-user-sessions/list-user-sessions.contracts.js";
+export type {
+  AdminUser,
+  ListUsers,
+  ListUsersOutput,
+} from "./use-cases/list-users/list-users.contracts.js";
+export type {
   ResendEmailVerification,
   ResendEmailVerificationError,
   ResendEmailVerificationInput,
@@ -49,6 +61,12 @@ export type {
   ResolveSessionOutput,
   SessionResolution,
 } from "./use-cases/resolve-session/resolve-session.contracts.js";
+export type {
+  RevokeUserSession,
+  RevokeUserSessionError,
+  RevokeUserSessionInput,
+  RevokeUserSessionOutput,
+} from "./use-cases/revoke-user-session/revoke-user-session.contracts.js";
 export type {
   AuthenticationSession,
   SignIn,
@@ -93,8 +111,14 @@ export { createIdentity } from "./create-identity.js";
 
 // Ports
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
-export { SessionRepository } from "./repositories/session.repository.js";
-export { UserRepository } from "./repositories/user.repository.js";
+export {
+  SessionAdministrationRepository,
+  SessionRepository,
+} from "./repositories/session.repository.js";
+export {
+  UserAdministrationRepository,
+  UserRepository,
+} from "./repositories/user.repository.js";
 export { EmailSender } from "./services/email-sender.service.js";
 export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
 export { EmailVerificationTokenHasher } from "./services/email-verification-token-hasher.service.js";

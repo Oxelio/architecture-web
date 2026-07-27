@@ -61,4 +61,20 @@ describe("AssignUserRoleUseCase", () => {
       error: { code: "user_role.invalid", value: "owner" },
     });
   });
+
+  it("prevents an administrator from changing their own role", async () => {
+    const userId = UserIdentifierValueObject.generate().value;
+    const result = await new AssignUserRoleUseCase(
+      new FakeUserRepository(),
+    ).execute({
+      userId,
+      actorUserId: userId,
+      role: "user",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "user.self_administration_forbidden" },
+    });
+  });
 });

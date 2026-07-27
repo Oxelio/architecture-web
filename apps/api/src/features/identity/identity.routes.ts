@@ -24,8 +24,20 @@ import {
 } from "./change-password/change-password.route-options.js";
 import { createGetUserProfileController } from "./get-user-profile/get-user-profile.controller.js";
 import { getUserProfileRouteOptions } from "./get-user-profile/get-user-profile.route-options.js";
+import { createListUserSessionsController } from "./list-user-sessions/list-user-sessions.controller.js";
+import {
+  type ListUserSessionsRoute,
+  listUserSessionsRouteOptions,
+} from "./list-user-sessions/list-user-sessions.route-options.js";
+import { createListUsersController } from "./list-users/list-users.controller.js";
+import { listUsersRouteOptions } from "./list-users/list-users.route-options.js";
 import { createResendEmailVerificationController } from "./resend-email-verification/resend-email-verification.controller.js";
 import { resendEmailVerificationRouteOptions } from "./resend-email-verification/resend-email-verification.route-options.js";
+import { createRevokeUserSessionController } from "./revoke-user-session/revoke-user-session.controller.js";
+import {
+  type RevokeUserSessionRoute,
+  revokeUserSessionRouteOptions,
+} from "./revoke-user-session/revoke-user-session.route-options.js";
 import {
   createSignInController,
   type SessionCookieOptions,
@@ -36,7 +48,10 @@ import { signOutRouteOptions } from "./sign-out/sign-out.route-options.js";
 import { createSignUpController } from "./sign-up/sign-up.controller.js";
 import { signUpRouteOptions } from "./sign-up/sign-up.route-options.js";
 import { createSuspendUserController } from "./suspend-user/suspend-user.controller.js";
-import { suspendUserRouteOptions } from "./suspend-user/suspend-user.route-options.js";
+import {
+  type SuspendUserRoute,
+  suspendUserRouteOptions,
+} from "./suspend-user/suspend-user.route-options.js";
 import { createVerifyEmailController } from "./verify-email/verify-email.controller.js";
 import { verifyEmailRouteOptions } from "./verify-email/verify-email.route-options.js";
 
@@ -70,7 +85,7 @@ export function buildIdentityRoutes(
         controllers.activateUser,
       );
 
-      adminApp.patch(
+      adminApp.patch<SuspendUserRoute>(
         "/users/:userId/suspend",
         suspendUserRouteOptions,
         controllers.suspendUser,
@@ -80,6 +95,26 @@ export function buildIdentityRoutes(
         "/users/:userId/role",
         assignUserRoleRouteOptions,
         controllers.assignUserRole,
+      );
+
+      adminApp.get("/users", listUsersRouteOptions, controllers.listUsers);
+
+      adminApp.get<ListUserSessionsRoute>(
+        "/users/:userId/sessions",
+        listUserSessionsRouteOptions,
+        controllers.listUserSessions,
+      );
+
+      adminApp.delete<RevokeUserSessionRoute>(
+        "/users/:userId/sessions",
+        revokeUserSessionRouteOptions,
+        controllers.revokeUserSession,
+      );
+
+      adminApp.delete<RevokeUserSessionRoute>(
+        "/users/:userId/sessions/:sessionId",
+        revokeUserSessionRouteOptions,
+        controllers.revokeUserSession,
       );
     });
 
@@ -132,5 +167,12 @@ function composeIdentityControllers(
     activateUser: createActivateUserController(container.activateUser),
     suspendUser: createSuspendUserController(container.suspendUser),
     assignUserRole: createAssignUserRoleController(container.assignUserRole),
+    listUsers: createListUsersController(container.listUsers),
+    listUserSessions: createListUserSessionsController(
+      container.listUserSessions,
+    ),
+    revokeUserSession: createRevokeUserSessionController(
+      container.revokeUserSession,
+    ),
   };
 }
