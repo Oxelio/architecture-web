@@ -94,6 +94,8 @@ describe("GetUserProfileUseCase", () => {
       email: email.value,
       role: UserRoleValueObject.admin(),
       isEmailVerified: true,
+      createdAt: new Date("2025-01-10T08:30:00.000Z"),
+      updatedAt: new Date("2025-02-12T14:45:00.000Z"),
     } as UserEntity;
 
     await userPort.save(user);
@@ -110,6 +112,8 @@ describe("GetUserProfileUseCase", () => {
         email: "test@test.com",
         isEmailVerified: true,
         role: "admin",
+        createdAt: "2025-01-10T08:30:00.000Z",
+        updatedAt: "2025-02-12T14:45:00.000Z",
       });
     }
   });

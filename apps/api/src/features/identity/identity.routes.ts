@@ -24,6 +24,8 @@ import {
 } from "./change-password/change-password.route-options.js";
 import { createGetUserProfileController } from "./get-user-profile/get-user-profile.controller.js";
 import { getUserProfileRouteOptions } from "./get-user-profile/get-user-profile.route-options.js";
+import { createListCurrentUserSessionsController } from "./list-user-sessions/list-current-user-sessions.controller.js";
+import { listCurrentUserSessionsRouteOptions } from "./list-user-sessions/list-current-user-sessions.route-options.js";
 import { createListUserSessionsController } from "./list-user-sessions/list-user-sessions.controller.js";
 import {
   type ListUserSessionsRoute,
@@ -33,6 +35,11 @@ import { createListUsersController } from "./list-users/list-users.controller.js
 import { listUsersRouteOptions } from "./list-users/list-users.route-options.js";
 import { createResendEmailVerificationController } from "./resend-email-verification/resend-email-verification.controller.js";
 import { resendEmailVerificationRouteOptions } from "./resend-email-verification/resend-email-verification.route-options.js";
+import { createRevokeCurrentUserSessionController } from "./revoke-user-session/revoke-current-user-session.controller.js";
+import {
+  type RevokeCurrentUserSessionRoute,
+  revokeCurrentUserSessionRouteOptions,
+} from "./revoke-user-session/revoke-current-user-session.route-options.js";
 import { createRevokeUserSessionController } from "./revoke-user-session/revoke-user-session.controller.js";
 import {
   type RevokeUserSessionRoute,
@@ -134,6 +141,18 @@ export function buildIdentityRoutes(
         controllers.getUserProfile,
       );
 
+      protectedApp.get(
+        "/me/sessions",
+        listCurrentUserSessionsRouteOptions,
+        controllers.listCurrentUserSessions,
+      );
+
+      protectedApp.delete<RevokeCurrentUserSessionRoute>(
+        "/me/sessions/:sessionId",
+        revokeCurrentUserSessionRouteOptions,
+        controllers.revokeCurrentUserSession,
+      );
+
       protectedApp.patch<ChangeEmailRoute>(
         "/me/email",
         changeEmailRouteOptions,
@@ -171,7 +190,13 @@ function composeIdentityControllers(
     listUserSessions: createListUserSessionsController(
       container.listUserSessions,
     ),
+    listCurrentUserSessions: createListCurrentUserSessionsController(
+      container.listUserSessions,
+    ),
     revokeUserSession: createRevokeUserSessionController(
+      container.revokeUserSession,
+    ),
+    revokeCurrentUserSession: createRevokeCurrentUserSessionController(
       container.revokeUserSession,
     ),
   };

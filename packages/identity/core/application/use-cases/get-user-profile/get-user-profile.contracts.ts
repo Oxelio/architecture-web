@@ -14,6 +14,8 @@ export interface UserProfile {
   email: string;
   isEmailVerified: boolean;
   role: "user" | "admin";
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type GetUserProfileOutput = Result<UserProfile, GetUserProfileError>;

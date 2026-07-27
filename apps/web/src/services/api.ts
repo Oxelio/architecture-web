@@ -5,6 +5,13 @@ export interface CurrentUser {
   email: string;
   isEmailVerified: boolean;
   role: "user" | "admin";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSession {
+  sessionId: string;
+  expiresAt: string;
 }
 
 export interface AdminUser {
@@ -147,6 +154,20 @@ export async function verifyEmail(token: string) {
 export async function resendEmailVerification(): Promise<void> {
   await request<unknown>("/identity/verify/resend", {
     method: "POST",
+  });
+}
+
+export function listCurrentUserSessions(): Promise<UserSession[]> {
+  return request<UserSession[]>("/identity/me/sessions", {
+    method: "GET",
+  });
+}
+
+export async function revokeCurrentUserSession(
+  sessionId: string,
+): Promise<void> {
+  await request<unknown>(`/identity/me/sessions/${sessionId}`, {
+    method: "DELETE",
   });
 }
 
