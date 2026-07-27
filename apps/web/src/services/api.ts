@@ -4,6 +4,7 @@ export interface CurrentUser {
   userId: string;
   email: string;
   isEmailVerified: boolean;
+  role: "user" | "admin";
 }
 
 export interface SignInPayload {
@@ -131,5 +132,27 @@ export async function verifyEmail(token: string) {
 export async function resendEmailVerification(): Promise<void> {
   await request<unknown>("/identity/verify/resend", {
     method: "POST",
+  });
+}
+
+export async function assignUserRole(
+  userId: string,
+  role: "user" | "admin",
+): Promise<void> {
+  await request<unknown>(`/identity/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function suspendUser(userId: string): Promise<void> {
+  await request<unknown>(`/identity/users/${userId}/suspend`, {
+    method: "PATCH",
+  });
+}
+
+export async function activateUser(userId: string): Promise<void> {
+  await request<unknown>(`/identity/users/${userId}/activate`, {
+    method: "PATCH",
   });
 }

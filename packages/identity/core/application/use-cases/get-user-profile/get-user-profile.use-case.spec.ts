@@ -6,6 +6,7 @@ import type { UserEntity } from "#entities/user.entity";
 import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 import { GetUserProfileUseCase } from "./get-user-profile.use-case.js";
 
@@ -91,6 +92,8 @@ describe("GetUserProfileUseCase", () => {
     const user = {
       identifier: userId,
       email: email.value,
+      role: UserRoleValueObject.admin(),
+      isEmailVerified: true,
     } as UserEntity;
 
     await userPort.save(user);
@@ -105,6 +108,8 @@ describe("GetUserProfileUseCase", () => {
       expect(result.value).toEqual({
         userId: userId.value,
         email: "test@test.com",
+        isEmailVerified: true,
+        role: "admin",
       });
     }
   });

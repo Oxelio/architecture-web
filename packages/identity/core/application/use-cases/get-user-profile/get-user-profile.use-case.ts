@@ -33,6 +33,7 @@ export class GetUserProfileUseCase implements GetUserProfile {
       userId: user.identifier.value,
       email: user.email.value,
       isEmailVerified: user.isEmailVerified,
+      role: user.role.value,
     };
 
     return Result.success(data);

@@ -13,6 +13,7 @@ export interface UserProfile {
   userId: string;
   email: string;
   isEmailVerified: boolean;
+  role: "user" | "admin";
 }
 
 export type GetUserProfileOutput = Result<UserProfile, GetUserProfileError>;

@@ -7,6 +7,11 @@ import type { AuthenticatedFastifyInstance } from "#app/auth";
 
 import { createActivateUserController } from "./activate-user/activate-user.controller.js";
 import { activateUserRouteOptions } from "./activate-user/activate-user.route-options.js";
+import { createAssignUserRoleController } from "./assign-user-role/assign-user-role.controller.js";
+import {
+  type AssignUserRoleRoute,
+  assignUserRoleRouteOptions,
+} from "./assign-user-role/assign-user-role.route-options.js";
 import { createChangeEmailController } from "./change-email/change-email.controller.js";
 import {
   type ChangeEmailRoute,
@@ -70,6 +75,12 @@ export function buildIdentityRoutes(
         suspendUserRouteOptions,
         controllers.suspendUser,
       );
+
+      adminApp.patch<AssignUserRoleRoute>(
+        "/users/:userId/role",
+        assignUserRoleRouteOptions,
+        controllers.assignUserRole,
+      );
     });
 
     // Protected
@@ -120,5 +131,6 @@ function composeIdentityControllers(
     changePassword: createChangePasswordController(container.changePassword),
     activateUser: createActivateUserController(container.activateUser),
     suspendUser: createSuspendUserController(container.suspendUser),
+    assignUserRole: createAssignUserRoleController(container.assignUserRole),
   };
 }

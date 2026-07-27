@@ -25,6 +25,9 @@ const VerifyEmailPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import("./pages/ProfilePage").then((mod) => ({ default: mod.ProfilePage })),
 );
+const AdminPage = lazy(() =>
+  import("./pages/AdminPage").then((mod) => ({ default: mod.AdminPage })),
+);
 
 function App() {
   const location = useLocation();
@@ -63,17 +66,32 @@ function App() {
               {t("nav.home")}
             </Link>
             {user ? (
-              <Link
-                to="/profile"
-                className={cn(
-                  "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                  location.pathname === "/profile"
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-400",
-                )}
-              >
-                {t("nav.profile")}
-              </Link>
+              <>
+                <Link
+                  to="/profile"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                    location.pathname === "/profile"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400",
+                  )}
+                >
+                  {t("nav.profile")}
+                </Link>
+                {user.role === "admin" ? (
+                  <Link
+                    to="/admin"
+                    className={cn(
+                      "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                      location.pathname === "/admin"
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-400",
+                    )}
+                  >
+                    {t("nav.admin")}
+                  </Link>
+                ) : null}
+              </>
             ) : (
               <>
                 <Link
@@ -116,6 +134,16 @@ function App() {
             <Route
               path="/"
               element={<HomePage user={user} loading={isLoading} />}
+            />
+            <Route
+              path="/admin"
+              element={
+                user?.role === "admin" ? (
+                  <AdminPage />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
             />
             <Route
               path="/signin"
