@@ -1,9 +1,4 @@
-import { AssignUserRoleUseCase } from "@architecture/identity/application";
-import { EmailValueObject } from "@architecture/identity/domain";
-import { KyselyUserAdapter } from "@architecture/identity-persistence-kysely";
-
-import { createDatabase } from "#composition-root/database.module";
-import { loadConfig } from "#config/app.config";
+import { buildApplicationModule } from "#composition-root/application.module";
 
 const emailArgument = process.argv[2];
 if (!emailArgument) {
@@ -11,24 +6,24 @@ if (!emailArgument) {
   process.exit(1);
 }
 
-const email = EmailValueObject.create(emailArgument);
-if (!email.success) {
-  console.error("The email address is invalid.");
-  process.exit(1);
-}
-
-const config = loadConfig();
-const db = createDatabase(config.database);
-const userRepository = new KyselyUserAdapter(db);
+const application = buildApplicationModule();
 
 try {
-  const user = await userRepository.findByEmail(email.value);
+  const users = await application.identity.listUsers.execute();
+  if (!users.success) {
+    throw new Error("ListUsers cannot fail");
+  }
+
+  const user = users.value.find(
+    ({ email }) => email.toLowerCase() === emailArgument.toLowerCase(),
+  );
+
   if (!user) {
     console.error("No user exists for this email address.");
     process.exitCode = 1;
   } else {
-    const result = await new AssignUserRoleUseCase(userRepository).execute({
-      userId: user.identifier.value,
+    const result = await application.identity.assignUserRole.execute({
+      userId: user.userId,
       role: "admin",
     });
 
@@ -36,9 +31,9 @@ try {
       console.error(`Unable to promote user: ${result.error.code}`);
       process.exitCode = 1;
     } else {
-      console.log(`Promoted ${user.email.value} to admin.`);
+      console.log(`Promoted ${user.email} to admin.`);
     }
   }
 } finally {
-  await db.destroy();
+  await application.dispose();
 }
