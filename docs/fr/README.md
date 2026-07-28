@@ -1,23 +1,52 @@
 # Documentation du projet
 
-Cette documentation a été restructurée pour servir à la fois les développeurs humains et les agents IA. Elle vise à expliquer non seulement comment le projet fonctionne, mais surtout pourquoi il est conçu de cette manière.
+Cette documentation décrit l’architecture réellement présente dans le dépôt.
+Le projet est un monorepo pnpm TypeScript composé d’une application React, d’une
+API Fastify et de packages consacrés au domaine Identity et à ses adaptateurs.
 
-## Objectif de cette documentation
+## Parcours de lecture
 
-Cette documentation permet de comprendre rapidement :
+Pour une première prise en main, lire dans cet ordre :
 
-- la philosophie architecturale du projet,
-- la séparation entre domaine, application et infrastructure,
-- les conventions de développement à respecter,
-- les points sensibles à ne pas modifier sans analyse,
-- et les bonnes pratiques pour faire évoluer le système.
+1. [Vue d’ensemble](architecture/overview.md) — objectifs, frontières et flux ;
+2. [Couches](architecture/layers.md) — responsabilité de chaque niveau ;
+3. [Règles de dépendance](architecture/dependency-rules.md) — imports autorisés
+   et interdits ;
+4. [Packages](architecture/packages.md) — API publique et implémentations ;
+5. [Installation](development/getting-started.md) ;
+6. [Ajouter une fonctionnalité](development/adding-a-feature.md).
 
-## Sommaire
+## Référence par besoin
 
-- [Vue d’ensemble](overview.md)
-- [Architecture](architecture.md)
-- [Conventions et règles de développement](conventions.md)
-- [Guide développeur](development.md)
-- [Décisions architecturales](adr.md)
-- [Sessions d’identité](identity-sessions.md)
-- [Documentation IA](ai-guidelines.md)
+### Architecture
+
+- [Vue d’ensemble](architecture/overview.md)
+- [Couches et frontières](architecture/layers.md)
+- [Règles de dépendance](architecture/dependency-rules.md)
+- [Packages et API publiques](architecture/packages.md)
+- [Décisions architecturales](architecture/decisions/README.md)
+
+### Développement
+
+- [Installation et exécution](development/getting-started.md)
+- [Conventions](development/conventions.md)
+- [Tests et vérifications](development/testing.md)
+- [Ajouter une fonctionnalité](development/adding-a-feature.md)
+
+### Guides et références
+
+- [Authentification et sessions](guides/identity-sessions.md)
+- [Interface HTTP](reference/http-api.md)
+
+## Sources de vérité
+
+- Les exports d’un package sont définis par son `package.json` et ses fichiers
+  d’index.
+- Les contrats applicatifs sont dans
+  `packages/identity/core/application/use-cases`.
+- Les routes et schémas HTTP sont dans
+  `apps/api/src/features/identity`.
+- Les commandes disponibles sont définies par les scripts des `package.json`.
+- Le catalogue HTTP exécutable est l’interface Swagger exposée sur `/docs`.
+
+La documentation explique ces sources ; elle ne les remplace pas.

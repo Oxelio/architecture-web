@@ -1,0 +1,106 @@
+# Adding a feature
+
+This path starts from a business intent and ends at the interface. Not every
+step is mandatory: create a port or domain object only when the feature needs
+one.
+
+## 1. Define behavior
+
+Identify the actor and access level, business input and output, expected errors,
+domain invariants, external effects, and possible breaking changes. Do not
+start with the HTTP route: the application contract must remain usable from
+another interface.
+
+## 2. Extend the domain when needed
+
+A new value object follows existing factories:
+
+```ts
+export class ExampleValueObject extends ValueObject<{ value: string }> {
+  static create(value: string): Result<ExampleValueObject, ExampleError> {
+    if (!isValid(value)) {
+      return Result.failure({ code: "example.invalid" });
+    }
+    return Result.success(new ExampleValueObject({ value }));
+  }
+
+  get value(): string {
+    return this.properties.value;
+  }
+}
+```
+
+Export it from `packages/identity/core/domain/index.ts` only when it belongs to
+the public contract. Add colocated tests for validation and meaningful limits.
+
+## 3. Define the application contract
+
+Under `application/use-cases/<feature>`, create:
+
+- `<feature>.codes.ts` for stable codes;
+- `<feature>.contracts.ts` for input, output, and interface;
+- `<feature>.use-case.ts` for orchestration;
+- `<feature>.use-case.spec.ts` for behavior.
+
+The use case **MUST** depend on ports, never adapters.
+
+## 4. Add or extend a port
+
+Repositories belong in `application/repositories`; external services belong in
+`application/services`. Keep ports minimal and driven by use-case needs.
+
+```ts
+export abstract class ExampleRepository {
+  abstract save(entity: ExampleEntity): Promise<void>;
+}
+```
+
+Export the port from `application/index.ts`. A port change must update all
+adapters, composition, and test doubles in the same change.
+
+## 5. Implement infrastructure
+
+Choose or create a specialized package. The adapter explicitly implements the
+port:
+
+```ts
+export class TechnologyExampleAdapter implements ExampleRepository {
+  async save(entity: ExampleEntity): Promise<void> {
+    // mapping and technical call
+  }
+}
+```
+
+Export only necessary elements. Persistence schema, migrations, and mappers
+change together.
+
+## 6. Compose the use case
+
+Add the dependency to `IdentityDependencies`, construct the use case in
+`createIdentity`, expose it in `IdentityApplication`, and select the adapter in
+`apps/api/src/composition-root/identity.module.ts`.
+
+## 7. Expose HTTP
+
+Create `apps/api/src/features/identity/<feature>` with controller, HTTP
+contract, presenter, and TypeBox route options. Add the controller to
+`compose-controllers.ts`, then register the route in `public.routes.ts`,
+`protected.routes.ts`, or `admin.routes.ts`.
+
+User routes derive identity from `request.auth`. Administrator routes retain
+the role hook and forbid self-operations where the business rule requires it.
+
+## 8. Adapt web and documentation
+
+Update `apps/web/src/services/api.ts`, React Query hooks, UI, and FR/EN
+translations. Web transport types match serialized responses, not domain
+classes.
+
+Update the HTTP reference for a new endpoint. Add an ADR only for a durable
+structural decision.
+
+## 9. Verify
+
+Run tests and typechecks for affected units. A new port or public export
+requires full-workspace validation and a search for internal imports that
+bypass the public API.

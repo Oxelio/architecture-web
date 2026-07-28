@@ -1,0 +1,75 @@
+# Setup and runtime
+
+## Prerequisites
+
+- a Node.js version compatible with TypeScript 5.9 and Vite 8;
+- pnpm `11.15.1`, as declared at the root;
+- Docker Compose for PostgreSQL, Redis, and Mailpit, or equivalent services.
+
+The repository does not declare an exact Node version. Check dependency engine
+requirements before standardizing one in documentation or CI.
+
+## Install
+
+From the repository root:
+
+```bash
+pnpm install
+```
+
+## Configure the API
+
+Copy `apps/api/.env.example` to `apps/api/.env` and adjust the values. Zod
+validates configuration at startup in `apps/api/src/config/app.config.ts`.
+
+Required variables cover PostgreSQL (`DATABASE_*`), Redis (`REDIS_*`), and SMTP
+(`SMTP_*`). `COOKIE_SECURE` and `TRUST_PROXY` adjust cookie and proxy security.
+`SMTP_VERIFY_URL` is the complete web page URL that receives a token.
+
+`WEB_ORIGIN` appears in the example and Compose file, but the current Fastify
+configuration uses `origin: true` and does not read it.
+
+## Start services
+
+For the complete environment:
+
+```bash
+docker compose up --build
+```
+
+Defaults are web on `http://localhost:5173`, API on
+`http://localhost:3000`, Swagger UI on `http://localhost:3000/docs`, and
+Mailpit on `http://localhost:8025`.
+
+For local app processes backed by Docker services:
+
+```bash
+docker compose up postgres redis mailpit
+pnpm --filter api migrate:up
+pnpm --filter api dev
+pnpm --filter web dev
+```
+
+Run the two `dev` commands in separate terminals. The web client defaults to
+`http://localhost:3000/v1`; `VITE_API_BASE_URL` overrides it.
+
+## Migrations and administration
+
+```bash
+pnpm --filter api migrate:up
+pnpm --filter api migrate:down
+pnpm --filter api migrate:reset
+pnpm --filter api promote:admin <email>
+```
+
+`migrate:reset` is destructive to local data. Read the script before using it
+against a shared environment. The promotion script is the source of truth for
+its exact arguments.
+
+## Entry points
+
+- API: `apps/api/src/main.ts`, then `server.ts`;
+- composition: `apps/api/src/composition-root/application.module.ts`;
+- Identity routes: `apps/api/src/features/identity/routes/index.ts`;
+- web: `apps/web/src/main.tsx`, then `App.tsx`;
+- web HTTP client: `apps/web/src/services/api.ts`.
