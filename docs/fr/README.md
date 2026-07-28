@@ -37,6 +37,7 @@ Pour une première prise en main, lire dans cet ordre :
 
 - [Authentification et sessions](guides/identity-sessions.md)
 - [Interface HTTP](reference/http-api.md)
+- [Spécifications fonctionnelles](specifications/README.md)
 
 ## Sources de vérité
 

@@ -37,6 +37,7 @@ New contributors should read:
 
 - [Authentication and sessions](guides/identity-sessions.md)
 - [HTTP interface](reference/http-api.md)
+- [Functional specifications](specifications/README.md)
 
 ## Sources of truth
 
