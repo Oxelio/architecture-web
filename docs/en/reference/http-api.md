@@ -12,12 +12,14 @@ and responses.
 
 ## Public routes
 
-| Method | Path                | Intent                                |
-| ------ | ------------------- | ------------------------------------- |
-| `GET`  | `/verify?token=...` | verify an email                       |
-| `POST` | `/signup`           | create an account                     |
-| `POST` | `/signin`           | open a session                        |
-| `POST` | `/signout`          | close the session named by the cookie |
+| Method | Path                        | Intent                                |
+| ------ | --------------------------- | ------------------------------------- |
+| `GET`  | `/verify?token=...`         | verify an email                       |
+| `POST` | `/signup`                   | create an account                     |
+| `GET`  | `/password-policy`          | read the public password policy       |
+| `POST` | `/password-policy/evaluate` | evaluate a password                   |
+| `POST` | `/signin`                   | open a session                        |
+| `POST` | `/signout`                  | close the session named by the cookie |
 
 ## Authenticated routes
 
@@ -51,6 +53,11 @@ responses use `204`. HTTP errors use
 Business codes are defined next to use cases in `*.codes.ts`. HTTP mappings
 live in `*.http.ts`. Cross-cutting `UNAUTHORIZED` and `FORBIDDEN` codes are
 produced by authentication and authorization hooks.
+
+`POST /signup` requires `email`, `password`, and `passwordConfirmation`.
+`PATCH /me/password` requires `currentPassword`, `password`, and
+`passwordConfirmation`. Confirmations are compared exactly and then discarded;
+they never reach persistence.
 
 ## Version and breaking changes
 

@@ -8,6 +8,10 @@ import { createGetUserProfileController } from "./get-user-profile/get-user-prof
 import { createListCurrentUserSessionsController } from "./list-user-sessions/list-current-user-sessions.controller.js";
 import { createListUserSessionsController } from "./list-user-sessions/list-user-sessions.controller.js";
 import { createListUsersController } from "./list-users/list-users.controller.js";
+import {
+  createEvaluatePasswordController,
+  createGetPasswordPolicyController,
+} from "./password-policy/password-policy.controller.js";
 import { createResendEmailVerificationController } from "./resend-email-verification/resend-email-verification.controller.js";
 import { createRevokeCurrentUserSessionController } from "./revoke-user-session/revoke-current-user-session.controller.js";
 import { createRevokeUserSessionController } from "./revoke-user-session/revoke-user-session.controller.js";
@@ -28,6 +32,12 @@ export function composeIdentityControllers(
 ) {
   return {
     signUp: createSignUpController(container.signUp),
+    getPasswordPolicy: createGetPasswordPolicyController(
+      container.getPasswordPolicy,
+    ),
+    evaluatePassword: createEvaluatePasswordController(
+      container.evaluatePassword,
+    ),
     signIn: createSignInController(container.signIn, sessionCookie),
     signOut: createSignOutController(container.signOut, sessionCookie),
     getUserProfile: createGetUserProfileController(container.getUserProfile),

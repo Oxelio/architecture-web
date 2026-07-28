@@ -15,6 +15,7 @@ export function createSignUpController(useCase: SignUp) {
     const command: SignUpInput = {
       email: request.body.email,
       password: request.body.password,
+      passwordConfirmation: request.body.passwordConfirmation,
     };
 
     const result = await useCase.execute(command);

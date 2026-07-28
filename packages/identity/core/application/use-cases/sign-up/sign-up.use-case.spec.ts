@@ -2,12 +2,19 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createPasswordPolicy } from "#domain/password-policy";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import type { UserEntity } from "#entities/user.entity";
 import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import { PasswordPolicyValidator } from "#services/password-policy-validator.service";
+import type {
+  CommonPasswordChecker,
+  CompromisedPasswordChecker,
+  PasswordStrengthEvaluator,
+} from "#services/password-security.service";
 import type { EmailValueObject } from "#value-objects/email.value-object";
 import type { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
@@ -145,6 +152,18 @@ describe("SignUpUseCase - full coverage", () => {
       emailVerificationPort,
       emailSenderPort,
       new FakeTokenHasher(),
+      new PasswordPolicyValidator(
+        createPasswordPolicy("elevated", {
+          checkCommonPasswords: false,
+          checkCompromisedPasswords: false,
+          checkUserContext: false,
+        }),
+        {
+          evaluate: async () => "acceptable",
+        } as PasswordStrengthEvaluator,
+        { isCommon: async () => false } as CommonPasswordChecker,
+        { isCompromised: async () => false } as CompromisedPasswordChecker,
+      ),
     );
   });
 
@@ -155,7 +174,8 @@ describe("SignUpUseCase - full coverage", () => {
   it("should register user successfully", async () => {
     const result = await useCase.execute({
       email: "test@test.com",
-      password: "password123",
+      password: "a secure phrase 123",
+      passwordConfirmation: "a secure phrase 123",
     });
 
     expect(result.success).toBe(true);
@@ -174,7 +194,8 @@ describe("SignUpUseCase - full coverage", () => {
   it("should fail when email is invalid", async () => {
     const result = await useCase.execute({
       email: "invalid-email",
-      password: "password123",
+      password: "a secure phrase 123",
+      passwordConfirmation: "a secure phrase 123",
     });
 
     expect(result.success).toBe(false);
@@ -192,6 +213,7 @@ describe("SignUpUseCase - full coverage", () => {
     const result = await useCase.execute({
       email: "test@test.com",
       password: "",
+      passwordConfirmation: "",
     });
 
     expect(result.success).toBe(false);
@@ -208,7 +230,8 @@ describe("SignUpUseCase - full coverage", () => {
   it("should fail when user already exists", async () => {
     const payload = {
       email: "test@test.com",
-      password: "password123",
+      password: "a secure phrase 123",
+      passwordConfirmation: "a secure phrase 123",
     };
 
     // first insert
@@ -235,7 +258,8 @@ describe("SignUpUseCase - full coverage", () => {
 
     await useCase.execute({
       email: "test@test.com",
-      password: "password123",
+      password: "a secure phrase 123",
+      passwordConfirmation: "a secure phrase 123",
     });
 
     expect(spy).toHaveBeenCalledOnce();
@@ -250,9 +274,36 @@ describe("SignUpUseCase - full coverage", () => {
 
     await useCase.execute({
       email: "test@test.com",
-      password: "password123",
+      password: "a secure phrase 123",
+      passwordConfirmation: "a secure phrase 123",
     });
 
     expect(spy).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a mismatched password confirmation before hashing", async () => {
+    const spy = vi.spyOn(passwordHasher, "hash");
+    const result = await useCase.execute({
+      email: "test@test.com",
+      password: "a secure phrase 123",
+      passwordConfirmation: "another secure phrase",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "password.confirmation_mismatch" },
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("accepts Unicode passphrases and spaces", async () => {
+    const password = "Une très longue phrase 🔐 unique";
+    const result = await useCase.execute({
+      email: "unicode@test.com",
+      password,
+      passwordConfirmation: password,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

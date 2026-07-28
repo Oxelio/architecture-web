@@ -17,7 +17,10 @@ const SignUpBodySchema = Type.Object({
     format: "email",
   }),
   password: Type.String({
-    minLength: 8,
+    maxLength: 1024,
+  }),
+  passwordConfirmation: Type.String({
+    maxLength: 1024,
   }),
 });
 

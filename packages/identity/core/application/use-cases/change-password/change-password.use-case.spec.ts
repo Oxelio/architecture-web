@@ -2,14 +2,22 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createPasswordPolicy } from "#domain/password-policy";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
+import { PasswordPolicyValidator } from "#services/password-policy-validator.service";
+import type {
+  CommonPasswordChecker,
+  CompromisedPasswordChecker,
+  PasswordStrengthEvaluator,
+} from "#services/password-security.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 import { ChangePasswordUseCase } from "./change-password.use-case.js";
 
@@ -46,8 +54,8 @@ class FakePasswordHasherPort implements PasswordHasher {
     return result.value;
   }
 
-  async verify(): Promise<boolean> {
-    return true;
+  async verify(password: PasswordPlainValueObject): Promise<boolean> {
+    return password.value === "current password";
   }
 
   async fakeVerify(): Promise<void> {
@@ -67,7 +75,23 @@ describe("ChangePasswordUseCase", () => {
     userPort = new FakeUserPort();
     passwordHasher = new FakePasswordHasherPort();
     sessionPort = { deleteAllForUser: vi.fn() } as unknown as SessionRepository;
-    useCase = new ChangePasswordUseCase(userPort, passwordHasher, sessionPort);
+    useCase = new ChangePasswordUseCase(
+      userPort,
+      passwordHasher,
+      sessionPort,
+      new PasswordPolicyValidator(
+        createPasswordPolicy("elevated", {
+          checkCommonPasswords: false,
+          checkCompromisedPasswords: false,
+          checkUserContext: false,
+        }),
+        {
+          evaluate: async () => "acceptable",
+        } as PasswordStrengthEvaluator,
+        { isCommon: async () => false } as CommonPasswordChecker,
+        { isCompromised: async () => false } as CompromisedPasswordChecker,
+      ),
+    );
   });
 
   /* -------------------------------------------------- */
@@ -77,7 +101,9 @@ describe("ChangePasswordUseCase", () => {
   it("should fail when userId is invalid", async () => {
     const result = await useCase.execute({
       userId: "",
-      password: "newPassword123",
+      currentPassword: "current password",
+      password: "new secure password 123",
+      passwordConfirmation: "new secure password 123",
     });
 
     expect(result.success).toBe(false);
@@ -110,7 +136,9 @@ describe("ChangePasswordUseCase", () => {
 
     const result = await useCase.execute({
       userId: user.identifier.value,
+      currentPassword: "current password",
       password: "",
+      passwordConfirmation: "",
     });
 
     expect(result.success).toBe(false);
@@ -129,7 +157,9 @@ describe("ChangePasswordUseCase", () => {
 
     const result = await useCase.execute({
       userId: validId,
-      password: "newPassword123",
+      currentPassword: "current password",
+      password: "new secure password 123",
+      passwordConfirmation: "new secure password 123",
     });
 
     expect(result.success).toBe(false);
@@ -162,7 +192,9 @@ describe("ChangePasswordUseCase", () => {
 
     const result = await useCase.execute({
       userId: user.identifier.value,
-      password: "newPassword123",
+      currentPassword: "current password",
+      password: "new secure password 123",
+      passwordConfirmation: "new secure password 123",
     });
 
     expect(result.success).toBe(true);
@@ -170,7 +202,7 @@ describe("ChangePasswordUseCase", () => {
     const updatedUser = await userPort.findById(user.identifier);
 
     expect(updatedUser).not.toBeNull();
-    expect(updatedUser?.password.value).toBe("hashed-newPassword123");
+    expect(updatedUser?.password.value).toBe("hashed-new secure password 123");
     expect(sessionPort.deleteAllForUser).toHaveBeenCalledWith(user.identifier);
   });
 
@@ -197,7 +229,9 @@ describe("ChangePasswordUseCase", () => {
 
     await useCase.execute({
       userId: user.identifier.value,
-      password: "newPassword123",
+      currentPassword: "current password",
+      password: "new secure password 123",
+      passwordConfirmation: "new secure password 123",
     });
 
     expect(spy).toHaveBeenCalledOnce();
@@ -226,7 +260,9 @@ describe("ChangePasswordUseCase", () => {
 
     await useCase.execute({
       userId: user.identifier.value,
-      password: "newPassword123",
+      currentPassword: "current password",
+      password: "new secure password 123",
+      passwordConfirmation: "new secure password 123",
     });
 
     expect(spy).toHaveBeenCalled();
@@ -253,7 +289,9 @@ describe("ChangePasswordUseCase", () => {
 
     const result = await useCase.execute({
       userId: user.identifier.value,
+      currentPassword: "current password",
       password: "1234567",
+      passwordConfirmation: "1234567",
     });
 
     expect(result.success).toBe(false);
@@ -261,5 +299,104 @@ describe("ChangePasswordUseCase", () => {
     if (!result.success) {
       expect(result.error.code).toBe("password.too_short");
     }
+  });
+
+  it("rejects an invalid current password without saving", async () => {
+    const email = EmailValueObject.create("test@test.com");
+    const oldPassword = PasswordHashValueObject.create("old-hashed-password");
+    if (!email.success || !oldPassword.success) {
+      throw new Error("Invalid fixture");
+    }
+    const user = UserEntity.create({
+      email: email.value,
+      password: oldPassword.value,
+    });
+    await userPort.save(user);
+    const saveSpy = vi.spyOn(userPort, "save");
+
+    const result = await useCase.execute({
+      userId: user.identifier.value,
+      currentPassword: "incorrect password",
+      password: "new secure password 123",
+      passwordConfirmation: "new secure password 123",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "password.current_invalid" },
+    });
+    expect(saveSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a mismatched confirmation", async () => {
+    const email = EmailValueObject.create("test@test.com");
+    const oldPassword = PasswordHashValueObject.create("old-hashed-password");
+    if (!email.success || !oldPassword.success) {
+      throw new Error("Invalid fixture");
+    }
+    const user = UserEntity.create({
+      email: email.value,
+      password: oldPassword.value,
+    });
+    await userPort.save(user);
+
+    const result = await useCase.execute({
+      userId: user.identifier.value,
+      currentPassword: "current password",
+      password: "new secure password 123",
+      passwordConfirmation: "different secure password",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "password.confirmation_mismatch" },
+    });
+  });
+
+  it("applies a configured stricter policy to privileged accounts", async () => {
+    const email = EmailValueObject.create("admin@test.com");
+    const oldPassword = PasswordHashValueObject.create("old-hashed-password");
+    if (!email.success || !oldPassword.success) {
+      throw new Error("Invalid fixture");
+    }
+    const user = UserEntity.create({
+      email: email.value,
+      password: oldPassword.value,
+    });
+    user.changeRole(UserRoleValueObject.admin());
+    await userPort.save(user);
+
+    const checkerOptions = {
+      checkCommonPasswords: false,
+      checkCompromisedPasswords: false,
+      checkUserContext: false,
+    };
+    const createValidator = (level: "elevated" | "critical") =>
+      new PasswordPolicyValidator(
+        createPasswordPolicy(level, checkerOptions),
+        { evaluate: async () => "acceptable" } as PasswordStrengthEvaluator,
+        { isCommon: async () => false } as CommonPasswordChecker,
+        { isCompromised: async () => false } as CompromisedPasswordChecker,
+      );
+    useCase = new ChangePasswordUseCase(
+      userPort,
+      passwordHasher,
+      sessionPort,
+      createValidator("elevated"),
+      createValidator("critical"),
+    );
+
+    const password = "eighteen chars 123";
+    const result = await useCase.execute({
+      userId: user.identifier.value,
+      currentPassword: "current password",
+      password,
+      passwordConfirmation: password,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: { code: "password.too_short", actual: 18, min: 20 },
+    });
   });
 });

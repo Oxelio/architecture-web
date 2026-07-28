@@ -1,107 +1,42 @@
-// @file bounded-contexts/identity/domain/value-objects/password-plain.value-object.spec.ts
-
 import { describe, expect, it } from "vitest";
 
 import { PasswordPlainValueObject } from "./password-plain.value-object.js";
 
 describe("PasswordPlainValueObject", () => {
-  /* -------------------------------------------------- */
-  /* VALID                                               */
-  /* -------------------------------------------------- */
+  it.each([
+    "x",
+    "une phrase de passe avec des espaces",
+    "Mot de passe Unicode 🔐",
+    " leading and trailing spaces ",
+  ])(
+    "preserves supported plaintext exactly for authentication: %s",
+    (value) => {
+      const result = PasswordPlainValueObject.create(value);
 
-  it("should create a valid password", () => {
-    const result = PasswordPlainValueObject.create("Password123!");
-
-    expect(result.success).toBe(true);
-
-    if (!result.success) {
-      throw new Error("Expected success");
-    }
-
-    expect(result.value.value).toBe("Password123!");
-  });
-
-  /* -------------------------------------------------- */
-  /* EMPTY                                               */
-  /* -------------------------------------------------- */
-
-  it("should fail when password is empty", () => {
-    const result = PasswordPlainValueObject.create("");
-
-    expect(result.success).toBe(false);
-
-    if (result.success) {
-      throw new Error("Expected failure");
-    }
-
-    expect(result.error).toEqual({
-      code: "password.empty",
-    });
-  });
-
-  /* -------------------------------------------------- */
-  /* TOO SHORT                                           */
-  /* -------------------------------------------------- */
-
-  it("should fail when password is too short", () => {
-    const password = "Pass1!";
-
-    const result = PasswordPlainValueObject.create(password);
-
-    expect(result.success).toBe(false);
-
-    if (result.success) {
-      throw new Error("Expected failure");
-    }
-
-    expect(result.error).toEqual({
-      code: "password.too_short",
-      min: 8,
-      actual: password.length,
-    });
-  });
-
-  /* -------------------------------------------------- */
-  /* TOO LONG                                            */
-  /* -------------------------------------------------- */
-
-  it("should fail when password is too long", () => {
-    const password = "A".repeat(33);
-
-    const result = PasswordPlainValueObject.create(password);
-
-    expect(result.success).toBe(false);
-
-    if (result.success) {
-      throw new Error("Expected failure");
-    }
-
-    expect(result.error).toEqual({
-      code: "password.too_long",
-      max: 32,
-      actual: password.length,
-    });
-  });
-
-  /* -------------------------------------------------- */
-  /* INVALID FORMAT                                      */
-  /* -------------------------------------------------- */
-
-  it.each(["Password é1", "Password😊1", "Password\n1", "Password\t1"])(
-    "should reject invalid password '%s'",
-    (password) => {
-      const result = PasswordPlainValueObject.create(password);
-
-      expect(result.success).toBe(false);
-
+      expect(result.success).toBe(true);
       if (result.success) {
-        throw new Error("Expected failure");
+        expect(result.value.value).toBe(value);
       }
-
-      expect(result.error).toEqual({
-        code: "password.invalid_format",
-        value: password,
-      });
     },
   );
+
+  it("rejects an empty password", () => {
+    const result = PasswordPlainValueObject.create("");
+    expect(result).toEqual({
+      success: false,
+      error: { code: "password.empty" },
+    });
+  });
+
+  it("enforces only the defensive transport limit in Unicode code points", () => {
+    const result = PasswordPlainValueObject.create("🔐".repeat(1025));
+    expect(result).toEqual({
+      success: false,
+      error: {
+        code: "password.too_long",
+        max: 1024,
+        actual: 1025,
+      },
+    });
+  });
 });

@@ -35,6 +35,10 @@ Suspension revokes all sessions. Password changes also revoke sessions as
 defined by the use case. Sensitive administration operations prevent certain
 self-actions through `user.self_administration_forbidden`.
 
+Password changes first verify the current password, then confirmation and the
+[central policy](password-policy.md). Sessions are revoked only after
+validation and persistence succeed.
+
 ## Listing and revocation
 
 Users can list and revoke their sessions. Administrators can list one user's

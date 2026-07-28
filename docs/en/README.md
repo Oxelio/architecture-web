@@ -36,6 +36,7 @@ New contributors should read:
 ### Guides and reference
 
 - [Authentication and sessions](guides/identity-sessions.md)
+- [Password policy](guides/password-policy.md)
 - [HTTP interface](reference/http-api.md)
 - [Functional specifications](specifications/README.md)
 

@@ -58,6 +58,7 @@ export interface SignInPayload {
 export interface SignUpPayload {
   email: string;
   password: string;
+  passwordConfirmation: string;
 }
 
 export interface ChangeEmailPayload {
@@ -65,7 +66,36 @@ export interface ChangeEmailPayload {
 }
 
 export interface ChangePasswordPayload {
+  currentPassword: string;
   password: string;
+  passwordConfirmation: string;
+}
+
+export interface PasswordPolicy {
+  level: "standard" | "elevated" | "critical" | "custom";
+  minLength: number;
+  maxLength: number;
+  minimumStrength:
+    "too_weak" | "weak" | "acceptable" | "strong" | "very_strong";
+  checks: {
+    commonPasswords: boolean;
+    compromisedPasswords: boolean;
+    userContext: boolean;
+  };
+  composition: {
+    requireUppercase: boolean;
+    requireLowercase: boolean;
+    requireNumber: boolean;
+    requireSpecialCharacter: boolean;
+  };
+  lengthUnit: "unicode_code_points";
+  normalization: "none";
+}
+
+export interface PasswordEvaluation {
+  valid: boolean;
+  strength: PasswordPolicy["minimumStrength"];
+  errorCodes: string[];
 }
 
 const API_BASE_URL =
@@ -117,6 +147,21 @@ export async function signUp(payload: SignUpPayload) {
   return request<{ userId: string }>("/identity/signup", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function getPasswordPolicy(): Promise<PasswordPolicy> {
+  return request<PasswordPolicy>("/identity/password-policy", {
+    method: "GET",
+  });
+}
+
+export function evaluatePassword(
+  password: string,
+): Promise<PasswordEvaluation> {
+  return request<PasswordEvaluation>("/identity/password-policy/evaluate", {
+    method: "POST",
+    body: JSON.stringify({ password }),
   });
 }
 

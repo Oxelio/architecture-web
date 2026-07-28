@@ -19,6 +19,7 @@ linked rather than duplicated.
 
 ## Catalog
 
-| Identifier                          | Status      | Subject                                                |
-| ----------------------------------- | ----------- | ------------------------------------------------------ |
-| [SF-SESSION-001](SF-SESSION-001.md) | Implemented | Enrich active sessions with identification information |
+| Identifier                            | Status      | Subject                                                |
+| ------------------------------------- | ----------- | ------------------------------------------------------ |
+| [SF-SESSION-001](SF-SESSION-001.md)   | Implemented | Enrich active sessions with identification information |
+| [SF-PASSWORD-001](SF-PASSWORD-001.md) | Implemented | Configurable secure password policy                    |

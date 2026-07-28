@@ -1,5 +1,15 @@
 // @file bounded-contexts/identity/domain/index.ts
 
+export {
+  comparePasswordStrength,
+  createPasswordPolicy,
+  type PasswordCompositionRules,
+  type PasswordPolicy,
+  type PasswordPolicyOverrides,
+  type PasswordSecurityLevel,
+  type PasswordStrength,
+  PasswordStrengths,
+} from "./password-policy.js";
 export { EmailVerificationEntity } from "#entities/email-verification.entity";
 export {
   type ApproximateSessionLocation,

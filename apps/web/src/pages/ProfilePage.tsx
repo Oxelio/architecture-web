@@ -28,6 +28,7 @@ import type { CurrentUser } from "#services/api";
 import {
   changeEmail,
   changePassword,
+  getPasswordPolicy,
   listCurrentUserSessions,
   resendEmailVerification,
   revokeCurrentUserSession,
@@ -50,7 +51,9 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState(user.email);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const dateFormatter = useMemo(
@@ -66,6 +69,12 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     queryKey: ["currentUserSessions"],
     queryFn: listCurrentUserSessions,
   });
+  const policyQuery = useQuery({
+    queryKey: ["password-policy"],
+    queryFn: getPasswordPolicy,
+    staleTime: 5 * 60 * 1000,
+  });
+  const minimumPasswordLength = policyQuery.data?.minLength ?? 15;
 
   const emailMutation = useMutation({
     mutationFn: changeEmail,
@@ -88,7 +97,9 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     mutationFn: changePassword,
     onSuccess: () => {
       setFeedback({ tone: "success", message: t("profile.successPassword") });
+      setCurrentPassword("");
       setPassword("");
+      setPasswordConfirmation("");
     },
     onError: (error: unknown) => {
       setFeedback({
@@ -158,10 +169,10 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   });
 
   const passwordScore = [
-    password.length >= 8,
-    /[A-Z]/.test(password) && /[a-z]/.test(password),
-    /\d/.test(password),
-    /[^A-Za-z0-9]/.test(password),
+    [...password].length >= minimumPasswordLength,
+    [...password].length >= 20,
+    [...password].length >= 28,
+    new Set(password).size >= 10,
   ].filter(Boolean).length;
   const completedSteps = user.isEmailVerified ? 3 : 2;
   const profileInitial = user.email.charAt(0).toUpperCase();
@@ -495,19 +506,50 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
               className="mt-6"
               onSubmit={(event) => {
                 event.preventDefault();
-                passwordMutation.mutate({ password });
+                passwordMutation.mutate({
+                  currentPassword,
+                  password,
+                  passwordConfirmation,
+                });
               }}
             >
+              <label className="block text-sm font-medium text-slate-300">
+                {t("profile.currentPassword")}
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  className={fieldClassName}
+                />
+              </label>
+
               <label className="block text-sm font-medium text-slate-300">
                 {t("profile.newPassword")}
                 <input
                   type="password"
                   required
-                  minLength={8}
+                  minLength={minimumPasswordLength}
+                  maxLength={policyQuery.data?.maxLength ?? 128}
                   autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder={t("profile.passwordPlaceholder")}
+                  className={fieldClassName}
+                />
+              </label>
+
+              <label className="mt-4 block text-sm font-medium text-slate-300">
+                {t("common.passwordConfirmation")}
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={passwordConfirmation}
+                  onChange={(event) =>
+                    setPasswordConfirmation(event.target.value)
+                  }
                   className={fieldClassName}
                 />
               </label>
@@ -531,12 +573,14 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                   <span className="inline-flex items-center gap-1.5">
                     <Check
                       className={`h-3.5 w-3.5 ${
-                        password.length >= 8
+                        [...password].length >= minimumPasswordLength
                           ? "text-emerald-400"
                           : "text-slate-700"
                       }`}
                     />
-                    {t("profile.passwordLengthRule")}
+                    {t("profile.passwordLengthRule", {
+                      count: minimumPasswordLength,
+                    })}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <Sparkles
@@ -551,7 +595,12 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                 </div>
                 <button
                   type="submit"
-                  disabled={passwordMutation.isPending || password.length < 8}
+                  disabled={
+                    passwordMutation.isPending ||
+                    !currentPassword ||
+                    [...password].length < minimumPasswordLength ||
+                    password !== passwordConfirmation
+                  }
                   className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-500 to-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {passwordMutation.isPending ? (

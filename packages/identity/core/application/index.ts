@@ -48,6 +48,13 @@ export type {
   ListUsersOutput,
 } from "./use-cases/list-users/list-users.contracts.js";
 export type {
+  EvaluatePassword,
+  EvaluatePasswordInput,
+  GetPasswordPolicy,
+  PasswordEvaluation,
+  PublicPasswordPolicy,
+} from "./use-cases/password-policy/password-policy.contracts.js";
+export type {
   ResendEmailVerification,
   ResendEmailVerificationError,
   ResendEmailVerificationInput,
@@ -122,3 +129,15 @@ export { EmailSender } from "./services/email-sender.service.js";
 export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
 export { EmailVerificationTokenHasher } from "./services/email-verification-token-hasher.service.js";
 export { PasswordHasher } from "./services/password-hasher.service.js";
+export {
+  PasswordPolicyValidator,
+  type PasswordValidationError,
+  type PasswordValidationResult,
+} from "./services/password-policy-validator.service.js";
+export {
+  CommonPasswordChecker,
+  CompromisedPasswordChecker,
+  type PasswordContext,
+  type PasswordPolicyProvider,
+  PasswordStrengthEvaluator,
+} from "./services/password-security.service.js";

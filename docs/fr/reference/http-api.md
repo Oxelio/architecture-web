@@ -12,12 +12,14 @@ de vérité.
 
 ## Routes publiques
 
-| Méthode | Chemin              | Intention                                |
-| ------- | ------------------- | ---------------------------------------- |
-| `GET`   | `/verify?token=...` | vérifier une adresse                     |
-| `POST`  | `/signup`           | créer un compte                          |
-| `POST`  | `/signin`           | ouvrir une session                       |
-| `POST`  | `/signout`          | fermer la session désignée par le cookie |
+| Méthode | Chemin                      | Intention                                |
+| ------- | --------------------------- | ---------------------------------------- |
+| `GET`   | `/verify?token=...`         | vérifier une adresse                     |
+| `POST`  | `/signup`                   | créer un compte                          |
+| `GET`   | `/password-policy`          | lire la politique publique               |
+| `POST`  | `/password-policy/evaluate` | évaluer un mot de passe                  |
+| `POST`  | `/signin`                   | ouvrir une session                       |
+| `POST`  | `/signout`                  | fermer la session désignée par le cookie |
 
 ## Routes authentifiées
 
@@ -52,6 +54,11 @@ Les codes métier sont définis près de chaque cas d’utilisation dans
 `*.codes.ts`. Les mappings vers HTTP sont définis dans `*.http.ts`. Les codes
 transverses `UNAUTHORIZED` et `FORBIDDEN` sont produits par les hooks
 d’authentification et d’autorisation.
+
+`POST /signup` exige `email`, `password` et `passwordConfirmation`.
+`PATCH /me/password` exige `currentPassword`, `password` et
+`passwordConfirmation`. Les confirmations sont comparées exactement puis
+abandonnées ; elles ne sont jamais transmises à la persistance.
 
 ## Version et changements cassants
 

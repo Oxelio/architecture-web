@@ -49,6 +49,10 @@ mot de passe révoquent aussi les sessions conformément au cas d’utilisation.
 Les opérations d’administration sensibles interdisent certaines actions sur
 son propre compte via `user.self_administration_forbidden`.
 
+Le changement de mot de passe vérifie d’abord le mot de passe actuel, puis la
+confirmation et la [politique centralisée](password-policy.md). Les sessions ne
+sont révoquées qu’après la validation et l’enregistrement réussis.
+
 ## Consultation et révocation
 
 Un utilisateur peut lister ses sessions et en révoquer une. Un administrateur

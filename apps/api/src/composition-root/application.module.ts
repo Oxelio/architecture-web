@@ -21,7 +21,7 @@ export function buildApplicationModule(): ApplicationModule {
   const redis = createRedis(config.redis);
 
   return {
-    identity: buildIdentityModule(db, redis, config.smtp),
+    identity: buildIdentityModule(db, redis, config),
 
     async dispose() {
       await Promise.all([redis.quit(), db.destroy()]);

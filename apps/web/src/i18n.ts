@@ -26,6 +26,7 @@ const resources = {
         loading: "Chargement...",
         email: "Email",
         password: "Mot de passe",
+        passwordConfirmation: "Confirmation du mot de passe",
         unknownError: "Erreur inconnue",
       },
       language: {
@@ -72,7 +73,12 @@ const resources = {
       },
       auth: {
         invalidEmail: "Email invalide",
-        passwordMin: "Le mot de passe doit contenir au moins 8 caractères",
+        passwordMin:
+          "Le mot de passe doit contenir au moins {{count}} caractères",
+        passwordConfirmationMismatch:
+          "La confirmation ne correspond pas au mot de passe",
+        passwordPolicyHint:
+          "{{min}} à {{max}} caractères Unicode, espaces et phrases de passe acceptés",
         signInTitle: "Accède à ton espace",
         signInDescription:
           "Utilise ton email et ton mot de passe pour te connecter au système.",
@@ -130,12 +136,14 @@ const resources = {
         updatePasswordDescription:
           "Utilisez un mot de passe unique pour protéger durablement votre compte.",
         newPassword: "Nouveau mot de passe",
-        passwordPlaceholder: "8 caractères minimum",
+        currentPassword: "Mot de passe actuel",
+        passwordPlaceholder: "Phrase de passe longue et unique",
         updatePasswordSubmit: "Changer le mot de passe",
         updatePasswordPending: "Mise à jour...",
-        passwordHint: "Le mot de passe doit comporter au moins 8 caractères.",
-        passwordLengthRule: "8 caractères minimum",
-        passwordStrengthRule: "Majuscules, chiffres et symbole recommandés",
+        passwordHint:
+          "Utilisez une phrase de passe longue, unique et facile à saisir.",
+        passwordLengthRule: "{{count}} caractères minimum",
+        passwordStrengthRule: "Longueur et imprévisibilité recommandées",
         successEmail: "Adresse e-mail mise à jour avec succès.",
         successPassword: "Mot de passe modifié avec succès.",
         signOutError: "Impossible de se déconnecter. Réessaie.",
@@ -268,6 +276,7 @@ const resources = {
         loading: "Loading...",
         email: "Email",
         password: "Password",
+        passwordConfirmation: "Password confirmation",
         unknownError: "Unknown error",
       },
       language: {
@@ -313,7 +322,10 @@ const resources = {
       },
       auth: {
         invalidEmail: "Invalid email",
-        passwordMin: "Password must be at least 8 characters long",
+        passwordMin: "Password must be at least {{count}} characters long",
+        passwordConfirmationMismatch: "Password confirmation does not match",
+        passwordPolicyHint:
+          "{{min}} to {{max}} Unicode characters; spaces and passphrases are accepted",
         signInTitle: "Access your space",
         signInDescription:
           "Use your email and password to sign in to the platform.",
@@ -371,12 +383,13 @@ const resources = {
         updatePasswordDescription:
           "Use a unique password to keep your account protected.",
         newPassword: "New password",
-        passwordPlaceholder: "At least 8 characters",
+        currentPassword: "Current password",
+        passwordPlaceholder: "A long, unique passphrase",
         updatePasswordSubmit: "Change password",
         updatePasswordPending: "Updating...",
-        passwordHint: "Password must be at least 8 characters long.",
-        passwordLengthRule: "At least 8 characters",
-        passwordStrengthRule: "Uppercase, numbers, and a symbol recommended",
+        passwordHint: "Use a long, unique, and easy-to-enter passphrase.",
+        passwordLengthRule: "At least {{count}} characters",
+        passwordStrengthRule: "Length and unpredictability recommended",
         successEmail: "Email address updated successfully.",
         successPassword: "Password updated successfully.",
         signOutError: "Unable to sign out. Please try again.",

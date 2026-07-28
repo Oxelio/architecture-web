@@ -20,6 +20,7 @@ détails techniques appartiennent à la documentation d’architecture et doiven
 
 ## Catalogue
 
-| Identifiant                         | Statut      | Sujet                                                                      |
-| ----------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| [SF-SESSION-001](SF-SESSION-001.md) | Implémentée | Enrichissement des sessions actives avec des informations d’identification |
+| Identifiant                           | Statut      | Sujet                                                                      |
+| ------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| [SF-SESSION-001](SF-SESSION-001.md)   | Implémentée | Enrichissement des sessions actives avec des informations d’identification |
+| [SF-PASSWORD-001](SF-PASSWORD-001.md) | Implémentée | Politique configurable de mots de passe sécurisés                          |

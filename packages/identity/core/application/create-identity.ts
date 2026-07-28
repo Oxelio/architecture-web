@@ -1,3 +1,4 @@
+import type { PasswordPolicy } from "#domain/password-policy";
 import { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import { SessionAdministrationRepository } from "#repositories/session.repository";
 import { UserAdministrationRepository } from "#repositories/user.repository";
@@ -5,6 +6,12 @@ import { EmailSender } from "#services/email-sender.service";
 import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import { PasswordHasher } from "#services/password-hasher.service";
+import { PasswordPolicyValidator } from "#services/password-policy-validator.service";
+import {
+  CommonPasswordChecker,
+  CompromisedPasswordChecker,
+  PasswordStrengthEvaluator,
+} from "#services/password-security.service";
 import type { ActivateUser } from "#use-cases/activate-user/activate-user.contracts";
 import { ActivateUserUseCase } from "#use-cases/activate-user/activate-user.use-case";
 import type { AssignUserRole } from "#use-cases/assign-user-role/assign-user-role.contracts";
@@ -19,6 +26,14 @@ import type { ListUserSessions } from "#use-cases/list-user-sessions/list-user-s
 import { ListUserSessionsUseCase } from "#use-cases/list-user-sessions/list-user-sessions.use-case";
 import type { ListUsers } from "#use-cases/list-users/list-users.contracts";
 import { ListUsersUseCase } from "#use-cases/list-users/list-users.use-case";
+import type {
+  EvaluatePassword,
+  GetPasswordPolicy,
+} from "#use-cases/password-policy/password-policy.contracts";
+import {
+  EvaluatePasswordUseCase,
+  GetPasswordPolicyUseCase,
+} from "#use-cases/password-policy/password-policy.use-case";
 import type { ResendEmailVerification } from "#use-cases/resend-email-verification/resend-email-verification.contracts";
 import { ResendEmailVerificationUseCase } from "#use-cases/resend-email-verification/resend-email-verification.use-case";
 import type { ResolveSession } from "#use-cases/resolve-session/resolve-session.contracts";
@@ -40,6 +55,11 @@ export interface IdentityDependencies {
   userRepository: UserAdministrationRepository;
   sessionRepository: SessionAdministrationRepository;
   passwordHasher: PasswordHasher;
+  passwordPolicy: PasswordPolicy;
+  privilegedPasswordPolicy: PasswordPolicy;
+  passwordStrengthEvaluator: PasswordStrengthEvaluator;
+  commonPasswordChecker: CommonPasswordChecker;
+  compromisedPasswordChecker: CompromisedPasswordChecker;
   emailSender: EmailSender;
   emailVerificationRepository: EmailVerificationRepository;
   rateLimiter: EmailVerificationRateLimiter;
@@ -54,6 +74,8 @@ export interface IdentityApplication {
   getUserProfile: GetUserProfile;
   listUsers: ListUsers;
   listUserSessions: ListUserSessions;
+  getPasswordPolicy: GetPasswordPolicy;
+  evaluatePassword: EvaluatePassword;
   resendEmailVerification: ResendEmailVerification;
   resolveSession: ResolveSession;
   revokeUserSession: RevokeUserSession;
@@ -67,6 +89,19 @@ export interface IdentityApplication {
 export function createIdentity(
   dependencies: IdentityDependencies,
 ): IdentityApplication {
+  const passwordPolicy = new PasswordPolicyValidator(
+    dependencies.passwordPolicy,
+    dependencies.passwordStrengthEvaluator,
+    dependencies.commonPasswordChecker,
+    dependencies.compromisedPasswordChecker,
+  );
+  const privilegedPasswordPolicy = new PasswordPolicyValidator(
+    dependencies.privilegedPasswordPolicy,
+    dependencies.passwordStrengthEvaluator,
+    dependencies.commonPasswordChecker,
+    dependencies.compromisedPasswordChecker,
+  );
+
   return {
     assignUserRole: new AssignUserRoleUseCase(dependencies.userRepository),
     activateUser: new ActivateUserUseCase(dependencies.userRepository),
@@ -80,6 +115,8 @@ export function createIdentity(
       dependencies.userRepository,
       dependencies.passwordHasher,
       dependencies.sessionRepository,
+      passwordPolicy,
+      privilegedPasswordPolicy,
     ),
     getUserProfile: new GetUserProfileUseCase(dependencies.userRepository),
     listUsers: new ListUsersUseCase(dependencies.userRepository),
@@ -87,6 +124,8 @@ export function createIdentity(
       dependencies.userRepository,
       dependencies.sessionRepository,
     ),
+    getPasswordPolicy: new GetPasswordPolicyUseCase(passwordPolicy),
+    evaluatePassword: new EvaluatePasswordUseCase(passwordPolicy),
     resendEmailVerification: new ResendEmailVerificationUseCase(
       dependencies.userRepository,
       dependencies.emailVerificationRepository,
@@ -114,6 +153,7 @@ export function createIdentity(
       dependencies.emailVerificationRepository,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
+      passwordPolicy,
     ),
     suspendUser: new SuspendUserUseCase(
       dependencies.userRepository,

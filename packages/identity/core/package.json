@@ -16,6 +16,10 @@
     "prepublishOnly": "pnpm build"
   },
   "imports": {
+    "#domain/*": {
+      "types": "./domain/*.ts",
+      "default": "./dist/domain/*.js"
+    },
     "#entities/*": {
       "types": "./domain/entities/*.ts",
       "default": "./dist/domain/entities/*.js"

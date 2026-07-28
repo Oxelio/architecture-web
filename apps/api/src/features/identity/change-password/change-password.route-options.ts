@@ -13,8 +13,14 @@ export interface ChangePasswordRoute {
 }
 
 const ChangePasswordBodySchema = Type.Object({
+  currentPassword: Type.String({
+    maxLength: 1024,
+  }),
   password: Type.String({
-    minLength: 8,
+    maxLength: 1024,
+  }),
+  passwordConfirmation: Type.String({
+    maxLength: 1024,
   }),
 });
 

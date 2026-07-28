@@ -27,11 +27,13 @@ export function createChangePasswordController(useCase: ChangePassword) {
       });
     }
 
-    const { password } = request.body;
+    const { currentPassword, password, passwordConfirmation } = request.body;
 
     const command: ChangePasswordInput = {
       userId: auth.userId,
+      currentPassword,
       password,
+      passwordConfirmation,
     };
 
     const result = await useCase.execute(command);

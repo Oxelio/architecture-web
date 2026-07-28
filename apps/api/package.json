@@ -31,6 +31,7 @@
     }
   },
   "imports": {
+    "#adapters/*": "./src/adapters/*.ts",
     "#app/*": "./src/*.ts",
     "#config/*": "./src/config/*.ts",
     "#helpers/*": "./src/helpers/*.ts",

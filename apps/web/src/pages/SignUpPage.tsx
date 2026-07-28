@@ -1,6 +1,7 @@
 // @file apps/web/src/pages/SignUpPage.tsx
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -8,24 +9,43 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { signUp } from "#services/api";
+import { getPasswordPolicy, signUp } from "#services/api";
 
 interface SignUpFormValues {
   email: string;
   password: string;
+  passwordConfirmation: string;
 }
 
 type SignUpError = "accountAlreadyExists" | "generic";
 
 export function SignUpPage() {
   const { t } = useTranslation();
+  const policyQuery = useQuery({
+    queryKey: ["password-policy"],
+    queryFn: getPasswordPolicy,
+    staleTime: 5 * 60 * 1000,
+  });
+  const minimumLength = policyQuery.data?.minLength ?? 15;
+  const maximumLength = policyQuery.data?.maxLength ?? 128;
   const signUpSchema = useMemo(
     () =>
-      z.object({
-        email: z.email({ message: t("auth.invalidEmail") }),
-        password: z.string().min(8, { message: t("auth.passwordMin") }),
-      }),
-    [t],
+      z
+        .object({
+          email: z.email({ message: t("auth.invalidEmail") }),
+          password: z
+            .string()
+            .min(minimumLength, {
+              message: t("auth.passwordMin", { count: minimumLength }),
+            })
+            .max(maximumLength),
+          passwordConfirmation: z.string(),
+        })
+        .refine((values) => values.password === values.passwordConfirmation, {
+          path: ["passwordConfirmation"],
+          message: t("auth.passwordConfirmationMismatch"),
+        }),
+    [maximumLength, minimumLength, t],
   );
   const [isSuccessful, setIsSuccessful] = useState(false);
   const [serverError, setServerError] = useState<SignUpError | null>(null);
@@ -106,6 +126,27 @@ export function SignUpPage() {
             {errors.password && (
               <p className="mt-2 text-sm text-rose-400">
                 {errors.password.message}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              {t("auth.passwordPolicyHint", {
+                min: minimumLength,
+                max: maximumLength,
+              })}
+            </p>
+          </label>
+
+          <label className="block text-sm font-medium text-slate-200">
+            {t("common.passwordConfirmation")}
+            <input
+              type="password"
+              autoComplete="new-password"
+              className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
+              {...register("passwordConfirmation")}
+            />
+            {errors.passwordConfirmation && (
+              <p className="mt-2 text-sm text-rose-400">
+                {errors.passwordConfirmation.message}
               </p>
             )}
           </label>
