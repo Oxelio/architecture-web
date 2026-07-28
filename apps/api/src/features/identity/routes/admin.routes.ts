@@ -1,26 +1,25 @@
 import type { FastifyInstance } from "fastify";
 
 import type { AuthenticatedFastifyInstance } from "#app/auth";
-
-import { activateUserRouteOptions } from "../activate-user/activate-user.route-options.js";
+import { activateUserRouteOptions } from "#identity/activate-user/activate-user.route-options";
 import {
   type AssignUserRoleRoute,
   assignUserRoleRouteOptions,
-} from "../assign-user-role/assign-user-role.route-options.js";
-import type { IdentityControllers } from "../compose-controllers.js";
+} from "#identity/assign-user-role/assign-user-role.route-options";
+import type { IdentityControllers } from "#identity/compose-controllers";
 import {
   type ListUserSessionsRoute,
   listUserSessionsRouteOptions,
-} from "../list-user-sessions/list-user-sessions.route-options.js";
-import { listUsersRouteOptions } from "../list-users/list-users.route-options.js";
+} from "#identity/list-user-sessions/list-user-sessions.route-options";
+import { listUsersRouteOptions } from "#identity/list-users/list-users.route-options";
 import {
   type RevokeUserSessionRoute,
   revokeUserSessionRouteOptions,
-} from "../revoke-user-session/revoke-user-session.route-options.js";
+} from "#identity/revoke-user-session/revoke-user-session.route-options";
 import {
   type SuspendUserRoute,
   suspendUserRouteOptions,
-} from "../suspend-user/suspend-user.route-options.js";
+} from "#identity/suspend-user/suspend-user.route-options";
 
 export function registerAdminRoutes(controllers: IdentityControllers) {
   return async (app: FastifyInstance) => {

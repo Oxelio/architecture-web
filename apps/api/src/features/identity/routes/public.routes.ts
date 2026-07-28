@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 
-import type { IdentityControllers } from "../compose-controllers.js";
-import { signInRouteOptions } from "../sign-in/sign-in.route-options.js";
-import { signOutRouteOptions } from "../sign-out/sign-out.route-options.js";
-import { signUpRouteOptions } from "../sign-up/sign-up.route-options.js";
-import { verifyEmailRouteOptions } from "../verify-email/verify-email.route-options.js";
+import type { IdentityControllers } from "#identity/compose-controllers";
+import { signInRouteOptions } from "#identity/sign-in/sign-in.route-options";
+import { signOutRouteOptions } from "#identity/sign-out/sign-out.route-options";
+import { signUpRouteOptions } from "#identity/sign-up/sign-up.route-options";
+import { verifyEmailRouteOptions } from "#identity/verify-email/verify-email.route-options";
 
 export function registerPublicRoutes(controllers: IdentityControllers) {
   return async (app: FastifyInstance) => {

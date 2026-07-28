@@ -3,8 +3,9 @@
 import type { IdentityApplication } from "@architecture/identity/application";
 import type { FastifyInstance } from "fastify";
 
-import { composeIdentityControllers } from "../compose-controllers.js";
-import { type SessionCookieOptions } from "../sign-in/sign-in.controller.js";
+import { composeIdentityControllers } from "#identity/compose-controllers";
+import { type SessionCookieOptions } from "#identity/sign-in/sign-in.controller";
+
 import { registerAdminRoutes } from "./admin.routes.js";
 import { registerProtectedRoutes } from "./protected.routes.js";
 import { registerPublicRoutes } from "./public.routes.js";
