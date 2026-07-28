@@ -14,7 +14,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "./auth.js";
 import { buildApplicationModule } from "./composition-root/application.module.js";
-import { buildIdentityRoutes } from "./features/identity/identity.routes.js";
+import { buildIdentityRoutes } from "./features/identity/routes/index.js";
 import { errorHandler } from "./types/error-handler.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;
