@@ -89,6 +89,9 @@ const resources = {
         signUpLinkAction: "Connecte-toi",
         signUpSuccess:
           "Inscription réussie. Vérifie ton email pour activer ton compte.",
+        accountAlreadyExists: "Un compte existe déjà avec cette adresse email.",
+        signUpError:
+          "Impossible de créer ton compte pour le moment. Réessaie plus tard.",
       },
       profile: {
         title: "Mon compte",
@@ -327,6 +330,10 @@ const resources = {
         signUpLinkAction: "Log in",
         signUpSuccess:
           "Registration successful. Check your email to activate your account.",
+        accountAlreadyExists:
+          "An account already exists with this email address.",
+        signUpError:
+          "Unable to create your account right now. Please try again later.",
       },
       profile: {
         title: "My account",

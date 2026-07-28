@@ -9,12 +9,18 @@ export function errorHandler(
 ) {
   request.log.error(error);
 
-  const statusCode = error.statusCode ?? 500;
+  const statusCode =
+    error.statusCode && error.statusCode >= 400 && error.statusCode < 500
+      ? error.statusCode
+      : 500;
+  const isServerError = statusCode >= 500;
 
   return reply.status(statusCode).send({
     error: {
-      code: error.code ?? "INTERNAL_SERVER_ERROR",
-      message: statusCode >= 500 ? "Internal server error" : error.message,
+      code: isServerError
+        ? "INTERNAL_SERVER_ERROR"
+        : (error.code ?? "BAD_REQUEST"),
+      message: isServerError ? "Internal server error" : error.message,
     },
   });
 }

@@ -15,6 +15,8 @@ interface SignUpFormValues {
   password: string;
 }
 
+type SignUpError = "accountAlreadyExists" | "generic";
+
 export function SignUpPage() {
   const { t } = useTranslation();
   const signUpSchema = useMemo(
@@ -25,8 +27,8 @@ export function SignUpPage() {
       }),
     [t],
   );
-  const [serverMessage, setServerMessage] = useState<string | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [isSuccessful, setIsSuccessful] = useState(false);
+  const [serverError, setServerError] = useState<SignUpError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const {
@@ -38,18 +40,20 @@ export function SignUpPage() {
   });
 
   const onSubmit = async (values: SignUpFormValues) => {
-    setServerMessage(null);
+    setIsSuccessful(false);
     setServerError(null);
     setIsSubmitting(true);
 
     try {
       await signUp(values);
-      setServerMessage(t("auth.signUpSuccess"));
+      setIsSuccessful(true);
       setTimeout(() => navigate("/signin", { replace: true }), 2500);
     } catch (error) {
-      if (error instanceof Error) {
-        setServerError(error.message ?? t("common.unknownError"));
-      }
+      setServerError(
+        error instanceof Error && error.message === "USER_ALREADY_EXISTS"
+          ? "accountAlreadyExists"
+          : "generic",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -108,10 +112,16 @@ export function SignUpPage() {
         </div>
 
         {serverError ? (
-          <p className="text-sm text-rose-400">{serverError}</p>
+          <p className="text-sm text-rose-400">
+            {t(
+              serverError === "accountAlreadyExists"
+                ? "auth.accountAlreadyExists"
+                : "auth.signUpError",
+            )}
+          </p>
         ) : null}
-        {serverMessage ? (
-          <p className="text-sm text-sky-300">{serverMessage}</p>
+        {isSuccessful ? (
+          <p className="text-sm text-sky-300">{t("auth.signUpSuccess")}</p>
         ) : null}
 
         <button
