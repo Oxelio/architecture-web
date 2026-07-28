@@ -1,0 +1,58 @@
+// @file bounded-contexts/iam/vitest.config.ts
+
+import { fileURLToPath } from "node:url";
+
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      "#domain": fileURLToPath(new URL("./domain", import.meta.url)),
+      "#entities": fileURLToPath(new URL("./domain/entities", import.meta.url)),
+      "#value-objects": fileURLToPath(
+        new URL("./domain/value-objects", import.meta.url),
+      ),
+      "#repositories": fileURLToPath(
+        new URL("./application/repositories", import.meta.url),
+      ),
+      "#services": fileURLToPath(
+        new URL("./application/services", import.meta.url),
+      ),
+      "#accounts": fileURLToPath(
+        new URL("./application/accounts", import.meta.url),
+      ),
+      "#authentication": fileURLToPath(
+        new URL("./application/authentication", import.meta.url),
+      ),
+      "#access-administration": fileURLToPath(
+        new URL("./application/access-administration", import.meta.url),
+      ),
+      "#models": fileURLToPath(
+        new URL("./application/models", import.meta.url),
+      ),
+    },
+  },
+  test: {
+    environment: "node",
+
+    exclude: ["**/dist/**", "**/node_modules/**"],
+
+    coverage: {
+      provider: "v8",
+
+      reporter: ["text", "html", "lcov"],
+
+      reportsDirectory: "./coverage",
+
+      include: ["**/application/**/*.ts", "**/domain/**/*.ts"],
+      exclude: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.port.ts",
+        "**/*index.ts",
+      ],
+    },
+  },
+});

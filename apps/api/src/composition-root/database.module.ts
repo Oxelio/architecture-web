@@ -1,12 +1,12 @@
 // @file apps/api/src/composition-root/database.module.ts
 
-import type { IdentityDatabase } from "@architecture/identity-persistence-kysely";
+import type { IamDatabase } from "@architecture/iam-persistence-kysely";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 
 import type { AppConfig } from "#config/app.config";
 
-export type AppDatabase = IdentityDatabase;
+export type AppDatabase = IamDatabase;
 
 export function createDatabase(dbConfig: AppConfig["database"]) {
   return new Kysely<AppDatabase>({

@@ -9,8 +9,8 @@
   `NomOutput`, éventuellement `NomError`, et une classe `NomUseCase`.
 - Une implémentation technique se termine par `Adapter` et nomme sa technologie.
 - Les tests sont colocalisés sous la forme `*.spec.ts` ou `*.spec.tsx`.
-- Une fonctionnalité HTTP Identity possède son dossier sous
-  `apps/api/src/features/identity/<feature>`.
+- Une fonctionnalité HTTP IAM possède son dossier sous
+  `apps/api/src/features/iam/<feature>`.
 
 ## Contrats et résultats
 
@@ -49,7 +49,7 @@ répercutée dans le schéma TypeBox et dans le client web concerné.
 
 L’API publique d’un package **DOIT** être volontaire et déclarée par ses
 fichiers d’index et son champ `exports`. Les consommateurs utilisent
-`@architecture/identity/application` ou `/domain`, jamais un chemin interne.
+`@architecture/iam/application` ou `/domain`, jamais un chemin interne.
 
 Dans un package, préférer ses alias `#...`. Les nouveaux alias **DOIVENT** être
 déclarés dans `package.json` et rester compatibles avec TypeScript et la sortie
@@ -82,7 +82,7 @@ return {
 ## Commits et documentation
 
 Les commits suivent Conventional Commits, contrôlé par Commitlint. Un changement
-**DEVRAIT** former une unité cohérente (`feat(identity): ...`,
+**DEVRAIT** former une unité cohérente (`feat(iam): ...`,
 `docs(architecture): ...`). Les lignes de message restent courtes.
 
 Toute décision structurante durable **DEVRAIT** être documentée dans le registre

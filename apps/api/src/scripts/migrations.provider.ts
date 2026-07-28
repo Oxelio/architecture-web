@@ -1,14 +1,14 @@
 // @file apps/api/src/scripts/migrations.provider.ts
 
 import {
-  identityEmailVerificationMigrations,
-  identityUserMigrations,
-} from "@architecture/identity-persistence-kysely";
+  iamEmailVerificationMigrations,
+  iamUserMigrations,
+} from "@architecture/iam-persistence-kysely";
 import type { Migration } from "kysely/migration";
 
 export const getAllMigrations = (): Record<string, Migration> => {
   return {
-    ...identityUserMigrations,
-    ...identityEmailVerificationMigrations,
+    ...iamUserMigrations,
+    ...iamEmailVerificationMigrations,
   };
 };

@@ -4,7 +4,7 @@ Ce registre consigne uniquement les décisions démontrées par le code actuel.
 Une décision future **DEVRAIT** être ajoutée dans un fichier
 `NNNN-titre-court.md` avec contexte, options, décision, conséquences et statut.
 
-## ADR-0001 — Cœur Identity indépendant des technologies
+## ADR-0001 — Cœur IAM indépendant des technologies
 
 **Statut : acceptée**
 
@@ -40,7 +40,7 @@ Le dépôt contient deux applications et plusieurs implémentations interchangea
 ### Décision
 
 Le workspace `apps/*` et `packages/**` sépare les applications privées, le cœur
-Identity, Foundation, l’outillage ESLint et chaque technologie
+IAM, Foundation, l’outillage ESLint et chaque technologie
 d’infrastructure.
 
 ### Conséquences
@@ -66,7 +66,7 @@ Un seul endroit doit connaître simultanément les ports et leurs implémentatio
 ### Décision
 
 `apps/api/src/composition-root` crée PostgreSQL et Redis, instancie les
-adaptateurs, appelle `createIdentity` et expose une méthode `dispose`.
+adaptateurs, appelle `createIam` et expose une méthode `dispose`.
 
 ### Conséquences
 

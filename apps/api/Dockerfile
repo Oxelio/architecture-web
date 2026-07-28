@@ -8,13 +8,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/foundation/package.json packages/foundation/package.json
-COPY packages/identity/core/package.json packages/identity/core/package.json
-COPY packages/identity/infrastructure/email/nodemailer/package.json packages/identity/infrastructure/email/nodemailer/package.json
-COPY packages/identity/infrastructure/email/postmark/package.json packages/identity/infrastructure/email/postmark/package.json
-COPY packages/identity/infrastructure/persitence/kysely/package.json packages/identity/infrastructure/persitence/kysely/package.json
-COPY packages/identity/infrastructure/security/argon2/package.json packages/identity/infrastructure/security/argon2/package.json
-COPY packages/identity/infrastructure/security/bcrypt/package.json packages/identity/infrastructure/security/bcrypt/package.json
-COPY packages/identity/infrastructure/session/redis/package.json packages/identity/infrastructure/session/redis/package.json
+COPY packages/iam/core/package.json packages/iam/core/package.json
+COPY packages/iam/infrastructure/email/nodemailer/package.json packages/iam/infrastructure/email/nodemailer/package.json
+COPY packages/iam/infrastructure/email/postmark/package.json packages/iam/infrastructure/email/postmark/package.json
+COPY packages/iam/infrastructure/persitence/kysely/package.json packages/iam/infrastructure/persitence/kysely/package.json
+COPY packages/iam/infrastructure/security/argon2/package.json packages/iam/infrastructure/security/argon2/package.json
+COPY packages/iam/infrastructure/security/bcrypt/package.json packages/iam/infrastructure/security/bcrypt/package.json
+COPY packages/iam/infrastructure/session/redis/package.json packages/iam/infrastructure/session/redis/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 
 RUN pnpm install --frozen-lockfile

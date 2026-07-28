@@ -3,8 +3,8 @@ import {
   CompromisedPasswordChecker,
   type PasswordContext,
   PasswordStrengthEvaluator,
-} from "@architecture/identity/application";
-import type { PasswordStrength } from "@architecture/identity/domain";
+} from "@architecture/iam/application";
+import type { PasswordStrength } from "@architecture/iam/domain";
 
 const commonPasswords = new Set([
   "123456789012345",

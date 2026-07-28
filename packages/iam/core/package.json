@@ -1,0 +1,84 @@
+{
+  "name": "@architecture/iam",
+  "version": "1.0.0-alpha.1",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "prepublishOnly": "pnpm build"
+  },
+  "imports": {
+    "#domain/*": {
+      "types": "./domain/*.ts",
+      "default": "./dist/domain/*.js"
+    },
+    "#entities/*": {
+      "types": "./domain/entities/*.ts",
+      "default": "./dist/domain/entities/*.js"
+    },
+    "#value-objects/*": {
+      "types": "./domain/value-objects/*.ts",
+      "default": "./dist/domain/value-objects/*.js"
+    },
+    "#use-cases/*": {
+      "types": "./application/use-cases/*.ts",
+      "default": "./dist/application/use-cases/*.js"
+    },
+    "#accounts/*": {
+      "types": "./application/accounts/*.ts",
+      "default": "./dist/application/accounts/*.js"
+    },
+    "#authentication/*": {
+      "types": "./application/authentication/*.ts",
+      "default": "./dist/application/authentication/*.js"
+    },
+    "#access-administration/*": {
+      "types": "./application/access-administration/*.ts",
+      "default": "./dist/application/access-administration/*.js"
+    },
+    "#models/*": {
+      "types": "./application/models/*.ts",
+      "default": "./dist/application/models/*.js"
+    },
+    "#services/*": {
+      "types": "./application/services/*.ts",
+      "default": "./dist/application/services/*.js"
+    },
+    "#repositories/*": {
+      "types": "./application/repositories/*.ts",
+      "default": "./dist/application/repositories/*.js"
+    }
+  },
+  "exports": {
+    "./domain": {
+      "types": "./dist/domain/index.d.ts",
+      "default": "./dist/domain/index.js"
+    },
+    "./application": {
+      "types": "./dist/application/index.d.ts",
+      "default": "./dist/application/index.js"
+    }
+  },
+  "dependencies": {
+    "@architecture/foundation": "workspace:*",
+    "ioredis": "^5.11.1",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@architecture/eslint-config": "workspace:*",
+    "@types/node": "^25.9.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

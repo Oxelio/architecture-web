@@ -11,6 +11,16 @@ The repository uses a modular architecture inspired by ports and adapters. No
 dependency-injection framework is used: implementations are assembled
 explicitly inside the API.
 
+The bounded context is named **IAM** (`Identity and Access Management`) and is
+split into three internal capabilities:
+
+- `accounts`: account, email address, verification, and password;
+- `authentication`: sign-in, resolution, and personal sessions;
+- `access-administration`: roles, lifecycle, and administered sessions.
+
+Account status (`active` or `suspended`) is independent from email
+verification. There is no `pending` status.
+
 ## Monorepo map
 
 ```text
@@ -20,7 +30,7 @@ apps/
 packages/
 ├── foundation/                  modelling primitives
 ├── eslint-config/               shared ESLint rules
-└── identity/
+└── iam/
     ├── core/                    domain + application
     └── infrastructure/
         ├── email/               Nodemailer and Postmark
@@ -31,7 +41,7 @@ packages/
 
 The `persitence` directory contains a historical spelling error, while the
 published package is correctly named
-`@architecture/identity-persistence-kysely`. Documentation uses the real path
+`@architecture/iam-persistence-kysely`. Documentation uses the real path
 when linking to code.
 
 ## Main flow
@@ -39,7 +49,7 @@ when linking to code.
 ```mermaid
 flowchart LR
     Browser[React application] -->|HTTP JSON + sid cookie| API[Fastify API]
-    API -->|application contract| UC[Identity use cases]
+    API -->|application contract| UC[IAM use cases]
     UC --> Domain[Entities and value objects]
     UC --> Ports[Application ports]
     Kysely[Kysely adapter] -. implements .-> Ports
@@ -59,7 +69,7 @@ Technical adapters implement those ports. A presenter maps the application
 
 ## Intended properties
 
-- Identity rules remain testable without network or database access.
+- IAM rules remain testable without network or database access.
 - A technical provider can be replaced at the composition point.
 - Business and HTTP contracts are explicit and evolve separately.
 - The domain controls the creation and validity of its values.
@@ -76,7 +86,7 @@ introduce them.
 
 ## Observed trade-offs
 
-- `packages/identity/core` contains domain and application in one package, with
+- `packages/iam/core` contains domain and application in one package, with
   separate public subpath exports.
 - The API depends on both core and adapters. This is intentional in the
   composition root, where concrete details must be known.

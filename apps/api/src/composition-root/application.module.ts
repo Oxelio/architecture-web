@@ -1,15 +1,15 @@
 // @file apps/api/src/composition-root/application.module.ts
 
-import type { IdentityApplication } from "@architecture/identity/application";
+import type { IamApplication } from "@architecture/iam/application";
 
 import { loadConfig } from "#config/app.config";
 
 import { createDatabase } from "./database.module.js";
-import { buildIdentityModule } from "./identity.module.js";
+import { buildIamModule } from "./iam.module.js";
 import { createRedis } from "./redis.module.js";
 
 export interface ApplicationModule {
-  readonly identity: IdentityApplication;
+  readonly iam: IamApplication;
 
   dispose(): Promise<void>;
 }
@@ -21,7 +21,7 @@ export function buildApplicationModule(): ApplicationModule {
   const redis = createRedis(config.redis);
 
   return {
-    identity: buildIdentityModule(db, redis, config),
+    iam: buildIamModule(db, redis, config),
 
     async dispose() {
       await Promise.all([redis.quit(), db.destroy()]);

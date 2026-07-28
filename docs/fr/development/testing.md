@@ -5,7 +5,7 @@
 Les tests sont colocalisés avec le code et exécutés par Vitest.
 
 - Foundation teste les primitives de domaine.
-- Identity core teste entités, objets-valeur, cas d’utilisation et factory.
+- IAM core teste entités, objets-valeur, cas d’utilisation et factory.
 - Chaque adaptateur teste sa conformité comportementale et ses conversions.
 - L’API teste les helpers et les contrôleurs qui portent une règle d’accès ou
   une adaptation non triviale.
@@ -34,13 +34,13 @@ Les scripts racine parcourent les workspaces avec `--if-present`. Pour une
 boucle courte :
 
 ```bash
-pnpm --filter @architecture/identity test
+pnpm --filter @architecture/iam test
 pnpm --filter api test
 pnpm --filter web test
 ```
 
-Le nom du package cœur est `@architecture/identity`, pas
-`@architecture/identity-core`.
+Le nom du package cœur est `@architecture/iam`, pas
+`@architecture/iam-core`.
 
 ## Vérification proportionnée
 

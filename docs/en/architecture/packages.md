@@ -5,38 +5,38 @@
 ```mermaid
 flowchart LR
     foundation["@architecture/foundation"]
-    identity["@architecture/identity"]
-    adapters["Identity adapters"]
+    iam["@architecture/iam"]
+    adapters["IAM adapters"]
     api["api (private)"]
     web["web (private)"]
     lint["@architecture/eslint-config"]
 
-    identity --> foundation
-    adapters --> identity
-    api --> identity
+    iam --> foundation
+    adapters --> iam
+    api --> iam
     api --> adapters
     web -. HTTP .-> api
     api -. tooling .-> lint
     web -. tooling .-> lint
-    identity -. tooling .-> lint
+    iam -. tooling .-> lint
 ```
 
 ## Catalog
 
-| Package                                            | Responsibility                              | Public API                                        |
-| -------------------------------------------------- | ------------------------------------------- | ------------------------------------------------- |
-| `@architecture/foundation`                         | generic domain primitives                   | root export                                       |
-| `@architecture/identity`                           | Identity domain and application             | `./domain`, `./application`                       |
-| `@architecture/identity-persistence-kysely`        | PostgreSQL users, verifications, and schema | root export                                       |
-| `@architecture/identity-session-redis`             | sessions and rate limiting                  | root export                                       |
-| `@architecture/identity-password-argon2`           | selected password hashing                   | root export                                       |
-| `@architecture/identity-password-bcrypt`           | alternative implementation                  | root export                                       |
-| `@architecture/identity-email-verification-sha256` | token hashing                               | `main`/`types`, no `exports` field                |
-| `@architecture/identity-email-nodemailer`          | selected SMTP delivery                      | root export                                       |
-| `@architecture/identity-email-postmark`            | alternative provider                        | root export                                       |
-| `@architecture/eslint-config`                      | shared ESLint configurations                | `.`, `node`, `react-vite`, `architecture`, `full` |
-| `api`                                              | server and composition                      | private                                           |
-| `web`                                              | React client                                | private                                           |
+| Package                                       | Responsibility                              | Public API                                        |
+| --------------------------------------------- | ------------------------------------------- | ------------------------------------------------- |
+| `@architecture/foundation`                    | generic domain primitives                   | root export                                       |
+| `@architecture/iam`                           | IAM domain and application                  | `./domain`, `./application`                       |
+| `@architecture/iam-persistence-kysely`        | PostgreSQL users, verifications, and schema | root export                                       |
+| `@architecture/iam-session-redis`             | sessions and rate limiting                  | root export                                       |
+| `@architecture/iam-password-argon2`           | selected password hashing                   | root export                                       |
+| `@architecture/iam-password-bcrypt`           | alternative implementation                  | root export                                       |
+| `@architecture/iam-email-verification-sha256` | token hashing                               | `main`/`types`, no `exports` field                |
+| `@architecture/iam-email-nodemailer`          | selected SMTP delivery                      | root export                                       |
+| `@architecture/iam-email-postmark`            | alternative provider                        | root export                                       |
+| `@architecture/eslint-config`                 | shared ESLint configurations                | `.`, `node`, `react-vite`, `architecture`, `full` |
+| `api`                                         | server and composition                      | private                                           |
+| `web`                                         | React client                                | private                                           |
 
 Each package manifest remains the source of truth. Bcrypt and Postmark adapters
 are tested alternatives, but the current composition selects Argon2 and
@@ -60,7 +60,7 @@ Nodemailer.
 ## Persistence
 
 PostgreSQL stores users and email verifications. Kysely migrations live in
-`packages/identity/infrastructure/persitence/kysely/src/persistence/migrations`.
+`packages/iam/infrastructure/persitence/kysely/src/persistence/migrations`.
 Redis stores expiring sessions, a per-user sorted set, and resend rate limits.
 
 Schema, migrations, and mappers **MUST** evolve together. Rehydrated entities

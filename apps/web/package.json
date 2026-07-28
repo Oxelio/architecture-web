@@ -16,6 +16,7 @@
     "prepublishOnly": "pnpm build"
   },
   "imports": {
+    "#app/*": "./src/*.ts",
     "#components/*": "./src/components/*.tsx",
     "#services/*": "./src/services/*.ts"
   },

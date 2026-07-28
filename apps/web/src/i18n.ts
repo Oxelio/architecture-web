@@ -42,7 +42,7 @@ const resources = {
         signUp: "Inscription",
       },
       home: {
-        eyebrow: "Identity platform",
+        eyebrow: "IAM platform",
         heroTitle: "Un portail élégant et fiable pour votre authentification.",
         heroSubtitle:
           "Connecte ton front React à l’API Fastify, avec un design clair, réactif et animé.",
@@ -69,7 +69,7 @@ const resources = {
         statusDisconnected: "Non connecté",
         apiLabel: "Clé API",
         apiHelp:
-          "Utilise l’API GET /identity/me pour récupérer le profil utilisateur.",
+          "Utilise l’API GET /iam/me pour récupérer le profil utilisateur.",
       },
       auth: {
         invalidEmail: "Email invalide",
@@ -292,7 +292,7 @@ const resources = {
         signUp: "Sign up",
       },
       home: {
-        eyebrow: "Identity platform",
+        eyebrow: "IAM platform",
         heroTitle: "An elegant and reliable portal for your authentication.",
         heroSubtitle:
           "Connect your React front end to the Fastify API with a clear, responsive, and animated design.",
@@ -318,7 +318,7 @@ const resources = {
         statusConnected: "Connected as {{email}}",
         statusDisconnected: "Not connected",
         apiLabel: "API key",
-        apiHelp: "Use the GET /identity/me API to retrieve the user profile.",
+        apiHelp: "Use the GET /iam/me API to retrieve the user profile.",
       },
       auth: {
         invalidEmail: "Invalid email",

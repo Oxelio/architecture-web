@@ -4,7 +4,7 @@
 >
 > **Status:** Implemented
 >
-> **Technical documentation:** [Authentication and sessions](../guides/identity-sessions.md)
+> **Technical documentation:** [Authentication and sessions](../guides/iam-sessions.md)
 
 ## Business Context
 

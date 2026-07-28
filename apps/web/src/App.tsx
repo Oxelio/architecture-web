@@ -46,9 +46,7 @@ function App() {
               <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
                 Architecture
               </p>
-              <h1 className="text-lg font-semibold text-white">
-                Identity Studio
-              </h1>
+              <h1 className="text-lg font-semibold text-white">IAM Studio</h1>
             </div>
           </Link>
 

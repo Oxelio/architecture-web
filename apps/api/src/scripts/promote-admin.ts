@@ -1,4 +1,7 @@
-import { buildApplicationModule } from "#composition-root/application.module";
+import { EmailValueObject } from "@architecture/iam/domain";
+
+import { createDatabase } from "#composition-root/database.module";
+import { loadConfig } from "#config/app.config";
 
 const emailArgument = process.argv[2];
 if (!emailArgument) {
@@ -6,34 +9,26 @@ if (!emailArgument) {
   process.exit(1);
 }
 
-const application = buildApplicationModule();
+const email = EmailValueObject.create(emailArgument);
+if (!email.success) {
+  console.error("Invalid email address.");
+  process.exit(1);
+}
 
+const database = createDatabase(loadConfig().database);
 try {
-  const users = await application.identity.listUsers.execute();
-  if (!users.success) {
-    throw new Error("ListUsers cannot fail");
-  }
+  const result = await database
+    .updateTable("iam_users")
+    .set({ role: "admin", updated_at: new Date() })
+    .where("email", "=", email.value.value)
+    .executeTakeFirst();
 
-  const user = users.value.find(
-    ({ email }) => email.toLowerCase() === emailArgument.toLowerCase(),
-  );
-
-  if (!user) {
+  if (result.numUpdatedRows === 0n) {
     console.error("No user exists for this email address.");
     process.exitCode = 1;
   } else {
-    const result = await application.identity.assignUserRole.execute({
-      userId: user.userId,
-      role: "admin",
-    });
-
-    if (!result.success) {
-      console.error(`Unable to promote user: ${result.error.code}`);
-      process.exitCode = 1;
-    } else {
-      console.log(`Promoted ${user.email} to admin.`);
-    }
+    console.log(`Promoted ${email.value.value} to admin.`);
   }
 } finally {
-  await application.dispose();
+  await database.destroy();
 }

@@ -11,9 +11,9 @@ d’infrastructure. Ajouter une abstraction à Foundation augmente le couplage d
 tous ses consommateurs ; cette décision **DEVRAIT** donc répondre à au moins
 deux usages réels.
 
-## Domaine Identity
+## Domaine IAM
 
-`packages/identity/core/domain` contient les entités et objets-valeur. Une
+`packages/iam/core/domain` contient les entités et objets-valeur. Une
 entité porte une identité et des transitions métier ; un objet-valeur valide et
 encapsule une valeur sans identité propre.
 
@@ -31,9 +31,9 @@ Les factories statiques `create` et `rehydrate` ont des intentions distinctes :
 `create` construit un nouvel état valide et applique les valeurs par défaut ;
 `rehydrate` restaure un état déjà persisté.
 
-## Application Identity
+## Application IAM
 
-`packages/identity/core/application` expose les cas d’utilisation, leurs
+`packages/iam/core/application` expose les cas d’utilisation, leurs
 entrées/sorties, leurs codes et les ports nécessaires. Un cas d’utilisation
 orchestre une intention métier et retourne un `Result`.
 
@@ -46,19 +46,25 @@ Les repositories et services abstraits sont des ports secondaires :
 - repositories pour utilisateurs, vérifications et sessions ;
 - services pour hachage, e-mail et limitation de débit.
 
-`createIdentity` est la factory applicative. Elle reçoit
-`IdentityDependencies` et retourne l’ensemble `IdentityApplication` des cas
+`createIam` est la factory applicative. Elle reçoit
+`IamDependencies` et retourne l’ensemble `IamApplication` des cas
 d’utilisation.
+
+Les commandes d’administration reçoivent obligatoirement l’identifiant de
+l’acteur. `AdministratorAuthorizer` recharge cet acteur depuis le repository et
+vérifie qu’il est actif et administrateur : cette règle ne dépend donc pas de
+Fastify. Les opérations sur les sessions personnelles utilisent des cas
+d’utilisation distincts des opérations administratives.
 
 ## Infrastructure
 
-Chaque package sous `packages/identity/infrastructure` adapte une technologie à
-un port de `@architecture/identity/application`. Il **DOIT** déclarer sa
+Chaque package sous `packages/iam/infrastructure` adapte une technologie à
+un port de `@architecture/iam/application`. Il **DOIT** déclarer sa
 compatibilité avec `implements`, comme
 `RedisSessionAdapter implements SessionAdministrationRepository`.
 
 Un adaptateur **PEUT** dépendre des exports publics `application` et `domain` du
-cœur Identity et de sa bibliothèque technique. Il **NE DOIT PAS** importer les
+cœur IAM et de sa bibliothèque technique. Il **NE DOIT PAS** importer les
 fichiers internes du cœur via un chemin relatif ou contourner ses exports.
 
 Les mappers de persistance appartiennent à l’infrastructure. Par exemple,
@@ -71,8 +77,8 @@ persistées invalides avec `InvalidPersistenceDataError`.
 
 - `server.ts` configure Fastify, CORS, Swagger, l’authentification et les routes ;
 - `composition-root` crée PostgreSQL, Redis et les adaptateurs, puis appelle
-  `createIdentity` ;
-- `features/identity` regroupe contrôleur, contrat HTTP, presenter et options de
+  `createIam` ;
+- `features/iam` regroupe contrôleur, contrat HTTP, presenter et options de
   route par fonctionnalité ;
 - `routes` sépare les routes publiques, protégées et administrateur.
 

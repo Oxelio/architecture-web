@@ -7,11 +7,11 @@ Les termes **DOIT**, **NE DOIT PAS**, **DEVRAIT** et **PEUT** sont normatifs.
 ```mermaid
 flowchart TD
     Web[apps/web] --> HTTP[apps/api - contrat HTTP]
-    HTTP --> App[identity/application]
-    App --> Domain[identity/domain]
+    HTTP --> App[iam/application]
+    App --> Domain[iam/domain]
     Domain --> Foundation[foundation]
     App --> Foundation
-    Infra[identity/infrastructure] --> App
+    Infra[iam/infrastructure] --> App
     Infra --> Domain
     Composition[apps/api/composition-root] --> Infra
     Composition --> App
@@ -22,15 +22,15 @@ existe.
 
 ## Matrice
 
-| Depuis                  | Peut importer                                | Ne peut pas importer                        |
-| ----------------------- | -------------------------------------------- | ------------------------------------------- |
-| Foundation              | bibliothèques génériques nécessaires         | Identity, applications, infrastructure      |
-| Identity domain         | Foundation, domaine Identity                 | application, infrastructure, Fastify, React |
-| Identity application    | domaine Identity, Foundation, ports locaux   | adaptateurs, base, cache, HTTP, UI          |
-| Infrastructure Identity | exports publics Identity, technologie ciblée | internes privés du cœur, applications       |
-| API hors composition    | contrats applicatifs, Fastify, helpers API   | internals du domaine, adaptateur concret    |
-| API composition root    | application et adaptateurs concrets          | —                                           |
-| Web                     | son code UI et le contrat HTTP               | packages métier et infrastructure           |
+| Depuis               | Peut importer                              | Ne peut pas importer                        |
+| -------------------- | ------------------------------------------ | ------------------------------------------- |
+| Foundation           | bibliothèques génériques nécessaires       | IAM, applications, infrastructure           |
+| IAM domain           | Foundation, domaine IAM                    | application, infrastructure, Fastify, React |
+| IAM application      | domaine IAM, Foundation, ports locaux      | adaptateurs, base, cache, HTTP, UI          |
+| Infrastructure IAM   | exports publics IAM, technologie ciblée    | internes privés du cœur, applications       |
+| API hors composition | contrats applicatifs, Fastify, helpers API | internals du domaine, adaptateur concret    |
+| API composition root | application et adaptateurs concrets        | —                                           |
+| Web                  | son code UI et le contrat HTTP             | packages métier et infrastructure           |
 
 ## Réponses aux questions fréquentes
 
@@ -51,12 +51,12 @@ existe.
 Un consommateur externe **DOIT** utiliser les sous-chemins exportés :
 
 ```ts
-import type { SignIn } from "@architecture/identity/application";
-import { EmailValueObject } from "@architecture/identity/domain";
+import type { SignIn } from "@architecture/iam/application";
+import { EmailValueObject } from "@architecture/iam/domain";
 ```
 
 Il **NE DOIT PAS** importer un fichier interne de
-`packages/identity/core/application/use-cases`. À l’intérieur d’un package, les
+`packages/iam/core/application/<capacité>/use-cases`. À l’intérieur d’un package, les
 alias `#...` déclarés dans son `package.json` **DEVRAIENT** être utilisés pour
 éviter les remontées `../`. La règle ESLint actuelle signale ces remontées avec
 un avertissement.

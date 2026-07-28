@@ -36,13 +36,14 @@ export class ExampleValueObject extends ValueObject<{ value: string }> {
 }
 ```
 
-Exporter le type depuis `packages/identity/core/domain/index.ts` seulement s’il
+Exporter le type depuis `packages/iam/core/domain/index.ts` seulement s’il
 fait partie du contrat public. Ajouter un test colocalisé couvrant validation,
 égalité et limites pertinentes.
 
 ## 3. Définir le contrat applicatif
 
-Créer sous `application/use-cases/<feature>` :
+Choisir d’abord `accounts`, `authentication` ou `access-administration`, puis
+créer sous `application/<capacité>/use-cases/<feature>` :
 
 - `<feature>.codes.ts` pour les codes stables ;
 - `<feature>.contracts.ts` pour entrée, sortie et interface ;
@@ -85,13 +86,13 @@ schémas et mappers évoluent ensemble lorsque la persistance change.
 
 ## 6. Composer le cas d’utilisation
 
-Ajouter la dépendance à `IdentityDependencies`, construire le cas d’utilisation
-dans `createIdentity`, l’exposer dans `IdentityApplication`, puis choisir
-l’adaptateur dans `apps/api/src/composition-root/identity.module.ts`.
+Ajouter la dépendance à `IamDependencies`, construire le cas d’utilisation
+dans `createIam`, l’exposer dans `IamApplication`, puis choisir
+l’adaptateur dans `apps/api/src/composition-root/iam.module.ts`.
 
 ## 7. Exposer le contrat HTTP
 
-Créer `apps/api/src/features/identity/<feature>` avec :
+Créer `apps/api/src/features/iam/<feature>` avec :
 
 - contrôleur ;
 - contrat HTTP ;

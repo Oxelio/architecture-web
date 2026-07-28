@@ -7,14 +7,15 @@ import swagger from "@fastify/swagger";
 import swaggerUI from "@fastify/swagger-ui";
 import Fastify from "fastify";
 
-import pkg from "../package.json" with { type: "json" };
+import pkg from "#package" with { type: "json" };
+
 import {
   authPlugin,
   buildSessionCookieOptions,
   SESSION_COOKIE_NAME,
 } from "./auth.js";
 import { buildApplicationModule } from "./composition-root/application.module.js";
-import { buildIdentityRoutes } from "./features/identity/routes/index.js";
+import { buildIamRoutes } from "./features/iam/routes/index.js";
 import { errorHandler } from "./types/error-handler.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;
@@ -60,7 +61,7 @@ export async function buildServer() {
   const sessionCookieOptions = buildSessionCookieOptions();
 
   await app.register(authPlugin, {
-    resolveSession: container.identity.resolveSession,
+    resolveSession: container.iam.resolveSession,
     sessionCookieName: SESSION_COOKIE_NAME,
   });
 
@@ -72,12 +73,12 @@ export async function buildServer() {
   // Routes registration
   // =========================
   await app.register(
-    buildIdentityRoutes(container.identity, {
+    buildIamRoutes(container.iam, {
       name: SESSION_COOKIE_NAME,
       options: sessionCookieOptions,
     }),
     {
-      prefix: `/${apiVersion}/identity`,
+      prefix: `/${apiVersion}/iam`,
     },
   );
 

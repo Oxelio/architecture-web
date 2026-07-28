@@ -203,7 +203,7 @@ The account must not be created when:
 
 Password validation must occur before the password is persisted.
 
-A failure must not create a partial user account unless the existing architecture intentionally supports a recoverable pending-registration state.
+A failure must not create a partial user account unless the existing architecture intentionally supports a recoverable registration workflow.
 
 ## Password-Change Behaviour
 

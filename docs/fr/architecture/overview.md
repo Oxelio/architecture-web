@@ -12,6 +12,16 @@ Le dépôt applique une architecture modulaire inspirée des ports et adaptateur
 Le code n’emploie pas de framework d’injection de dépendances : les
 implémentations sont assemblées explicitement dans l’API.
 
+Le bounded context porte le nom **IAM** (`Identity and Access Management`) et
+se divise en trois capacités internes :
+
+- `accounts` : compte, adresse électronique, vérification et mot de passe ;
+- `authentication` : connexion, résolution et sessions personnelles ;
+- `access-administration` : rôles, cycle de vie et sessions administrées.
+
+Le statut du compte (`active` ou `suspended`) est indépendant de la vérification
+de l’adresse électronique. Aucun statut `pending` n’existe.
+
 ## Carte du monorepo
 
 ```text
@@ -21,7 +31,7 @@ apps/
 packages/
 ├── foundation/                  primitives de modélisation
 ├── eslint-config/               règles ESLint partagées
-└── identity/
+└── iam/
     ├── core/                    domaine + application
     └── infrastructure/
         ├── email/               Nodemailer et Postmark
@@ -32,7 +42,7 @@ packages/
 
 Le nom de dossier `persitence` contient une faute historique, mais il s’agit
 bien du package publié sous le nom
-`@architecture/identity-persistence-kysely`. La documentation utilise le chemin
+`@architecture/iam-persistence-kysely`. La documentation utilise le chemin
 réel lorsqu’elle pointe vers le code.
 
 ## Flux principal
@@ -40,7 +50,7 @@ réel lorsqu’elle pointe vers le code.
 ```mermaid
 flowchart LR
     Browser[Application React] -->|HTTP JSON + cookie sid| API[API Fastify]
-    API -->|contrat applicatif| UC[Cas d'utilisation Identity]
+    API -->|contrat applicatif| UC[Cas d'utilisation IAM]
     UC --> Domain[Entités et objets-valeur]
     UC --> Ports[Ports applicatifs]
     Kysely[Adaptateur Kysely] -. implémente .-> Ports
@@ -78,7 +88,7 @@ présumés tant qu’une décision et une implémentation ne les introduisent pa
 
 ## Compromis observés
 
-- `packages/identity/core` regroupe domaine et application dans un même package,
+- `packages/iam/core` regroupe domaine et application dans un même package,
   tout en leur donnant deux points d’export distincts.
 - L’API dépend à la fois du cœur et des adaptateurs : c’est volontaire au
   niveau du composition root, où les détails doivent être connus.

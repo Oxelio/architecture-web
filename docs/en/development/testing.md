@@ -5,7 +5,7 @@
 Tests are colocated with code and run with Vitest.
 
 - Foundation tests domain primitives.
-- Identity core tests entities, value objects, use cases, and its factory.
+- IAM core tests entities, value objects, use cases, and its factory.
 - Each adapter tests behavior and conversions for its technology.
 - The API tests helpers and controllers with non-trivial access or mapping.
 - The web has targeted unit tests; no E2E suite is declared.
@@ -29,13 +29,13 @@ pnpm format:check
 For a shorter loop:
 
 ```bash
-pnpm --filter @architecture/identity test
+pnpm --filter @architecture/iam test
 pnpm --filter api test
 pnpm --filter web test
 ```
 
-The core package is named `@architecture/identity`, not
-`@architecture/identity-core`.
+The core package is named `@architecture/iam`, not
+`@architecture/iam-core`.
 
 ## Proportional verification
 

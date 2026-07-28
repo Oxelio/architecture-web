@@ -30,12 +30,13 @@ export class ExampleValueObject extends ValueObject<{ value: string }> {
 }
 ```
 
-Export it from `packages/identity/core/domain/index.ts` only when it belongs to
+Export it from `packages/iam/core/domain/index.ts` only when it belongs to
 the public contract. Add colocated tests for validation and meaningful limits.
 
 ## 3. Define the application contract
 
-Under `application/use-cases/<feature>`, create:
+First choose `accounts`, `authentication`, or `access-administration`, then
+create under `application/<capability>/use-cases/<feature>`:
 
 - `<feature>.codes.ts` for stable codes;
 - `<feature>.contracts.ts` for input, output, and interface;
@@ -76,13 +77,13 @@ change together.
 
 ## 6. Compose the use case
 
-Add the dependency to `IdentityDependencies`, construct the use case in
-`createIdentity`, expose it in `IdentityApplication`, and select the adapter in
-`apps/api/src/composition-root/identity.module.ts`.
+Add the dependency to `IamDependencies`, construct the use case in
+`createIam`, expose it in `IamApplication`, and select the adapter in
+`apps/api/src/composition-root/iam.module.ts`.
 
 ## 7. Expose HTTP
 
-Create `apps/api/src/features/identity/<feature>` with controller, HTTP
+Create `apps/api/src/features/iam/<feature>` with controller, HTTP
 contract, presenter, and TypeBox route options. Add the controller to
 `compose-controllers.ts`, then register the route in `public.routes.ts`,
 `protected.routes.ts`, or `admin.routes.ts`.

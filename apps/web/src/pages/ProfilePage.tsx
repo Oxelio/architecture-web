@@ -330,7 +330,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
           >
             {[
               {
-                href: "#identity",
+                href: "#iam",
                 icon: UserRound,
                 label: t("profile.identitySection"),
               },

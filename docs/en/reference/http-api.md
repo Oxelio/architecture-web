@@ -2,8 +2,8 @@
 
 ## Executable source
 
-The API mounts routes under `/v<major-version>/identity`. With
-`1.0.0-alpha.1`, the prefix is `/v1/identity`. TypeBox schemas feed OpenAPI,
+The API mounts routes under `/v<major-version>/iam`. With
+`1.0.0-alpha.1`, the prefix is `/v1/iam`. TypeBox schemas feed OpenAPI,
 available at `GET /docs`.
 
 This page describes boundaries and access levels. Swagger and

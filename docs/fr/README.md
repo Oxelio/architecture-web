@@ -2,7 +2,7 @@
 
 Cette documentation décrit l’architecture réellement présente dans le dépôt.
 Le projet est un monorepo pnpm TypeScript composé d’une application React, d’une
-API Fastify et de packages consacrés au domaine Identity et à ses adaptateurs.
+API Fastify et de packages consacrés au domaine IAM et à ses adaptateurs.
 
 ## Parcours de lecture
 
@@ -35,7 +35,7 @@ Pour une première prise en main, lire dans cet ordre :
 
 ### Guides et références
 
-- [Authentification et sessions](guides/identity-sessions.md)
+- [Authentification et sessions](guides/iam-sessions.md)
 - [Politique de mot de passe](guides/password-policy.md)
 - [Interface HTTP](reference/http-api.md)
 - [Spécifications fonctionnelles](specifications/README.md)
@@ -45,9 +45,9 @@ Pour une première prise en main, lire dans cet ordre :
 - Les exports d’un package sont définis par son `package.json` et ses fichiers
   d’index.
 - Les contrats applicatifs sont dans
-  `packages/identity/core/application/use-cases`.
+  `packages/iam/core/application/<capacité>/use-cases`.
 - Les routes et schémas HTTP sont dans
-  `apps/api/src/features/identity`.
+  `apps/api/src/features/iam`.
 - Les commandes disponibles sont définies par les scripts des `package.json`.
 - Le catalogue HTTP exécutable est l’interface Swagger exposée sur `/docs`.
 

@@ -144,14 +144,14 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 export async function signUp(payload: SignUpPayload) {
-  return request<{ userId: string }>("/identity/signup", {
+  return request<{ userId: string }>("/iam/signup", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export function getPasswordPolicy(): Promise<PasswordPolicy> {
-  return request<PasswordPolicy>("/identity/password-policy", {
+  return request<PasswordPolicy>("/iam/password-policy", {
     method: "GET",
   });
 }
@@ -159,28 +159,28 @@ export function getPasswordPolicy(): Promise<PasswordPolicy> {
 export function evaluatePassword(
   password: string,
 ): Promise<PasswordEvaluation> {
-  return request<PasswordEvaluation>("/identity/password-policy/evaluate", {
+  return request<PasswordEvaluation>("/iam/password-policy/evaluate", {
     method: "POST",
     body: JSON.stringify({ password }),
   });
 }
 
 export async function signIn(payload: SignInPayload) {
-  return request<{ userId: string }>("/identity/signin", {
+  return request<{ userId: string }>("/iam/signin", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function signOut() {
-  await request<unknown>("/identity/signout", {
+  await request<unknown>("/iam/signout", {
     method: "POST",
   });
 }
 
 export async function getCurrentUser() {
   try {
-    return await request<CurrentUser>("/identity/me", {
+    return await request<CurrentUser>("/iam/me", {
       method: "GET",
     });
   } catch (error) {
@@ -195,36 +195,33 @@ export async function getCurrentUser() {
 }
 
 export async function changeEmail(payload: ChangeEmailPayload) {
-  await request<unknown>("/identity/me/email", {
+  await request<unknown>("/iam/me/email", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function changePassword(payload: ChangePasswordPayload) {
-  await request<unknown>("/identity/me/password", {
+  await request<unknown>("/iam/me/password", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function verifyEmail(token: string) {
-  await request<unknown>(
-    `/identity/verify?token=${encodeURIComponent(token)}`,
-    {
-      method: "GET",
-    },
-  );
+  await request<unknown>(`/iam/verify?token=${encodeURIComponent(token)}`, {
+    method: "GET",
+  });
 }
 
 export async function resendEmailVerification(): Promise<void> {
-  await request<unknown>("/identity/verify/resend", {
+  await request<unknown>("/iam/verify/resend", {
     method: "POST",
   });
 }
 
 export function listCurrentUserSessions(): Promise<UserSession[]> {
-  return request<UserSession[]>("/identity/me/sessions", {
+  return request<UserSession[]>("/iam/me/sessions", {
     method: "GET",
   });
 }
@@ -232,7 +229,7 @@ export function listCurrentUserSessions(): Promise<UserSession[]> {
 export async function revokeCurrentUserSession(
   sessionId: string,
 ): Promise<void> {
-  await request<unknown>(`/identity/me/sessions/${sessionId}`, {
+  await request<unknown>(`/iam/me/sessions/${sessionId}`, {
     method: "DELETE",
   });
 }
@@ -241,30 +238,30 @@ export async function assignUserRole(
   userId: string,
   role: "user" | "admin",
 ): Promise<void> {
-  await request<unknown>(`/identity/users/${userId}/role`, {
+  await request<unknown>(`/iam/users/${userId}/role`, {
     method: "PATCH",
     body: JSON.stringify({ role }),
   });
 }
 
 export async function suspendUser(userId: string): Promise<void> {
-  await request<unknown>(`/identity/users/${userId}/suspend`, {
+  await request<unknown>(`/iam/users/${userId}/suspend`, {
     method: "PATCH",
   });
 }
 
 export async function activateUser(userId: string): Promise<void> {
-  await request<unknown>(`/identity/users/${userId}/activate`, {
+  await request<unknown>(`/iam/users/${userId}/activate`, {
     method: "PATCH",
   });
 }
 
 export function listUsers(): Promise<AdminUser[]> {
-  return request<AdminUser[]>("/identity/users", { method: "GET" });
+  return request<AdminUser[]>("/iam/users", { method: "GET" });
 }
 
 export function listUserSessions(userId: string): Promise<AdminSession[]> {
-  return request<AdminSession[]>(`/identity/users/${userId}/sessions`, {
+  return request<AdminSession[]>(`/iam/users/${userId}/sessions`, {
     method: "GET",
   });
 }
@@ -274,7 +271,7 @@ export async function revokeUserSession(
   sessionId?: string,
 ): Promise<void> {
   const suffix = sessionId ? `/${sessionId}` : "";
-  await request<unknown>(`/identity/users/${userId}/sessions${suffix}`, {
+  await request<unknown>(`/iam/users/${userId}/sessions${suffix}`, {
     method: "DELETE",
   });
 }

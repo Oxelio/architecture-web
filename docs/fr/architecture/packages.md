@@ -5,38 +5,38 @@
 ```mermaid
 flowchart LR
     foundation["@architecture/foundation"]
-    identity["@architecture/identity"]
-    adapters["adaptateurs Identity"]
+    iam["@architecture/iam"]
+    adapters["adaptateurs IAM"]
     api["api (privé)"]
     web["web (privé)"]
     lint["@architecture/eslint-config"]
 
-    identity --> foundation
-    adapters --> identity
-    api --> identity
+    iam --> foundation
+    adapters --> iam
+    api --> iam
     api --> adapters
     web -. HTTP .-> api
     api -. outillage .-> lint
     web -. outillage .-> lint
-    identity -. outillage .-> lint
+    iam -. outillage .-> lint
 ```
 
 ## Catalogue
 
-| Package                                            | Responsabilité                                   | API publique                                      |
-| -------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------- |
-| `@architecture/foundation`                         | primitives génériques du domaine                 | export racine                                     |
-| `@architecture/identity`                           | domaine et application Identity                  | `./domain`, `./application`                       |
-| `@architecture/identity-persistence-kysely`        | utilisateurs, vérifications et schéma PostgreSQL | export racine                                     |
-| `@architecture/identity-session-redis`             | sessions et limitation de débit                  | export racine                                     |
-| `@architecture/identity-password-argon2`           | hachage de mot de passe sélectionné              | export racine                                     |
-| `@architecture/identity-password-bcrypt`           | implémentation alternative                       | export racine                                     |
-| `@architecture/identity-email-verification-sha256` | hachage des jetons                               | `main`/`types`, sans champ `exports`              |
-| `@architecture/identity-email-nodemailer`          | envoi SMTP sélectionné                           | export racine                                     |
-| `@architecture/identity-email-postmark`            | fournisseur alternatif                           | export racine                                     |
-| `@architecture/eslint-config`                      | configurations ESLint partagées                  | `.`, `node`, `react-vite`, `architecture`, `full` |
-| `api`                                              | serveur et composition                           | privé, non publié                                 |
-| `web`                                              | client React                                     | privé, non publié                                 |
+| Package                                       | Responsabilité                                   | API publique                                      |
+| --------------------------------------------- | ------------------------------------------------ | ------------------------------------------------- |
+| `@architecture/foundation`                    | primitives génériques du domaine                 | export racine                                     |
+| `@architecture/iam`                           | domaine et application IAM                       | `./domain`, `./application`                       |
+| `@architecture/iam-persistence-kysely`        | utilisateurs, vérifications et schéma PostgreSQL | export racine                                     |
+| `@architecture/iam-session-redis`             | sessions et limitation de débit                  | export racine                                     |
+| `@architecture/iam-password-argon2`           | hachage de mot de passe sélectionné              | export racine                                     |
+| `@architecture/iam-password-bcrypt`           | implémentation alternative                       | export racine                                     |
+| `@architecture/iam-email-verification-sha256` | hachage des jetons                               | `main`/`types`, sans champ `exports`              |
+| `@architecture/iam-email-nodemailer`          | envoi SMTP sélectionné                           | export racine                                     |
+| `@architecture/iam-email-postmark`            | fournisseur alternatif                           | export racine                                     |
+| `@architecture/eslint-config`                 | configurations ESLint partagées                  | `.`, `node`, `react-vite`, `architecture`, `full` |
+| `api`                                         | serveur et composition                           | privé, non publié                                 |
+| `web`                                         | client React                                     | privé, non publié                                 |
 
 Le `package.json` de chaque package reste la source de vérité. Les adaptateurs
 alternatifs bcrypt et Postmark sont testés mais ne sont pas sélectionnés par le
@@ -62,7 +62,7 @@ Les variantes `BcryptPasswordHasherAdapter` et
 
 PostgreSQL conserve les utilisateurs et les vérifications d’e-mail. Les
 migrations Kysely sont dans
-`packages/identity/infrastructure/persitence/kysely/src/persistence/migrations`.
+`packages/iam/infrastructure/persitence/kysely/src/persistence/migrations`.
 Redis conserve les sessions avec expiration et un ensemble trié par
 utilisateur, ainsi que la limitation des renvois de vérification.
 

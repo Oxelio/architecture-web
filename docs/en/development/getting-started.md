@@ -70,6 +70,6 @@ its exact arguments.
 
 - API: `apps/api/src/main.ts`, then `server.ts`;
 - composition: `apps/api/src/composition-root/application.module.ts`;
-- Identity routes: `apps/api/src/features/identity/routes/index.ts`;
+- IAM routes: `apps/api/src/features/iam/routes/index.ts`;
 - web: `apps/web/src/main.tsx`, then `App.tsx`;
 - web HTTP client: `apps/web/src/services/api.ts`.

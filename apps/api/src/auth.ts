@@ -1,6 +1,6 @@
 // @file apps/api/src/auth.ts
 
-import type { ResolveSession } from "@architecture/identity/application";
+import type { ResolveSession } from "@architecture/iam/application";
 import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
 import type {
   FastifyInstance,

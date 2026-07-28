@@ -2,7 +2,7 @@
 
 ## Architecture
 
-La politique est centralisée dans le cœur `identity` et ne dépend ni de HTTP,
+La politique est centralisée dans le cœur `iam` et ne dépend ni de HTTP,
 ni de Zod, ni d’un algorithme de hachage. `PasswordPolicyValidator` reçoit trois
 ports : évaluation de robustesse, détection des mots de passe courants et
 détection des mots de passe compromis. L’API compose actuellement un évaluateur
@@ -45,8 +45,8 @@ Désactiver un contrôle nécessite donc une valeur explicite `false`.
 
 ## Contrats HTTP
 
-- `GET /v1/identity/password-policy` expose uniquement les exigences publiques ;
-- `POST /v1/identity/password-policy/evaluate` retourne `valid`, une catégorie
+- `GET /v1/iam/password-policy` expose uniquement les exigences publiques ;
+- `POST /v1/iam/password-policy/evaluate` retourne `valid`, une catégorie
   de robustesse stable et des codes d’erreur, sans retourner le mot de passe ;
 - l’inscription exige `password` et `passwordConfirmation` ;
 - le changement exige `currentPassword`, `password` et
@@ -79,4 +79,4 @@ d’indisponibilité externe à configurer.
 
 La limitation de débit des changements de mot de passe et de l’évaluation
 publique reste une responsabilité de la passerelle ou du proxy de déploiement ;
-elle n’est pas dupliquée dans le module `identity`.
+elle n’est pas dupliquée dans le module `iam`.

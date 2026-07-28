@@ -9,8 +9,8 @@
   `NameError`, and a `NameUseCase` implementation.
 - Technical implementations end in `Adapter` and name their technology.
 - Tests are colocated as `*.spec.ts` or `*.spec.tsx`.
-- Each Identity HTTP feature has a folder under
-  `apps/api/src/features/identity/<feature>`.
+- Each IAM HTTP feature has a folder under
+  `apps/api/src/features/iam/<feature>`.
 
 ## Contracts and results
 
@@ -37,7 +37,7 @@ change **MUST** update its TypeBox schema and web client.
 ## Imports and exports
 
 A package public API **MUST** be deliberate and declared by index files and
-`exports`. Consumers use `@architecture/identity/application` or `/domain`,
+`exports`. Consumers use `@architecture/iam/application` or `/domain`,
 never internal paths.
 
 Within a package, prefer declared `#...` aliases. New aliases **MUST** work for
@@ -66,7 +66,7 @@ return {
 ## Commits, documentation, and versions
 
 Commitlint enforces Conventional Commits. Changes **SHOULD** form coherent units
-such as `feat(identity): ...` or `docs(architecture): ...`.
+such as `feat(iam): ...` or `docs(architecture): ...`.
 
 Durable structural decisions **SHOULD** be recorded as ADRs. Any rule or
 navigation change **MUST** update the French and English editions together.

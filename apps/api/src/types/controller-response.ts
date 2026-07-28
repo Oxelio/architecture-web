@@ -2,7 +2,7 @@
 
 import type { FastifyRequest, RouteGenericInterface } from "fastify";
 
-import type { AuthenticatedContext } from "../auth.js";
+import type { AuthenticatedContext } from "#app/auth";
 
 export interface ControllerResponse {
   status: number;

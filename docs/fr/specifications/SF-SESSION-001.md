@@ -4,7 +4,7 @@
 >
 > **Statut :** Implémentée
 >
-> **Documentation technique :** [Authentification et sessions](../guides/identity-sessions.md)
+> **Documentation technique :** [Authentification et sessions](../guides/iam-sessions.md)
 
 ## Contexte métier
 

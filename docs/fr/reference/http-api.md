@@ -2,8 +2,8 @@
 
 ## Source exécutable
 
-L’API monte les routes sous `/v<version-majeure>/identity`. Avec la version
-actuelle `1.0.0-alpha.1`, le préfixe est `/v1/identity`. Les schémas TypeBox
+L’API monte les routes sous `/v<version-majeure>/iam`. Avec la version
+actuelle `1.0.0-alpha.1`, le préfixe est `/v1/iam`. Les schémas TypeBox
 alimentent OpenAPI, consultable sur `GET /docs`.
 
 Cette page décrit les frontières et niveaux d’accès. Pour les corps, statuts et

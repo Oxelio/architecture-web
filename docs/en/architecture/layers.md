@@ -3,16 +3,16 @@
 ## Foundation
 
 `packages/foundation` provides `Entity`, `Identifier`, `ValueObject`, `Result`,
-and `ValueOf`. It contains no Identity-specific rule.
+and `ValueOf`. It contains no IAM-specific rule.
 
 It **MAY** contain a generic primitive useful to multiple domains. It **MUST
 NOT** import a business package, application, or infrastructure technology.
 Because a Foundation abstraction couples every consumer, additions **SHOULD**
 answer at least two real needs.
 
-## Identity domain
+## IAM domain
 
-`packages/identity/core/domain` contains entities and value objects. An entity
+`packages/iam/core/domain` contains entities and value objects. An entity
 has an identity and business transitions; a value object validates and wraps a
 value without its own identity.
 
@@ -26,9 +26,9 @@ lifetime and validity, and `EmailValueObject.create` for validation through a
 Static factories have different meanings: `create` builds new valid state and
 applies defaults, while `rehydrate` restores already persisted state.
 
-## Identity application
+## IAM application
 
-`packages/identity/core/application` exposes use cases, input/output contracts,
+`packages/iam/core/application` exposes use cases, input/output contracts,
 codes, and required ports. A use case orchestrates a business intent and
 returns a `Result`.
 
@@ -36,13 +36,19 @@ This layer **MAY** depend on the domain, Foundation, and its own ports. It
 **MUST NOT** depend on Kysely, Redis, Argon2, Nodemailer, Postmark, or Fastify
 implementations.
 
-Repositories and abstract services are secondary ports. `createIdentity` is
-the application factory: it receives `IdentityDependencies` and returns the
-`IdentityApplication` use-case set.
+Repositories and abstract services are secondary ports. `createIam` is
+the application factory: it receives `IamDependencies` and returns the
+`IamApplication` use-case set.
+
+Administration commands require the actor identifier.
+`AdministratorAuthorizer` reloads that actor from the repository and verifies
+that the account is active and has the administrator role, independently from
+Fastify. Personal-session operations use distinct use cases from
+administrative-session operations.
 
 ## Infrastructure
 
-Each package under `packages/identity/infrastructure` adapts one technology to
+Each package under `packages/iam/infrastructure` adapts one technology to
 a public application port. It **MUST** state compatibility with `implements`,
 for example
 `RedisSessionAdapter implements SessionAdministrationRepository`.
@@ -61,8 +67,8 @@ rows to `UserEntity` and rejects invalid persisted data with
 
 - `server.ts` configures Fastify, CORS, Swagger, authentication, and routes;
 - `composition-root` creates PostgreSQL, Redis, and adapters, then calls
-  `createIdentity`;
-- `features/identity` groups controller, HTTP contract, presenter, and route
+  `createIam`;
+- `features/iam` groups controller, HTTP contract, presenter, and route
   options by feature;
 - `routes` separates public, authenticated, and administrator endpoints.
 
