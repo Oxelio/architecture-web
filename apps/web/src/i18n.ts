@@ -162,7 +162,30 @@ const resources = {
         noSessions: "Aucune session active n'a été trouvée.",
         confirmRevokeSession:
           "Révoquer cette session ? L'appareil concerné sera déconnecté.",
+        confirmRevokeCurrentSession:
+          "Révoquer la session actuelle ? Vous serez immédiatement déconnecté.",
         dismissFeedback: "Fermer la notification",
+      },
+      sessions: {
+        unknownClient: "Client inconnu",
+        unknownSystem: "système inconnu",
+        onSystem: "sur {{system}}",
+        current: "Session actuelle",
+        active: "Active",
+        expired: "Expirée",
+        locationUnavailable: "Localisation approximative indisponible",
+        unknownIp: "adresse IP inconnue",
+        lastActivity: "Dernière activité : {{date}}",
+        unknownActivity: "Dernière activité inconnue",
+        createdAt: "Créée le {{date}}",
+        unknownCreation: "Date de création inconnue",
+        expiresAt: "Expiration prévue le {{date}}",
+        device: {
+          desktop: "Ordinateur",
+          phone: "Téléphone",
+          tablet: "Tablette",
+          unknown: "Appareil inconnu",
+        },
       },
       verify: {
         eyebrow: "Activation du compte",
@@ -378,7 +401,30 @@ const resources = {
         noSessions: "No active sessions were found.",
         confirmRevokeSession:
           "Revoke this session? The associated device will be signed out.",
+        confirmRevokeCurrentSession:
+          "Revoke your current session? You will be signed out immediately.",
         dismissFeedback: "Dismiss notification",
+      },
+      sessions: {
+        unknownClient: "Unknown client",
+        unknownSystem: "unknown system",
+        onSystem: "on {{system}}",
+        current: "Current session",
+        active: "Active",
+        expired: "Expired",
+        locationUnavailable: "Approximate location unavailable",
+        unknownIp: "unknown IP address",
+        lastActivity: "Last activity: {{date}}",
+        unknownActivity: "Last activity unknown",
+        createdAt: "Created {{date}}",
+        unknownCreation: "Creation date unknown",
+        expiresAt: "Scheduled to expire {{date}}",
+        device: {
+          desktop: "Computer",
+          phone: "Phone",
+          tablet: "Tablet",
+          unknown: "Unknown device",
+        },
       },
       verify: {
         eyebrow: "Account activation",

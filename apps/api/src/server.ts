@@ -20,7 +20,10 @@ import { errorHandler } from "./types/error-handler.js";
 const apiVersion = `v${pkg.version.split(".")[0]}`;
 
 export async function buildServer() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: true,
+    trustProxy: process.env["TRUST_PROXY"] === "true",
+  });
 
   // global error handler
   app.setErrorHandler(errorHandler);

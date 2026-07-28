@@ -6,6 +6,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 
 import { sendControllerResponse } from "#helpers/send-response";
 
+import { sessionMetadataFromRequest } from "./session-request-metadata.js";
 import { SignInPresenter } from "./sign-in.presenter.js";
 import type { SignInRoute } from "./sign-in.route-options.js";
 
@@ -21,9 +22,12 @@ export function createSignInController(
   sessionCookie: SessionCookieOptions,
 ) {
   return async (request: SignInHTTPRequest, reply: FastifyReply) => {
+    const metadata = sessionMetadataFromRequest(request);
     const command: SignInInput = {
       email: request.body.email,
       password: request.body.password,
+      client: metadata.client,
+      ...(metadata.network ? { network: metadata.network } : {}),
     };
 
     const result = await useCase.execute(command);

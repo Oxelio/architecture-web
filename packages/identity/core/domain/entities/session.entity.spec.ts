@@ -24,6 +24,28 @@ describe("SessionEntity", () => {
     expect(session.expiresAt).toBeInstanceOf(Date);
     expect(session.isValid()).toBe(true);
     expect(session.isExpired()).toBe(false);
+    expect(session.createdAt).toBeInstanceOf(Date);
+    expect(session.lastActivityAt).toBeInstanceOf(Date);
+  });
+
+  it("should keep client and network identification metadata", () => {
+    const session = SessionEntity.createForUser({
+      userId: UserIdentifierValueObject.generate(),
+      client: {
+        type: "browser",
+        name: "Firefox",
+        version: "128",
+        deviceType: "desktop",
+        operatingSystem: { name: "Linux" },
+      },
+      network: {
+        ipAddress: "192.0.2.10",
+        location: { country: "France", city: "Paris" },
+      },
+    });
+
+    expect(session.client?.name).toBe("Firefox");
+    expect(session.network?.location?.city).toBe("Paris");
   });
 
   /* -------------------------------------------------- */
@@ -44,6 +66,8 @@ describe("SessionEntity", () => {
     expect(session.identifier).toBe(identifier);
     expect(session.userId).toBe(userId);
     expect(session.expiresAt).toBe(expiresAt);
+    expect(session.createdAt).toBeUndefined();
+    expect(session.lastActivityAt).toBeUndefined();
   });
 
   /* -------------------------------------------------- */

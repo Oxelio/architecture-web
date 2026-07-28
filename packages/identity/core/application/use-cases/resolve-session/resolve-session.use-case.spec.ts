@@ -40,6 +40,7 @@ class FakeUserPort implements UserRepository {
 
 class FakeSessionPort implements SessionRepository {
   private readonly sessions = new Map<string, SessionEntity>();
+  public readonly activityUpdates: Date[] = [];
 
   async save(session: SessionEntity): Promise<void> {
     this.sessions.set(session.identifier.value, session);
@@ -61,6 +62,13 @@ class FakeSessionPort implements SessionRepository {
         this.sessions.delete(id);
       }
     }
+  }
+
+  async updateLastActivity(
+    _id: SessionIdentifierValueObject,
+    lastActivityAt: Date,
+  ): Promise<void> {
+    this.activityUpdates.push(lastActivityAt);
   }
 }
 
@@ -258,5 +266,36 @@ describe("ResolveSessionUseCase", () => {
         role: "user",
       });
     }
+    expect(sessionPort.activityUpdates).toHaveLength(0);
+  });
+
+  it("should initialize missing activity without writing on every request", async () => {
+    const userId = UserIdentifierValueObject.generate();
+    const email = EmailValueObject.create("legacy@session.test");
+    const password = PasswordHashValueObject.create("hashed-password");
+    if (!email.success || !password.success) {
+      throw new Error("Invalid fixture");
+    }
+    await userPort.save(
+      UserEntity.rehydrate({
+        identifier: userId,
+        email: email.value,
+        password: password.value,
+        status: StatusValueObject.active(),
+        isEmailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
+    const legacySession = SessionEntity.rehydrate({
+      identifier: SessionIdentifierValueObject.generate(),
+      userId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await sessionPort.save(legacySession);
+
+    await useCase.execute({ sessionId: legacySession.identifier.value });
+
+    expect(sessionPort.activityUpdates).toHaveLength(1);
   });
 });

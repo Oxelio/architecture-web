@@ -11,6 +11,10 @@ import type { Redis } from "ioredis";
 interface SessionRecord {
   userId: string;
   expiresAt: string;
+  createdAt?: string;
+  lastActivityAt?: string;
+  client?: SessionEntity["client"];
+  network?: SessionEntity["network"];
 }
 
 export class RedisSessionAdapter implements SessionAdministrationRepository {
@@ -20,6 +24,14 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
     const record: SessionRecord = {
       userId: session.userId.value,
       expiresAt: session.expiresAt.toISOString(),
+      ...(session.createdAt
+        ? { createdAt: session.createdAt.toISOString() }
+        : {}),
+      ...(session.lastActivityAt
+        ? { lastActivityAt: session.lastActivityAt.toISOString() }
+        : {}),
+      ...(session.client ? { client: session.client } : {}),
+      ...(session.network ? { network: session.network } : {}),
     };
 
     const ttl = Math.max(
@@ -59,7 +71,34 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
       identifier: id,
       userId: userId.value,
       expiresAt: new Date(record.expiresAt),
+      ...(record.createdAt ? { createdAt: new Date(record.createdAt) } : {}),
+      ...(record.lastActivityAt
+        ? { lastActivityAt: new Date(record.lastActivityAt) }
+        : {}),
+      ...(record.client ? { client: record.client } : {}),
+      ...(record.network ? { network: record.network } : {}),
     });
+  }
+
+  async updateLastActivity(
+    id: SessionIdentifierValueObject,
+    lastActivityAt: Date,
+  ): Promise<void> {
+    const key = `session:${id.value}`;
+    const data = await this.redis.get(key);
+    if (!data) {
+      return;
+    }
+
+    const record: SessionRecord = JSON.parse(data);
+    await this.redis.set(
+      key,
+      JSON.stringify({
+        ...record,
+        lastActivityAt: lastActivityAt.toISOString(),
+      }),
+      "KEEPTTL",
+    );
   }
 
   async delete(id: SessionIdentifierValueObject): Promise<void> {

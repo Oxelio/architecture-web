@@ -11,6 +11,10 @@ export abstract class SessionRepository {
   ): Promise<SessionEntity | null>;
   abstract delete(id: SessionIdentifierValueObject): Promise<void>;
   abstract deleteAllForUser(userId: UserIdentifierValueObject): Promise<void>;
+  abstract updateLastActivity(
+    id: SessionIdentifierValueObject,
+    lastActivityAt: Date,
+  ): Promise<void>;
 }
 
 export abstract class SessionAdministrationRepository extends SessionRepository {

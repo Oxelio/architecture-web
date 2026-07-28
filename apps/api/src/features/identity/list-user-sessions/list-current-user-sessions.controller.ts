@@ -19,7 +19,10 @@ export function createListCurrentUserSessionsController(
       });
     }
 
-    const result = await useCase.execute({ userId: request.auth.userId });
+    const result = await useCase.execute({
+      userId: request.auth.userId,
+      currentSessionId: request.auth.sessionId,
+    });
 
     return sendControllerResponse(
       reply,

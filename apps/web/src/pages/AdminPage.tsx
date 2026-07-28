@@ -16,6 +16,7 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { SessionSummary } from "#components/SessionSummary";
 import {
   activateUser,
   type AdminUser,
@@ -452,19 +453,7 @@ function UserPanel({
                 key={session.sessionId}
                 className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-xs text-slate-300">
-                    {session.sessionId}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t("admin.expiresAt", {
-                      date: new Intl.DateTimeFormat(i18n.language, {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      }).format(new Date(session.expiresAt)),
-                    })}
-                  </p>
-                </div>
+                <SessionSummary session={session} compact />
                 <button
                   type="button"
                   disabled={revokeMutation.isPending}

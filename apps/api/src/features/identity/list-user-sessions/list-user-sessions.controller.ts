@@ -11,7 +11,12 @@ export function createListUserSessionsController(useCase: ListUserSessions) {
     request: FastifyRequest<ListUserSessionsRoute>,
     reply: FastifyReply,
   ) => {
-    const result = await useCase.execute({ userId: request.params.userId });
+    const result = await useCase.execute({
+      userId: request.params.userId,
+      ...(request.auth?.sessionId
+        ? { currentSessionId: request.auth.sessionId }
+        : {}),
+    });
     return sendControllerResponse(
       reply,
       ListUserSessionsPresenter.toPresentation(result),

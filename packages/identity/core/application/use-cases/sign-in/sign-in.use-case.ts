@@ -56,6 +56,8 @@ export class SignInUseCase implements SignIn {
 
     const sessionEntity = SessionEntity.createForUser({
       userId: user.identifier,
+      ...(payload.client ? { client: payload.client } : {}),
+      ...(payload.network ? { network: payload.network } : {}),
     });
     await this.session.save(sessionEntity);
 

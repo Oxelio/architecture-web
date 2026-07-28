@@ -15,6 +15,8 @@ import type {
 } from "./resolve-session.contracts.js";
 
 export class ResolveSessionUseCase implements ResolveSession {
+  private static readonly ACTIVITY_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
+
   constructor(
     private readonly sessionPort: SessionRepository,
     private readonly userPort: UserRepository,
@@ -42,6 +44,15 @@ export class ResolveSessionUseCase implements ResolveSession {
 
     if (user.status.isSuspended()) {
       return Result.failure(ResolveSessionErrorCodes.unauthorized);
+    }
+
+    const now = new Date();
+    if (
+      !session.lastActivityAt ||
+      now.getTime() - session.lastActivityAt.getTime() >=
+        ResolveSessionUseCase.ACTIVITY_UPDATE_INTERVAL_MS
+    ) {
+      await this.sessionPort.updateLastActivity(session.identifier, now);
     }
 
     const data: SessionResolution = {

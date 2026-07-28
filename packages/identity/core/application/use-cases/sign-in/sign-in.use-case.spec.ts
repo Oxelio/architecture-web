@@ -92,8 +92,16 @@ class FakeSessionPort implements SessionRepository {
     }
   }
 
+  async updateLastActivity(): Promise<void> {
+    return undefined;
+  }
+
   count() {
     return this.sessions.size;
+  }
+
+  all(): readonly SessionEntity[] {
+    return [...this.sessions.values()];
   }
 }
 
@@ -317,9 +325,17 @@ describe("SignInUseCase", () => {
     await useCase.execute({
       email: validEmail,
       password: validPassword,
+      client: {
+        type: "browser",
+        name: "Firefox",
+        deviceType: "desktop",
+      },
+      network: { ipAddress: "192.0.2.10" },
     });
 
     expect(sessionPort.count()).toBe(1);
+    expect(sessionPort.all()[0]?.client?.name).toBe("Firefox");
+    expect(sessionPort.all()[0]?.network?.ipAddress).toBe("192.0.2.10");
   });
 
   /* ---------------------------------------------------------------------- */

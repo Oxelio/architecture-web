@@ -36,6 +36,10 @@ class FakeSessionPort implements SessionRepository {
     }
   }
 
+  async updateLastActivity(): Promise<void> {
+    return undefined;
+  }
+
   count(): number {
     return this.sessions.size;
   }

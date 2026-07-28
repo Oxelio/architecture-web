@@ -1,7 +1,14 @@
 // @file bounded-contexts/identity/domain/index.ts
 
 export { EmailVerificationEntity } from "#entities/email-verification.entity";
-export { SessionEntity } from "#entities/session.entity";
+export {
+  type ApproximateSessionLocation,
+  type SessionClient,
+  type SessionClientType,
+  type SessionDeviceType,
+  SessionEntity,
+  type SessionNetwork,
+} from "#entities/session.entity";
 export { UserEntity } from "#entities/user.entity";
 export { EmailValueObject } from "#value-objects/email.value-object";
 export { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";

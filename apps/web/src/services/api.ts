@@ -10,8 +10,32 @@ export interface CurrentUser {
 }
 
 export interface UserSession {
+  userId: string;
   sessionId: string;
+  createdAt: string | null;
+  lastActivityAt: string | null;
   expiresAt: string;
+  isActive: boolean;
+  isCurrent: boolean;
+  client: {
+    type: "browser" | "application" | "unknown";
+    name: string | null;
+    version: string | null;
+    deviceType: "desktop" | "phone" | "tablet" | "unknown";
+    operatingSystem: {
+      name: string;
+      version: string | null;
+    } | null;
+  };
+  network: {
+    ipAddress: string | null;
+    location: {
+      country: string;
+      region: string | null;
+      city: string | null;
+      approximate: true;
+    } | null;
+  };
 }
 
 export interface AdminUser {
@@ -24,10 +48,7 @@ export interface AdminUser {
   updatedAt: string;
 }
 
-export interface AdminSession {
-  sessionId: string;
-  expiresAt: string;
-}
+export type AdminSession = UserSession;
 
 export interface SignInPayload {
   email: string;

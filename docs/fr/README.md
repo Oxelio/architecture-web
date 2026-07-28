@@ -19,4 +19,5 @@ Cette documentation permet de comprendre rapidement :
 - [Conventions et règles de développement](conventions.md)
 - [Guide développeur](development.md)
 - [Décisions architecturales](adr.md)
+- [Sessions d’identité](identity-sessions.md)
 - [Documentation IA](ai-guidelines.md)

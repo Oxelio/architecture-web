@@ -23,6 +23,7 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { SessionSummary } from "#components/SessionSummary";
 import type { CurrentUser } from "#services/api";
 import {
   changeEmail,
@@ -61,17 +62,6 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
       }),
     [i18n.language],
   );
-  const dateTimeFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat(i18n.language, {
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    [i18n.language],
-  );
-
   const sessionsQuery = useQuery({
     queryKey: ["currentUserSessions"],
     queryFn: listCurrentUserSessions,
@@ -132,7 +122,16 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
 
   const revokeSessionMutation = useMutation({
     mutationFn: revokeCurrentUserSession,
-    onSuccess: async () => {
+    onSuccess: async (_data, revokedSessionId) => {
+      const revokedCurrentSession = sessionsQuery.data?.some(
+        (session) =>
+          session.sessionId === revokedSessionId && session.isCurrent,
+      );
+      if (revokedCurrentSession) {
+        queryClient.setQueryData(["currentUser"], null);
+        window.location.assign("/signin");
+        return;
+      }
       setFeedback({
         tone: "success",
         message: t("profile.sessionRevoked"),
@@ -177,7 +176,13 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   };
 
   const handleRevokeSession = (sessionId: string) => {
-    if (window.confirm(t("profile.confirmRevokeSession"))) {
+    const session = sessionsQuery.data?.find(
+      (candidate) => candidate.sessionId === sessionId,
+    );
+    const confirmationKey = session?.isCurrent
+      ? "profile.confirmRevokeCurrentSession"
+      : "profile.confirmRevokeSession";
+    if (window.confirm(t(confirmationKey))) {
       revokeSessionMutation.mutate(sessionId);
     }
   };
@@ -615,27 +620,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 text-slate-400">
                         <Laptop className="h-5 w-5" />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-slate-200">
-                            {t("profile.activeSession")}
-                          </p>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                            {t("profile.active")}
-                          </span>
-                        </div>
-                        <p className="mt-1 truncate font-mono text-xs text-slate-600">
-                          {session.sessionId}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {t("profile.sessionExpires", {
-                            date: dateTimeFormatter.format(
-                              new Date(session.expiresAt),
-                            ),
-                          })}
-                        </p>
-                      </div>
+                      <SessionSummary session={session} />
                       <button
                         type="button"
                         onClick={() => handleRevokeSession(session.sessionId)}

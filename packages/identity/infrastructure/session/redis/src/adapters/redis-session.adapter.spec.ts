@@ -62,4 +62,35 @@ describe("RedisSessionAdapter", () => {
     await adapter.delete(id);
     expect(redis.del).toHaveBeenCalledWith(`session:${id.value}`);
   });
+
+  it("loads legacy records and updates activity without extending their TTL", async () => {
+    const id = SessionIdentifierValueObject.generate();
+    const userId = UserIdentifierValueObject.generate();
+    const expiresAt = new Date(Date.now() + 60_000);
+    const legacyRecord = JSON.stringify({
+      userId: userId.value,
+      expiresAt: expiresAt.toISOString(),
+    });
+    const redis = {
+      get: vi.fn().mockResolvedValue(legacyRecord),
+      set: vi.fn(),
+    };
+    const adapter = new RedisSessionAdapter(redis as never);
+
+    const session = await adapter.findById(id);
+    expect(session?.createdAt).toBeUndefined();
+    expect(session?.client).toBeUndefined();
+
+    const activity = new Date();
+    await adapter.updateLastActivity(id, activity);
+    expect(redis.set).toHaveBeenCalledWith(
+      `session:${id.value}`,
+      JSON.stringify({
+        userId: userId.value,
+        expiresAt: expiresAt.toISOString(),
+        lastActivityAt: activity.toISOString(),
+      }),
+      "KEEPTTL",
+    );
+  });
 });

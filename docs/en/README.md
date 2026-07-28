@@ -19,4 +19,5 @@ This documentation helps a new contributor quickly understand:
 - [Conventions and development rules](conventions.md)
 - [Developer guide](development.md)
 - [Architectural decisions](adr.md)
+- [Identity sessions](identity-sessions.md)
 - [AI guidelines](ai-guidelines.md)

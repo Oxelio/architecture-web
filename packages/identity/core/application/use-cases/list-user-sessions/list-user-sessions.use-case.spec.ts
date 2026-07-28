@@ -33,14 +33,31 @@ describe("ListUserSessionsUseCase", () => {
 
     const result = await new ListUserSessionsUseCase(users, sessions).execute({
       userId: user.identifier.value,
+      currentSessionId: session.identifier.value,
     });
 
     expect(result).toEqual({
       success: true,
       value: [
         {
+          userId: user.identifier.value,
           sessionId: session.identifier.value,
+          createdAt: session.createdAt?.toISOString() ?? null,
+          lastActivityAt: session.lastActivityAt?.toISOString() ?? null,
           expiresAt: session.expiresAt.toISOString(),
+          isActive: true,
+          isCurrent: true,
+          client: {
+            type: "unknown",
+            name: null,
+            version: null,
+            deviceType: "unknown",
+            operatingSystem: null,
+          },
+          network: {
+            ipAddress: null,
+            location: null,
+          },
         },
       ],
     });

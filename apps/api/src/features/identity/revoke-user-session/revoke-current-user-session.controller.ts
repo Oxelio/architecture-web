@@ -2,6 +2,7 @@ import type { RevokeUserSession } from "@architecture/identity/application";
 import type { FastifyReply } from "fastify";
 
 import { sendControllerResponse } from "#helpers/send-response";
+import type { SessionCookieOptions } from "#identity/sign-in/sign-in.controller";
 import type { AuthenticatedRequest } from "#types/controller-response";
 
 import type { RevokeCurrentUserSessionRoute } from "./revoke-current-user-session.route-options.js";
@@ -9,6 +10,7 @@ import { RevokeUserSessionPresenter } from "./revoke-user-session.presenter.js";
 
 export function createRevokeCurrentUserSessionController(
   useCase: RevokeUserSession,
+  sessionCookie: SessionCookieOptions,
 ) {
   return async (
     request: AuthenticatedRequest<RevokeCurrentUserSessionRoute>,
@@ -27,6 +29,10 @@ export function createRevokeCurrentUserSessionController(
       userId: request.auth.userId,
       sessionId: request.params.sessionId,
     });
+
+    if (result.success && request.params.sessionId === request.auth.sessionId) {
+      reply.clearCookie(sessionCookie.name, sessionCookie.options);
+    }
 
     return sendControllerResponse(
       reply,

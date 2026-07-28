@@ -52,6 +52,7 @@ export function composeIdentityControllers(
     ),
     revokeCurrentUserSession: createRevokeCurrentUserSessionController(
       container.revokeUserSession,
+      sessionCookie,
     ),
   };
 }
