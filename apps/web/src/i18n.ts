@@ -176,9 +176,7 @@ const resources = {
         locationUnavailable: "Localisation approximative indisponible",
         unknownIp: "adresse IP inconnue",
         lastActivity: "Dernière activité : {{date}}",
-        unknownActivity: "Dernière activité inconnue",
         createdAt: "Créée le {{date}}",
-        unknownCreation: "Date de création inconnue",
         expiresAt: "Expiration prévue le {{date}}",
         device: {
           desktop: "Ordinateur",
@@ -415,9 +413,7 @@ const resources = {
         locationUnavailable: "Approximate location unavailable",
         unknownIp: "unknown IP address",
         lastActivity: "Last activity: {{date}}",
-        unknownActivity: "Last activity unknown",
         createdAt: "Created {{date}}",
-        unknownCreation: "Creation date unknown",
         expiresAt: "Scheduled to expire {{date}}",
         device: {
           desktop: "Computer",

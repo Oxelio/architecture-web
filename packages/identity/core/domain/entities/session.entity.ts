@@ -34,8 +34,8 @@ interface SessionProperties {
   readonly identifier: SessionIdentifierValueObject;
   readonly userId: UserIdentifierValueObject;
   readonly expiresAt: Date;
-  readonly createdAt?: Date;
-  readonly lastActivityAt?: Date;
+  readonly createdAt: Date;
+  readonly lastActivityAt: Date;
   readonly client?: SessionClient;
   readonly network?: SessionNetwork;
 }
@@ -74,11 +74,11 @@ export class SessionEntity extends Entity<SessionProperties> {
     return this.props.expiresAt;
   }
 
-  public get createdAt(): Date | undefined {
+  public get createdAt(): Date {
     return this.props.createdAt;
   }
 
-  public get lastActivityAt(): Date | undefined {
+  public get lastActivityAt(): Date {
     return this.props.lastActivityAt;
   }
 

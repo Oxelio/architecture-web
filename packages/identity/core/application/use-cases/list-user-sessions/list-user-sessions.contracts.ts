@@ -5,8 +5,8 @@ import type { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
 export interface AdminSession {
   readonly userId: string;
   readonly sessionId: string;
-  readonly createdAt: string | null;
-  readonly lastActivityAt: string | null;
+  readonly createdAt: string;
+  readonly lastActivityAt: string;
   readonly expiresAt: string;
   readonly isActive: boolean;
   readonly isCurrent: boolean;

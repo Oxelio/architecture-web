@@ -42,8 +42,8 @@ describe("ListUserSessionsUseCase", () => {
         {
           userId: user.identifier.value,
           sessionId: session.identifier.value,
-          createdAt: session.createdAt?.toISOString() ?? null,
-          lastActivityAt: session.lastActivityAt?.toISOString() ?? null,
+          createdAt: session.createdAt.toISOString(),
+          lastActivityAt: session.lastActivityAt.toISOString(),
           expiresAt: session.expiresAt.toISOString(),
           isActive: true,
           isCurrent: true,

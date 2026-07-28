@@ -11,8 +11,8 @@ import type { Redis } from "ioredis";
 interface SessionRecord {
   userId: string;
   expiresAt: string;
-  createdAt?: string;
-  lastActivityAt?: string;
+  createdAt: string;
+  lastActivityAt: string;
   client?: SessionEntity["client"];
   network?: SessionEntity["network"];
 }
@@ -24,12 +24,8 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
     const record: SessionRecord = {
       userId: session.userId.value,
       expiresAt: session.expiresAt.toISOString(),
-      ...(session.createdAt
-        ? { createdAt: session.createdAt.toISOString() }
-        : {}),
-      ...(session.lastActivityAt
-        ? { lastActivityAt: session.lastActivityAt.toISOString() }
-        : {}),
+      createdAt: session.createdAt.toISOString(),
+      lastActivityAt: session.lastActivityAt.toISOString(),
       ...(session.client ? { client: session.client } : {}),
       ...(session.network ? { network: session.network } : {}),
     };
@@ -60,21 +56,26 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
       return null;
     }
 
-    const record: SessionRecord = JSON.parse(data);
+    const record = this.parseRecord(data);
+    if (!record) {
+      return null;
+    }
 
     const userId = UserIdentifierValueObject.create(record.userId);
     if (!userId.success) {
       return null;
     }
 
+    const expiresAt = new Date(record.expiresAt);
+    const createdAt = new Date(record.createdAt);
+    const lastActivityAt = new Date(record.lastActivityAt);
+
     return SessionEntity.rehydrate({
       identifier: id,
       userId: userId.value,
-      expiresAt: new Date(record.expiresAt),
-      ...(record.createdAt ? { createdAt: new Date(record.createdAt) } : {}),
-      ...(record.lastActivityAt
-        ? { lastActivityAt: new Date(record.lastActivityAt) }
-        : {}),
+      expiresAt,
+      createdAt,
+      lastActivityAt,
       ...(record.client ? { client: record.client } : {}),
       ...(record.network ? { network: record.network } : {}),
     });
@@ -90,7 +91,11 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
       return;
     }
 
-    const record: SessionRecord = JSON.parse(data);
+    const record = this.parseRecord(data);
+    if (!record) {
+      return;
+    }
+
     await this.redis.set(
       key,
       JSON.stringify({
@@ -146,5 +151,30 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
 
   private userSessionsKey(userId: UserIdentifierValueObject): string {
     return `user-sessions:${userId.value}`;
+  }
+
+  private parseRecord(data: string): SessionRecord | null {
+    try {
+      const record = JSON.parse(data) as Partial<SessionRecord>;
+      if (
+        typeof record.userId !== "string" ||
+        typeof record.expiresAt !== "string" ||
+        typeof record.createdAt !== "string" ||
+        typeof record.lastActivityAt !== "string" ||
+        !this.isValidDate(record.expiresAt) ||
+        !this.isValidDate(record.createdAt) ||
+        !this.isValidDate(record.lastActivityAt)
+      ) {
+        return null;
+      }
+
+      return record as SessionRecord;
+    } catch {
+      return null;
+    }
+  }
+
+  private isValidDate(value: string): boolean {
+    return !Number.isNaN(Date.parse(value));
   }
 }

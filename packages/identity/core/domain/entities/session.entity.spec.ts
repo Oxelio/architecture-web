@@ -56,18 +56,22 @@ describe("SessionEntity", () => {
     const identifier = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();
     const expiresAt = new Date(Date.now() + 60_000);
+    const createdAt = new Date();
+    const lastActivityAt = new Date();
 
     const session = SessionEntity.rehydrate({
       identifier,
       userId,
       expiresAt,
+      createdAt,
+      lastActivityAt,
     });
 
     expect(session.identifier).toBe(identifier);
     expect(session.userId).toBe(userId);
     expect(session.expiresAt).toBe(expiresAt);
-    expect(session.createdAt).toBeUndefined();
-    expect(session.lastActivityAt).toBeUndefined();
+    expect(session.createdAt).toBe(createdAt);
+    expect(session.lastActivityAt).toBe(lastActivityAt);
   });
 
   /* -------------------------------------------------- */
@@ -92,6 +96,8 @@ describe("SessionEntity", () => {
       identifier: SessionIdentifierValueObject.generate(),
       userId: UserIdentifierValueObject.generate(),
       expiresAt: new Date(Date.now() - 1_000),
+      createdAt: new Date(),
+      lastActivityAt: new Date(),
     });
 
     expect(session.isExpired()).toBe(true);
@@ -103,6 +109,8 @@ describe("SessionEntity", () => {
       identifier: SessionIdentifierValueObject.generate(),
       userId: UserIdentifierValueObject.generate(),
       expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+      lastActivityAt: new Date(),
     });
 
     expect(session.isExpired()).toBe(false);

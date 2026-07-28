@@ -19,10 +19,14 @@ describe("RedisSessionAdapter", () => {
     const id = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();
     const expiresAt = new Date(Date.now() + 60_000);
+    const createdAt = new Date();
+    const lastActivityAt = new Date();
     const session = SessionEntity.rehydrate({
       identifier: id,
       userId,
       expiresAt,
+      createdAt,
+      lastActivityAt,
     });
     const adapter = new RedisSessionAdapter(redis as never);
 
@@ -32,6 +36,8 @@ describe("RedisSessionAdapter", () => {
       JSON.stringify({
         userId: userId.value,
         expiresAt: expiresAt.toISOString(),
+        createdAt: createdAt.toISOString(),
+        lastActivityAt: lastActivityAt.toISOString(),
       }),
       "EX",
       expect.any(Number),
@@ -52,6 +58,8 @@ describe("RedisSessionAdapter", () => {
       JSON.stringify({
         userId: userId.value,
         expiresAt: expiresAt.toISOString(),
+        createdAt: createdAt.toISOString(),
+        lastActivityAt: lastActivityAt.toISOString(),
       }),
     );
     await expect(adapter.findById(id)).resolves.toMatchObject({
@@ -63,23 +71,27 @@ describe("RedisSessionAdapter", () => {
     expect(redis.del).toHaveBeenCalledWith(`session:${id.value}`);
   });
 
-  it("loads legacy records and updates activity without extending their TTL", async () => {
+  it("updates session activity without extending its TTL", async () => {
     const id = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();
     const expiresAt = new Date(Date.now() + 60_000);
-    const legacyRecord = JSON.stringify({
+    const createdAt = new Date();
+    const lastActivityAt = new Date();
+    const record = JSON.stringify({
       userId: userId.value,
       expiresAt: expiresAt.toISOString(),
+      createdAt: createdAt.toISOString(),
+      lastActivityAt: lastActivityAt.toISOString(),
     });
     const redis = {
-      get: vi.fn().mockResolvedValue(legacyRecord),
+      get: vi.fn().mockResolvedValue(record),
       set: vi.fn(),
     };
     const adapter = new RedisSessionAdapter(redis as never);
 
     const session = await adapter.findById(id);
-    expect(session?.createdAt).toBeUndefined();
-    expect(session?.client).toBeUndefined();
+    expect(session?.createdAt).toEqual(createdAt);
+    expect(session?.lastActivityAt).toEqual(lastActivityAt);
 
     const activity = new Date();
     await adapter.updateLastActivity(id, activity);
@@ -88,9 +100,30 @@ describe("RedisSessionAdapter", () => {
       JSON.stringify({
         userId: userId.value,
         expiresAt: expiresAt.toISOString(),
+        createdAt: createdAt.toISOString(),
         lastActivityAt: activity.toISOString(),
       }),
       "KEEPTTL",
     );
+  });
+
+  it("rejects incomplete session records instead of migrating them", async () => {
+    const id = SessionIdentifierValueObject.generate();
+    const userId = UserIdentifierValueObject.generate();
+    const redis = {
+      get: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          userId: userId.value,
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        }),
+      ),
+      set: vi.fn(),
+    };
+    const adapter = new RedisSessionAdapter(redis as never);
+
+    await expect(adapter.findById(id)).resolves.toBeNull();
+    await adapter.updateLastActivity(id, new Date());
+
+    expect(redis.set).not.toHaveBeenCalled();
   });
 });

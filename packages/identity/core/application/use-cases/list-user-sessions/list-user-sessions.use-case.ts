@@ -32,8 +32,8 @@ export class ListUserSessionsUseCase implements ListUserSessions {
       sessions.map((session) => ({
         userId: session.userId.value,
         sessionId: session.identifier.value,
-        createdAt: session.createdAt?.toISOString() ?? null,
-        lastActivityAt: session.lastActivityAt?.toISOString() ?? null,
+        createdAt: session.createdAt.toISOString(),
+        lastActivityAt: session.lastActivityAt.toISOString(),
         expiresAt: session.expiresAt.toISOString(),
         isActive: session.isValid(),
         isCurrent: session.identifier.value === input.currentSessionId,

@@ -12,8 +12,8 @@ export interface CurrentUser {
 export interface UserSession {
   userId: string;
   sessionId: string;
-  createdAt: string | null;
-  lastActivityAt: string | null;
+  createdAt: string;
+  lastActivityAt: string;
   expiresAt: string;
   isActive: boolean;
   isCurrent: boolean;

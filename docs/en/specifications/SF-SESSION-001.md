@@ -214,20 +214,11 @@ It may be relevant to group some information into dedicated objects, for example
 
 However, the agent must not introduce unnecessary abstractions if the project already contains suitable models.
 
-## Compatibility with Existing Sessions
+## Initial Storage Model
 
-The change must remain compatible with sessions created before the new metadata was introduced.
+Because the project has not been deployed to production, no previous session format needs to be preserved. Every Redis record must contain creation, last-activity, and expiration timestamps.
 
-An older session without the new information must still be:
-
-- loaded;
-- listed;
-- revoked;
-- displayed using values such as “unknown device”, “unknown browser”, or “location unavailable”.
-
-Missing metadata must not make an existing session invalid.
-
-If a storage migration is required, it must allow optional or neutral values for historical data.
+Information that genuinely depends on the client or external services remains optional: device, browser, IP address, and approximate location. Its absence must not block authentication.
 
 ## APIs and Contracts
 
@@ -286,7 +277,7 @@ The implementation must handle at least the following situations:
 4. Collect the available information when a session is created.
 5. Add or adapt last-activity tracking.
 6. Adapt session persistence.
-7. Preserve compatibility with existing sessions.
+7. Define one strict Redis format without a historical compatibility branch.
 8. Adapt user and administrator use cases.
 9. Adapt the affected input and output contracts.
 10. Add any required enrichment mechanisms behind abstractions consistent with the architecture.
@@ -305,9 +296,9 @@ The task is complete when:
 - the IP address is associated with the session when possible;
 - an approximate location can be exposed but remains optional;
 - the creation date is available;
-- the last-activity date is available or explicitly unknown;
+- the last-activity date is available;
 - the current session can be identified in the user's session list;
-- older sessions remain readable, listable, and revocable;
+- no historical session format is supported;
 - a client-analysis or geolocation failure does not block authentication;
 - user and administrator permissions remain enforced;
 - no secret session information is exposed;

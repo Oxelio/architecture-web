@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { identityUserMigrations } from "./001_create_identity_users.js";
 import { identityEmailVerificationMigrations } from "./002_create_identity_email_verifications.js";
-import { identityUserRoleMigrations } from "./003_add_identity_user_role.js";
 
 function database() {
   const execute = vi.fn().mockResolvedValue(undefined);
@@ -30,11 +29,27 @@ function database() {
 }
 
 describe("identity migrations", () => {
+  it("creates the user role as part of the initial schema", async () => {
+    const db = database();
+    const migration = identityUserMigrations["001_create_identity_users"];
+    if (!migration?.up) {
+      throw new Error("Expected the initial user migration");
+    }
+
+    await migration.up(db as never);
+
+    expect(db.builder.addColumn).toHaveBeenCalledWith(
+      "role",
+      "varchar",
+      expect.any(Function),
+    );
+    expect(db.schema.alterTable).not.toHaveBeenCalled();
+  });
+
   it("creates and drops all identity tables", async () => {
     for (const migration of [
       ...Object.values(identityUserMigrations),
       ...Object.values(identityEmailVerificationMigrations),
-      ...Object.values(identityUserRoleMigrations),
     ]) {
       const db = database();
       if (!migration.up || !migration.down) {

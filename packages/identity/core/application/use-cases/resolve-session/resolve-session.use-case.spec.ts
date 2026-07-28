@@ -179,6 +179,8 @@ describe("ResolveSessionUseCase", () => {
       identifier: SessionIdentifierValueObject.generate(),
       userId,
       expiresAt: new Date(Date.now() - 60_000),
+      createdAt: new Date(Date.now() - 120_000),
+      lastActivityAt: new Date(Date.now() - 120_000),
     });
 
     await sessionPort.save(session);
@@ -269,9 +271,9 @@ describe("ResolveSessionUseCase", () => {
     expect(sessionPort.activityUpdates).toHaveLength(0);
   });
 
-  it("should initialize missing activity without writing on every request", async () => {
+  it("should update stale activity", async () => {
     const userId = UserIdentifierValueObject.generate();
-    const email = EmailValueObject.create("legacy@session.test");
+    const email = EmailValueObject.create("activity@session.test");
     const password = PasswordHashValueObject.create("hashed-password");
     if (!email.success || !password.success) {
       throw new Error("Invalid fixture");
@@ -287,14 +289,16 @@ describe("ResolveSessionUseCase", () => {
         updatedAt: new Date(),
       }),
     );
-    const legacySession = SessionEntity.rehydrate({
+    const session = SessionEntity.rehydrate({
       identifier: SessionIdentifierValueObject.generate(),
       userId,
       expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(Date.now() - 10 * 60_000),
+      lastActivityAt: new Date(Date.now() - 10 * 60_000),
     });
-    await sessionPort.save(legacySession);
+    await sessionPort.save(session);
 
-    await useCase.execute({ sessionId: legacySession.identifier.value });
+    await useCase.execute({ sessionId: session.identifier.value });
 
     expect(sessionPort.activityUpdates).toHaveLength(1);
   });

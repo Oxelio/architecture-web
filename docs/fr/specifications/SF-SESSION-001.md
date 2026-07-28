@@ -214,20 +214,11 @@ Il peut être pertinent de regrouper certaines informations dans des objets déd
 
 L’agent ne doit cependant pas introduire d’abstraction inutile si le projet dispose déjà d’un modèle adapté.
 
-## Compatibilité avec les sessions existantes
+## Modèle de stockage initial
 
-L’évolution doit rester compatible avec les sessions créées avant l’ajout de ces nouvelles informations.
+Le projet n’étant pas encore en production, aucun ancien format de session ne doit être conservé. Chaque enregistrement Redis doit contenir les dates de création, de dernière activité et d’expiration.
 
-Une ancienne session ne possédant pas les nouvelles métadonnées doit pouvoir :
-
-- être chargée ;
-- être listée ;
-- être révoquée ;
-- être présentée avec des valeurs telles que « appareil inconnu », « navigateur inconnu » ou « localisation indisponible ».
-
-L’absence de métadonnées ne doit pas rendre une ancienne session invalide.
-
-Si une migration du stockage est nécessaire, elle doit prévoir des valeurs facultatives ou neutres pour les données historiques.
+Les informations qui dépendent réellement du client ou de services externes restent facultatives : appareil, navigateur, adresse IP et localisation approximative. Leur absence ne doit pas bloquer l’authentification.
 
 ## API et contrats
 
@@ -286,7 +277,7 @@ L’implémentation doit gérer au minimum les situations suivantes :
 4. Collecter les informations disponibles lors de la création d’une session.
 5. Ajouter ou adapter le suivi de la dernière activité.
 6. Adapter la persistance des sessions.
-7. Prévoir la compatibilité avec les anciennes sessions.
+7. Définir un format Redis unique et strict, sans branche de compatibilité historique.
 8. Adapter les cas d’usage utilisateur et administrateur.
 9. Adapter les contrats d’entrée et de sortie concernés.
 10. Ajouter les mécanismes d’enrichissement nécessaires derrière des abstractions cohérentes avec l’architecture.
@@ -305,9 +296,9 @@ La tâche est considérée comme terminée lorsque :
 - l’adresse IP est associée à la session lorsque cela est possible ;
 - une localisation approximative peut être exposée sans être obligatoire ;
 - la date de création est disponible ;
-- la date de dernière activité est disponible ou explicitement inconnue ;
+- la date de dernière activité est disponible ;
 - la session actuelle peut être identifiée dans la liste de l’utilisateur ;
-- les anciennes sessions restent consultables et révocables ;
+- aucun format historique de session n’est pris en charge ;
 - un échec d’analyse du client ou de géolocalisation ne bloque pas l’authentification ;
 - les permissions utilisateur et administrateur sont respectées ;
 - aucune donnée secrète de session n’est exposée ;

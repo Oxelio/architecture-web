@@ -71,18 +71,14 @@ export function SessionSummary({
         </p>
         <p className="flex items-center gap-1.5">
           <Clock3 className="h-3.5 w-3.5" />
-          {session.lastActivityAt
-            ? t("sessions.lastActivity", {
-                date: formatter.format(new Date(session.lastActivityAt)),
-              })
-            : t("sessions.unknownActivity")}
+          {t("sessions.lastActivity", {
+            date: formatter.format(new Date(session.lastActivityAt)),
+          })}
         </p>
         <p>
-          {session.createdAt
-            ? t("sessions.createdAt", {
-                date: formatter.format(new Date(session.createdAt)),
-              })
-            : t("sessions.unknownCreation")}
+          {t("sessions.createdAt", {
+            date: formatter.format(new Date(session.createdAt)),
+          })}
         </p>
         <p>
           {t("sessions.expiresAt", {

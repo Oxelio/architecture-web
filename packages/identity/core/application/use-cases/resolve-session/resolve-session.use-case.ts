@@ -48,9 +48,8 @@ export class ResolveSessionUseCase implements ResolveSession {
 
     const now = new Date();
     if (
-      !session.lastActivityAt ||
       now.getTime() - session.lastActivityAt.getTime() >=
-        ResolveSessionUseCase.ACTIVITY_UPDATE_INTERVAL_MS
+      ResolveSessionUseCase.ACTIVITY_UPDATE_INTERVAL_MS
     ) {
       await this.sessionPort.updateLastActivity(session.identifier, now);
     }
