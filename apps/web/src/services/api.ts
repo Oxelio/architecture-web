@@ -9,14 +9,11 @@ export interface CurrentUser {
   updatedAt: string;
 }
 
-export interface UserSession {
-  userId: string;
+interface SessionDetails {
   sessionId: string;
   createdAt: string;
   lastActivityAt: string;
   expiresAt: string;
-  isActive: boolean;
-  isCurrent: boolean;
   client: {
     type: "browser" | "application" | "unknown";
     name: string | null;
@@ -33,10 +30,15 @@ export interface UserSession {
       country: string;
       region: string | null;
       city: string | null;
-      approximate: true;
     } | null;
   };
 }
+
+export interface CurrentUserSession extends SessionDetails {
+  isCurrent: boolean;
+}
+
+export type AdministeredUserSession = SessionDetails;
 
 export interface AdminUser {
   userId: string;
@@ -47,8 +49,6 @@ export interface AdminUser {
   createdAt: string;
   updatedAt: string;
 }
-
-export type AdminSession = UserSession;
 
 export interface SignInPayload {
   email: string;
@@ -220,8 +220,8 @@ export async function resendEmailVerification(): Promise<void> {
   });
 }
 
-export function listCurrentUserSessions(): Promise<UserSession[]> {
-  return request<UserSession[]>("/iam/me/sessions", {
+export function listCurrentUserSessions(): Promise<CurrentUserSession[]> {
+  return request<CurrentUserSession[]>("/iam/me/sessions", {
     method: "GET",
   });
 }
@@ -260,8 +260,10 @@ export function listUsers(): Promise<AdminUser[]> {
   return request<AdminUser[]>("/iam/users", { method: "GET" });
 }
 
-export function listUserSessions(userId: string): Promise<AdminSession[]> {
-  return request<AdminSession[]>(`/iam/users/${userId}/sessions`, {
+export function listUserSessions(
+  userId: string,
+): Promise<AdministeredUserSession[]> {
+  return request<AdministeredUserSession[]>(`/iam/users/${userId}/sessions`, {
     method: "GET",
   });
 }

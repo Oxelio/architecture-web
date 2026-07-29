@@ -1,6 +1,6 @@
 // @file infrastructure/iam/session/redis/src/adapters/redis-session.adapter.ts
 
-import type { SessionAdministrationRepository } from "@architecture/iam/application";
+import type { SessionListingRepository } from "@architecture/iam/application";
 import {
   SessionEntity,
   SessionIdentifierValueObject,
@@ -17,7 +17,7 @@ interface SessionRecord {
   network?: SessionEntity["network"];
 }
 
-export class RedisSessionAdapter implements SessionAdministrationRepository {
+export class RedisSessionAdapter implements SessionListingRepository {
   constructor(private readonly redis: Redis) {}
 
   async save(session: SessionEntity): Promise<void> {
@@ -130,7 +130,7 @@ export class RedisSessionAdapter implements SessionAdministrationRepository {
     }
   }
 
-  async findAllForUser(
+  async findActiveForUser(
     userId: UserIdentifierValueObject,
   ): Promise<readonly SessionEntity[]> {
     const key = this.userSessionsKey(userId);

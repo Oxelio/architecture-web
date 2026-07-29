@@ -1,6 +1,5 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { SessionSummary } from "#models/session-summary";
 import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
 
 import type { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
@@ -8,13 +7,37 @@ import type { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
 export interface ListUserSessionsInput {
   readonly actorUserId: string;
   readonly userId: string;
-  readonly currentSessionId?: string;
+}
+
+export interface AdministeredUserSession {
+  readonly sessionId: string;
+  readonly createdAt: string;
+  readonly lastActivityAt: string;
+  readonly expiresAt: string;
+  readonly client: {
+    readonly type: "browser" | "application" | "unknown";
+    readonly name: string | null;
+    readonly version: string | null;
+    readonly deviceType: "desktop" | "phone" | "tablet" | "unknown";
+    readonly operatingSystem: {
+      readonly name: string;
+      readonly version: string | null;
+    } | null;
+  };
+  readonly network: {
+    readonly ipAddress: string | null;
+    readonly location: {
+      readonly country: string;
+      readonly region: string | null;
+      readonly city: string | null;
+    } | null;
+  };
 }
 
 export type ListUserSessionsError =
   ValueOf<typeof ListUserSessionsErrorCodes> | AdministratorAuthorizationError;
 export type ListUserSessionsOutput = Result<
-  readonly SessionSummary[],
+  readonly AdministeredUserSession[],
   ListUserSessionsError
 >;
 

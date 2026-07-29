@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
-import type { SessionAdministrationRepository } from "#repositories/session.repository";
+import type { SessionListingRepository } from "#repositories/session.repository";
 import type { UserAdministrationRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
@@ -30,27 +30,23 @@ describe("ListUserSessionsUseCase", () => {
         id.equals(administrator.identifier) ? administrator : user,
     } as unknown as UserAdministrationRepository;
     const sessions = {
-      findAllForUser: async () => [session],
+      findActiveForUser: async () => [session],
       findById: async (_id: SessionIdentifierValueObject) => session,
-    } as unknown as SessionAdministrationRepository;
+    } as unknown as SessionListingRepository;
 
     const result = await new ListUserSessionsUseCase(users, sessions).execute({
       actorUserId: administrator.identifier.value,
       userId: user.identifier.value,
-      currentSessionId: session.identifier.value,
     });
 
     expect(result).toEqual({
       success: true,
       value: [
         {
-          userId: user.identifier.value,
           sessionId: session.identifier.value,
           createdAt: session.createdAt.toISOString(),
           lastActivityAt: session.lastActivityAt.toISOString(),
           expiresAt: session.expiresAt.toISOString(),
-          isActive: true,
-          isCurrent: true,
           client: {
             type: "unknown",
             name: null,
@@ -74,8 +70,8 @@ describe("ListUserSessionsUseCase", () => {
         id.equals(administrator.identifier) ? administrator : null,
     } as unknown as UserAdministrationRepository;
     const result = await new ListUserSessionsUseCase(users, {
-      findAllForUser: async () => [],
-    } as unknown as SessionAdministrationRepository).execute({
+      findActiveForUser: async () => [],
+    } as unknown as SessionListingRepository).execute({
       actorUserId: administrator.identifier.value,
       userId: "01900000-0000-7000-8000-000000000000",
     });

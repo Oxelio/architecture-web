@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/ports/session.port.ts
-
 import type { SessionEntity } from "#entities/session.entity";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -17,8 +15,8 @@ export abstract class SessionRepository {
   ): Promise<void>;
 }
 
-export abstract class SessionAdministrationRepository extends SessionRepository {
-  abstract findAllForUser(
+export abstract class SessionListingRepository extends SessionRepository {
+  abstract findActiveForUser(
     userId: UserIdentifierValueObject,
   ): Promise<readonly SessionEntity[]>;
 }

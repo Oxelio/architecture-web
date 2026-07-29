@@ -44,10 +44,6 @@
       "types": "./application/access-administration/*.ts",
       "default": "./dist/application/access-administration/*.js"
     },
-    "#models/*": {
-      "types": "./application/models/*.ts",
-      "default": "./dist/application/models/*.js"
-    },
     "#services/*": {
       "types": "./application/services/*.ts",
       "default": "./dist/application/services/*.js"

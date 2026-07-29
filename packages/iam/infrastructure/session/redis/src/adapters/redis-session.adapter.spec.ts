@@ -107,6 +107,38 @@ describe("RedisSessionAdapter", () => {
     );
   });
 
+  it("lists only sessions from the active-session index", async () => {
+    const id = SessionIdentifierValueObject.generate();
+    const userId = UserIdentifierValueObject.generate();
+    const expiresAt = new Date(Date.now() + 60_000);
+    const redis = {
+      zremrangebyscore: vi.fn(),
+      zrangebyscore: vi.fn().mockResolvedValue([id.value]),
+      get: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          userId: userId.value,
+          expiresAt: expiresAt.toISOString(),
+          createdAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
+        }),
+      ),
+    };
+    const adapter = new RedisSessionAdapter(redis as never);
+
+    await expect(adapter.findActiveForUser(userId)).resolves.toHaveLength(1);
+
+    expect(redis.zremrangebyscore).toHaveBeenCalledWith(
+      `user-sessions:${userId.value}`,
+      "-inf",
+      expect.any(Number),
+    );
+    expect(redis.zrangebyscore).toHaveBeenCalledWith(
+      `user-sessions:${userId.value}`,
+      expect.any(Number),
+      "+inf",
+    );
+  });
+
   it("rejects incomplete session records instead of migrating them", async () => {
     const id = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();

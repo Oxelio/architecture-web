@@ -1,10 +1,13 @@
 import { Clock3, Globe2, MonitorSmartphone } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { UserSession } from "#services/api";
+import type {
+  AdministeredUserSession,
+  CurrentUserSession,
+} from "#services/api";
 
 interface SessionSummaryProps {
-  session: UserSession;
+  session: CurrentUserSession | AdministeredUserSession;
   compact?: boolean;
 }
 
@@ -38,20 +41,11 @@ export function SessionSummary({
           {clientName}
           {version} {t("sessions.onSystem", { system: osName })}
         </p>
-        {session.isCurrent ? (
+        {"isCurrent" in session && session.isCurrent ? (
           <span className="rounded-full bg-sky-400/10 px-2 py-0.5 text-[11px] font-medium text-sky-300">
             {t("sessions.current")}
           </span>
         ) : null}
-        <span
-          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-            session.isActive
-              ? "bg-emerald-400/10 text-emerald-300"
-              : "bg-slate-700/60 text-slate-400"
-          }`}
-        >
-          {session.isActive ? t("sessions.active") : t("sessions.expired")}
-        </span>
       </div>
       <div
         className={`mt-2 grid gap-1 text-xs text-slate-500 ${

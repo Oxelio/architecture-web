@@ -42,7 +42,7 @@ import type { SignOut } from "#authentication/use-cases/sign-out/sign-out.contra
 import { SignOutUseCase } from "#authentication/use-cases/sign-out/sign-out.use-case";
 import type { PasswordPolicy } from "#domain/password-policy";
 import { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import { SessionAdministrationRepository } from "#repositories/session.repository";
+import { SessionListingRepository } from "#repositories/session.repository";
 import { UserAdministrationRepository } from "#repositories/user.repository";
 import { EmailSender } from "#services/email-sender.service";
 import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
@@ -57,7 +57,7 @@ import {
 
 export interface IamDependencies {
   userRepository: UserAdministrationRepository;
-  sessionRepository: SessionAdministrationRepository;
+  sessionRepository: SessionListingRepository;
   passwordHasher: PasswordHasher;
   passwordPolicy: PasswordPolicy;
   privilegedPasswordPolicy: PasswordPolicy;

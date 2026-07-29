@@ -17,6 +17,7 @@ export type {
   AssignUserRoleOutput,
 } from "./access-administration/use-cases/assign-user-role/assign-user-role.contracts.js";
 export type {
+  AdministeredUserSession,
   ListUserSessions,
   ListUserSessionsError,
   ListUserSessionsInput,
@@ -87,6 +88,7 @@ export type {
   VerifyEmailOutput,
 } from "./accounts/use-cases/verify-email/verify-email.contracts.js";
 export type {
+  CurrentUserSession,
   ListCurrentUserSessions,
   ListCurrentUserSessionsError,
   ListCurrentUserSessionsInput,
@@ -118,7 +120,6 @@ export type {
   SignOutInput,
   SignOutOutput,
 } from "./authentication/use-cases/sign-out/sign-out.contracts.js";
-export type { SessionSummary } from "./models/session-summary.js";
 
 // ============================================================
 // Factories
@@ -129,7 +130,7 @@ export { createIam } from "./create-iam.js";
 // Ports
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
 export {
-  SessionAdministrationRepository,
+  SessionListingRepository,
   SessionRepository,
 } from "./repositories/session.repository.js";
 export {

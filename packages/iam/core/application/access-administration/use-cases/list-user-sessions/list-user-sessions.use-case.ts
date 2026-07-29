@@ -1,13 +1,13 @@
 import { Result } from "@architecture/foundation";
 
-import type { SessionSummary } from "#models/session-summary";
-import type { SessionAdministrationRepository } from "#repositories/session.repository";
+import type { SessionListingRepository } from "#repositories/session.repository";
 import type { UserAdministrationRepository } from "#repositories/user.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
 import type {
+  AdministeredUserSession,
   ListUserSessions,
   ListUserSessionsInput,
   ListUserSessionsOutput,
@@ -18,7 +18,7 @@ export class ListUserSessionsUseCase implements ListUserSessions {
 
   constructor(
     private readonly users: UserAdministrationRepository,
-    private readonly sessions: SessionAdministrationRepository,
+    private readonly sessions: SessionListingRepository,
   ) {
     this.authorizer = new AdministratorAuthorizer(users);
   }
@@ -38,16 +38,13 @@ export class ListUserSessionsUseCase implements ListUserSessions {
       return Result.failure(ListUserSessionsErrorCodes.userNotFound);
     }
 
-    const sessions = await this.sessions.findAllForUser(userId.value);
+    const sessions = await this.sessions.findActiveForUser(userId.value);
     return Result.success(
-      sessions.map((session): SessionSummary => ({
-        userId: session.userId.value,
+      sessions.map((session): AdministeredUserSession => ({
         sessionId: session.identifier.value,
         createdAt: session.createdAt.toISOString(),
         lastActivityAt: session.lastActivityAt.toISOString(),
         expiresAt: session.expiresAt.toISOString(),
-        isActive: session.isValid(),
-        isCurrent: session.identifier.value === input.currentSessionId,
         client: {
           type: session.client?.type ?? "unknown",
           name: session.client?.name ?? null,
@@ -67,7 +64,6 @@ export class ListUserSessionsUseCase implements ListUserSessions {
                 country: session.network.location.country,
                 region: session.network.location.region ?? null,
                 city: session.network.location.city ?? null,
-                approximate: true,
               }
             : null,
         },

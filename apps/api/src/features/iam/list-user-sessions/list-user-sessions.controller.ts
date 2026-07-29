@@ -14,9 +14,6 @@ export function createListUserSessionsController(useCase: ListUserSessions) {
     const result = await useCase.execute({
       actorUserId: request.auth?.userId ?? "",
       userId: request.params.userId,
-      ...(request.auth?.sessionId
-        ? { currentSessionId: request.auth.sessionId }
-        : {}),
     });
     return sendControllerResponse(
       reply,

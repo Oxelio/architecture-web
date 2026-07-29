@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
-import type { SessionAdministrationRepository } from "#repositories/session.repository";
+import type { SessionListingRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
@@ -27,8 +27,8 @@ describe("ListCurrentUserSessionsUseCase", () => {
       findById: async () => actor,
     } as unknown as UserRepository;
     const sessions = {
-      findAllForUser: async () => [session],
-    } as unknown as SessionAdministrationRepository;
+      findActiveForUser: async () => [session],
+    } as unknown as SessionListingRepository;
 
     const result = await new ListCurrentUserSessionsUseCase(
       users,
@@ -42,10 +42,11 @@ describe("ListCurrentUserSessionsUseCase", () => {
     if (result.success) {
       expect(result.value).toHaveLength(1);
       expect(result.value[0]).toMatchObject({
-        userId: actor.identifier.value,
         sessionId: session.identifier.value,
         isCurrent: true,
       });
+      expect(result.value[0]).not.toHaveProperty("userId");
+      expect(result.value[0]).not.toHaveProperty("isActive");
     }
   });
 });

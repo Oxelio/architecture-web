@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { SessionEntity } from "#entities/session.entity";
-import type { SessionAdministrationRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserAdministrationRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -23,7 +23,7 @@ describe("RevokeUserSessionUseCase", () => {
     const sessions = {
       findById: async () => session,
       delete: deleteSession,
-    } as unknown as SessionAdministrationRepository;
+    } as unknown as SessionRepository;
 
     const result = await new RevokeUserSessionUseCase(users, sessions).execute({
       actorUserId: administrator.identifier.value,
@@ -51,7 +51,7 @@ describe("RevokeUserSessionUseCase", () => {
     const sessions = {
       findById: async () => otherSession,
       delete: deleteSession,
-    } as unknown as SessionAdministrationRepository;
+    } as unknown as SessionRepository;
 
     const result = await new RevokeUserSessionUseCase(users, sessions).execute({
       actorUserId: administrator.identifier.value,
@@ -79,7 +79,7 @@ describe("RevokeUserSessionUseCase", () => {
       } as unknown as UserAdministrationRepository,
       {
         deleteAllForUser: deleteAll,
-      } as unknown as SessionAdministrationRepository,
+      } as unknown as SessionRepository,
     );
 
     expect(
