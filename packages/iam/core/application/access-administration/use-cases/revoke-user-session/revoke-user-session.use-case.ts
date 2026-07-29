@@ -1,7 +1,7 @@
 import { Result } from "@architecture/foundation";
 
 import type { SessionRepository } from "#repositories/session.repository";
-import type { UserAdministrationRepository } from "#repositories/user.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -17,7 +17,7 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
   private readonly authorizer: AdministratorAuthorizer;
 
   constructor(
-    private readonly users: UserAdministrationRepository,
+    private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
   ) {
     this.authorizer = new AdministratorAuthorizer(users);

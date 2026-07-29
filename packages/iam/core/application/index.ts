@@ -17,6 +17,12 @@ export type {
   AssignUserRoleOutput,
 } from "./access-administration/use-cases/assign-user-role/assign-user-role.contracts.js";
 export type {
+  GetUserAdministrationOverview,
+  GetUserAdministrationOverviewInput,
+  GetUserAdministrationOverviewOutput,
+  UserAdministrationOverview,
+} from "./access-administration/use-cases/get-user-administration-overview/get-user-administration-overview.contracts.js";
+export type {
   AdministeredUserSession,
   ListUserSessions,
   ListUserSessionsError,
@@ -29,6 +35,8 @@ export type {
   ListUsersError,
   ListUsersInput,
   ListUsersOutput,
+  ListUsersResult,
+  UserListPagination,
 } from "./access-administration/use-cases/list-users/list-users.contracts.js";
 export type {
   RevokeUserSession,
@@ -129,13 +137,11 @@ export { createIam } from "./create-iam.js";
 
 // Ports
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
+export { SessionRepository } from "./repositories/session.repository.js";
 export {
-  SessionListingRepository,
-  SessionRepository,
-} from "./repositories/session.repository.js";
-export {
-  UserAdministrationRepository,
   UserRepository,
+  type UserSearchCriteria,
+  type UserSearchResult,
 } from "./repositories/user.repository.js";
 export {
   type AdministratorAuthorizationError,

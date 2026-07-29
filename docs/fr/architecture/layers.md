@@ -46,6 +46,12 @@ Les repositories et services abstraits sont des ports secondaires :
 - repositories pour utilisateurs, vérifications et sessions ;
 - services pour hachage, e-mail et limitation de débit.
 
+Les opérations cohérentes utilisant la même implémentation sont regroupées :
+`UserRepository` porte les écritures, recherches de compte, consultation
+administrative bornée et indicateurs ; `SessionRepository` porte le cycle de
+vie et la consultation des sessions. Un nom de port ne constitue pas un
+mécanisme d’autorisation : celle-ci reste dans les cas d’utilisation.
+
 `createIam` est la factory applicative. Elle reçoit
 `IamDependencies` et retourne l’ensemble `IamApplication` des cas
 d’utilisation.
@@ -61,7 +67,7 @@ d’utilisation distincts des opérations administratives.
 Chaque package sous `packages/iam/infrastructure` adapte une technologie à
 un port de `@architecture/iam/application`. Il **DOIT** déclarer sa
 compatibilité avec `implements`, comme
-`RedisSessionAdapter implements SessionAdministrationRepository`.
+`RedisSessionAdapter implements SessionRepository`.
 
 Un adaptateur **PEUT** dépendre des exports publics `application` et `domain` du
 cœur IAM et de sa bibliothèque technique. Il **NE DOIT PAS** importer les

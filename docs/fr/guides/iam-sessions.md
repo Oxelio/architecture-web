@@ -6,6 +6,10 @@
 connexion réussie crée une `SessionEntity` d’une durée de 60 minutes et renvoie
 un cookie `sid` `httpOnly`.
 
+Avant d’enregistrer une nouvelle session, `SignInUseCase` charge les sessions
+actives et révoque les plus anciennes qui dépasseraient la limite de 10. Cette
+borne rend durables les listes personnelles et administratives non paginées.
+
 Le contrôleur extrait aussi :
 
 - le type, le nom et la version du client depuis `User-Agent` ;
@@ -19,9 +23,10 @@ de l’appareil.
 
 `RedisSessionAdapter` enregistre chaque session sous `session:<sessionId>` avec
 un TTL et indexe les identifiants actifs dans
-`user-sessions:<userId>`. Les anciens enregistrements sans métadonnées restent
-lisibles : les dates et détails absents sont exposés sous forme `null` par le
-contrat applicatif.
+`user-sessions:<userId>`. Le format est volontairement strict : `userId`,
+`expiresAt`, `createdAt` et `lastActivityAt` doivent être présents et valides.
+Un enregistrement incomplet ou invalide est rejeté au chargement. `client` et
+`network` restent facultatifs.
 
 PostgreSQL ne stocke pas les sessions actuelles.
 

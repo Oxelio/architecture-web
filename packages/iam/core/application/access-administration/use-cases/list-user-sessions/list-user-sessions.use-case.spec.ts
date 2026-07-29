@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
-import type { SessionListingRepository } from "#repositories/session.repository";
-import type { UserAdministrationRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#repositories/session.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
@@ -28,11 +28,11 @@ describe("ListUserSessionsUseCase", () => {
     const users = {
       findById: async (id: UserIdentifierValueObject) =>
         id.equals(administrator.identifier) ? administrator : user,
-    } as unknown as UserAdministrationRepository;
+    } as unknown as UserRepository;
     const sessions = {
       findActiveForUser: async () => [session],
       findById: async (_id: SessionIdentifierValueObject) => session,
-    } as unknown as SessionListingRepository;
+    } as unknown as SessionRepository;
 
     const result = await new ListUserSessionsUseCase(users, sessions).execute({
       actorUserId: administrator.identifier.value,
@@ -68,10 +68,10 @@ describe("ListUserSessionsUseCase", () => {
     const users = {
       findById: async (id: UserIdentifierValueObject) =>
         id.equals(administrator.identifier) ? administrator : null,
-    } as unknown as UserAdministrationRepository;
+    } as unknown as UserRepository;
     const result = await new ListUserSessionsUseCase(users, {
       findActiveForUser: async () => [],
-    } as unknown as SessionListingRepository).execute({
+    } as unknown as SessionRepository).execute({
       actorUserId: administrator.identifier.value,
       userId: "01900000-0000-7000-8000-000000000000",
     });

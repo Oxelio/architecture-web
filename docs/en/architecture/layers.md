@@ -40,6 +40,11 @@ Repositories and abstract services are secondary ports. `createIam` is
 the application factory: it receives `IamDependencies` and returns the
 `IamApplication` use-case set.
 
+Coherent operations backed by the same implementation are grouped:
+`UserRepository` owns writes, account lookup, bounded administration search,
+and indicators; `SessionRepository` owns session lifecycle and listing. A port
+name is not an authorization mechanism: authorization remains in use cases.
+
 Administration commands require the actor identifier.
 `AdministratorAuthorizer` reloads that actor from the repository and verifies
 that the account is active and has the administrator role, independently from
@@ -51,7 +56,7 @@ administrative-session operations.
 Each package under `packages/iam/infrastructure` adapts one technology to
 a public application port. It **MUST** state compatibility with `implements`,
 for example
-`RedisSessionAdapter implements SessionAdministrationRepository`.
+`RedisSessionAdapter implements SessionRepository`.
 
 An adapter **MAY** depend on public `application` and `domain` exports and on
 its targeted library. It **MUST NOT** bypass core exports or import an

@@ -14,7 +14,10 @@ export const ListUsersPresenter = {
 
     return {
       ...ListUsersHttpContract.success["users.listed"],
-      body: { data: result.value },
+      body: {
+        data: result.value.users,
+        meta: { pagination: result.value.pagination },
+      },
     };
   },
 };

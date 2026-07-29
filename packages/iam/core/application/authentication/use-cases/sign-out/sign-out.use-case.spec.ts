@@ -12,6 +12,9 @@ import { SignOutUseCase } from "./sign-out.use-case.js";
 /* ---------------- FAKE SESSION PORT ---------------- */
 
 class FakeSessionPort implements SessionRepository {
+  async findActiveForUser(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly sessions = new Map<string, SessionEntity>();
 
   async save(session: SessionEntity): Promise<void> {

@@ -7,11 +7,15 @@ import {
   assignUserRoleRouteOptions,
 } from "#iam/assign-user-role/assign-user-role.route-options";
 import type { IamControllers } from "#iam/compose-controllers";
+import { getUserAdministrationOverviewRouteOptions } from "#iam/get-user-administration-overview/get-user-administration-overview.route-options";
 import {
   type ListUserSessionsRoute,
   listUserSessionsRouteOptions,
 } from "#iam/list-user-sessions/list-user-sessions.route-options";
-import { listUsersRouteOptions } from "#iam/list-users/list-users.route-options";
+import {
+  type ListUsersRoute,
+  listUsersRouteOptions,
+} from "#iam/list-users/list-users.route-options";
 import {
   type RevokeUserSessionRoute,
   revokeUserSessionRouteOptions,
@@ -53,7 +57,17 @@ export function registerAdminRoutes(controllers: IamControllers) {
       controllers.assignUserRole,
     );
 
-    app.get("/users", listUsersRouteOptions, controllers.listUsers);
+    app.get(
+      "/users/overview",
+      getUserAdministrationOverviewRouteOptions,
+      controllers.getUserAdministrationOverview,
+    );
+
+    app.get<ListUsersRoute>(
+      "/users",
+      listUsersRouteOptions,
+      controllers.listUsers,
+    );
 
     app.get<ListUserSessionsRoute>(
       "/users/:userId/sessions",

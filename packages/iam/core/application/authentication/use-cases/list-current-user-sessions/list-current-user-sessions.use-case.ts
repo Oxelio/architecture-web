@@ -1,6 +1,6 @@
 import { Result } from "@architecture/foundation";
 
-import type { SessionListingRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -15,7 +15,7 @@ import type {
 export class ListCurrentUserSessionsUseCase implements ListCurrentUserSessions {
   constructor(
     private readonly users: UserRepository,
-    private readonly sessions: SessionListingRepository,
+    private readonly sessions: SessionRepository,
   ) {}
 
   async execute(

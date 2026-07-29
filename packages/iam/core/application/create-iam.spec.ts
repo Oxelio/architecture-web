@@ -25,6 +25,7 @@ describe("createIam", () => {
       "changeEmail",
       "changePassword",
       "getCurrentAccount",
+      "getUserAdministrationOverview",
       "listUsers",
       "listCurrentUserSessions",
       "listUserSessions",

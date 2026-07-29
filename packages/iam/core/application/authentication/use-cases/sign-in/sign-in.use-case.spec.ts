@@ -2,9 +2,10 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SessionEntity } from "#entities/session.entity";
+import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
@@ -18,7 +19,13 @@ import { SignInUseCase } from "./sign-in.use-case.js";
 /*                                FAKE USER PORT                              */
 /* -------------------------------------------------------------------------- */
 
-class FakeUserPort {
+class FakeUserPort implements UserRepository {
+  async search(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
+  async getAdministrationOverview(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly usersById = new Map<string, UserEntity>();
   private readonly usersByEmail = new Map<string, UserEntity>();
 
@@ -68,6 +75,13 @@ class FakePasswordHasherPort implements PasswordHasher {
 /* -------------------------------------------------------------------------- */
 
 class FakeSessionPort implements SessionRepository {
+  async findActiveForUser(
+    userId: UserIdentifierValueObject,
+  ): Promise<readonly SessionEntity[]> {
+    return [...this.sessions.values()].filter((session) =>
+      session.userId.equals(userId),
+    );
+  }
   private readonly sessions = new Map<string, SessionEntity>();
 
   async save(session: SessionEntity): Promise<void> {
@@ -122,6 +136,33 @@ describe("SignInUseCase", () => {
     sessionPort = new FakeSessionPort();
 
     useCase = new SignInUseCase(userPort, passwordHasher, sessionPort);
+  });
+
+  /* ---------------------------------------------------------------------- */
+  it("keeps the number of active sessions bounded by revoking the oldest", async () => {
+    const emailVO = EmailValueObject.create(validEmail);
+    const passwordVO = PasswordPlainValueObject.create(validPassword);
+    if (!emailVO.success || !passwordVO.success) {
+      throw new Error("Invalid VO");
+    }
+    const user = UserEntity.create({
+      email: emailVO.value,
+      password: await passwordHasher.hash(passwordVO.value),
+    });
+    await userPort.save(user);
+    for (let index = 0; index < 10; index += 1) {
+      await sessionPort.save(
+        SessionEntity.createForUser({ userId: user.identifier }),
+      );
+    }
+
+    const result = await useCase.execute({
+      email: validEmail,
+      password: validPassword,
+    });
+
+    expect(result.success).toBe(true);
+    expect(sessionPort.count()).toBe(10);
   });
 
   /* ---------------------------------------------------------------------- */

@@ -17,7 +17,8 @@ se divise en trois capacités internes :
 
 - `accounts` : compte, adresse électronique, vérification et mot de passe ;
 - `authentication` : connexion, résolution et sessions personnelles ;
-- `access-administration` : rôles, cycle de vie et sessions administrées.
+- `access-administration` : consultation paginée, indicateurs globaux, rôles,
+  cycle de vie et sessions administrées.
 
 Le statut du compte (`active` ou `suspended`) est indépendant de la vérification
 de l’adresse électronique. Aucun statut `pending` n’existe.

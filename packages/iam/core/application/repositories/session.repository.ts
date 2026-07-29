@@ -13,9 +13,6 @@ export abstract class SessionRepository {
     id: SessionIdentifierValueObject,
     lastActivityAt: Date,
   ): Promise<void>;
-}
-
-export abstract class SessionListingRepository extends SessionRepository {
   abstract findActiveForUser(
     userId: UserIdentifierValueObject,
   ): Promise<readonly SessionEntity[]>;

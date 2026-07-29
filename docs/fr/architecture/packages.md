@@ -44,19 +44,25 @@ composition root actuel, qui utilise Argon2 et Nodemailer.
 
 ## Ports et implémentations actuelles
 
-| Port applicatif                   | Implémentation composée                     |
-| --------------------------------- | ------------------------------------------- |
-| `UserAdministrationRepository`    | `KyselyUserAdapter`                         |
-| `EmailVerificationRepository`     | `KyselyEmailVerificationAdapter`            |
-| `SessionAdministrationRepository` | `RedisSessionAdapter`                       |
-| `EmailVerificationRateLimiter`    | `RedisEmailVerificationRateLimitAdapter`    |
-| `PasswordHasher`                  | `Argon2PasswordHasherAdapter`               |
-| `EmailVerificationTokenHasher`    | `Sha256EmailVerificationTokenHasherAdapter` |
-| `EmailSender`                     | `NodemailerEmailSenderAdapter`              |
+| Port applicatif                | Implémentation composée                     |
+| ------------------------------ | ------------------------------------------- |
+| `UserRepository`               | `KyselyUserAdapter`                         |
+| `EmailVerificationRepository`  | `KyselyEmailVerificationAdapter`            |
+| `SessionRepository`            | `RedisSessionAdapter`                       |
+| `EmailVerificationRateLimiter` | `RedisEmailVerificationRateLimitAdapter`    |
+| `PasswordHasher`               | `Argon2PasswordHasherAdapter`               |
+| `EmailVerificationTokenHasher` | `Sha256EmailVerificationTokenHasherAdapter` |
+| `EmailSender`                  | `NodemailerEmailSenderAdapter`              |
 
 Les variantes `BcryptPasswordHasherAdapter` et
 `PostmarkEmailSenderAdapter` satisfont respectivement `PasswordHasher` et
 `EmailSender`.
+
+`UserRepository.search` est la seule lecture de collection d’utilisateurs. Elle
+exige une page et une taille bornée, puis retourne la page d’entités et le total
+filtré. `getAdministrationOverview` fournit séparément les indicateurs globaux.
+`SessionRepository.findActiveForUser` reste non paginé parce que
+`SignInUseCase` limite un compte à 10 sessions actives.
 
 ## Persistance
 

@@ -115,6 +115,12 @@ class FakeTokenHasher implements EmailVerificationTokenHasher {
 /* ---------------- FAKE USER PORT ---------------- */
 
 class FakeUserPort implements UserRepository {
+  async search(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
+  async getAdministrationOverview(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly usersByEmail = new Map<string, UserEntity>();
   private readonly usersById = new Map<string, UserEntity>();
 

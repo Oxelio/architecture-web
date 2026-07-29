@@ -13,6 +13,12 @@ import { GetCurrentAccountUseCase } from "./get-current-account.use-case.js";
 /* ---------------- FAKE USER PORT ---------------- */
 
 class FakeUserPort implements UserRepository {
+  async search(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
+  async getAdministrationOverview(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly users = new Map<string, UserEntity>();
 
   async findByEmail(_email: EmailValueObject): Promise<UserEntity | null> {

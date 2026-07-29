@@ -1,17 +1,21 @@
 // @file infrastructure/iam/persitence/kysely/src/adapters/kysely-user.adapter.ts
 
-import type { UserAdministrationRepository } from "@architecture/iam/application";
+import type {
+  UserRepository,
+  UserSearchCriteria,
+  UserSearchResult,
+} from "@architecture/iam/application";
 import type { UserEntity } from "@architecture/iam/domain";
 import {
   EmailValueObject,
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
-import type { Kysely } from "kysely";
+import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import { UserMapper } from "#mappers/user.mapper";
 import type { IamDatabase } from "#persistence/schema";
 
-export class KyselyUserAdapter implements UserAdministrationRepository {
+export class KyselyUserAdapter implements UserRepository {
   constructor(private readonly db: Kysely<IamDatabase>) {}
 
   async save(user: UserEntity): Promise<void> {
@@ -61,13 +65,70 @@ export class KyselyUserAdapter implements UserAdministrationRepository {
     return UserMapper.toDomain(user);
   }
 
-  async findAll(): Promise<readonly UserEntity[]> {
-    const users = await this.db
-      .selectFrom("iam_users")
+  async search(criteria: UserSearchCriteria): Promise<UserSearchResult> {
+    const applyCriteria = (
+      query: SelectQueryBuilder<IamDatabase, "iam_users", object>,
+    ) => {
+      let filtered = query;
+      if (criteria.search !== undefined) {
+        const pattern = `%${criteria.search}%`;
+        filtered = filtered.where(({ eb, or }) =>
+          or([eb("email", "ilike", pattern), eb("id", "like", pattern)]),
+        );
+      }
+      if (criteria.role !== undefined) {
+        filtered = filtered.where("role", "=", criteria.role);
+      }
+      if (criteria.status !== undefined) {
+        filtered = filtered.where("status", "=", criteria.status);
+      }
+      if (criteria.isEmailVerified !== undefined) {
+        filtered = filtered.where(
+          "is_email_verified",
+          "=",
+          criteria.isEmailVerified,
+        );
+      }
+      return filtered;
+    };
+
+    const countRow = await applyCriteria(this.db.selectFrom("iam_users"))
+      .select(({ fn }) => fn.countAll().as("total"))
+      .executeTakeFirstOrThrow();
+    const users = await applyCriteria(this.db.selectFrom("iam_users"))
       .selectAll()
       .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
+      .limit(criteria.pageSize)
+      .offset((criteria.page - 1) * criteria.pageSize)
       .execute();
 
-    return users.map(UserMapper.toDomain);
+    return {
+      users: users.map(UserMapper.toDomain),
+      total: Number(countRow.total),
+    };
+  }
+
+  async getAdministrationOverview() {
+    const row = await this.db
+      .selectFrom("iam_users")
+      .select([
+        sql<number>`count(*)`.as("total"),
+        sql<number>`count(*) filter (where status = 'active')`.as("active"),
+        sql<number>`count(*) filter (where status = 'suspended')`.as(
+          "suspended",
+        ),
+        sql<number>`count(*) filter (where role = 'admin')`.as(
+          "administrators",
+        ),
+      ])
+      .executeTakeFirstOrThrow();
+
+    return {
+      total: Number(row.total),
+      active: Number(row.active),
+      suspended: Number(row.suspended),
+      administrators: Number(row.administrators),
+    };
   }
 }

@@ -5,6 +5,7 @@ import { createAssignUserRoleController } from "./assign-user-role/assign-user-r
 import { createChangeEmailController } from "./change-email/change-email.controller.js";
 import { createChangePasswordController } from "./change-password/change-password.controller.js";
 import { createGetCurrentAccountController } from "./get-current-account/get-current-account.controller.js";
+import { createGetUserAdministrationOverviewController } from "./get-user-administration-overview/get-user-administration-overview.controller.js";
 import { createListCurrentUserSessionsController } from "./list-user-sessions/list-current-user-sessions.controller.js";
 import { createListUserSessionsController } from "./list-user-sessions/list-user-sessions.controller.js";
 import { createListUsersController } from "./list-users/list-users.controller.js";
@@ -43,6 +44,10 @@ export function composeIamControllers(
     getCurrentAccount: createGetCurrentAccountController(
       container.getCurrentAccount,
     ),
+    getUserAdministrationOverview:
+      createGetUserAdministrationOverviewController(
+        container.getUserAdministrationOverview,
+      ),
     verifyEmail: createVerifyEmailController(container.verifyEmail),
     resendEmailVerification: createResendEmailVerificationController(
       container.resendEmailVerification,

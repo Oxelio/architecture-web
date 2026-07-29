@@ -45,10 +45,16 @@ create under `application/<capability>/use-cases/<feature>`:
 
 The use case **MUST** depend on ports, never adapters.
 
+Application contracts use business language. A paginated list names `users`
+and `pagination`, for example; transport conventions such as `data` and `meta`
+remain in the HTTP presenter.
+
 ## 4. Add or extend a port
 
 Repositories belong in `application/repositories`; external services belong in
-`application/services`. Keep ports minimal and driven by use-case needs.
+`application/services`. Keep ports coherent and driven by use-case needs. Do
+not create a one-method port when the same adapter and evolution cycle already
+cover that responsibility.
 
 ```ts
 export abstract class ExampleRepository {
@@ -96,6 +102,10 @@ the role hook and forbid self-operations where the business rule requires it.
 Update `apps/web/src/services/api.ts`, React Query hooks, UI, and FR/EN
 translations. Web transport types match serialized responses, not domain
 classes.
+
+A parameterized query **MUST** include every criterion in its React Query key.
+A mutation **MUST** invalidate every affected resource: a role change, for
+example, invalidates both the paginated list and global indicators.
 
 Update the HTTP reference for a new endpoint. Add an ADR only for a durable
 structural decision.

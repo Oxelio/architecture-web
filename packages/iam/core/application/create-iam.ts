@@ -2,6 +2,8 @@ import type { ActivateUser } from "#access-administration/use-cases/activate-use
 import { ActivateUserUseCase } from "#access-administration/use-cases/activate-user/activate-user.use-case";
 import type { AssignUserRole } from "#access-administration/use-cases/assign-user-role/assign-user-role.contracts";
 import { AssignUserRoleUseCase } from "#access-administration/use-cases/assign-user-role/assign-user-role.use-case";
+import type { GetUserAdministrationOverview } from "#access-administration/use-cases/get-user-administration-overview/get-user-administration-overview.contracts";
+import { GetUserAdministrationOverviewUseCase } from "#access-administration/use-cases/get-user-administration-overview/get-user-administration-overview.use-case";
 import type { ListUserSessions } from "#access-administration/use-cases/list-user-sessions/list-user-sessions.contracts";
 import { ListUserSessionsUseCase } from "#access-administration/use-cases/list-user-sessions/list-user-sessions.use-case";
 import type { ListUsers } from "#access-administration/use-cases/list-users/list-users.contracts";
@@ -42,8 +44,8 @@ import type { SignOut } from "#authentication/use-cases/sign-out/sign-out.contra
 import { SignOutUseCase } from "#authentication/use-cases/sign-out/sign-out.use-case";
 import type { PasswordPolicy } from "#domain/password-policy";
 import { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import { SessionListingRepository } from "#repositories/session.repository";
-import { UserAdministrationRepository } from "#repositories/user.repository";
+import { SessionRepository } from "#repositories/session.repository";
+import { UserRepository } from "#repositories/user.repository";
 import { EmailSender } from "#services/email-sender.service";
 import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
@@ -56,8 +58,8 @@ import {
 } from "#services/password-security.service";
 
 export interface IamDependencies {
-  userRepository: UserAdministrationRepository;
-  sessionRepository: SessionListingRepository;
+  userRepository: UserRepository;
+  sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
   passwordPolicy: PasswordPolicy;
   privilegedPasswordPolicy: PasswordPolicy;
@@ -76,6 +78,7 @@ export interface IamApplication {
   changeEmail: ChangeEmail;
   changePassword: ChangePassword;
   getCurrentAccount: GetCurrentAccount;
+  getUserAdministrationOverview: GetUserAdministrationOverview;
   listUsers: ListUsers;
   listCurrentUserSessions: ListCurrentUserSessions;
   listUserSessions: ListUserSessions;
@@ -123,6 +126,9 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       privilegedPasswordPolicy,
     ),
     getCurrentAccount: new GetCurrentAccountUseCase(
+      dependencies.userRepository,
+    ),
+    getUserAdministrationOverview: new GetUserAdministrationOverviewUseCase(
       dependencies.userRepository,
     ),
     listUsers: new ListUsersUseCase(dependencies.userRepository),

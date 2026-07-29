@@ -16,7 +16,8 @@ split into three internal capabilities:
 
 - `accounts`: account, email address, verification, and password;
 - `authentication`: sign-in, resolution, and personal sessions;
-- `access-administration`: roles, lifecycle, and administered sessions.
+- `access-administration`: paginated consultation, global indicators, roles,
+  lifecycle, and administered sessions.
 
 Account status (`active` or `suspended`) is independent from email
 verification. There is no `pending` status.

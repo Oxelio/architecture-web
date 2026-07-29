@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
-import type { SessionListingRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
@@ -28,7 +28,7 @@ describe("ListCurrentUserSessionsUseCase", () => {
     } as unknown as UserRepository;
     const sessions = {
       findActiveForUser: async () => [session],
-    } as unknown as SessionListingRepository;
+    } as unknown as SessionRepository;
 
     const result = await new ListCurrentUserSessionsUseCase(
       users,

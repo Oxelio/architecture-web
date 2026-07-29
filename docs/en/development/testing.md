@@ -14,6 +14,12 @@ A use case **MUST** be tested without real infrastructure through port doubles.
 An adapter **SHOULD** test technology-specific behavior and invalid data. A
 non-trivial HTTP mapping or authorization change **SHOULD** have an API test.
 
+For paginated reads, distribute evidence by responsibility: core tests defaults,
+bounds, authorization, and metadata; the adapter tests filters, count, order,
+and `limit`/`offset`; the API tests the public envelope; the web tests criterion
+serialization. Current Kysely tests use query-builder doubles and do not replace
+PostgreSQL plan measurements on representative data.
+
 ## Root commands
 
 ```bash

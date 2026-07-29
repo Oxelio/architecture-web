@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Ban,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   CircleUserRound,
   KeyRound,
@@ -13,7 +14,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SessionSummary } from "#components/SessionSummary";
@@ -21,13 +22,12 @@ import {
   activateUser,
   type AdminUser,
   assignUserRole,
+  getUserAdministrationOverview,
   listUsers,
   listUserSessions,
   revokeUserSession,
   suspendUser,
 } from "#services/api";
-
-type Filter = "all" | "active" | "suspended" | "admin";
 
 interface AdminPageProps {
   currentUserId: string;
@@ -37,43 +37,58 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [role, setRole] = useState<AdminUser["role"] | undefined>();
+  const [status, setStatus] = useState<AdminUser["status"] | undefined>();
+  const [emailVerified, setEmailVerified] = useState<boolean | undefined>();
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+      setSelectedUserId(null);
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  const criteria = {
+    search: debouncedSearch || undefined,
+    role,
+    status,
+    emailVerified,
+    page,
+    pageSize,
+  };
   const usersQuery = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: listUsers,
+    queryKey: ["admin", "users", criteria],
+    queryFn: () => listUsers(criteria),
   });
-  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
+  const overviewQuery = useQuery({
+    queryKey: ["admin", "users-overview"],
+    queryFn: getUserAdministrationOverview,
+  });
+  const users = usersQuery.data?.users ?? [];
+  const pagination = usersQuery.data?.pagination;
   const selectedUser =
     users.find((user) => user.userId === selectedUserId) ?? null;
 
-  const visibleUsers = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase();
-    return users.filter((user) => {
-      const matchesSearch =
-        !term ||
-        user.email.toLocaleLowerCase().includes(term) ||
-        user.userId.toLocaleLowerCase().includes(term);
-      const matchesFilter =
-        filter === "all" ||
-        user.status === filter ||
-        (filter === "admin" && user.role === "admin");
-      return matchesSearch && matchesFilter;
-    });
-  }, [filter, search, users]);
-
-  const stats = {
-    total: users.length,
-    active: users.filter((user) => user.status === "active").length,
-    suspended: users.filter((user) => user.status === "suspended").length,
-    admins: users.filter((user) => user.role === "admin").length,
-  };
+  const stats = overviewQuery.data;
 
   const refreshUsers = async (message: string) => {
-    await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin", "users-overview"] }),
+    ]);
     setNotice(message);
+  };
+
+  const resetPageAndSelection = () => {
+    setPage(1);
+    setSelectedUserId(null);
   };
 
   const roleMutation = useMutation({
@@ -125,12 +140,17 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
             </div>
             <button
               type="button"
-              onClick={() => void usersQuery.refetch()}
-              disabled={usersQuery.isFetching}
+              onClick={() =>
+                void Promise.all([
+                  usersQuery.refetch(),
+                  overviewQuery.refetch(),
+                ])
+              }
+              disabled={usersQuery.isFetching || overviewQuery.isFetching}
               className="inline-flex items-center justify-center gap-2 self-start rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-sky-500/50 hover:text-white disabled:opacity-50"
             >
               <RefreshCw
-                className={`h-4 w-4 ${usersQuery.isFetching ? "animate-spin" : ""}`}
+                className={`h-4 w-4 ${usersQuery.isFetching || overviewQuery.isFetching ? "animate-spin" : ""}`}
               />
               {t("admin.refresh")}
             </button>
@@ -139,27 +159,32 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
             <Stat
               icon={Users}
               label={t("admin.totalUsers")}
-              value={stats.total}
+              value={stats?.total ?? "—"}
             />
             <Stat
               icon={UserCheck}
               label={t("admin.activeUsers")}
-              value={stats.active}
+              value={stats?.active ?? "—"}
               tone="emerald"
             />
             <Stat
               icon={Ban}
               label={t("admin.suspendedUsers")}
-              value={stats.suspended}
+              value={stats?.suspended ?? "—"}
               tone="rose"
             />
             <Stat
               icon={ShieldCheck}
               label={t("admin.adminUsers")}
-              value={stats.admins}
+              value={stats?.administrators ?? "—"}
               tone="violet"
             />
           </div>
+          {overviewQuery.isError ? (
+            <p className="mt-3 text-sm text-rose-300">
+              {t("admin.overviewError")}
+            </p>
+          ) : null}
         </div>
 
         <div className="p-5 sm:p-7">
@@ -178,22 +203,45 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
               className="flex flex-wrap gap-2"
               aria-label={t("admin.filters")}
             >
-              {(["all", "active", "suspended", "admin"] as const).map(
-                (item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setFilter(item)}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                      filter === item
-                        ? "bg-sky-500 text-slate-950"
-                        : "border border-slate-700 bg-slate-950/60 text-slate-300 hover:border-slate-600"
-                    }`}
-                  >
-                    {t(`admin.filter.${item}`)}
-                  </button>
-                ),
-              )}
+              <FilterSelect
+                label={t("admin.role")}
+                value={role ?? ""}
+                onChange={(value) => {
+                  setRole(value ? (value as AdminUser["role"]) : undefined);
+                  resetPageAndSelection();
+                }}
+                options={[
+                  ["user", t("admin.roleValue.user")],
+                  ["admin", t("admin.roleValue.admin")],
+                ]}
+                allLabel={t("admin.filter.allRoles")}
+              />
+              <FilterSelect
+                label={t("admin.status")}
+                value={status ?? ""}
+                onChange={(value) => {
+                  setStatus(value ? (value as AdminUser["status"]) : undefined);
+                  resetPageAndSelection();
+                }}
+                options={[
+                  ["active", t("admin.statusValue.active")],
+                  ["suspended", t("admin.statusValue.suspended")],
+                ]}
+                allLabel={t("admin.filter.allStatuses")}
+              />
+              <FilterSelect
+                label={t("admin.emailVerification")}
+                value={emailVerified === undefined ? "" : String(emailVerified)}
+                onChange={(value) => {
+                  setEmailVerified(value === "" ? undefined : value === "true");
+                  resetPageAndSelection();
+                }}
+                options={[
+                  ["true", t("admin.verified")],
+                  ["false", t("admin.notVerified")],
+                ]}
+                allLabel={t("admin.filter.allVerification")}
+              />
             </div>
           </div>
 
@@ -214,12 +262,12 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
                 <span>{t("admin.createdAt")}</span>
                 <span />
               </div>
-              {visibleUsers.length === 0 ? (
+              {users.length === 0 ? (
                 <p className="px-5 py-14 text-center text-sm text-slate-500">
                   {t("admin.empty")}
                 </p>
               ) : (
-                visibleUsers.map((user) => (
+                users.map((user) => (
                   <button
                     key={user.userId}
                     type="button"
@@ -261,6 +309,62 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
               )}
             </div>
           )}
+          {usersQuery.isFetching && !usersQuery.isLoading ? (
+            <p className="mt-3 text-xs text-sky-300" role="status">
+              {t("admin.refreshing")}
+            </p>
+          ) : null}
+          {pagination ? (
+            <div className="mt-4 flex flex-col gap-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {t("admin.pagination.summary", {
+                  from:
+                    pagination.total === 0
+                      ? 0
+                      : (pagination.page - 1) * pagination.pageSize + 1,
+                  to: Math.min(
+                    pagination.page * pagination.pageSize,
+                    pagination.total,
+                  ),
+                  total: pagination.total,
+                })}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1 || usersQuery.isFetching}
+                  onClick={() => {
+                    setPage((current) => current - 1);
+                    setSelectedUserId(null);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-2 disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("admin.pagination.previous")}
+                </button>
+                <span>
+                  {t("admin.pagination.page", {
+                    page: pagination.page,
+                    totalPages: Math.max(pagination.totalPages, 1),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  disabled={
+                    page >= pagination.totalPages || usersQuery.isFetching
+                  }
+                  onClick={() => {
+                    setPage((current) => current + 1);
+                    setSelectedUserId(null);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-700 px-3 py-2 disabled:opacity-40"
+                >
+                  {t("admin.pagination.next")}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -294,6 +398,39 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
         </div>
       ) : null}
     </motion.section>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  allLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly (readonly [string, string])[];
+  allLabel: string;
+}) {
+  return (
+    <label>
+      <span className="sr-only">{label}</span>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-full border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-300 outline-none focus:border-sky-500"
+      >
+        <option value="">{allLabel}</option>
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -507,7 +644,7 @@ function Stat({
 }: {
   icon: typeof Users;
   label: string;
-  value: number;
+  value: React.ReactNode;
   tone?: "sky" | "emerald" | "rose" | "violet";
 }) {
   const tones = {

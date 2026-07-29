@@ -1,7 +1,7 @@
 import { Result } from "@architecture/foundation";
 
-import type { SessionListingRepository } from "#repositories/session.repository";
-import type { UserAdministrationRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#repositories/session.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -17,8 +17,8 @@ export class ListUserSessionsUseCase implements ListUserSessions {
   private readonly authorizer: AdministratorAuthorizer;
 
   constructor(
-    private readonly users: UserAdministrationRepository,
-    private readonly sessions: SessionListingRepository,
+    private readonly users: UserRepository,
+    private readonly sessions: SessionRepository,
   ) {
     this.authorizer = new AdministratorAuthorizer(users);
   }

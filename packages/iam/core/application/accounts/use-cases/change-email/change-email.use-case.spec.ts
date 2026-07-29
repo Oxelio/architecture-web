@@ -17,6 +17,12 @@ import { ChangeEmailUseCase } from "./change-email.use-case.js";
 /* ---------------- FAKE USER PORT ---------------- */
 
 class FakeUserPort implements UserRepository {
+  async search(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
+  async getAdministrationOverview(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly users = new Map<string, UserEntity>();
 
   async findByEmail(email: EmailValueObject): Promise<UserEntity | null> {

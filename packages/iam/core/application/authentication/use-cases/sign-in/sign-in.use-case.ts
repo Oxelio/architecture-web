@@ -17,6 +17,8 @@ import type {
   SignInOutput,
 } from "./sign-in.contracts.js";
 
+export const MAX_ACTIVE_SESSIONS_PER_USER = 10;
+
 export class SignInUseCase implements SignIn {
   constructor(
     private readonly user: UserRepository,
@@ -59,6 +61,26 @@ export class SignInUseCase implements SignIn {
       ...(payload.client ? { client: payload.client } : {}),
       ...(payload.network ? { network: payload.network } : {}),
     });
+
+    const activeSessions = await this.session.findActiveForUser(
+      user.identifier,
+    );
+    const overflowAfterCreation = Math.max(
+      0,
+      activeSessions.length - MAX_ACTIVE_SESSIONS_PER_USER + 1,
+    );
+    const sessionsToRevoke = activeSessions
+      .toSorted(
+        (first, second) =>
+          first.createdAt.getTime() - second.createdAt.getTime(),
+      )
+      .slice(0, overflowAfterCreation);
+    await Promise.all(
+      sessionsToRevoke.map((activeSession) =>
+        this.session.delete(activeSession.identifier),
+      ),
+    );
+
     await this.session.save(sessionEntity);
 
     const data: AuthenticationSession = {

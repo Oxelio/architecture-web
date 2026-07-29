@@ -6,6 +6,10 @@
 successful sign-in creates a 60-minute `SessionEntity` and returns an `httpOnly`
 `sid` cookie.
 
+Before storing a new session, `SignInUseCase` loads active sessions and revokes
+the oldest ones that would exceed the limit of 10. This bound keeps personal
+and administrative session lists durable without pagination.
+
 The controller also derives client type/name/version from `User-Agent`, device
 and operating-system hints, and the IP address provided by Fastify. This is
 indicative metadata, not strong device identification.
@@ -13,9 +17,11 @@ indicative metadata, not strong device identification.
 ## Storage
 
 `RedisSessionAdapter` stores each session as `session:<sessionId>` with a TTL
-and indexes active IDs under `user-sessions:<userId>`. Older records without
-metadata remain readable; missing dates and details become `null` in the
-application contract. PostgreSQL does not store current sessions.
+and indexes active IDs under `user-sessions:<userId>`. The format is
+intentionally strict: `userId`, `expiresAt`, `createdAt`, and `lastActivityAt`
+must be present and valid. Incomplete or invalid records are rejected when
+loaded. `client` and `network` remain optional. PostgreSQL does not store
+current sessions.
 
 ## Resolution and activity
 

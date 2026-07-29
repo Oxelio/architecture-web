@@ -52,11 +52,16 @@ créer sous `application/<capacité>/use-cases/<feature>` :
 
 Le cas d’utilisation **DOIT** dépendre de ports, jamais d’adaptateurs.
 
+Le contrat applicatif emploie le langage métier. Une liste paginée nomme par
+exemple `users` et `pagination`; les conventions de transport `data` et `meta`
+restent dans le presenter HTTP.
+
 ## 4. Ajouter ou étendre un port
 
 Placer un repository dans `application/repositories` et un service externe dans
-`application/services`. Préférer un port minimal guidé par les besoins du cas
-d’utilisation.
+`application/services`. Préférer un port cohérent guidé par les besoins du cas
+d’utilisation. Ne pas créer un nouveau port pour une seule méthode lorsque le
+même adapter et le même cycle d’évolution couvrent déjà cette responsabilité.
 
 ```ts
 export abstract class ExampleRepository {
@@ -111,6 +116,11 @@ opérations sur soi lorsque la règle métier l’exige.
 Mettre à jour `apps/web/src/services/api.ts`, les hooks React Query, l’interface
 et les traductions FR/EN. Les types de transport du web doivent correspondre
 aux réponses sérialisées, pas aux classes du domaine.
+
+Une requête paramétrée **DOIT** inclure tous ses critères dans sa clé React
+Query. Une mutation **DOIT** invalider chaque ressource affectée : une
+modification de rôle invalide par exemple la liste paginée et les indicateurs
+globaux.
 
 Mettre à jour la référence HTTP si un endpoint est ajouté, et créer un ADR
 uniquement si une décision structurante durable a été prise.

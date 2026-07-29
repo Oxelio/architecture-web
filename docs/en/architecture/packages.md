@@ -44,18 +44,24 @@ Nodemailer.
 
 ## Ports and selected implementations
 
-| Application port                  | Composed implementation                     |
-| --------------------------------- | ------------------------------------------- |
-| `UserAdministrationRepository`    | `KyselyUserAdapter`                         |
-| `EmailVerificationRepository`     | `KyselyEmailVerificationAdapter`            |
-| `SessionAdministrationRepository` | `RedisSessionAdapter`                       |
-| `EmailVerificationRateLimiter`    | `RedisEmailVerificationRateLimitAdapter`    |
-| `PasswordHasher`                  | `Argon2PasswordHasherAdapter`               |
-| `EmailVerificationTokenHasher`    | `Sha256EmailVerificationTokenHasherAdapter` |
-| `EmailSender`                     | `NodemailerEmailSenderAdapter`              |
+| Application port               | Composed implementation                     |
+| ------------------------------ | ------------------------------------------- |
+| `UserRepository`               | `KyselyUserAdapter`                         |
+| `EmailVerificationRepository`  | `KyselyEmailVerificationAdapter`            |
+| `SessionRepository`            | `RedisSessionAdapter`                       |
+| `EmailVerificationRateLimiter` | `RedisEmailVerificationRateLimitAdapter`    |
+| `PasswordHasher`               | `Argon2PasswordHasherAdapter`               |
+| `EmailVerificationTokenHasher` | `Sha256EmailVerificationTokenHasherAdapter` |
+| `EmailSender`                  | `NodemailerEmailSenderAdapter`              |
 
 `BcryptPasswordHasherAdapter` and `PostmarkEmailSenderAdapter` also satisfy
 `PasswordHasher` and `EmailSender`.
+
+`UserRepository.search` is the only user-collection read. It requires a bounded
+page and page size, then returns the entity page and filtered total.
+`getAdministrationOverview` provides global indicators separately.
+`SessionRepository.findActiveForUser` remains unpaginated because
+`SignInUseCase` limits an account to 10 active sessions.
 
 ## Persistence
 

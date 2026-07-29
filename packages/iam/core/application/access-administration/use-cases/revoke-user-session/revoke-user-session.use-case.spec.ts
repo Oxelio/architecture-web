@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { SessionEntity } from "#entities/session.entity";
 import type { SessionRepository } from "#repositories/session.repository";
-import type { UserAdministrationRepository } from "#repositories/user.repository";
+import type { UserRepository } from "#repositories/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { RevokeUserSessionUseCase } from "./revoke-user-session.use-case.js";
@@ -19,7 +19,7 @@ describe("RevokeUserSessionUseCase", () => {
         id.equals(administrator.identifier)
           ? administrator
           : { identifier: userId },
-    } as unknown as UserAdministrationRepository;
+    } as unknown as UserRepository;
     const sessions = {
       findById: async () => session,
       delete: deleteSession,
@@ -47,7 +47,7 @@ describe("RevokeUserSessionUseCase", () => {
         id.equals(administrator.identifier)
           ? administrator
           : { identifier: userId },
-    } as unknown as UserAdministrationRepository;
+    } as unknown as UserRepository;
     const sessions = {
       findById: async () => otherSession,
       delete: deleteSession,
@@ -76,7 +76,7 @@ describe("RevokeUserSessionUseCase", () => {
           id.equals(administrator.identifier)
             ? administrator
             : { identifier: userId },
-      } as unknown as UserAdministrationRepository,
+      } as unknown as UserRepository,
       {
         deleteAllForUser: deleteAll,
       } as unknown as SessionRepository,

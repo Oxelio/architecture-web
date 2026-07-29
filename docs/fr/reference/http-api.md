@@ -34,26 +34,60 @@ de vérité.
 
 ## Routes administrateur
 
-| Méthode  | Chemin                               | Intention                    |
-| -------- | ------------------------------------ | ---------------------------- |
-| `GET`    | `/users`                             | lister les utilisateurs      |
-| `PATCH`  | `/users/:userId/activate`            | activer un utilisateur       |
-| `PATCH`  | `/users/:userId/suspend`             | suspendre un utilisateur     |
-| `PATCH`  | `/users/:userId/role`                | attribuer `user` ou `admin`  |
-| `GET`    | `/users/:userId/sessions`            | lister ses sessions          |
-| `DELETE` | `/users/:userId/sessions/:sessionId` | révoquer une session         |
-| `DELETE` | `/users/:userId/sessions`            | révoquer toutes ses sessions |
+| Méthode  | Chemin                               | Intention                              |
+| -------- | ------------------------------------ | -------------------------------------- |
+| `GET`    | `/users`                             | rechercher et paginer les utilisateurs |
+| `GET`    | `/users/overview`                    | lire les indicateurs globaux           |
+| `PATCH`  | `/users/:userId/activate`            | activer un utilisateur                 |
+| `PATCH`  | `/users/:userId/suspend`             | suspendre un utilisateur               |
+| `PATCH`  | `/users/:userId/role`                | attribuer `user` ou `admin`            |
+| `GET`    | `/users/:userId/sessions`            | lister ses sessions                    |
+| `DELETE` | `/users/:userId/sessions/:sessionId` | révoquer une session                   |
+| `DELETE` | `/users/:userId/sessions`            | révoquer toutes ses sessions           |
 
 ## Enveloppes
 
-Le client web attend les succès JSON sous `{ "data": ... }`. Une réponse sans
-contenu utilise `204`. Les erreurs HTTP utilisent
+Le client web attend les succès JSON sous `{ "data": ... }`. La liste
+administrative paginée ajoute
+`{ "meta": { "pagination": { "page", "pageSize", "total", "totalPages" } } }`.
+Ses paramètres facultatifs sont `search`, `role`, `status`, `emailVerified`,
+`page` et `pageSize` (25 par défaut, 100 au maximum). Les indicateurs globaux
+sont une ressource séparée dans `data` sur `/users/overview`.
+
+Une réponse sans contenu utilise `204`. Les erreurs HTTP utilisent
 `{ "error": { "code": "...", "message"?: "..." } }`.
+
+### Consultation administrative
+
+| Paramètre       | Valeurs                                  | Défaut | Règle                    |
+| --------------- | ---------------------------------------- | ------ | ------------------------ |
+| `search`        | chaîne, 200 caractères au maximum        | absent | e-mail ou identifiant    |
+| `role`          | `user`, `admin`                          | absent | égalité                  |
+| `status`        | `active`, `suspended`                    | absent | égalité                  |
+| `emailVerified` | booléen                                  | absent | égalité                  |
+| `page`          | entier strictement positif               | `1`    | page vide autorisée      |
+| `pageSize`      | entier compris entre `1` et `100` inclus | `25`   | aucune valeur supérieure |
+
+Les critères présents se combinent avec `ET`. Le total de
+`meta.pagination.total` est calculé après application de ces critères.
+`totalPages` vaut `0` lorsque le total est nul.
+
+Une pagination invalide est normalement rejetée par le schéma Fastify. Les
+erreurs applicatives `users.invalid_page` et `users.invalid_page_size`
+garantissent aussi la règle depuis une autre interface ; le mapping HTTP les
+expose respectivement sous `INVALID_PAGE` et `INVALID_PAGE_SIZE`.
+
+Voir le guide [Administration des utilisateurs](../guides/iam-user-administration.md)
+pour le flux complet entre application, persistance et client.
 
 Les codes métier sont définis près de chaque cas d’utilisation dans
 `*.codes.ts`. Les mappings vers HTTP sont définis dans `*.http.ts`. Les codes
 transverses `UNAUTHORIZED` et `FORBIDDEN` sont produits par les hooks
 d’authentification et d’autorisation.
+
+Un compte conserve au maximum 10 sessions actives. Une nouvelle connexion
+au-delà de cette borne révoque d’abord la session active la plus ancienne ; les
+listes de sessions restent ainsi bornées sans pagination.
 
 `POST /signup` exige `email`, `password` et `passwordConfirmation`.
 `PATCH /me/password` exige `currentPassword`, `password` et

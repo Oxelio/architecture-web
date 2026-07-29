@@ -19,6 +19,12 @@ import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
 /* -------------------------------------------------------------------------- */
 
 class FakeUserPort implements UserRepository {
+  async search(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
+  async getAdministrationOverview(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {
@@ -39,6 +45,9 @@ class FakeUserPort implements UserRepository {
 /* -------------------------------------------------------------------------- */
 
 class FakeSessionPort implements SessionRepository {
+  async findActiveForUser(): Promise<never> {
+    throw new Error("Not used by this fixture");
+  }
   private readonly sessions = new Map<string, SessionEntity>();
   public readonly activityUpdates: Date[] = [];
 

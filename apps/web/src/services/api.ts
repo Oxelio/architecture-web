@@ -50,6 +50,34 @@ export interface AdminUser {
   updatedAt: string;
 }
 
+export interface ListUsersCriteria {
+  search?: string;
+  role?: AdminUser["role"];
+  status?: AdminUser["status"];
+  emailVerified?: boolean;
+  page: number;
+  pageSize: number;
+}
+
+export interface UserListPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ListUsersResult {
+  users: AdminUser[];
+  pagination: UserListPagination;
+}
+
+export interface UserAdministrationOverview {
+  total: number;
+  active: number;
+  suspended: number;
+  administrators: number;
+}
+
 export interface SignInPayload {
   email: string;
   password: string;
@@ -101,8 +129,9 @@ export interface PasswordEvaluation {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000/v1";
 
-interface ApiResponse<T> {
+interface ApiResponse<T, TMeta = never> {
   data: T;
+  meta?: TMeta;
 }
 
 interface ApiError {
@@ -113,6 +142,14 @@ interface ApiError {
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await requestEnvelope<T>(path, init);
+  return response.data;
+}
+
+async function requestEnvelope<T, TMeta = never>(
+  path: string,
+  init: RequestInit,
+): Promise<ApiResponse<T, TMeta>> {
   const headers: Record<string, string> = {};
 
   if (init.body !== undefined && init.body !== null) {
@@ -127,12 +164,12 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   });
 
   if (response.status === 204) {
-    return null as unknown as T;
+    return { data: null as unknown as T };
   }
 
   const contentType = response.headers.get("content-type") ?? "";
   const body = contentType.includes("application/json")
-    ? ((await response.json()) as ApiResponse<T> | ApiError)
+    ? ((await response.json()) as ApiResponse<T, TMeta> | ApiError)
     : null;
 
   if (!response.ok) {
@@ -140,7 +177,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     throw new Error(apiError?.error?.code ?? `HTTP_${response.status}`);
   }
 
-  return (body as ApiResponse<T> | null)?.data as T;
+  return body as ApiResponse<T, TMeta>;
 }
 
 export async function signUp(payload: SignUpPayload) {
@@ -256,8 +293,44 @@ export async function activateUser(userId: string): Promise<void> {
   });
 }
 
-export function listUsers(): Promise<AdminUser[]> {
-  return request<AdminUser[]>("/iam/users", { method: "GET" });
+export async function listUsers(
+  criteria: ListUsersCriteria,
+): Promise<ListUsersResult> {
+  const parameters = new URLSearchParams({
+    page: String(criteria.page),
+    pageSize: String(criteria.pageSize),
+  });
+  if (criteria.search?.trim()) {
+    parameters.set("search", criteria.search.trim());
+  }
+  if (criteria.role !== undefined) {
+    parameters.set("role", criteria.role);
+  }
+  if (criteria.status !== undefined) {
+    parameters.set("status", criteria.status);
+  }
+  if (criteria.emailVerified !== undefined) {
+    parameters.set("emailVerified", String(criteria.emailVerified));
+  }
+
+  const response = await requestEnvelope<
+    AdminUser[],
+    { pagination: UserListPagination }
+  >(`/iam/users?${parameters.toString()}`, { method: "GET" });
+  if (response.meta === undefined) {
+    throw new Error("INVALID_RESPONSE");
+  }
+
+  return {
+    users: response.data,
+    pagination: response.meta.pagination,
+  };
+}
+
+export function getUserAdministrationOverview(): Promise<UserAdministrationOverview> {
+  return request<UserAdministrationOverview>("/iam/users/overview", {
+    method: "GET",
+  });
 }
 
 export function listUserSessions(

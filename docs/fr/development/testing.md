@@ -18,6 +18,13 @@ de la technologie et les données invalides. Une modification de contrat HTTP
 **DEVRAIT** avoir un test au niveau de l’API lorsque le mapping ou
 l’autorisation n’est pas trivial.
 
+Pour une consultation paginée, répartir les preuves selon les responsabilités :
+le cœur teste les valeurs par défaut, bornes, autorisation et métadonnées ;
+l’adapter teste les filtres, le comptage, l’ordre et `limit`/`offset` ; l’API
+teste l’enveloppe publique ; le web teste la sérialisation des critères. Les
+tests Kysely actuels utilisent des doubles de query builder et ne remplacent
+pas une mesure de plan PostgreSQL sur un volume représentatif.
+
 ## Commandes racine
 
 ```bash

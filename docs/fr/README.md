@@ -36,6 +36,7 @@ Pour une première prise en main, lire dans cet ordre :
 ### Guides et références
 
 - [Authentification et sessions](guides/iam-sessions.md)
+- [Administration des utilisateurs](guides/iam-user-administration.md)
 - [Politique de mot de passe](guides/password-policy.md)
 - [Interface HTTP](reference/http-api.md)
 - [Spécifications fonctionnelles](specifications/README.md)

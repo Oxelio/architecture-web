@@ -19,28 +19,46 @@ const row = {
   updated_at: new Date(),
 };
 
-function dbWith(result: unknown) {
-  const execute = vi.fn().mockResolvedValue(undefined);
+function dbWith(result: unknown, rows: unknown[] = []) {
+  const execute = vi.fn().mockResolvedValue(rows);
   const executeTakeFirst = vi.fn().mockResolvedValue(result);
+  const executeTakeFirstOrThrow = vi.fn().mockResolvedValue(result);
+  const expression = vi.fn((...parts: unknown[]) => parts);
+  const or = vi.fn((parts: unknown[]) => parts);
   const chain = {
     values: vi.fn(),
     onConflict: vi.fn(),
+    select: vi.fn(),
     selectAll: vi.fn(),
     where: vi.fn(),
+    orderBy: vi.fn(),
+    limit: vi.fn(),
+    offset: vi.fn(),
     execute,
     executeTakeFirst,
+    executeTakeFirstOrThrow,
   };
   chain.values.mockReturnValue(chain);
   chain.onConflict.mockImplementation((callback) => {
     callback({ column: () => ({ doUpdateSet: () => chain }) });
     return chain;
   });
+  chain.select.mockReturnValue(chain);
   chain.selectAll.mockReturnValue(chain);
-  chain.where.mockReturnValue(chain);
+  chain.where.mockImplementation((predicate) => {
+    if (typeof predicate === "function") {
+      predicate({ eb: expression, or });
+    }
+    return chain;
+  });
+  chain.orderBy.mockReturnValue(chain);
+  chain.limit.mockReturnValue(chain);
+  chain.offset.mockReturnValue(chain);
   return {
     insertInto: vi.fn(() => chain),
     selectFrom: vi.fn(() => chain),
     chain,
+    expression,
   };
 }
 
@@ -92,5 +110,54 @@ describe("KyselyUserAdapter", () => {
     await expect(
       new KyselyUserAdapter(dbWith(row) as never).findById(id.value),
     ).resolves.toMatchObject({ identifier: id.value });
+  });
+
+  it("applies filters before count and returns a deterministic bounded page", async () => {
+    const db = dbWith({ total: "1" }, [row]);
+
+    const result = await new KyselyUserAdapter(db as never).search({
+      search: "USER",
+      role: "user",
+      status: "active",
+      isEmailVerified: false,
+      page: 2,
+      pageSize: 25,
+    });
+
+    expect(result).toMatchObject({
+      total: 1,
+      users: [{ email: { value: "user@example.com" } }],
+    });
+    expect(db.chain.where).toHaveBeenCalledWith("role", "=", "user");
+    expect(db.chain.where).toHaveBeenCalledWith("status", "=", "active");
+    expect(db.chain.where).toHaveBeenCalledWith(
+      "is_email_verified",
+      "=",
+      false,
+    );
+    expect(db.expression).toHaveBeenCalledWith("email", "ilike", "%USER%");
+    expect(db.expression).toHaveBeenCalledWith("id", "like", "%USER%");
+    expect(db.chain.orderBy).toHaveBeenNthCalledWith(1, "created_at", "desc");
+    expect(db.chain.orderBy).toHaveBeenNthCalledWith(2, "id", "desc");
+    expect(db.chain.limit).toHaveBeenCalledWith(25);
+    expect(db.chain.offset).toHaveBeenCalledWith(25);
+  });
+
+  it("returns global administration indicators", async () => {
+    const db = dbWith({
+      total: "12",
+      active: "9",
+      suspended: "3",
+      administrators: "2",
+    });
+
+    await expect(
+      new KyselyUserAdapter(db as never).getAdministrationOverview(),
+    ).resolves.toEqual({
+      total: 12,
+      active: 9,
+      suspended: 3,
+      administrators: 2,
+    });
   });
 });
