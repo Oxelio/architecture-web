@@ -42,6 +42,9 @@ copied without an explicit architectural decision.
 - An entity **MUST NOT** import a use case.
 - A use case **MUST NOT** depend on Redis or Kysely.
 - Infrastructure **MUST** depend on the application port it implements.
+- A command repository **MUST** receive and save an aggregate root.
+- A transaction spanning multiple aggregates **MUST** be controlled through an
+  application port, never directly through Kysely in the use case.
 - Business types shared by domain and application belong to the domain.
 - Generic, truly cross-domain types **MAY** belong to Foundation.
 - HTTP DTOs belong to `apps/api`; matching client types belong to `apps/web`.

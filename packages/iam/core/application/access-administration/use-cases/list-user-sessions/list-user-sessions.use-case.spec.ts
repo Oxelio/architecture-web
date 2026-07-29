@@ -26,6 +26,7 @@ describe("ListUserSessionsUseCase", () => {
     const administrator = createAdministrator();
     const session = SessionEntity.createForUser({
       userId: user.identifier,
+      userSessionVersion: user.sessionVersion,
       expiresAt: new Date(Date.now() + 60_000),
     });
     const users = {

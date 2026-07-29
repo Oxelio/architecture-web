@@ -71,31 +71,16 @@ export class SignInUseCase implements SignIn {
       await this.policyProvider.getSessionDurationMinutes();
     const sessionEntity = SessionEntity.createForUser({
       userId: user.identifier,
+      userSessionVersion: user.sessionVersion,
       expiresAt: new Date(Date.now() + sessionDurationMinutes * 60_000),
       ...(payload.client ? { client: payload.client } : {}),
       ...(payload.network ? { network: payload.network } : {}),
     });
 
-    const activeSessions = await this.session.findActiveForUser(
-      user.identifier,
+    await this.session.saveEnforcingMaximum(
+      sessionEntity,
+      MAX_ACTIVE_SESSIONS_PER_USER,
     );
-    const overflowAfterCreation = Math.max(
-      0,
-      activeSessions.length - MAX_ACTIVE_SESSIONS_PER_USER + 1,
-    );
-    const sessionsToRevoke = activeSessions
-      .toSorted(
-        (first, second) =>
-          first.createdAt.getTime() - second.createdAt.getTime(),
-      )
-      .slice(0, overflowAfterCreation);
-    await Promise.all(
-      sessionsToRevoke.map((activeSession) =>
-        this.session.delete(activeSession.identifier),
-      ),
-    );
-
-    await this.session.save(sessionEntity);
 
     const data: AuthenticationSession = {
       userId: user.identifier.value,

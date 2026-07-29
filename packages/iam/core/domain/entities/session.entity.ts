@@ -1,6 +1,6 @@
 // @file bounded-contexts/iam/domain/entities/session.entity.ts
 
-import { Entity } from "@architecture/foundation";
+import { AggregateRoot } from "@architecture/foundation";
 
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -33,6 +33,7 @@ export interface SessionNetwork {
 interface SessionProperties {
   readonly identifier: SessionIdentifierValueObject;
   readonly userId: UserIdentifierValueObject;
+  readonly userSessionVersion: number;
   readonly expiresAt: Date;
   readonly createdAt: Date;
   readonly lastActivityAt: Date;
@@ -42,19 +43,27 @@ interface SessionProperties {
 
 interface SessionPropertiesCreationProperties {
   readonly userId: UserIdentifierValueObject;
+  readonly userSessionVersion: number;
   readonly expiresAt: Date;
   readonly client?: SessionClient;
   readonly network?: SessionNetwork;
 }
 
-export class SessionEntity extends Entity<SessionProperties> {
+export class SessionEntity extends AggregateRoot<SessionProperties> {
   public static createForUser(properties: SessionPropertiesCreationProperties) {
     const now = new Date();
+    if (
+      !Number.isSafeInteger(properties.userSessionVersion) ||
+      properties.userSessionVersion < 1
+    ) {
+      throw new Error("User session version must be a positive integer");
+    }
     if (properties.expiresAt.getTime() <= now.getTime()) {
       throw new Error("Session expiration must be in the future");
     }
     return new SessionEntity({
       userId: properties.userId,
+      userSessionVersion: properties.userSessionVersion,
       expiresAt: properties.expiresAt,
       identifier: SessionIdentifierValueObject.generate(),
       createdAt: now,
@@ -65,11 +74,21 @@ export class SessionEntity extends Entity<SessionProperties> {
   }
 
   public static rehydrate(props: SessionProperties) {
+    if (
+      !Number.isSafeInteger(props.userSessionVersion) ||
+      props.userSessionVersion < 1
+    ) {
+      throw new Error("User session version must be a positive integer");
+    }
     return new SessionEntity(props);
   }
 
   public get userId(): UserIdentifierValueObject {
     return this.props.userId;
+  }
+
+  public get userSessionVersion(): number {
+    return this.props.userSessionVersion;
   }
 
   public get expiresAt(): Date {

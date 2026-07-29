@@ -7,12 +7,22 @@ import type { EmailVerificationRepository } from "#repositories/email-verificati
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ChangeEmailUseCase } from "./change-email.use-case.js";
+
+function createUnitOfWork(
+  users: UserRepository,
+  emailVerifications: EmailVerificationRepository,
+): IamUnitOfWork {
+  return {
+    execute: (work) => work({ emailVerifications, users }),
+  };
+}
 
 /* ---------------- FAKE USER PORT ---------------- */
 
@@ -73,9 +83,9 @@ describe("ChangeEmailUseCase", () => {
     } as EmailVerificationTokenHasher;
     useCase = new ChangeEmailUseCase(
       userPort,
-      emailVerification,
       emailSender,
       tokenHasher,
+      createUnitOfWork(userPort, emailVerification),
     );
   });
 

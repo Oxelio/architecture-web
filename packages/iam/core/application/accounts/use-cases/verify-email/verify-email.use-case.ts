@@ -5,6 +5,7 @@ import { Result } from "@architecture/foundation";
 import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 
 import { VerifyEmailErrorCodes } from "./verify-email.codes.js";
@@ -18,6 +19,7 @@ export class VerifyEmailUseCase {
     private readonly userPort: UserRepository,
     private readonly emailVerification: EmailVerificationRepository,
     private readonly tokenHasher: EmailVerificationTokenHasher,
+    private readonly unitOfWork: IamUnitOfWork,
   ) {}
 
   async execute(command: VerifyEmailInput): Promise<VerifyEmailOutput> {
@@ -42,13 +44,20 @@ export class VerifyEmailUseCase {
       return Result.failure(VerifyEmailErrorCodes.userNotFound);
     }
 
-    const consumed = await this.emailVerification.consume(tokenHash, now);
+    user.verifyEmail();
+    const consumed = await this.unitOfWork.execute(
+      async ({ emailVerifications, users }) => {
+        const tokenConsumed = await emailVerifications.consume(tokenHash, now);
+        if (!tokenConsumed) {
+          return false;
+        }
+        await users.save(user);
+        return true;
+      },
+    );
     if (!consumed) {
       return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
     }
-
-    user.verifyEmail();
-    await this.userPort.save(user);
 
     return Result.success(undefined);
   }

@@ -17,6 +17,7 @@ import type {
   SecondFactorGate,
   SessionRepository,
 } from "@architecture/iam/application";
+import { MAX_ACTIVE_SESSIONS_PER_USER } from "@architecture/iam/application";
 import {
   createPasswordPolicy,
   PasswordPlainValueObject,
@@ -750,15 +751,27 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
     if (!identifier.success) {
       throw new SecurityError("MFA_CHALLENGE_INVALID");
     }
+    const user = await this.options.db
+      .selectFrom("iam_users")
+      .select(["session_version", "status"])
+      .where("id", "=", identifier.value.value)
+      .executeTakeFirst();
+    if (!user || user.status !== "active") {
+      throw new SecurityError("MFA_CHALLENGE_INVALID");
+    }
     const session = SessionEntity.createForUser({
       userId: identifier.value,
+      userSessionVersion: user.session_version,
       expiresAt: new Date(
         Date.now() + (await this.getSessionDurationMinutes()) * 60_000,
       ),
       ...(metadata?.client ? { client: metadata.client } : {}),
       ...(metadata?.network ? { network: metadata.network } : {}),
     });
-    await this.options.sessions.save(session);
+    await this.options.sessions.saveEnforcingMaximum(
+      session,
+      MAX_ACTIVE_SESSIONS_PER_USER,
+    );
     await this.audit(
       "authentication.signin",
       "success",

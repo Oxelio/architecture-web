@@ -3,11 +3,11 @@
 import { Result } from "@architecture/foundation";
 
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
-import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -22,9 +22,9 @@ import type {
 export class ChangeEmailUseCase implements ChangeEmail {
   constructor(
     private readonly userPort: UserRepository,
-    private readonly emailVerification: EmailVerificationRepository,
     private readonly emailSender: EmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
+    private readonly unitOfWork: IamUnitOfWork,
     private readonly policyProvider?: IamPolicyProvider,
   ) {}
 
@@ -61,21 +61,22 @@ export class ChangeEmailUseCase implements ChangeEmail {
     }
 
     user.changeEmail(email.value);
-    await this.userPort.save(user);
-
-    await this.emailVerification.invalidatePreviousFor(user.identifier);
 
     const token = EmailVerificationTokenValueObject.generate();
     const tokenHash = await this.tokenHasher.hash(token);
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
 
-    await this.emailVerification.save(
-      EmailVerificationEntity.create({
-        userId: user.identifier,
-        tokenHash,
-        expiresAt,
-      }),
-    );
+    const verification = EmailVerificationEntity.create({
+      userId: user.identifier,
+      tokenHash,
+      expiresAt,
+    });
+
+    await this.unitOfWork.execute(async ({ emailVerifications, users }) => {
+      await users.save(user);
+      await emailVerifications.invalidatePreviousFor(user.identifier);
+      await emailVerifications.save(verification);
+    });
     await this.emailSender.sendVerificationEmail(user.email, token.value);
 
     return Result.success(undefined);

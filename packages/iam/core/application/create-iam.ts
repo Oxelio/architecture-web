@@ -57,6 +57,7 @@ import {
   PasswordStrengthEvaluator,
 } from "#services/password-security.service";
 import type { SecondFactorGate } from "#services/second-factor-gate.service";
+import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 
 export interface IamDependencies {
   userRepository: UserRepository;
@@ -70,6 +71,7 @@ export interface IamDependencies {
   emailVerificationRepository: EmailVerificationRepository;
   rateLimiter: EmailVerificationRateLimiter;
   emailVerificationTokenHasher: EmailVerificationTokenHasher;
+  unitOfWork: IamUnitOfWork;
   secondFactorGate?: SecondFactorGate;
 }
 
@@ -117,9 +119,9 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     activateUser: new ActivateUserUseCase(dependencies.userRepository),
     changeEmail: new ChangeEmailUseCase(
       dependencies.userRepository,
-      dependencies.emailVerificationRepository,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
+      dependencies.unitOfWork,
       dependencies.policyProvider,
     ),
     changePassword: new ChangePasswordUseCase(
@@ -149,10 +151,10 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     evaluatePassword: new EvaluatePasswordUseCase(passwordPolicy),
     resendEmailVerification: new ResendEmailVerificationUseCase(
       dependencies.userRepository,
-      dependencies.emailVerificationRepository,
       dependencies.emailSender,
       dependencies.rateLimiter,
       dependencies.emailVerificationTokenHasher,
+      dependencies.unitOfWork,
     ),
     resolveSession: new ResolveSessionUseCase(
       dependencies.sessionRepository,
@@ -177,10 +179,10 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     signUp: new SignUpUseCase(
       dependencies.userRepository,
       dependencies.passwordHasher,
-      dependencies.emailVerificationRepository,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
       passwordPolicy,
+      dependencies.unitOfWork,
       dependencies.policyProvider,
     ),
     suspendUser: new SuspendUserUseCase(
@@ -191,6 +193,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.userRepository,
       dependencies.emailVerificationRepository,
       dependencies.emailVerificationTokenHasher,
+      dependencies.unitOfWork,
     ),
   };
 }

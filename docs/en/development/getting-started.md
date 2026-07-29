@@ -76,6 +76,9 @@ scheduler should invoke the administrator-only
 `POST /v1/iam/admin/security/maintenance` endpoint periodically to process
 retention and due deletions.
 
+Migration `004_add_iam_aggregate_consistency` adds the user session version and
+the foreign-key constraint connecting a verification to its user.
+
 `migrate:reset` is destructive to local data. Read the script before using it
 against a shared environment. The promotion script is the source of truth for
 its exact arguments.

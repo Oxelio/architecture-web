@@ -45,6 +45,14 @@ export const UserMapper = {
       throw new InvalidPersistenceDataError("User", "role", row.role);
     }
 
+    if (!Number.isSafeInteger(row.session_version) || row.session_version < 1) {
+      throw new InvalidPersistenceDataError(
+        "User",
+        "session_version",
+        row.session_version,
+      );
+    }
+
     return UserEntity.rehydrate({
       identifier: identifier.value,
       email: email.value,
@@ -52,6 +60,7 @@ export const UserMapper = {
       role: role.value,
       status: status.value,
       isEmailVerified: row.is_email_verified,
+      sessionVersion: row.session_version,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     });
@@ -65,6 +74,7 @@ export const UserMapper = {
       role: user.role.value,
       status: user.status.value,
       is_email_verified: user.isEmailVerified,
+      session_version: user.sessionVersion,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
     };

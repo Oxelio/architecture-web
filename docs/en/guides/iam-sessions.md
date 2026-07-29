@@ -12,9 +12,10 @@ controller responds with `202`, and `POST /v1/iam/mfa/challenge/verify`
 creates the session after second-factor validation. See the
 [security guide](account-security.md).
 
-Before storing a new session, `SignInUseCase` loads active sessions and revokes
-the oldest ones that would exceed the limit of 10. This bound keeps personal
-and administrative session lists durable without pagination.
+`SignInUseCase` asks the repository to save the session with a limit of 10
+active sessions. The Redis adapter saves it, cleans the expired index, and
+revokes excess sessions in one atomic script. Session creation after MFA uses
+the same operation.
 
 The controller also derives client type/name/version from `User-Agent`, device
 and operating-system hints, and the IP address provided by Fastify. This is
@@ -24,18 +25,18 @@ indicative metadata, not strong device identification.
 
 `RedisSessionAdapter` stores each session as `session:<sessionId>` with a TTL
 and indexes active IDs under `user-sessions:<userId>`. The format is
-intentionally strict: `userId`, `expiresAt`, `createdAt`, and `lastActivityAt`
-must be present and valid. Incomplete or invalid records are rejected when
-loaded. `client` and `network` remain optional. PostgreSQL does not store
-current sessions.
+intentionally strict: `userId`, `userSessionVersion`, `expiresAt`, `createdAt`,
+and `lastActivityAt` must be present and valid. Incomplete or invalid records
+are rejected when loaded. `client` and `network` remain optional. PostgreSQL
+does not store current sessions.
 
 ## Resolution and activity
 
 The Fastify plugin reads the cookie, calls `ResolveSessionUseCase`, and fills
 `request.auth` with `userId`, `sessionId`, and `role`. It rejects missing or
-invalid cookies, missing or expired sessions, and missing or suspended users.
-Activity is updated at most once every five minutes to avoid a Redis write per
-request.
+invalid cookies, missing or expired sessions, missing or suspended users, and a
+session version that differs from the user's current version. Activity is
+updated at most once every five minutes to avoid a Redis write per request.
 
 `pending_deletion` is also refused because resolution now requires an active
 account.
@@ -54,8 +55,9 @@ Account recovery, MFA activation or disabling, and a deletion request also
 revoke sessions.
 
 Password changes first verify the current password, then confirmation and the
-[central policy](password-policy.md). Sessions are revoked only after
-validation and persistence succeed.
+[central policy](password-policy.md). Saving the user increments
+`sessionVersion` before Redis cleanup. An old session is therefore rejected on
+its next resolution even if Redis cleanup fails.
 
 ## Listing and revocation
 

@@ -11,6 +11,7 @@ describe("RevokeCurrentUserSessionUseCase", () => {
     const actorId = UserIdentifierValueObject.generate();
     const session = SessionEntity.createForUser({
       userId: actorId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
     const deleteSession = vi.fn();
@@ -31,6 +32,7 @@ describe("RevokeCurrentUserSessionUseCase", () => {
   it("hides a session owned by another user", async () => {
     const session = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
     const sessions = {

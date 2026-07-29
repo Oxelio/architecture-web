@@ -10,10 +10,9 @@ import { RedisSessionAdapter } from "./redis-session.adapter.js";
 describe("RedisSessionAdapter", () => {
   it("saves, retrieves and deletes a session", async () => {
     const redis = {
-      set: vi.fn(),
+      eval: vi.fn(),
       get: vi.fn(),
       del: vi.fn(),
-      zadd: vi.fn(),
       zrem: vi.fn(),
     };
     const id = SessionIdentifierValueObject.generate();
@@ -24,6 +23,7 @@ describe("RedisSessionAdapter", () => {
     const session = SessionEntity.rehydrate({
       identifier: id,
       userId,
+      userSessionVersion: 1,
       expiresAt,
       createdAt,
       lastActivityAt,
@@ -31,21 +31,23 @@ describe("RedisSessionAdapter", () => {
     const adapter = new RedisSessionAdapter(redis as never);
 
     await adapter.save(session);
-    expect(redis.set).toHaveBeenCalledWith(
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.any(String),
+      2,
       `session:${id.value}`,
+      `user-sessions:${userId.value}`,
       JSON.stringify({
         userId: userId.value,
+        userSessionVersion: 1,
         expiresAt: expiresAt.toISOString(),
         createdAt: createdAt.toISOString(),
         lastActivityAt: lastActivityAt.toISOString(),
       }),
-      "EX",
       expect.any(Number),
-    );
-    expect(redis.zadd).toHaveBeenCalledWith(
-      `user-sessions:${userId.value}`,
       expiresAt.getTime(),
       id.value,
+      expect.any(Number),
+      0,
     );
 
     redis.get.mockResolvedValueOnce(null);
@@ -57,6 +59,7 @@ describe("RedisSessionAdapter", () => {
     redis.get.mockResolvedValueOnce(
       JSON.stringify({
         userId: userId.value,
+        userSessionVersion: 1,
         expiresAt: expiresAt.toISOString(),
         createdAt: createdAt.toISOString(),
         lastActivityAt: lastActivityAt.toISOString(),
@@ -71,6 +74,36 @@ describe("RedisSessionAdapter", () => {
     expect(redis.del).toHaveBeenCalledWith(`session:${id.value}`);
   });
 
+  it("saves a session and enforces its user limit in one Redis script", async () => {
+    const redis = { eval: vi.fn() };
+    const userId = UserIdentifierValueObject.generate();
+    const session = SessionEntity.createForUser({
+      userId,
+      userSessionVersion: 1,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const adapter = new RedisSessionAdapter(redis as never);
+
+    await adapter.saveEnforcingMaximum(session, 10);
+
+    expect(redis.eval).toHaveBeenCalledOnce();
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.any(String),
+      2,
+      `session:${session.identifier.value}`,
+      `user-sessions:${userId.value}`,
+      expect.any(String),
+      expect.any(Number),
+      session.expiresAt.getTime(),
+      session.identifier.value,
+      expect.any(Number),
+      10,
+    );
+    await expect(adapter.saveEnforcingMaximum(session, 0)).rejects.toThrow(
+      RangeError,
+    );
+  });
+
   it("updates session activity without extending its TTL", async () => {
     const id = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();
@@ -79,6 +112,7 @@ describe("RedisSessionAdapter", () => {
     const lastActivityAt = new Date();
     const record = JSON.stringify({
       userId: userId.value,
+      userSessionVersion: 1,
       expiresAt: expiresAt.toISOString(),
       createdAt: createdAt.toISOString(),
       lastActivityAt: lastActivityAt.toISOString(),
@@ -99,6 +133,7 @@ describe("RedisSessionAdapter", () => {
       `session:${id.value}`,
       JSON.stringify({
         userId: userId.value,
+        userSessionVersion: 1,
         expiresAt: expiresAt.toISOString(),
         createdAt: createdAt.toISOString(),
         lastActivityAt: activity.toISOString(),
@@ -117,6 +152,7 @@ describe("RedisSessionAdapter", () => {
       get: vi.fn().mockResolvedValue(
         JSON.stringify({
           userId: userId.value,
+          userSessionVersion: 1,
           expiresAt: expiresAt.toISOString(),
           createdAt: new Date().toISOString(),
           lastActivityAt: new Date().toISOString(),

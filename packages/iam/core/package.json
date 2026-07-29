@@ -51,6 +51,10 @@
     "#repositories/*": {
       "types": "./application/repositories/*.ts",
       "default": "./dist/application/repositories/*.js"
+    },
+    "#transactions/*": {
+      "types": "./application/transactions/*.ts",
+      "default": "./dist/application/transactions/*.js"
     }
   },
   "exports": {

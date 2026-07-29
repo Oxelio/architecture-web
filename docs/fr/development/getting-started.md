@@ -93,6 +93,9 @@ différées. Le traitement périodique de purge et de suppression est exposé à
 l’administration par `POST /v1/iam/admin/security/maintenance` et doit être
 appelé par le planificateur du déploiement.
 
+La migration `004_add_iam_aggregate_consistency` ajoute la version de session
+des utilisateurs et la contrainte reliant une vérification à son utilisateur.
+
 `migrate:reset` est destructif pour les données locales. Lire le script avant
 de l’utiliser sur un environnement partagé. Le script de promotion est la
 source de vérité pour sa syntaxe exacte.

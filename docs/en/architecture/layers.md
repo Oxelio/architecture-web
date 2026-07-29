@@ -2,8 +2,10 @@
 
 ## Foundation
 
-`packages/foundation` provides `Entity`, `Identifier`, `ValueObject`, `Result`,
-and `ValueOf`. It contains no IAM-specific rule.
+`packages/foundation` provides `AggregateRoot`, `Entity`, `Identifier`,
+`ValueObject`, `Result`, and `ValueOf`. It contains no IAM-specific rule.
+`AggregateRoot` marks the entry point of a consistency boundary without
+depending on a repository or database.
 
 It **MAY** contain a generic primitive useful to multiple domains. It **MUST
 NOT** import a business package, application, or infrastructure technology.
@@ -23,6 +25,11 @@ Examples include `UserEntity` for account transitions, `SessionEntity` for
 lifetime and validity, and `EmailValueObject.create` for validation through a
 `Result`.
 
+`UserEntity`, `SessionEntity`, and `EmailVerificationEntity` are the current
+three aggregate roots. A repository **MUST** load or save a root and **MUST
+NOT** expose direct mutation of an internal aggregate object. References
+between aggregates **MUST** use identifiers.
+
 Static factories have different meanings: `create` builds new valid state and
 applies defaults, while `rehydrate` restores already persisted state.
 
@@ -36,9 +43,10 @@ This layer **MAY** depend on the domain, Foundation, and its own ports. It
 **MUST NOT** depend on Kysely, Redis, Argon2, Nodemailer, Postmark, or Fastify
 implementations.
 
-Repositories and abstract services are secondary ports. `createIam` is
-the application factory: it receives `IamDependencies` and returns the
-`IamApplication` use-case set.
+Repositories and abstract services are secondary ports. `IamUnitOfWork`
+provides a transaction spanning PostgreSQL user and verification repositories.
+`createIam` is the application factory: it receives `IamDependencies` and
+returns the `IamApplication` use-case set.
 
 `SecondFactorGate` is a special port called by `SignInUseCase`. Its composed
 implementation is `SecurityService`, located in the API rather than an
@@ -69,6 +77,10 @@ application.
 Persistence mappers belong here. `UserMapper`, for example, converts Kysely
 rows to `UserEntity` and rejects invalid persisted data with
 `InvalidPersistenceDataError`.
+
+`KyselyIamUnitOfWorkAdapter` provides repositories bound to one transaction.
+`RedisSessionAdapter.saveEnforcingMaximum` uses one Redis script to save the
+session, clean the expired index, and revoke excess sessions.
 
 ## Fastify API
 

@@ -88,6 +88,25 @@ class FakeSessionPort implements SessionRepository {
     this.sessions.set(session.identifier.value, session);
   }
 
+  async saveEnforcingMaximum(
+    session: SessionEntity,
+    maximumActiveSessions: number,
+  ): Promise<void> {
+    await this.save(session);
+    const sessions = [...this.sessions.values()]
+      .filter((candidate) => candidate.userId.equals(session.userId))
+      .toSorted(
+        (first, second) =>
+          first.createdAt.getTime() - second.createdAt.getTime(),
+      );
+    for (const overflow of sessions.slice(
+      0,
+      Math.max(0, sessions.length - maximumActiveSessions),
+    )) {
+      this.sessions.delete(overflow.identifier.value);
+    }
+  }
+
   async findById(
     id: SessionIdentifierValueObject,
   ): Promise<SessionEntity | null> {
@@ -160,6 +179,7 @@ describe("SignInUseCase", () => {
       await sessionPort.save(
         SessionEntity.createForUser({
           userId: user.identifier,
+          userSessionVersion: user.sessionVersion,
           expiresAt: new Date(Date.now() + 60_000),
         }),
       );

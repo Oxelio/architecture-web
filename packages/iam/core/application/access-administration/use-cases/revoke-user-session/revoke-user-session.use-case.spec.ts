@@ -14,6 +14,7 @@ describe("RevokeUserSessionUseCase", () => {
     const administrator = createAdministrator();
     const session = SessionEntity.createForUser({
       userId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
     const deleteSession = vi.fn();
@@ -43,6 +44,7 @@ describe("RevokeUserSessionUseCase", () => {
     const administrator = createAdministrator();
     const otherSession = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
     const deleteSession = vi.fn();

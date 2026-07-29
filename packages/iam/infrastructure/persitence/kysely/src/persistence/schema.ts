@@ -22,6 +22,7 @@ export interface IamUserTable {
   role: string;
   status: string;
   is_email_verified: boolean;
+  session_version: number;
   created_at: Date;
   updated_at: Date;
 }

@@ -1,6 +1,7 @@
 // @file apps/api/src/scripts/migrations.provider.ts
 
 import {
+  iamAggregateConsistencyMigrations,
   iamEmailVerificationMigrations,
   iamSecurityMigrations,
   iamUserMigrations,
@@ -12,5 +13,6 @@ export const getAllMigrations = (): Record<string, Migration> => {
     ...iamUserMigrations,
     ...iamEmailVerificationMigrations,
     ...iamSecurityMigrations,
+    ...iamAggregateConsistencyMigrations,
   };
 };

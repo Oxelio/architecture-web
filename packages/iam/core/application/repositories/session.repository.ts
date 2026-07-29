@@ -4,6 +4,10 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 
 export abstract class SessionRepository {
   abstract save(session: SessionEntity): Promise<void>;
+  abstract saveEnforcingMaximum(
+    session: SessionEntity,
+    maximumActiveSessions: number,
+  ): Promise<void>;
   abstract findById(
     id: SessionIdentifierValueObject,
   ): Promise<SessionEntity | null>;

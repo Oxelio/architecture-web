@@ -9,6 +9,7 @@ import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import type { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
@@ -17,6 +18,15 @@ import { StatusValueObject } from "#value-objects/status.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ResendEmailVerificationUseCase } from "./resend-email-verification.use-case.js";
+
+function createUnitOfWork(
+  users: UserRepository,
+  emailVerifications: EmailVerificationRepository,
+): IamUnitOfWork {
+  return {
+    execute: (work) => work({ emailVerifications, users }),
+  };
+}
 
 /* -------------------------------------------------------------------------- */
 /*                                FAKE USER PORT                              */
@@ -148,10 +158,10 @@ describe("ResendEmailVerificationUseCase", () => {
 
     useCase = new ResendEmailVerificationUseCase(
       userPort,
-      emailVerification,
       emailSender,
       rateLimit,
       new FakeTokenHasher(),
+      createUnitOfWork(userPort, emailVerification),
     );
   });
 
@@ -172,6 +182,7 @@ describe("ResendEmailVerificationUseCase", () => {
       password: password.value,
       status: StatusValueObject.active(),
       isEmailVerified,
+      sessionVersion: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

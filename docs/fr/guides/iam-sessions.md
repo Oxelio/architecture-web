@@ -12,9 +12,10 @@ le contrôleur répond `202`, puis `POST /v1/iam/mfa/challenge/verify` crée la
 session après validation du second facteur. Voir le
 [guide de sécurité](account-security.md).
 
-Avant d’enregistrer une nouvelle session, `SignInUseCase` charge les sessions
-actives et révoque les plus anciennes qui dépasseraient la limite de 10. Cette
-borne rend durables les listes personnelles et administratives non paginées.
+`SignInUseCase` demande au repository d’enregistrer la session avec une limite
+de 10 sessions actives. L’adaptateur Redis sauvegarde, nettoie l’index expiré et
+révoque les sessions excédentaires dans un même script atomique. La création
+après MFA utilise la même opération.
 
 Le contrôleur extrait aussi :
 
@@ -30,9 +31,9 @@ de l’appareil.
 `RedisSessionAdapter` enregistre chaque session sous `session:<sessionId>` avec
 un TTL et indexe les identifiants actifs dans
 `user-sessions:<userId>`. Le format est volontairement strict : `userId`,
-`expiresAt`, `createdAt` et `lastActivityAt` doivent être présents et valides.
-Un enregistrement incomplet ou invalide est rejeté au chargement. `client` et
-`network` restent facultatifs.
+`userSessionVersion`, `expiresAt`, `createdAt` et `lastActivityAt` doivent être
+présents et valides. Un enregistrement incomplet ou invalide est rejeté au
+chargement. `client` et `network` restent facultatifs.
 
 PostgreSQL ne stocke pas les sessions actuelles.
 
@@ -44,6 +45,7 @@ Le plugin Fastify lit le cookie, appelle `ResolveSessionUseCase` et peuple
 - cookie absent ou identifiant invalide ;
 - session absente ou expirée ;
 - utilisateur absent ou suspendu.
+- version de session différente de la version actuelle de l’utilisateur.
 
 L’état `pending_deletion` est également refusé, car la résolution exige
 désormais un compte actif.
@@ -66,8 +68,9 @@ Les opérations d’administration sensibles interdisent certaines actions sur
 son propre compte via `user.self_administration_forbidden`.
 
 Le changement de mot de passe vérifie d’abord le mot de passe actuel, puis la
-confirmation et la [politique centralisée](password-policy.md). Les sessions ne
-sont révoquées qu’après la validation et l’enregistrement réussis.
+confirmation et la [politique centralisée](password-policy.md). La sauvegarde
+incrémente `sessionVersion` avant le nettoyage Redis. Une ancienne session est
+donc refusée à sa prochaine résolution même si le nettoyage Redis échoue.
 
 ## Consultation et révocation
 

@@ -87,13 +87,24 @@ and maps `SecurityError` at the HTTP boundary.
 - Expected errors are typed values; unexpected failures remain exceptions
   handled at the HTTP boundary.
 
-## Concepts not modelled
+## Aggregates and consistency
 
-The current code defines no event bus, domain events, aggregate-root class, or
-separate domain services. `UserEntity`, `SessionEntity`, and
-`EmailVerificationEntity` are entities, but no explicit aggregate root exists.
-These concepts must not be assumed until a decision and implementation
-introduce them.
+Foundation defines `AggregateRoot` as a semantic specialization of `Entity`.
+The IAM bounded context declares three single-entity aggregates:
+
+- `UserEntity` for identity, credentials, role, and status;
+- `SessionEntity` for the lifecycle of a Redis session;
+- `EmailVerificationEntity` for a verification token and its state.
+
+Aggregates reference each other by identifier and are not loaded as a `User`
+object graph. Commands that change `UserEntity` and
+`EmailVerificationEntity` in PostgreSQL use `IamUnitOfWork`, implemented by a
+Kysely transaction. Session creation and enforcement of the per-user limit are
+atomic in Redis.
+
+The code still defines no event bus, domain events, or separate domain
+services. Email is sent after the PostgreSQL commit, but there is no durable
+outbox yet to retry it after an SMTP failure.
 
 ## Observed trade-offs
 

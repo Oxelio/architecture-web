@@ -44,6 +44,10 @@ architecturale explicite.
 - Une entité **NE DOIT PAS** importer un cas d’utilisation.
 - Un cas d’utilisation **NE DOIT PAS** dépendre de Redis ou Kysely.
 - Une infrastructure **DOIT** dépendre du port applicatif qu’elle implémente.
+- Un repository de commande **DOIT** recevoir et sauvegarder une racine
+  d’agrégat.
+- Une transaction couvrant plusieurs agrégats **DOIT** être pilotée par un port
+  applicatif, jamais directement par Kysely dans le cas d’utilisation.
 - Les types métier partagés par domaine et application appartiennent au domaine.
 - Les types génériques et réellement transverses **PEUVENT** appartenir à
   Foundation.

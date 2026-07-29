@@ -10,6 +10,7 @@ import type { Redis } from "ioredis";
 
 interface SessionRecord {
   userId: string;
+  userSessionVersion: number;
   expiresAt: string;
   createdAt: string;
   lastActivityAt: string;
@@ -17,12 +18,53 @@ interface SessionRecord {
   network?: SessionEntity["network"];
 }
 
+const SAVE_SESSION_SCRIPT = `
+redis.call("ZREMRANGEBYSCORE", KEYS[2], "-inf", ARGV[5])
+redis.call("SET", KEYS[1], ARGV[1], "EX", ARGV[2])
+redis.call("ZADD", KEYS[2], ARGV[3], ARGV[4])
+
+local maximum = tonumber(ARGV[6])
+if maximum > 0 then
+  local overflow = redis.call("ZCARD", KEYS[2]) - maximum
+  if overflow > 0 then
+    local revoked = redis.call("ZRANGE", KEYS[2], 0, overflow - 1)
+    for _, sessionId in ipairs(revoked) do
+      redis.call("DEL", "session:" .. sessionId)
+      redis.call("ZREM", KEYS[2], sessionId)
+    end
+  end
+end
+
+return 1
+`;
+
 export class RedisSessionAdapter implements SessionRepository {
   constructor(private readonly redis: Redis) {}
 
   async save(session: SessionEntity): Promise<void> {
+    await this.persistAtomically(session, 0);
+  }
+
+  async saveEnforcingMaximum(
+    session: SessionEntity,
+    maximumActiveSessions: number,
+  ): Promise<void> {
+    if (!Number.isInteger(maximumActiveSessions) || maximumActiveSessions < 1) {
+      throw new RangeError(
+        "Maximum active sessions must be a positive integer",
+      );
+    }
+
+    await this.persistAtomically(session, maximumActiveSessions);
+  }
+
+  private async persistAtomically(
+    session: SessionEntity,
+    maximumActiveSessions: number,
+  ): Promise<void> {
     const record: SessionRecord = {
       userId: session.userId.value,
+      userSessionVersion: session.userSessionVersion,
       expiresAt: session.expiresAt.toISOString(),
       createdAt: session.createdAt.toISOString(),
       lastActivityAt: session.lastActivityAt.toISOString(),
@@ -35,16 +77,17 @@ export class RedisSessionAdapter implements SessionRepository {
       Math.floor((session.expiresAt.getTime() - Date.now()) / 1000),
     );
 
-    await this.redis.set(
+    await this.redis.eval(
+      SAVE_SESSION_SCRIPT,
+      2,
       `session:${session.identifier.value}`,
-      JSON.stringify(record),
-      "EX",
-      ttl,
-    );
-    await this.redis.zadd(
       this.userSessionsKey(session.userId),
+      JSON.stringify(record),
+      ttl,
       session.expiresAt.getTime(),
       session.identifier.value,
+      Date.now(),
+      maximumActiveSessions,
     );
   }
 
@@ -73,6 +116,7 @@ export class RedisSessionAdapter implements SessionRepository {
     return SessionEntity.rehydrate({
       identifier: id,
       userId: userId.value,
+      userSessionVersion: record.userSessionVersion,
       expiresAt,
       createdAt,
       lastActivityAt,
@@ -158,6 +202,9 @@ export class RedisSessionAdapter implements SessionRepository {
       const record = JSON.parse(data) as Partial<SessionRecord>;
       if (
         typeof record.userId !== "string" ||
+        typeof record.userSessionVersion !== "number" ||
+        !Number.isSafeInteger(record.userSessionVersion) ||
+        record.userSessionVersion < 1 ||
         typeof record.expiresAt !== "string" ||
         typeof record.createdAt !== "string" ||
         typeof record.lastActivityAt !== "string" ||

@@ -17,11 +17,13 @@ describe("SessionEntity", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      userSessionVersion: 3,
       expiresAt: new Date(Date.now() + 60_000),
     });
 
     expect(session.identifier).toBeDefined();
     expect(session.userId).toBe(userId);
+    expect(session.userSessionVersion).toBe(3);
     expect(session.expiresAt).toBeInstanceOf(Date);
     expect(session.isValid()).toBe(true);
     expect(session.isExpired()).toBe(false);
@@ -33,14 +35,26 @@ describe("SessionEntity", () => {
     expect(() =>
       SessionEntity.createForUser({
         userId: UserIdentifierValueObject.generate(),
+        userSessionVersion: 1,
         expiresAt: new Date(Date.now() - 1),
       }),
     ).toThrow("Session expiration must be in the future");
   });
 
+  it("requires a positive user session version", () => {
+    expect(() =>
+      SessionEntity.createForUser({
+        userId: UserIdentifierValueObject.generate(),
+        userSessionVersion: 0,
+        expiresAt: new Date(Date.now() + 60_000),
+      }),
+    ).toThrow("User session version must be a positive integer");
+  });
+
   it("should keep client and network identification metadata", () => {
     const session = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
       client: {
         type: "browser",
@@ -73,6 +87,7 @@ describe("SessionEntity", () => {
     const session = SessionEntity.rehydrate({
       identifier,
       userId,
+      userSessionVersion: 1,
       expiresAt,
       createdAt,
       lastActivityAt,
@@ -92,6 +107,7 @@ describe("SessionEntity", () => {
   it("should expose userId and expiresAt via getters", () => {
     const session = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
 
@@ -107,6 +123,7 @@ describe("SessionEntity", () => {
     const session = SessionEntity.rehydrate({
       identifier: SessionIdentifierValueObject.generate(),
       userId: UserIdentifierValueObject.generate(),
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() - 1_000),
       createdAt: new Date(),
       lastActivityAt: new Date(),
@@ -120,6 +137,7 @@ describe("SessionEntity", () => {
     const session = SessionEntity.rehydrate({
       identifier: SessionIdentifierValueObject.generate(),
       userId: UserIdentifierValueObject.generate(),
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
       createdAt: new Date(),
       lastActivityAt: new Date(),

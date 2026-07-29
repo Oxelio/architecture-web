@@ -21,6 +21,10 @@ class FakeSessionPort implements SessionRepository {
     this.sessions.set(session.identifier.value, session);
   }
 
+  async saveEnforcingMaximum(session: SessionEntity): Promise<void> {
+    await this.save(session);
+  }
+
   async findById(
     id: SessionIdentifierValueObject,
   ): Promise<SessionEntity | null> {
@@ -119,6 +123,7 @@ describe("SignOutUseCase", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
 

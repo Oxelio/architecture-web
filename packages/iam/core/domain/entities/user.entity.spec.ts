@@ -59,6 +59,7 @@ describe("UserEntity", () => {
       password: passwordVO.value,
       status,
       isEmailVerified: true,
+      sessionVersion: 1,
       createdAt: now,
       updatedAt: now,
     });
@@ -156,9 +157,11 @@ describe("UserEntity", () => {
     });
 
     const before = user.updatedAt;
+    const sessionVersion = user.sessionVersion;
     user.changePassword(p2.value);
 
     expect(user.password.value).toBe("hash2");
+    expect(user.sessionVersion).toBe(sessionVersion + 1);
     expect(user.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
   });
 

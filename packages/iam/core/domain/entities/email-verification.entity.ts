@@ -1,4 +1,4 @@
-import { Entity, Identifier } from "@architecture/foundation";
+import { AggregateRoot, Identifier } from "@architecture/foundation";
 
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -24,7 +24,7 @@ interface CreateEmailVerificationProperties {
   readonly expiresAt: Date;
 }
 
-export class EmailVerificationEntity extends Entity<EmailVerificationProperties> {
+export class EmailVerificationEntity extends AggregateRoot<EmailVerificationProperties> {
   public static create(
     properties: CreateEmailVerificationProperties,
   ): EmailVerificationEntity {

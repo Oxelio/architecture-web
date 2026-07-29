@@ -2,8 +2,10 @@
 
 ## Foundation
 
-`packages/foundation` fournit `Entity`, `Identifier`, `ValueObject`, `Result` et
-`ValueOf`. Il ne contient aucune règle propre à l’identité.
+`packages/foundation` fournit `AggregateRoot`, `Entity`, `Identifier`,
+`ValueObject`, `Result` et `ValueOf`. Il ne contient aucune règle propre à
+l’identité. `AggregateRoot` marque l’entrée d’une frontière de cohérence sans
+introduire de dépendance vers un repository ou une base de données.
 
 Il **PEUT** contenir une primitive générique utile à plusieurs domaines. Il
 **NE DOIT PAS** importer un package métier, une application ou une technologie
@@ -27,6 +29,12 @@ Exemples :
 - `SessionEntity` définit sa durée de vie et expose sa validité ;
 - `EmailValueObject.create` retourne un `Result` de validation.
 
+`UserEntity`, `SessionEntity` et `EmailVerificationEntity` sont les trois
+racines d’agrégat actuelles. Un repository **DOIT** charger ou sauvegarder une
+racine, jamais permettre la modification directe d’un objet interne à
+l’agrégat. Les références entre agrégats **DOIVENT** utiliser leurs
+identifiants.
+
 Les factories statiques `create` et `rehydrate` ont des intentions distinctes :
 `create` construit un nouvel état valide et applique les valeurs par défaut ;
 `rehydrate` restaure un état déjà persisté.
@@ -45,6 +53,8 @@ Les repositories et services abstraits sont des ports secondaires :
 
 - repositories pour utilisateurs, vérifications et sessions ;
 - services pour hachage, e-mail et limitation de débit.
+- `IamUnitOfWork` pour une transaction couvrant les repositories PostgreSQL
+  d’utilisateurs et de vérifications.
 
 `SecondFactorGate` est un port particulier appelé par `SignInUseCase`. Son
 implémentation composée est `SecurityService`, située dans l’API plutôt que
@@ -80,6 +90,11 @@ fichiers internes du cœur via un chemin relatif ou contourner ses exports.
 Les mappers de persistance appartiennent à l’infrastructure. Par exemple,
 `UserMapper` convertit les lignes Kysely en `UserEntity` et rejette les données
 persistées invalides avec `InvalidPersistenceDataError`.
+
+`KyselyIamUnitOfWorkAdapter` fournit aux commandes des repositories liés à une
+même transaction. `RedisSessionAdapter.saveEnforcingMaximum` utilise un script
+Redis unique pour sauvegarder la session, nettoyer l’index expiré et révoquer
+les sessions excédentaires.
 
 ## API Fastify
 

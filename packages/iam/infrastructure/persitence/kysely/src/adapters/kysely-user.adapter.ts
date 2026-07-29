@@ -31,6 +31,7 @@ export class KyselyUserAdapter implements UserRepository {
           role: row.role,
           status: row.status,
           is_email_verified: row.is_email_verified,
+          session_version: row.session_version,
           updated_at: row.updated_at,
         }),
       )

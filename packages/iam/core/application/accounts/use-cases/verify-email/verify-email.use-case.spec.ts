@@ -6,6 +6,7 @@ import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
@@ -13,6 +14,15 @@ import { PasswordHashValueObject } from "#value-objects/password-hash.value-obje
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { VerifyEmailUseCase } from "./verify-email.use-case.js";
+
+function createUnitOfWork(
+  users: UserRepository,
+  emailVerifications: EmailVerificationRepository,
+): IamUnitOfWork {
+  return {
+    execute: (work) => work({ emailVerifications, users }),
+  };
+}
 
 /* ---------------- FAKE USER PORT ---------------- */
 
@@ -134,6 +144,7 @@ describe("VerifyEmailUseCase", () => {
       userPort,
       emailVerificationPort,
       new FakeTokenHasher(),
+      createUnitOfWork(userPort, emailVerificationPort),
     );
   });
 

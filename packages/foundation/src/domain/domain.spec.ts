@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { AggregateRoot } from "./aggregate-root.js";
 import { Entity } from "./entity.js";
 import { Identifier } from "./identifier.js";
 import { Result } from "./result.js";
@@ -14,6 +15,12 @@ class TestValueObject extends ValueObject<{ value: string }> {
 class TestEntity extends Entity<{ identifier: Identifier }> {
   static create(properties: { identifier: Identifier }): TestEntity {
     return new TestEntity(properties);
+  }
+}
+
+class TestAggregateRoot extends AggregateRoot<{ identifier: Identifier }> {
+  static create(identifier: Identifier): TestAggregateRoot {
+    return new TestAggregateRoot({ identifier });
   }
 }
 
@@ -45,5 +52,12 @@ describe("foundation domain primitives", () => {
   it("creates discriminated success and failure results", () => {
     expect(Result.success("value")).toEqual({ success: true, value: "value" });
     expect(Result.failure("error")).toEqual({ success: false, error: "error" });
+  });
+
+  it("models an aggregate root as an entity with identity semantics", () => {
+    const root = TestAggregateRoot.create(new TestIdentifier("aggregate-1"));
+
+    expect(root).toBeInstanceOf(Entity);
+    expect(root.identifier.value).toBe("aggregate-1");
   });
 });

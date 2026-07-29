@@ -10,6 +10,7 @@ const row = {
   role: "user",
   status: "active",
   is_email_verified: false,
+  session_version: 1,
   created_at: new Date("2025-01-01"),
   updated_at: new Date("2025-01-02"),
 };
@@ -26,6 +27,7 @@ describe("UserMapper", () => {
     ["id", "invalid"],
     ["status", "invalid"],
     ["role", "invalid"],
+    ["session_version", 0],
   ])("rejects invalid persisted %s", (field, value) => {
     expect(() => UserMapper.toDomain({ ...row, [field]: value })).toThrow();
   });

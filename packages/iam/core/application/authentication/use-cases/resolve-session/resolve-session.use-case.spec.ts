@@ -55,6 +55,10 @@ class FakeSessionPort implements SessionRepository {
     this.sessions.set(session.identifier.value, session);
   }
 
+  async saveEnforcingMaximum(session: SessionEntity): Promise<void> {
+    await this.save(session);
+  }
+
   async findById(
     id: SessionIdentifierValueObject,
   ): Promise<SessionEntity | null> {
@@ -160,6 +164,7 @@ describe("ResolveSessionUseCase", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
 
@@ -178,6 +183,34 @@ describe("ResolveSessionUseCase", () => {
     }
   });
 
+  it("revokes a session created before the latest password change", async () => {
+    const email = EmailValueObject.create("versioned@example.com");
+    const firstPassword = PasswordHashValueObject.create("first-hash");
+    const secondPassword = PasswordHashValueObject.create("second-hash");
+    if (!email.success || !firstPassword.success || !secondPassword.success) {
+      throw new Error("Invalid fixture values");
+    }
+    const user = UserEntity.create({
+      email: email.value,
+      password: firstPassword.value,
+    });
+    const session = SessionEntity.createForUser({
+      userId: user.identifier,
+      userSessionVersion: user.sessionVersion,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    user.changePassword(secondPassword.value);
+    await userPort.save(user);
+    await sessionPort.save(session);
+
+    const result = await useCase.execute({
+      sessionId: session.identifier.value,
+    });
+
+    expect(result.success).toBe(false);
+    await expect(sessionPort.findById(session.identifier)).resolves.toBeNull();
+  });
+
   /* ---------------------------------------------------------------------- */
   /* EXPIRED SESSION                                                        */
   /* ---------------------------------------------------------------------- */
@@ -188,6 +221,7 @@ describe("ResolveSessionUseCase", () => {
     const session = SessionEntity.rehydrate({
       identifier: SessionIdentifierValueObject.generate(),
       userId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() - 60_000),
       createdAt: new Date(Date.now() - 120_000),
       lastActivityAt: new Date(Date.now() - 120_000),
@@ -211,6 +245,7 @@ describe("ResolveSessionUseCase", () => {
       password: password.value,
       status: StatusValueObject.active(),
       isEmailVerified: true,
+      sessionVersion: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -253,6 +288,7 @@ describe("ResolveSessionUseCase", () => {
       password: password.value,
       status: StatusValueObject.active(),
       isEmailVerified: true,
+      sessionVersion: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -261,6 +297,7 @@ describe("ResolveSessionUseCase", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
     });
 
@@ -296,6 +333,7 @@ describe("ResolveSessionUseCase", () => {
         password: password.value,
         status: StatusValueObject.active(),
         isEmailVerified: true,
+        sessionVersion: 1,
         createdAt: new Date(),
         updatedAt: new Date(),
       }),
@@ -303,6 +341,7 @@ describe("ResolveSessionUseCase", () => {
     const session = SessionEntity.rehydrate({
       identifier: SessionIdentifierValueObject.generate(),
       userId,
+      userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
       createdAt: new Date(Date.now() - 10 * 60_000),
       lastActivityAt: new Date(Date.now() - 10 * 60_000),

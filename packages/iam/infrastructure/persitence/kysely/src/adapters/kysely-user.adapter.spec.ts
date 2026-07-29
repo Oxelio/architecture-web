@@ -15,6 +15,7 @@ const row = {
   role: "user",
   status: "active",
   is_email_verified: false,
+  session_version: 1,
   created_at: new Date(),
   updated_at: new Date(),
 };
@@ -84,6 +85,7 @@ describe("KyselyUserAdapter", () => {
           password: password.value,
         }).status,
         isEmailVerified: false,
+        sessionVersion: 1,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }),

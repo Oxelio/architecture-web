@@ -91,13 +91,25 @@ frontière HTTP.
 - Les erreurs attendues sont des valeurs typées ; les défaillances inattendues
   restent des exceptions gérées à la frontière HTTP.
 
-## Ce que l’architecture ne modélise pas
+## Agrégats et cohérence
 
-Le code actuel ne définit ni bus d’événements, ni événements de domaine, ni
-classe d’agrégat, ni service de domaine distinct. `UserEntity`,
-`SessionEntity` et `EmailVerificationEntity` sont des entités, mais aucune
-racine d’agrégat explicite n’est déclarée. Ces concepts ne doivent pas être
-présumés tant qu’une décision et une implémentation ne les introduisent pas.
+Foundation définit `AggregateRoot` comme spécialisation sémantique d’`Entity`.
+Le bounded context IAM déclare trois agrégats unitaires :
+
+- `UserEntity`, pour l’identité, les credentials, le rôle et le statut ;
+- `SessionEntity`, pour le cycle de vie d’une session Redis ;
+- `EmailVerificationEntity`, pour un jeton de vérification et son état.
+
+Les agrégats se référencent par identifiant et ne sont pas chargés comme un
+graphe `User`. Les commandes qui modifient `UserEntity` et
+`EmailVerificationEntity` dans PostgreSQL utilisent `IamUnitOfWork`, implémenté
+par une transaction Kysely. La création d’une session et l’application de la
+limite par utilisateur sont atomiques dans Redis.
+
+Le code ne définit toujours ni bus d’événements, ni événements de domaine, ni
+service de domaine distinct. L’envoi d’e-mail a lieu après le commit
+PostgreSQL, mais aucun outbox durable ne permet encore de le réessayer après
+une défaillance SMTP.
 
 ## Compromis observés
 

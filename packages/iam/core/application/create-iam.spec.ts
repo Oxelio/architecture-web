@@ -16,6 +16,7 @@ describe("createIam", () => {
       emailVerificationRepository: {} as never,
       rateLimiter: {} as never,
       emailVerificationTokenHasher: {} as never,
+      unitOfWork: {} as never,
     });
 
     expect(Object.keys(iam)).toEqual([

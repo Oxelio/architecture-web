@@ -13,9 +13,10 @@ implicit template for a new capability.
 ## 1. Define behavior
 
 Identify the actor and access level, business input and output, expected errors,
-domain invariants, external effects, and possible breaking changes. Do not
-start with the HTTP route: the application contract must remain usable from
-another interface.
+domain invariants, the aggregate root that protects each invariant, required
+transaction boundaries, external effects, and possible breaking changes. Do
+not start with the HTTP route: the application contract must remain usable
+from another interface.
 
 ## 2. Extend the domain when needed
 
@@ -64,12 +65,17 @@ cover that responsibility.
 
 ```ts
 export abstract class ExampleRepository {
-  abstract save(entity: ExampleEntity): Promise<void>;
+  abstract save(root: ExampleAggregateRoot): Promise<void>;
 }
 ```
 
 Export the port from `application/index.ts`. A port change must update all
 adapters, composition, and test doubles in the same change.
+
+A PostgreSQL command that changes multiple aggregates **MUST** use
+`IamUnitOfWork`. An operation spanning PostgreSQL and Redis **MUST** remain
+idempotent and define how partial execution is detected or repaired; it must
+not pretend to provide a distributed transaction.
 
 ## 5. Implement infrastructure
 

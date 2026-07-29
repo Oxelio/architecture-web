@@ -1,6 +1,6 @@
 // @file bounded-contexts/iam/domain/entities/user.entity.ts
 
-import { Entity } from "@architecture/foundation";
+import { AggregateRoot } from "@architecture/foundation";
 
 import type { EmailValueObject } from "#value-objects/email.value-object";
 import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
@@ -15,6 +15,7 @@ interface UserProperties {
   role: UserRoleValueObject;
   status: StatusValueObject;
   isEmailVerified: boolean;
+  sessionVersion: number;
   readonly createdAt: Date;
   updatedAt: Date;
 }
@@ -24,7 +25,7 @@ interface UserCreationProperties {
   readonly password: PasswordHashValueObject;
 }
 
-export class UserEntity extends Entity<UserProperties> {
+export class UserEntity extends AggregateRoot<UserProperties> {
   public static create(properties: UserCreationProperties): UserEntity {
     const now = new Date();
 
@@ -35,6 +36,7 @@ export class UserEntity extends Entity<UserProperties> {
       role: UserRoleValueObject.user(),
       status: StatusValueObject.active(),
       isEmailVerified: false,
+      sessionVersion: 1,
       createdAt: now,
       updatedAt: now,
     });
@@ -45,6 +47,12 @@ export class UserEntity extends Entity<UserProperties> {
       readonly role?: UserRoleValueObject;
     },
   ): UserEntity {
+    if (
+      !Number.isSafeInteger(props.sessionVersion) ||
+      props.sessionVersion < 1
+    ) {
+      throw new Error("User session version must be a positive integer");
+    }
     return new UserEntity({
       ...props,
       role: props.role ?? UserRoleValueObject.user(),
@@ -75,6 +83,10 @@ export class UserEntity extends Entity<UserProperties> {
     return this.props.isEmailVerified;
   }
 
+  public get sessionVersion(): number {
+    return this.props.sessionVersion;
+  }
+
   public get createdAt(): Date {
     return this.props.createdAt;
   }
@@ -99,6 +111,7 @@ export class UserEntity extends Entity<UserProperties> {
 
   changePassword(newPassword: PasswordHashValueObject): void {
     this.props.password = newPassword;
+    this.props.sessionVersion += 1;
     this.touch();
   }
 

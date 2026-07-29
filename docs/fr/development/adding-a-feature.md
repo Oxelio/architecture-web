@@ -17,6 +17,8 @@ Identifier :
 - l’acteur et son niveau d’accès ;
 - l’entrée métier, le résultat et les erreurs attendues ;
 - les invariants portés par une entité ou un objet-valeur ;
+- la racine d’agrégat qui protège chaque invariant et la frontière
+  transactionnelle nécessaire ;
 - les effets externes nécessaires ;
 - les changements cassants éventuels.
 
@@ -71,13 +73,18 @@ même adapter et le même cycle d’évolution couvrent déjà cette responsabil
 
 ```ts
 export abstract class ExampleRepository {
-  abstract save(entity: ExampleEntity): Promise<void>;
+  abstract save(root: ExampleAggregateRoot): Promise<void>;
 }
 ```
 
 Exporter le port depuis `application/index.ts`. Si un port existant change,
 mettre à jour dans le même changement tous ses adaptateurs, la composition et
 les doubles de test.
+
+Si une commande PostgreSQL modifie plusieurs agrégats, elle **DOIT** passer par
+`IamUnitOfWork`. Une opération couvrant PostgreSQL et Redis **DOIT** rester
+idempotente et définir le mécanisme qui détecte ou répare une exécution
+partielle ; elle ne doit pas simuler une transaction distribuée.
 
 ## 5. Implémenter l’infrastructure
 

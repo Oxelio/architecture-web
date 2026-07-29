@@ -15,6 +15,7 @@ import type {
   CompromisedPasswordChecker,
   PasswordStrengthEvaluator,
 } from "#services/password-security.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import type { EmailValueObject } from "#value-objects/email.value-object";
 import type { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
@@ -23,6 +24,15 @@ import type { PasswordPlainValueObject } from "#value-objects/password-plain.val
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { SignUpUseCase } from "./sign-up.use-case.js";
+
+function createUnitOfWork(
+  users: UserRepository,
+  emailVerifications: EmailVerificationRepository,
+): IamUnitOfWork {
+  return {
+    execute: (work) => work({ emailVerifications, users }),
+  };
+}
 
 /* ---------------- FAKE EMAIL VERIFICATION PORT ---------------- */
 
@@ -155,7 +165,6 @@ describe("SignUpUseCase - full coverage", () => {
     useCase = new SignUpUseCase(
       userPort,
       passwordHasher,
-      emailVerificationPort,
       emailSenderPort,
       new FakeTokenHasher(),
       new PasswordPolicyValidator(
@@ -176,6 +185,7 @@ describe("SignUpUseCase - full coverage", () => {
         { isCommon: async () => false } as CommonPasswordChecker,
         { isCompromised: async () => false } as CompromisedPasswordChecker,
       ),
+      createUnitOfWork(userPort, emailVerificationPort),
     );
   });
 

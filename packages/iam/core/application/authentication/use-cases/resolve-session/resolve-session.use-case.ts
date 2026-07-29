@@ -46,6 +46,11 @@ export class ResolveSessionUseCase implements ResolveSession {
       return Result.failure(ResolveSessionErrorCodes.unauthorized);
     }
 
+    if (session.userSessionVersion !== user.sessionVersion) {
+      await this.sessionPort.delete(session.identifier);
+      return Result.failure(ResolveSessionErrorCodes.unauthorized);
+    }
+
     const now = new Date();
     if (
       now.getTime() - session.lastActivityAt.getTime() >=

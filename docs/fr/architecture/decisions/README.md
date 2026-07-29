@@ -4,6 +4,9 @@ Ce registre consigne uniquement les décisions démontrées par le code actuel.
 Une décision future **DEVRAIT** être ajoutée dans un fichier
 `NNNN-titre-court.md` avec contexte, options, décision, conséquences et statut.
 
+Les agrégats et leurs frontières de cohérence sont détaillés dans
+[ADR-0004](0004-aggregates-and-consistency.md).
+
 ## ADR-0001 — Cœur IAM indépendant des technologies
 
 **Statut : acceptée**

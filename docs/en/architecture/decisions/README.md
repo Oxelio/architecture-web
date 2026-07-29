@@ -4,6 +4,9 @@ This register records only decisions demonstrated by current code. Future
 decisions **SHOULD** use `NNNN-short-title.md` and include context, options,
 decision, consequences, and status.
 
+Aggregates and their consistency boundaries are detailed in
+[ADR-0004](0004-aggregates-and-consistency.md).
+
 ## ADR-0001 — Technology-independent IAM core
 
 **Status: accepted**

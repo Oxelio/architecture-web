@@ -122,6 +122,7 @@ export type {
   SignInInput,
   SignInOutput,
 } from "./authentication/use-cases/sign-in/sign-in.contracts.js";
+export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/use-cases/sign-in/sign-in.use-case.js";
 export type {
   SignOut,
   SignOutError,
@@ -173,3 +174,7 @@ export {
   type SecondFactorChallenge,
   SecondFactorGate,
 } from "./services/second-factor-gate.service.js";
+export {
+  type IamTransactionalRepositories,
+  IamUnitOfWork,
+} from "./transactions/iam-unit-of-work.js";

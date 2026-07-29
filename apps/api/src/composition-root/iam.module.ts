@@ -12,6 +12,7 @@ import { Sha256EmailVerificationTokenHasherAdapter } from "@architecture/iam-ema
 import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
 import {
   KyselyEmailVerificationAdapter,
+  KyselyIamUnitOfWorkAdapter,
   KyselyUserAdapter,
 } from "@architecture/iam-persistence-kysely";
 import {
@@ -48,6 +49,8 @@ function buildIamDependencies(
     userRepository: new KyselyUserAdapter(db),
 
     emailVerificationRepository: new KyselyEmailVerificationAdapter(db),
+
+    unitOfWork: new KyselyIamUnitOfWorkAdapter(db),
 
     sessionRepository: new RedisSessionAdapter(redis),
 
