@@ -6,6 +6,7 @@ import { SessionEntity } from "#entities/session.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
+import type { SecondFactorGate } from "#services/second-factor-gate.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
@@ -24,6 +25,7 @@ export class SignInUseCase implements SignIn {
     private readonly user: UserRepository,
     private readonly password: PasswordHasher,
     private readonly session: SessionRepository,
+    private readonly secondFactor?: SecondFactorGate,
   ) {}
 
   async execute(payload: SignInInput): Promise<SignInOutput> {
@@ -52,8 +54,15 @@ export class SignInUseCase implements SignIn {
       return Result.failure(SignInErrorCodes.invalidCredentials);
     }
 
-    if (user.status.isSuspended()) {
+    if (!user.status.isActive()) {
       return Result.failure(SignInErrorCodes.userSuspended);
+    }
+
+    const challenge = await this.secondFactor?.beginSignIn(
+      user.identifier.value,
+    );
+    if (challenge) {
+      return Result.success(challenge);
     }
 
     const sessionEntity = SessionEntity.createForUser({

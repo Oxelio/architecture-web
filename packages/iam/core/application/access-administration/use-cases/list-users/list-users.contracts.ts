@@ -11,7 +11,7 @@ export interface AdminUser {
   readonly userId: string;
   readonly email: string;
   readonly role: UserRole;
-  readonly status: "active" | "suspended";
+  readonly status: "active" | "suspended" | "pending_deletion";
   readonly isEmailVerified: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -21,7 +21,7 @@ export interface ListUsersInput {
   readonly actorUserId: string;
   readonly search?: string;
   readonly role?: UserRole;
-  readonly status?: "active" | "suspended";
+  readonly status?: "active" | "suspended" | "pending_deletion";
   readonly isEmailVerified?: boolean;
   readonly page?: number;
   readonly pageSize?: number;

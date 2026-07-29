@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AdminSecurityCenter } from "#components/AdminSecurityCenter";
 import { SessionSummary } from "#components/SessionSummary";
 import {
   activateUser,
@@ -397,6 +398,7 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
           </button>
         </div>
       ) : null}
+      <AdminSecurityCenter />
     </motion.section>
   );
 }

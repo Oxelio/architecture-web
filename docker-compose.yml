@@ -63,6 +63,11 @@ services:
       SMTP_FROM_ADDRESS: no-reply@architecture.local
       # Complete web URL; the page forwards the token to the API.
       SMTP_VERIFY_URL: http://localhost:5173/verify
+      SMTP_RECOVERY_URL: http://localhost:5173/recovery
+      SMTP_DELETION_CANCELLATION_URL: http://localhost:5173/cancel-deletion
+      # Replace in every non-local deployment; rotating this key requires a
+      # controlled MFA secret migration.
+      SECURITY_ENCRYPTION_KEY: local-development-key-change-me-32chars
     ports:
       - "3000:3000"
 

@@ -22,6 +22,16 @@ const VerifyEmailPage = lazy(() =>
     default: mod.VerifyEmailPage,
   })),
 );
+const RecoveryPage = lazy(() =>
+  import("./pages/RecoveryPage").then((mod) => ({
+    default: mod.RecoveryPage,
+  })),
+);
+const CancelDeletionPage = lazy(() =>
+  import("./pages/CancelDeletionPage").then((mod) => ({
+    default: mod.CancelDeletionPage,
+  })),
+);
 const ProfilePage = lazy(() =>
   import("./pages/ProfilePage").then((mod) => ({ default: mod.ProfilePage })),
 );
@@ -156,6 +166,8 @@ function App() {
               }
             />
             <Route path="/verify" element={<VerifyEmailPage />} />
+            <Route path="/recovery" element={<RecoveryPage />} />
+            <Route path="/cancel-deletion" element={<CancelDeletionPage />} />
             <Route
               path="/profile"
               element={

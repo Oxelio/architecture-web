@@ -2,11 +2,7 @@
 
 // src/main.ts
 
-import { config } from "dotenv";
-
 import { buildServer } from "./server.js";
-
-config({ path: new URL("../.env", import.meta.url) });
 
 async function bootstrap() {
   const server = await buildServer();

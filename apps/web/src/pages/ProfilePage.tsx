@@ -23,6 +23,7 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { SecurityCenter } from "#components/SecurityCenter";
 import { SessionSummary } from "#components/SessionSummary";
 import type { CurrentUser } from "#services/api";
 import {
@@ -728,6 +729,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
           </button>
         </motion.div>
       ) : null}
+      <SecurityCenter />
     </motion.div>
   );
 }

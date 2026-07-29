@@ -14,7 +14,7 @@ const StatusErrors = {
 
 export type StatusError = ValueOf<typeof StatusErrors>;
 
-type UserStatusType = "active" | "suspended";
+type UserStatusType = "active" | "suspended" | "pending_deletion";
 
 interface StatusProperties {
   readonly value: UserStatusType;
@@ -33,12 +33,16 @@ export class StatusValueObject extends ValueObject<StatusProperties> {
     return new StatusValueObject({ value: "suspended" });
   }
 
+  public static pendingDeletion(): StatusValueObject {
+    return new StatusValueObject({ value: "pending_deletion" });
+  }
+
   public static create(value: string): Result<StatusValueObject, StatusError> {
     if (!value) {
       return Result.failure(StatusErrors.empty);
     }
 
-    if (!["active", "suspended"].includes(value)) {
+    if (!["active", "suspended", "pending_deletion"].includes(value)) {
       return Result.failure(StatusErrors.invalid(value));
     }
 
@@ -53,5 +57,9 @@ export class StatusValueObject extends ValueObject<StatusProperties> {
 
   public isSuspended(): boolean {
     return this.properties.value === "suspended";
+  }
+
+  public isPendingDeletion(): boolean {
+    return this.properties.value === "pending_deletion";
   }
 }

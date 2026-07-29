@@ -7,7 +7,7 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 export interface UserSearchCriteria {
   readonly search?: string;
   readonly role?: "user" | "admin";
-  readonly status?: "active" | "suspended";
+  readonly status?: "active" | "suspended" | "pending_deletion";
   readonly isEmailVerified?: boolean;
   readonly page: number;
   readonly pageSize: number;

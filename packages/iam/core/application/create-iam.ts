@@ -56,6 +56,7 @@ import {
   CompromisedPasswordChecker,
   PasswordStrengthEvaluator,
 } from "#services/password-security.service";
+import type { SecondFactorGate } from "#services/second-factor-gate.service";
 
 export interface IamDependencies {
   userRepository: UserRepository;
@@ -70,6 +71,7 @@ export interface IamDependencies {
   emailVerificationRepository: EmailVerificationRepository;
   rateLimiter: EmailVerificationRateLimiter;
   emailVerificationTokenHasher: EmailVerificationTokenHasher;
+  secondFactorGate?: SecondFactorGate;
 }
 
 export interface IamApplication {
@@ -164,6 +166,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.userRepository,
       dependencies.passwordHasher,
       dependencies.sessionRepository,
+      dependencies.secondFactorGate,
     ),
     signOut: new SignOutUseCase(dependencies.sessionRepository),
     signUp: new SignUpUseCase(

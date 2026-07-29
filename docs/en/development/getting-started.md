@@ -22,9 +22,12 @@ pnpm install
 Copy `apps/api/.env.example` to `apps/api/.env` and adjust the values. Zod
 validates configuration at startup in `apps/api/src/config/app.config.ts`.
 
-Required variables cover PostgreSQL (`DATABASE_*`), Redis (`REDIS_*`), and SMTP
-(`SMTP_*`). `COOKIE_SECURE` and `TRUST_PROXY` adjust cookie and proxy security.
-`SMTP_VERIFY_URL` is the complete web page URL that receives a token.
+Required variables cover PostgreSQL (`DATABASE_*`), Redis (`REDIS_*`), SMTP
+(`SMTP_*`, including the verification, recovery, and deletion-cancellation
+URLs), and `SECURITY_ENCRYPTION_KEY`. The latter must be a random value of at
+least 32 characters and encrypts TOTP secrets at rest. Rotating it requires a
+controlled migration of existing MFA secrets. `COOKIE_SECURE` and
+`TRUST_PROXY` adjust cookie and proxy security.
 
 `WEB_ORIGIN` appears in the example and Compose file, but the current Fastify
 configuration uses `origin: true` and does not read it.
@@ -45,13 +48,18 @@ For local app processes backed by Docker services:
 
 ```bash
 docker compose up postgres redis mailpit
-pnpm --filter api migrate:up
-pnpm --filter api dev
-pnpm --filter web dev
+pnpm migrate:up
+pnpm dev:api
+pnpm dev:web
 ```
 
 Run the two `dev` commands in separate terminals. The web client defaults to
 `http://localhost:3000/v1`; `VITE_API_BASE_URL` overrides it.
+
+Do not run the `dev` commands while the Compose `api` and `web` services are
+active because they already bind ports `3000` and `5173`. For local
+development, run `docker compose stop api web` first while keeping PostgreSQL,
+Redis, and Mailpit running.
 
 ## Migrations and administration
 
@@ -61,6 +69,12 @@ pnpm --filter api migrate:down
 pnpm --filter api migrate:reset
 pnpm --filter api promote:admin <email>
 ```
+
+Migration `003_create_iam_security` adds account recovery, MFA, auditing,
+versioned configuration, exports, and deferred deletion. The deployment
+scheduler should invoke the administrator-only
+`POST /v1/iam/admin/security/maintenance` endpoint periodically to process
+retention and due deletions.
 
 `migrate:reset` is destructive to local data. Read the script before using it
 against a shared environment. The promotion script is the source of truth for

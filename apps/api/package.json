@@ -60,12 +60,14 @@
     "ioredis": "^5.11.1",
     "kysely": "^0.29.4",
     "pg": "^8.22.0",
+    "qrcode": "^1.5.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@architecture/eslint-config": "workspace:*",
     "@types/node": "^25.9.5",
     "@types/pg": "^8.20.0",
+    "@types/qrcode": "^1.5.6",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",

@@ -6,6 +6,10 @@
   "main": "index.js",
   "scripts": {
     "prepare": "husky",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "migrate:up": "pnpm --filter api migrate:up",
+    "migrate:down": "pnpm --filter api migrate:down",
     "build": "pnpm -r --if-present run build",
     "typecheck": "pnpm -r --if-present run typecheck",
     "typecheck:test": "pnpm -r --if-present run typecheck:test",

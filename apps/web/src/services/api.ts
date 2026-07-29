@@ -210,10 +210,203 @@ export function evaluatePassword(
 }
 
 export async function signIn(payload: SignInPayload) {
-  await requestVoid("/iam/signin", {
+  const response = await requestEnvelope<{
+    mfaRequired: true;
+    challengeId: string;
+    expiresAt: string;
+  }>("/iam/signin", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+  return response?.data;
+}
+
+export async function verifyMfaChallenge(challengeId: string, code: string) {
+  await requestVoid("/iam/mfa/challenge/verify", {
+    method: "POST",
+    body: JSON.stringify({ challengeId, code }),
+  });
+}
+
+export async function requestAccountRecovery(email: string) {
+  await requestVoid("/iam/recovery", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function resetRecoveredPassword(
+  token: string,
+  password: string,
+  passwordConfirmation: string,
+) {
+  await requestVoid("/iam/recovery/reset", {
+    method: "POST",
+    body: JSON.stringify({ token, password, passwordConfirmation }),
+  });
+}
+
+export async function cancelAccountDeletion(
+  token: string,
+  password: string,
+  mfaCode?: string,
+) {
+  await requestVoid("/iam/deletion/cancel", {
+    method: "POST",
+    body: JSON.stringify({ token, password, mfaCode }),
+  });
+}
+
+export interface MfaStatus {
+  enabled: boolean;
+  enabledAt: string | null;
+  backupCodesRemaining: number;
+  lowBackupCodes: boolean;
+}
+
+export function getMfaStatus(): Promise<MfaStatus> {
+  return request<MfaStatus>("/iam/me/mfa", { method: "GET" });
+}
+
+export function beginMfaEnrollment(password: string) {
+  return request<{
+    secret: string;
+    otpauthUri: string;
+    qrCodeDataUrl: string;
+    expiresAt: string;
+  }>("/iam/me/mfa/enrollment", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function confirmMfaEnrollment(code: string) {
+  return request<{ backupCodes: string[]; confirmationId: string }>(
+    "/iam/me/mfa/enrollment/confirm",
+    {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    },
+  );
+}
+
+export async function finalizeMfaEnrollment(confirmationId: string) {
+  await requestVoid("/iam/me/mfa/enrollment/backup-codes/confirm", {
+    method: "POST",
+    body: JSON.stringify({ confirmationId, backupCodesSaved: true }),
+  });
+}
+
+export async function disableMfa(
+  password: string,
+  mfaCode: string,
+): Promise<void> {
+  await requestVoid("/iam/me/mfa", {
+    method: "DELETE",
+    body: JSON.stringify({ password, mfaCode }),
+  });
+}
+
+export function requestAccountExport(password: string, mfaCode?: string) {
+  return request<{ id: string; status: string }>("/iam/me/exports", {
+    method: "POST",
+    body: JSON.stringify({ password, mfaCode }),
+  });
+}
+
+export function listAccountExports() {
+  return request<
+    {
+      id: string;
+      status: "pending" | "ready" | "expired" | "failed";
+      expires_at: string | null;
+      created_at: string;
+    }[]
+  >("/iam/me/exports", { method: "GET" });
+}
+
+export function accountExportDownloadUrl(exportId: string) {
+  return `${API_BASE_URL}/iam/me/exports/${encodeURIComponent(exportId)}/download`;
+}
+
+export function listSecurityEvents() {
+  return request<
+    {
+      id: string;
+      type: string;
+      occurred_at: string;
+      result: string;
+    }[]
+  >("/iam/me/security-events?page=1&pageSize=25", { method: "GET" });
+}
+
+export function requestAccountDeletion(
+  password: string,
+  confirmation: string,
+  mfaCode?: string,
+) {
+  return request<{ scheduledFor: string }>("/iam/me/deletion", {
+    method: "POST",
+    body: JSON.stringify({ password, confirmation, mfaCode }),
+  });
+}
+
+export interface SecurityConfigCenter {
+  catalog: {
+    key: string;
+    type: string;
+    impact: string;
+    available: boolean;
+  }[];
+  effective: Record<string, unknown>;
+  revisions: {
+    id: string;
+    version: number;
+    status: string;
+    created_at: string;
+  }[];
+}
+
+export function getSecurityConfig() {
+  return request<SecurityConfigCenter>("/iam/admin/security/config", {
+    method: "GET",
+  });
+}
+
+export function publishSecurityConfig(
+  values: Record<string, unknown>,
+  expectedVersion: number,
+  justification: string,
+) {
+  return request("/iam/admin/security/config", {
+    method: "PUT",
+    body: JSON.stringify({ values, expectedVersion, justification }),
+  });
+}
+
+export function previewSecurityConfig(values: Record<string, unknown>) {
+  return request<{
+    valid: boolean;
+    changedKeys: string[];
+    impact: string;
+    affectedAccounts: { administratorsRequiringEnrollment: number };
+    warnings: string[];
+  }>("/iam/admin/security/config/preview", {
+    method: "POST",
+    body: JSON.stringify({ values }),
+  });
+}
+
+export function listAdminSecurityEvents() {
+  return request<
+    {
+      id: string;
+      type: string;
+      result: string;
+      actor_type: string;
+      occurred_at: string;
+    }[]
+  >("/iam/admin/security-events?page=1&pageSize=50", { method: "GET" });
 }
 
 export async function signOut() {

@@ -1,8 +1,12 @@
 // @file apps/api/src/config/app.config.ts
 
-import "dotenv/config";
-
+import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
+
+loadDotenv({
+  path: new URL("../../.env", import.meta.url),
+  quiet: true,
+});
 
 const BooleanString = z
   .enum(["true", "false"])
@@ -29,6 +33,12 @@ const ConfigSchema = z.object({
     password: z.string(),
     from: z.string(),
     verifyUrl: z.url(),
+    recoveryUrl: z.url(),
+    deletionCancellationUrl: z.url(),
+  }),
+
+  security: z.object({
+    encryptionKey: z.string().min(32),
   }),
 
   passwordPolicy: z.object({
@@ -76,6 +86,11 @@ export function loadConfig(): AppConfig {
       password: process.env["SMTP_PASSWORD"],
       from: process.env["SMTP_FROM_ADDRESS"],
       verifyUrl: process.env["SMTP_VERIFY_URL"],
+      recoveryUrl: process.env["SMTP_RECOVERY_URL"],
+      deletionCancellationUrl: process.env["SMTP_DELETION_CANCELLATION_URL"],
+    },
+    security: {
+      encryptionKey: process.env["SECURITY_ENCRYPTION_KEY"],
     },
     passwordPolicy: {
       level: process.env["PASSWORD_POLICY_LEVEL"],

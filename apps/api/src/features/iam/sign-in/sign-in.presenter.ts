@@ -10,6 +10,18 @@ const toHttpError = createHttpErrorMapper(SignInHttpContract.errors);
 export const SignInPresenter = {
   toPresentation(result: SignInOutput) {
     if (result.success) {
+      if ("mfaRequired" in result.value) {
+        return {
+          status: 202,
+          body: {
+            data: {
+              mfaRequired: true,
+              challengeId: result.value.challengeId,
+              expiresAt: result.value.expiresAt.toISOString(),
+            },
+          },
+        };
+      }
       return SignInHttpContract.success["user.authenticated"];
     }
 

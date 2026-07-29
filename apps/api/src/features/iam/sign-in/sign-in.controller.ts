@@ -34,7 +34,7 @@ export function createSignInController(
 
     const response = SignInPresenter.toPresentation(result);
 
-    if (result.success) {
+    if (result.success && !("mfaRequired" in result.value)) {
       const maxAge = Math.max(
         1,
         Math.floor(

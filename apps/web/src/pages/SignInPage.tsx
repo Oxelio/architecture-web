@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { signIn } from "#services/api";
+import { signIn, verifyMfaChallenge } from "#services/api";
 
 interface SignInFormValues {
   email: string;
@@ -28,6 +28,8 @@ export function SignInPage() {
   );
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
@@ -43,13 +45,36 @@ export function SignInPage() {
     setIsSubmitting(true);
 
     try {
-      await signIn(values);
+      const result = await signIn(values);
+      if (result?.mfaRequired) {
+        setChallengeId(result.challengeId);
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       navigate("/profile", { replace: true });
     } catch (error) {
       if (error instanceof Error) {
         setServerError(error.message ?? t("common.unknownError"));
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitSecondFactor = async () => {
+    if (!challengeId) {
+      return;
+    }
+    setServerError(null);
+    setIsSubmitting(true);
+    try {
+      await verifyMfaChallenge(challengeId, mfaCode);
+      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      navigate("/profile", { replace: true });
+    } catch (error) {
+      setServerError(
+        error instanceof Error ? error.message : t("common.unknownError"),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -74,51 +99,77 @@ export function SignInPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
-        <div className="space-y-4">
+      {challengeId ? (
+        <div className="mt-8 space-y-5">
           <label className="block text-sm font-medium text-slate-200">
-            {t("common.email")}
+            Code de l’application ou code de secours
             <input
-              type="email"
-              autoComplete="email"
-              className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
-              {...register("email")}
+              value={mfaCode}
+              onChange={(event) => setMfaCode(event.target.value)}
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-center font-mono text-lg tracking-[0.3em] text-white outline-none focus:border-sky-400/80"
             />
-            {errors.email && (
-              <p className="mt-2 text-sm text-rose-400">
-                {errors.email.message}
-              </p>
-            )}
           </label>
-
-          <label className="block text-sm font-medium text-slate-200">
-            {t("common.password")}
-            <input
-              type="password"
-              autoComplete="current-password"
-              className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
-              {...register("password")}
-            />
-            {errors.password && (
-              <p className="mt-2 text-sm text-rose-400">
-                {errors.password.message}
-              </p>
-            )}
-          </label>
+          {serverError ? (
+            <p className="text-sm text-rose-400">{serverError}</p>
+          ) : null}
+          <button
+            type="button"
+            disabled={isSubmitting || mfaCode.length < 6}
+            onClick={() => void submitSecondFactor()}
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Vérifier le second facteur
+          </button>
         </div>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
+          <div className="space-y-4">
+            <label className="block text-sm font-medium text-slate-200">
+              {t("common.email")}
+              <input
+                type="email"
+                autoComplete="email"
+                className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="mt-2 text-sm text-rose-400">
+                  {errors.email.message}
+                </p>
+              )}
+            </label>
 
-        {serverError ? (
-          <p className="text-sm text-rose-400">{serverError}</p>
-        ) : null}
+            <label className="block text-sm font-medium text-slate-200">
+              {t("common.password")}
+              <input
+                type="password"
+                autoComplete="current-password"
+                className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="mt-2 text-sm text-rose-400">
+                  {errors.password.message}
+                </p>
+              )}
+            </label>
+          </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? t("auth.signInPending") : t("auth.signInSubmit")}
-        </button>
-      </form>
+          {serverError ? (
+            <p className="text-sm text-rose-400">{serverError}</p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? t("auth.signInPending") : t("auth.signInSubmit")}
+          </button>
+        </form>
+      )}
 
       <div className="mt-8 text-center text-sm text-slate-400">
         {t("auth.signInLinkText")} {""}
@@ -127,6 +178,13 @@ export function SignInPage() {
           className="font-semibold text-white hover:text-sky-300"
         >
           {t("auth.signInLinkAction")}
+        </Link>
+        <span className="mx-2">·</span>
+        <Link
+          to="/recovery"
+          className="font-semibold text-white hover:text-sky-300"
+        >
+          Mot de passe oublié
         </Link>
       </div>
     </motion.div>

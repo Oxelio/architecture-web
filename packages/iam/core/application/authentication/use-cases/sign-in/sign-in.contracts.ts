@@ -2,6 +2,7 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { SessionClient, SessionNetwork } from "#entities/session.entity";
+import type { SecondFactorChallenge } from "#services/second-factor-gate.service";
 
 import type { SignInErrorCodes } from "./sign-in.codes.js";
 
@@ -20,7 +21,10 @@ export interface AuthenticationSession {
   sessionExpiresAt: Date;
 }
 
-export type SignInOutput = Result<AuthenticationSession, SignInError>;
+export type SignInOutput = Result<
+  AuthenticationSession | SecondFactorChallenge,
+  SignInError
+>;
 
 export interface SignIn {
   execute(command: SignInInput): Promise<SignInOutput>;

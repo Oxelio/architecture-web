@@ -164,3 +164,7 @@ export {
   type PasswordPolicyProvider,
   PasswordStrengthEvaluator,
 } from "./services/password-security.service.js";
+export {
+  type SecondFactorChallenge,
+  SecondFactorGate,
+} from "./services/second-factor-gate.service.js";

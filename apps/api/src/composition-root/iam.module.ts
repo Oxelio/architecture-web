@@ -4,6 +4,7 @@ import {
   createIam,
   type IamApplication,
   type IamDependencies,
+  type SecondFactorGate,
 } from "@architecture/iam/application";
 import { createPasswordPolicy } from "@architecture/iam/domain";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
@@ -104,8 +105,12 @@ export function buildIamModule(
   db: Kysely<AppDatabase>,
   redis: Redis,
   config: AppConfig,
+  secondFactorGate?: SecondFactorGate,
 ): IamApplication {
   const dependencies = buildIamDependencies(db, redis, config);
 
-  return createIam(dependencies);
+  return createIam({
+    ...dependencies,
+    ...(secondFactorGate ? { secondFactorGate } : {}),
+  });
 }
