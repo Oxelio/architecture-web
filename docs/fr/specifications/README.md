@@ -26,6 +26,7 @@ détails techniques appartiennent à la documentation d’architecture et doiven
 | [SF-ACCOUNT-RECOVERY-001](SF-ACCOUNT-RECOVERY-001.md) | Acceptée    | Récupération de compte et réinitialisation du mot de passe                 |
 | [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md)           | Implémentée | Recherche et pagination de l’administration des utilisateurs               |
 | [SF-MFA-001](SF-MFA-001.md)                           | Acceptée    | Authentification multifacteur par application d’authentification           |
+| [SF-NOTIFICATIONS-001](SF-NOTIFICATIONS-001.md)       | Acceptée    | Centre de notifications et diffusion multicanale                           |
 | [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)     | Acceptée    | Journal d’audit des événements de sécurité                                 |
 | [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)   | Acceptée    | Configuration dynamique des fonctionnalités et politiques de sécurité      |
 | [SF-SESSION-001](SF-SESSION-001.md)                   | Implémentée | Enrichissement des sessions actives avec des informations d’identification |
@@ -36,6 +37,11 @@ détails techniques appartiennent à la documentation d’architecture et doiven
 Les cinq spécifications de sécurité acceptées disposent désormais d’un socle
 exécutable, sans que tous leurs critères soient suffisamment démontrés pour
 passer au statut « Implémentée » :
+
+`SF-NOTIFICATIONS-001` décrit une cible acceptée sans socle exécutable actuel :
+le dépôt ne contient encore ni bounded context Notifications, ni bus
+d’événements, ni outbox durable. Elle n’est donc pas incluse parmi les cinq
+spécifications couvertes dans le tableau suivant.
 
 | Spécification             | Couverture actuelle                                                         | Écarts ou preuves manquantes                                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |

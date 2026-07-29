@@ -25,6 +25,7 @@ linked rather than duplicated.
 | [SF-ACCOUNT-RECOVERY-001](SF-ACCOUNT-RECOVERY-001.md) | Accepted    | Account recovery and password reset                          |
 | [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md)           | Implemented | Search and pagination for user administration                |
 | [SF-MFA-001](SF-MFA-001.md)                           | Accepted    | Multifactor authentication with an authenticator application |
+| [SF-NOTIFICATIONS-001](SF-NOTIFICATIONS-001.md)       | Accepted    | Notification center and multichannel delivery                |
 | [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)     | Accepted    | Security event audit trail                                   |
 | [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)   | Accepted    | Dynamic security feature and policy configuration            |
 | [SF-SESSION-001](SF-SESSION-001.md)                   | Implemented | Enrich active sessions with identification information       |
@@ -35,6 +36,11 @@ linked rather than duplicated.
 The five accepted security specifications now have an executable foundation,
 but not enough evidence for every acceptance criterion to move them to
 “Implemented”:
+
+`SF-NOTIFICATIONS-001` defines an accepted target with no current executable
+foundation: the repository does not yet contain a Notifications bounded
+context, event bus, or durable outbox. It is therefore not included among the
+five covered specifications in the following table.
 
 | Specification             | Current coverage                                            | Gaps or missing evidence                                                                                              |
 | ------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
