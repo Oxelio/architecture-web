@@ -20,8 +20,13 @@ détails techniques appartiennent à la documentation d’architecture et doiven
 
 ## Catalogue
 
-| Identifiant                                 | Statut      | Sujet                                                                      |
-| ------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md) | Implémentée | Recherche et pagination de l’administration des utilisateurs               |
-| [SF-SESSION-001](SF-SESSION-001.md)         | Implémentée | Enrichissement des sessions actives avec des informations d’identification |
-| [SF-PASSWORD-001](SF-PASSWORD-001.md)       | Implémentée | Politique configurable de mots de passe sécurisés                          |
+| Identifiant                                           | Statut      | Sujet                                                                      |
+| ----------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| [SF-ACCOUNT-DATA-001](SF-ACCOUNT-DATA-001.md)         | Acceptée    | Export et suppression des données du compte                                |
+| [SF-ACCOUNT-RECOVERY-001](SF-ACCOUNT-RECOVERY-001.md) | Acceptée    | Récupération de compte et réinitialisation du mot de passe                 |
+| [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md)           | Implémentée | Recherche et pagination de l’administration des utilisateurs               |
+| [SF-MFA-001](SF-MFA-001.md)                           | Acceptée    | Authentification multifacteur par application d’authentification           |
+| [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)     | Acceptée    | Journal d’audit des événements de sécurité                                 |
+| [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)   | Acceptée    | Configuration dynamique des fonctionnalités et politiques de sécurité      |
+| [SF-SESSION-001](SF-SESSION-001.md)                   | Implémentée | Enrichissement des sessions actives avec des informations d’identification |
+| [SF-PASSWORD-001](SF-PASSWORD-001.md)                 | Implémentée | Politique configurable de mots de passe sécurisés                          |
