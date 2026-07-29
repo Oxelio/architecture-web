@@ -42,13 +42,13 @@ import type { SignIn } from "#authentication/use-cases/sign-in/sign-in.contracts
 import { SignInUseCase } from "#authentication/use-cases/sign-in/sign-in.use-case";
 import type { SignOut } from "#authentication/use-cases/sign-out/sign-out.contracts";
 import { SignOutUseCase } from "#authentication/use-cases/sign-out/sign-out.use-case";
-import type { PasswordPolicy } from "#domain/password-policy";
 import { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import { SessionRepository } from "#repositories/session.repository";
 import { UserRepository } from "#repositories/user.repository";
 import { EmailSender } from "#services/email-sender.service";
 import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import { PasswordHasher } from "#services/password-hasher.service";
 import { PasswordPolicyValidator } from "#services/password-policy-validator.service";
 import {
@@ -62,8 +62,7 @@ export interface IamDependencies {
   userRepository: UserRepository;
   sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
-  passwordPolicy: PasswordPolicy;
-  privilegedPasswordPolicy: PasswordPolicy;
+  policyProvider: IamPolicyProvider;
   passwordStrengthEvaluator: PasswordStrengthEvaluator;
   commonPasswordChecker: CommonPasswordChecker;
   compromisedPasswordChecker: CompromisedPasswordChecker;
@@ -99,13 +98,15 @@ export interface IamApplication {
 
 export function createIam(dependencies: IamDependencies): IamApplication {
   const passwordPolicy = new PasswordPolicyValidator(
-    dependencies.passwordPolicy,
+    dependencies.policyProvider,
+    "user",
     dependencies.passwordStrengthEvaluator,
     dependencies.commonPasswordChecker,
     dependencies.compromisedPasswordChecker,
   );
   const privilegedPasswordPolicy = new PasswordPolicyValidator(
-    dependencies.privilegedPasswordPolicy,
+    dependencies.policyProvider,
+    "admin",
     dependencies.passwordStrengthEvaluator,
     dependencies.commonPasswordChecker,
     dependencies.compromisedPasswordChecker,
@@ -119,6 +120,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.emailVerificationRepository,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
+      dependencies.policyProvider,
     ),
     changePassword: new ChangePasswordUseCase(
       dependencies.userRepository,
@@ -137,6 +139,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     listCurrentUserSessions: new ListCurrentUserSessionsUseCase(
       dependencies.userRepository,
       dependencies.sessionRepository,
+      dependencies.policyProvider,
     ),
     listUserSessions: new ListUserSessionsUseCase(
       dependencies.userRepository,
@@ -157,6 +160,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     revokeCurrentUserSession: new RevokeCurrentUserSessionUseCase(
       dependencies.sessionRepository,
+      dependencies.policyProvider,
     ),
     revokeUserSession: new RevokeUserSessionUseCase(
       dependencies.userRepository,
@@ -166,6 +170,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.userRepository,
       dependencies.passwordHasher,
       dependencies.sessionRepository,
+      dependencies.policyProvider,
       dependencies.secondFactorGate,
     ),
     signOut: new SignOutUseCase(dependencies.sessionRepository),
@@ -176,6 +181,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
       passwordPolicy,
+      dependencies.policyProvider,
     ),
     suspendUser: new SuspendUserUseCase(
       dependencies.userRepository,

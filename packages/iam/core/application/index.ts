@@ -151,6 +151,11 @@ export {
 export { EmailSender } from "./services/email-sender.service.js";
 export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
 export { EmailVerificationTokenHasher } from "./services/email-verification-token-hasher.service.js";
+export type {
+  IamActorRole,
+  IamCapability,
+  IamPolicyProvider,
+} from "./services/iam-policy-provider.service.js";
 export { PasswordHasher } from "./services/password-hasher.service.js";
 export {
   PasswordPolicyValidator,

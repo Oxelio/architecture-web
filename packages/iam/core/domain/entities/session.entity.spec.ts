@@ -17,6 +17,7 @@ describe("SessionEntity", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      expiresAt: new Date(Date.now() + 60_000),
     });
 
     expect(session.identifier).toBeDefined();
@@ -28,9 +29,19 @@ describe("SessionEntity", () => {
     expect(session.lastActivityAt).toBeInstanceOf(Date);
   });
 
+  it("requires the caller to provide a future expiration", () => {
+    expect(() =>
+      SessionEntity.createForUser({
+        userId: UserIdentifierValueObject.generate(),
+        expiresAt: new Date(Date.now() - 1),
+      }),
+    ).toThrow("Session expiration must be in the future");
+  });
+
   it("should keep client and network identification metadata", () => {
     const session = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      expiresAt: new Date(Date.now() + 60_000),
       client: {
         type: "browser",
         name: "Firefox",
@@ -81,6 +92,7 @@ describe("SessionEntity", () => {
   it("should expose userId and expiresAt via getters", () => {
     const session = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      expiresAt: new Date(Date.now() + 60_000),
     });
 
     expect(session.userId).toBeDefined();

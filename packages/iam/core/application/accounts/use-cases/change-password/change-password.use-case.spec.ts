@@ -86,11 +86,17 @@ describe("ChangePasswordUseCase", () => {
       passwordHasher,
       sessionPort,
       new PasswordPolicyValidator(
-        createPasswordPolicy("elevated", {
-          checkCommonPasswords: false,
-          checkCompromisedPasswords: false,
-          checkUserContext: false,
-        }),
+        {
+          getPasswordPolicy: async () =>
+            createPasswordPolicy("elevated", {
+              checkCommonPasswords: false,
+              checkCompromisedPasswords: false,
+              checkUserContext: false,
+            }),
+          getSessionDurationMinutes: async () => 60,
+          isCapabilityEnabled: async () => true,
+        },
+        "user",
         {
           evaluate: async () => "acceptable",
         } as PasswordStrengthEvaluator,
@@ -379,7 +385,13 @@ describe("ChangePasswordUseCase", () => {
     };
     const createValidator = (level: "elevated" | "critical") =>
       new PasswordPolicyValidator(
-        createPasswordPolicy(level, checkerOptions),
+        {
+          getPasswordPolicy: async () =>
+            createPasswordPolicy(level, checkerOptions),
+          getSessionDurationMinutes: async () => 60,
+          isCapabilityEnabled: async () => true,
+        },
+        "user",
         { evaluate: async () => "acceptable" } as PasswordStrengthEvaluator,
         { isCommon: async () => false } as CommonPasswordChecker,
         { isCompromised: async () => false } as CompromisedPasswordChecker,

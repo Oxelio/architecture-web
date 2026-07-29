@@ -41,7 +41,13 @@ class FakeCompromisedChecker extends CompromisedPasswordChecker {
 
 function createValidator(overrides = {}, common = false, compromised = false) {
   return new PasswordPolicyValidator(
-    createPasswordPolicy("elevated", overrides),
+    {
+      getPasswordPolicy: async () =>
+        createPasswordPolicy("elevated", overrides),
+      getSessionDurationMinutes: async () => 60,
+      isCapabilityEnabled: async () => true,
+    },
+    "user",
     new FakeStrengthEvaluator(),
     new FakeCommonChecker(common),
     new FakeCompromisedChecker(compromised),

@@ -42,18 +42,20 @@ interface SessionProperties {
 
 interface SessionPropertiesCreationProperties {
   readonly userId: UserIdentifierValueObject;
+  readonly expiresAt: Date;
   readonly client?: SessionClient;
   readonly network?: SessionNetwork;
 }
 
 export class SessionEntity extends Entity<SessionProperties> {
-  private static readonly SESSION_LIFETIME_MINUTES = 60;
-
   public static createForUser(properties: SessionPropertiesCreationProperties) {
     const now = new Date();
+    if (properties.expiresAt.getTime() <= now.getTime()) {
+      throw new Error("Session expiration must be in the future");
+    }
     return new SessionEntity({
       userId: properties.userId,
-      expiresAt: SessionEntity.expirationDate(),
+      expiresAt: properties.expiresAt,
       identifier: SessionIdentifierValueObject.generate(),
       createdAt: now,
       lastActivityAt: now,
@@ -96,9 +98,5 @@ export class SessionEntity extends Entity<SessionProperties> {
 
   public isValid(): boolean {
     return !this.isExpired();
-  }
-
-  private static expirationDate(): Date {
-    return new Date(Date.now() + this.SESSION_LIFETIME_MINUTES * 60 * 1000);
   }
 }

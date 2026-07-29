@@ -20,7 +20,7 @@ export interface PublicPasswordPolicy {
 }
 
 export interface GetPasswordPolicy {
-  execute(): PublicPasswordPolicy;
+  execute(): Promise<PublicPasswordPolicy>;
 }
 
 export interface EvaluatePasswordInput {

@@ -13,6 +13,14 @@ export const ChangeEmailHttpContract = {
   },
 
   errors: {
+    "feature.disabled": {
+      status: 403,
+
+      code: "FEATURE_DISABLED",
+
+      message: "Email change is disabled",
+    },
+
     "email.empty": {
       status: 400,
 

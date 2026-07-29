@@ -11,8 +11,8 @@ import type {
 export class GetPasswordPolicyUseCase implements GetPasswordPolicy {
   constructor(private readonly validator: PasswordPolicyValidator) {}
 
-  execute(): PublicPasswordPolicy {
-    const policy = this.validator.publicPolicy;
+  async execute(): Promise<PublicPasswordPolicy> {
+    const policy = await this.validator.getPublicPolicy();
     return {
       level: policy.level,
       minLength: policy.minLength,

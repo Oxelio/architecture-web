@@ -9,7 +9,11 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { getPasswordPolicy, signUp } from "#services/api";
+import {
+  getPasswordPolicy,
+  getPublicCapabilities,
+  signUp,
+} from "#services/api";
 
 interface SignUpFormValues {
   email: string;
@@ -26,6 +30,13 @@ export function SignUpPage() {
     queryFn: getPasswordPolicy,
     staleTime: 5 * 60 * 1000,
   });
+  const capabilitiesQuery = useQuery({
+    queryKey: ["public-capabilities"],
+    queryFn: getPublicCapabilities,
+    staleTime: 60_000,
+  });
+  const registrationAvailable =
+    capabilitiesQuery.data?.publicRegistration !== false;
   const minimumLength = policyQuery.data?.minLength ?? 15;
   const maximumLength = policyQuery.data?.maxLength ?? 128;
   const signUpSchema = useMemo(
@@ -99,6 +110,17 @@ export function SignUpPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
+        {!registrationAvailable ? (
+          <p
+            role="status"
+            className="rounded-2xl bg-amber-500/10 p-4 text-sm text-amber-200"
+          >
+            {t("auth.signUpUnavailable", {
+              defaultValue:
+                "L’inscription publique est actuellement désactivée.",
+            })}
+          </p>
+        ) : null}
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-200">
             {t("common.email")}
@@ -167,7 +189,7 @@ export function SignUpPage() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !registrationAvailable}
           className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? t("auth.signUpPending") : t("auth.signUpSubmit")}

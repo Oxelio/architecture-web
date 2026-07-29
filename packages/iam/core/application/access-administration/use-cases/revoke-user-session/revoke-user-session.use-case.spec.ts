@@ -12,7 +12,10 @@ describe("RevokeUserSessionUseCase", () => {
   it("revokes a session belonging to the target user", async () => {
     const userId = UserIdentifierValueObject.generate();
     const administrator = createAdministrator();
-    const session = SessionEntity.createForUser({ userId });
+    const session = SessionEntity.createForUser({
+      userId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
     const deleteSession = vi.fn();
     const users = {
       findById: async (id: UserIdentifierValueObject) =>
@@ -40,6 +43,7 @@ describe("RevokeUserSessionUseCase", () => {
     const administrator = createAdministrator();
     const otherSession = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      expiresAt: new Date(Date.now() + 60_000),
     });
     const deleteSession = vi.fn();
     const users = {

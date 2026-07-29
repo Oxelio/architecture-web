@@ -14,6 +14,8 @@ what the code executes today.
 - `buildSecurityRoutes`, for security endpoints;
 - `createIam` as the `SecondFactorGate` implementation, allowing
   `SignInUseCase` to suspend session creation when a second factor is active.
+- `createIam` as `IamPolicyProvider`, allowing use cases to reload one
+  consistent policy for passwords, capabilities, and session duration.
 
 This module is a hybrid vertical. Unlike the historical IAM core capabilities,
 it does not consist of `Result`-returning use cases and dedicated repository
@@ -96,19 +98,23 @@ endpoints.
 
 | Option group                     | Current consumer                       |
 | -------------------------------- | -------------------------------------- |
-| sign-up and email change         | global hook in `server.ts`             |
-| user session management          | global hook in `server.ts`             |
+| sign-up and email change         | use cases and early HTTP hook          |
+| user session management          | use cases and early HTTP hook          |
 | recovery                         | `SecurityService.requestRecovery`      |
 | MFA availability and roles       | enrollment, sign-in, and disabling     |
 | export and deletion              | their respective workflows             |
 | audit retention and consultation | writing, consultation, and maintenance |
-| password lengths                 | recovery password reset only           |
+| complete password policy         | provider injected into IAM core        |
+| session duration                 | `SignInUseCase` and MFA completion     |
 
-`accounts.emailVerification` and `sessions.durationMinutes` are represented but
-do not drive behavior. Dynamic password settings do not replace the
-startup-built `PasswordPolicyValidator` used by sign-up and authenticated
-password changes. The administrator UI must therefore not present these three
-areas as universally effective.
+`accounts.emailVerification` remains represented but has no consumer, so the
+catalog marks it unavailable and read-only. Previous `PASSWORD_*` variables are
+no longer read at startup.
+
+Administration now renders a typed form from the catalog with appropriate
+controls, before/after preview, mandatory reason, critical-change confirmation,
+history, and restoration. Critical confirmation is currently an explicit UI
+confirmation rather than step-up reauthentication.
 
 ## Audit and evidence limits
 

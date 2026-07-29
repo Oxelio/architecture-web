@@ -135,7 +135,13 @@ describe("SignInUseCase", () => {
     passwordHasher = new FakePasswordHasherPort();
     sessionPort = new FakeSessionPort();
 
-    useCase = new SignInUseCase(userPort, passwordHasher, sessionPort);
+    useCase = new SignInUseCase(userPort, passwordHasher, sessionPort, {
+      getPasswordPolicy: async () => {
+        throw new Error("Not used during sign-in");
+      },
+      getSessionDurationMinutes: async () => 60,
+      isCapabilityEnabled: async () => true,
+    });
   });
 
   /* ---------------------------------------------------------------------- */
@@ -152,7 +158,10 @@ describe("SignInUseCase", () => {
     await userPort.save(user);
     for (let index = 0; index < 10; index += 1) {
       await sessionPort.save(
-        SessionEntity.createForUser({ userId: user.identifier }),
+        SessionEntity.createForUser({
+          userId: user.identifier,
+          expiresAt: new Date(Date.now() + 60_000),
+        }),
       );
     }
 
@@ -334,6 +343,44 @@ describe("SignInUseCase", () => {
 
       expect(result.value.sessionId).toBeDefined();
       expect(result.value.sessionExpiresAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("uses the session duration supplied by the active policy", async () => {
+    useCase = new SignInUseCase(userPort, passwordHasher, sessionPort, {
+      getPasswordPolicy: async () => {
+        throw new Error("Not used during sign-in");
+      },
+      getSessionDurationMinutes: async () => 180,
+      isCapabilityEnabled: async () => true,
+    });
+    const email = EmailValueObject.create(validEmail);
+    const password = PasswordPlainValueObject.create(validPassword);
+    if (!email.success || !password.success) {
+      throw new Error("Invalid fixture");
+    }
+    const user = UserEntity.create({
+      email: email.value,
+      password: await passwordHasher.hash(password.value),
+    });
+    user.activate();
+    await userPort.save(user);
+
+    const before = Date.now();
+    const result = await useCase.execute({
+      email: validEmail,
+      password: validPassword,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const { sessionExpiresAt } = result.value;
+      expect(sessionExpiresAt).not.toBeNull();
+      if (sessionExpiresAt) {
+        expect(sessionExpiresAt.getTime()).toBeGreaterThanOrEqual(
+          before + 180 * 60_000,
+        );
+      }
     }
   });
 

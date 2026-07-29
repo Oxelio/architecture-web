@@ -208,14 +208,44 @@ version does not configure secrets.
 
 ## User experience
 
-**Administration > Configuration** shows effective state, understandable help
-and consequences, weaker-than-recommended warnings, blocking errors,
-dependencies before confirmation, explicit confirmation for critical
-reductions, duplicate-submission protection, keyboard and assistive-technology
-accessibility, last refresh time, and viewed revision.
+**Administration > Configuration** is a dedicated page. It does not expose JSON,
+environment-variable names, or the persistence format as its primary
+interface.
+
+Settings are grouped by domain and rendered from a descriptive catalog:
+
+- a switch for enablement;
+- radio buttons, choice cards, or a closed select for a level;
+- a number field, optionally paired with a slider, for a bounded value;
+- a multi-select for affected roles or capabilities.
+
+A slider never replaces the number field when an exact value matters or the
+range is wide. Every control shows its unit, bounds, recommended value, effect,
+and unavailability reason. An option without an executable consumer is
+read-only and marked **not effective**; it cannot be published.
+
+The page shows effective state, understandable help and consequences, preserves
+an unpublished draft, restores one field or the whole form to published values,
+validates during editing with field-specific errors, warns about
+weaker-than-recommended values, distinguishes warnings from blocking errors,
+shows dependencies before confirmation, and presents before/after values,
+affected features, and effect mode in a preview step.
+
+A non-empty reason is required before publication. The journey requests
+explicit step-up confirmation for critical reductions, distinguishes version
+conflicts from validation and application failures, prevents duplicate
+submission, supports keyboard and assistive technologies, and shows the last
+refresh time and viewed revision.
 
 A `recommended` indicator guides choices without blocking deployments with
 different constraints.
+
+History and the audit log are reachable from the page but do not replace the
+editor. History can open revision details, identify author and reason, compare
+values, and request restoration.
+
+Technical ownership and currently observed gaps are documented in
+[Security configuration redesign](../architecture/security-configuration-redesign.md).
 
 ## API and disabled features
 

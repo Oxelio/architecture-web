@@ -126,6 +126,17 @@ export interface PasswordEvaluation {
   errorCodes: string[];
 }
 
+export interface PublicCapabilities {
+  publicRegistration: boolean;
+  emailVerification: boolean;
+  emailChange: boolean;
+  sessionManagement: boolean;
+  recovery: boolean;
+  mfa: boolean;
+  accountExport: boolean;
+  accountDeletion: boolean;
+}
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000/v1";
 
@@ -196,6 +207,12 @@ export async function signUp(payload: SignUpPayload) {
 
 export function getPasswordPolicy(): Promise<PasswordPolicy> {
   return request<PasswordPolicy>("/iam/password-policy", {
+    method: "GET",
+  });
+}
+
+export function getPublicCapabilities(): Promise<PublicCapabilities> {
+  return request<PublicCapabilities>("/iam/capabilities", {
     method: "GET",
   });
 }
@@ -354,16 +371,34 @@ export function requestAccountDeletion(
 export interface SecurityConfigCenter {
   catalog: {
     key: string;
-    type: string;
-    impact: string;
-    available: boolean;
+    category: string;
+    labelKey: string;
+    descriptionKey: string;
+    control: "switch" | "number" | "slider-number" | "select" | "multi-select";
+    type: "boolean" | "integer" | "duration" | "choice" | "set";
+    impact: "medium" | "high" | "critical";
+    constraints?: {
+      min?: number;
+      max?: number;
+      step?: number;
+      unit?: string;
+      choices?: string[];
+    };
+    recommendedValue: unknown;
+    availability: {
+      available: boolean;
+      readOnly: boolean;
+      reason?: string;
+    };
   }[];
   effective: Record<string, unknown>;
   revisions: {
     id: string;
     version: number;
     status: string;
+    created_by: string;
     created_at: string;
+    published_at: string | null;
   }[];
 }
 
@@ -377,10 +412,16 @@ export function publishSecurityConfig(
   values: Record<string, unknown>,
   expectedVersion: number,
   justification: string,
+  confirmedCritical: boolean,
 ) {
   return request("/iam/admin/security/config", {
     method: "PUT",
-    body: JSON.stringify({ values, expectedVersion, justification }),
+    body: JSON.stringify({
+      values,
+      expectedVersion,
+      justification,
+      confirmedCritical,
+    }),
   });
 }
 
@@ -390,10 +431,17 @@ export function previewSecurityConfig(values: Record<string, unknown>) {
     changedKeys: string[];
     impact: string;
     affectedAccounts: { administratorsRequiringEnrollment: number };
+    changes: { key: string; before: unknown; after: unknown }[];
     warnings: string[];
   }>("/iam/admin/security/config/preview", {
     method: "POST",
     body: JSON.stringify({ values }),
+  });
+}
+
+export function rollbackSecurityConfig(revisionId: string) {
+  return request(`/iam/admin/security/config/${revisionId}/rollback`, {
+    method: "POST",
   });
 }
 

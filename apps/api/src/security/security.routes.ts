@@ -21,6 +21,13 @@ export function buildSecurityRoutes(
   sessionCookie: SecurityCookie,
 ) {
   return async (app: FastifyInstance) => {
+    app.get("/capabilities", async (_request, reply) =>
+      safely(reply, async () => ({
+        status: 200,
+        data: await security.publicCapabilities(),
+      })),
+    );
+
     app.post("/recovery", async (request, reply) =>
       safely(reply, async () => {
         const body = request.body as { email?: string };
@@ -326,10 +333,12 @@ export function buildSecurityRoutes(
             values?: unknown;
             expectedVersion?: number;
             justification?: string;
+            confirmedCritical?: boolean;
           };
           if (
             body.values === undefined ||
-            typeof body.expectedVersion !== "number"
+            typeof body.expectedVersion !== "number" ||
+            typeof body.justification !== "string"
           ) {
             throw new SecurityError("CONFIG_INVALID");
           }
@@ -340,6 +349,7 @@ export function buildSecurityRoutes(
               body.values,
               body.expectedVersion,
               body.justification,
+              body.confirmedCritical === true,
             ),
           };
         }),

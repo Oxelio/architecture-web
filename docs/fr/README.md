@@ -24,6 +24,7 @@ Pour une première prise en main, lire dans cet ordre :
 - [Couches et frontières](architecture/layers.md)
 - [Règles de dépendance](architecture/dependency-rules.md)
 - [Packages et API publiques](architecture/packages.md)
+- [Refonte de la configuration de sécurité](architecture/security-configuration-redesign.md)
 - [Décisions architecturales](architecture/decisions/README.md)
 
 ### Développement

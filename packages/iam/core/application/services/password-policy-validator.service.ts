@@ -2,6 +2,10 @@ import type { PasswordPolicy, PasswordStrength } from "#domain/password-policy";
 import { comparePasswordStrength } from "#domain/password-policy";
 
 import type {
+  IamActorRole,
+  IamPolicyProvider,
+} from "./iam-policy-provider.service.js";
+import type {
   CommonPasswordChecker,
   CompromisedPasswordChecker,
   PasswordContext,
@@ -44,19 +48,21 @@ export interface ValidatePasswordInput {
 
 export class PasswordPolicyValidator {
   constructor(
-    private readonly policy: PasswordPolicy,
+    private readonly policyProvider: IamPolicyProvider,
+    private readonly role: IamActorRole,
     private readonly strengthEvaluator: PasswordStrengthEvaluator,
     private readonly commonPasswordChecker: CommonPasswordChecker,
     private readonly compromisedPasswordChecker: CompromisedPasswordChecker,
   ) {}
 
-  get publicPolicy(): PasswordPolicy {
-    return this.policy;
+  async getPublicPolicy(): Promise<PasswordPolicy> {
+    return this.policyProvider.getPasswordPolicy(this.role);
   }
 
   async validate(
     input: ValidatePasswordInput,
   ): Promise<PasswordValidationResult> {
+    const policy = await this.policyProvider.getPasswordPolicy(this.role);
     const errors: PasswordValidationError[] = [];
     const length = [...input.password].length;
 
@@ -68,22 +74,22 @@ export class PasswordPolicyValidator {
     }
     if (length === 0) {
       errors.push({ code: "password.empty" });
-    } else if (length < this.policy.minLength) {
+    } else if (length < policy.minLength) {
       errors.push({
         code: "password.too_short",
         actual: length,
-        min: this.policy.minLength,
+        min: policy.minLength,
       });
     }
-    if (length > this.policy.maxLength) {
+    if (length > policy.maxLength) {
       errors.push({
         code: "password.too_long",
         actual: length,
-        max: this.policy.maxLength,
+        max: policy.maxLength,
       });
     }
 
-    const { composition } = this.policy;
+    const { composition } = policy;
     if (composition.requireUppercase && !/\p{Lu}/u.test(input.password)) {
       errors.push({ code: "password.uppercase_required" });
     }
@@ -102,10 +108,10 @@ export class PasswordPolicyValidator {
 
     const [strength, common, compromised] = await Promise.all([
       this.strengthEvaluator.evaluate(input.password, input.context),
-      this.policy.checkCommonPasswords
+      policy.checkCommonPasswords
         ? this.commonPasswordChecker.isCommon(input.password)
         : false,
-      this.policy.checkCompromisedPasswords
+      policy.checkCompromisedPasswords
         ? this.compromisedPasswordChecker.isCompromised(input.password)
         : false,
     ]);
@@ -117,12 +123,12 @@ export class PasswordPolicyValidator {
       errors.push({ code: "password.compromised" });
     }
     if (
-      this.policy.checkUserContext &&
+      policy.checkUserContext &&
       containsContext(input.password, input.context)
     ) {
       errors.push({ code: "password.contextual" });
     }
-    if (comparePasswordStrength(strength, this.policy.minimumStrength) < 0) {
+    if (comparePasswordStrength(strength, policy.minimumStrength) < 0) {
       errors.push({ code: "password.too_weak" });
     }
 

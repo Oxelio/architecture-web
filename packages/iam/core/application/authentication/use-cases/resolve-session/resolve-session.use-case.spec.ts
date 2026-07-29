@@ -160,6 +160,7 @@ describe("ResolveSessionUseCase", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      expiresAt: new Date(Date.now() + 60_000),
     });
 
     await sessionPort.save(session);
@@ -260,6 +261,7 @@ describe("ResolveSessionUseCase", () => {
 
     const session = SessionEntity.createForUser({
       userId,
+      expiresAt: new Date(Date.now() + 60_000),
     });
 
     await sessionPort.save(session);

@@ -36,13 +36,13 @@ The five accepted security specifications now have an executable foundation,
 but not enough evidence for every acceptance criterion to move them to
 “Implemented”:
 
-| Specification             | Current coverage                                          | Gaps or missing evidence                                                                                              |
-| ------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `SF-ACCOUNT-DATA-001`     | ZIP export, download, deferred deletion, and cancellation | no deployment scheduler in the repository; integration scenarios and legal-retention constraints are not demonstrated |
-| `SF-ACCOUNT-RECOVERY-001` | request, single-use token, reset, and session revocation  | dynamic length policy differs from the shared validator; incomplete integration coverage                              |
-| `SF-MFA-001`              | TOTP enrollment, backup codes, and sign-in challenge      | notifications and integration/concurrency scenarios are not demonstrated                                              |
-| `SF-SECURITY-AUDIT-001`   | event writes, consultation, and purge                     | event completeness and transactional durability are not demonstrated                                                  |
-| `SF-SECURITY-CONFIG-001`  | published revisions, preview, and rollback                | several stored options are not consumed at runtime yet                                                                |
+| Specification             | Current coverage                                            | Gaps or missing evidence                                                                                              |
+| ------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `SF-ACCOUNT-DATA-001`     | ZIP export, download, deferred deletion, and cancellation   | no deployment scheduler in the repository; integration scenarios and legal-retention constraints are not demonstrated |
+| `SF-ACCOUNT-RECOVERY-001` | request, single-use token, reset, and session revocation    | dynamic length policy differs from the shared validator; incomplete integration coverage                              |
+| `SF-MFA-001`              | TOTP enrollment, backup codes, and sign-in challenge        | notifications and integration/concurrency scenarios are not demonstrated                                              |
+| `SF-SECURITY-AUDIT-001`   | event writes, consultation, and purge                       | event completeness and transactional durability are not demonstrated                                                  |
+| `SF-SECURITY-CONFIG-001`  | typed form, revisions, preview, restoration, and one policy | step-up authentication and multi-instance propagation unproven; email verification has no consumer                    |
 
 The [Account security](../guides/account-security.md) guide links these findings
 to executable sources and details known limitations.

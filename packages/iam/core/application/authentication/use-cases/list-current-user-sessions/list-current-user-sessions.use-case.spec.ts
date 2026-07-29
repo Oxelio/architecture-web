@@ -22,6 +22,7 @@ describe("ListCurrentUserSessionsUseCase", () => {
     });
     const session = SessionEntity.createForUser({
       userId: actor.identifier,
+      expiresAt: new Date(Date.now() + 60_000),
     });
     const users = {
       findById: async () => actor,

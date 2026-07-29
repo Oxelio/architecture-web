@@ -8,6 +8,7 @@ import type { EmailVerificationRepository } from "#repositories/email-verificati
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import type { PasswordPolicyValidator } from "#services/password-policy-validator.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
@@ -29,9 +30,18 @@ export class SignUpUseCase {
     private readonly emailSender: EmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
     private readonly passwordPolicy: PasswordPolicyValidator,
+    private readonly policyProvider?: IamPolicyProvider,
   ) {}
 
   async execute(payload: SignUpInput): Promise<SignUpOutput> {
+    if (
+      this.policyProvider &&
+      !(await this.policyProvider.isCapabilityEnabled(
+        "accounts.publicRegistration",
+      ))
+    ) {
+      return Result.failure(SignUpErrorCodes.featureDisabled);
+    }
     const email = EmailValueObject.create(payload.email);
     if (!email.success) {
       return Result.failure(email.error);

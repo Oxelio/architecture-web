@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  DEFAULT_SECURITY_POLICY,
-  securityInternals,
-} from "./security.service.js";
+import { securityInternals } from "./security.service.js";
+import { DEFAULT_SECURITY_POLICY } from "./security-policy.js";
 
 describe("security policy", () => {
   it("accepts the safe default policy", () => {
@@ -29,6 +27,18 @@ describe("security policy", () => {
         passwords: {
           ...DEFAULT_SECURITY_POLICY.passwords,
           privilegedMinLength: 10,
+        },
+      }),
+    ).toThrow("CONFIG_INVALID");
+  });
+
+  it("rejects values whose runtime types do not match the catalog", () => {
+    expect(() =>
+      securityInternals.validatePolicy({
+        ...DEFAULT_SECURITY_POLICY,
+        accounts: {
+          ...DEFAULT_SECURITY_POLICY.accounts,
+          publicRegistration: "false",
         },
       }),
     ).toThrow("CONFIG_INVALID");

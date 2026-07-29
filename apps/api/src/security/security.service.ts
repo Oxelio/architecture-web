@@ -9,12 +9,16 @@ import {
 } from "node:crypto";
 
 import type {
+  IamActorRole,
+  IamCapability,
+  IamPolicyProvider,
   PasswordHasher,
   SecondFactorChallenge,
   SecondFactorGate,
   SessionRepository,
 } from "@architecture/iam/application";
 import {
+  createPasswordPolicy,
   PasswordPlainValueObject,
   SessionEntity,
   SessionIdentifierValueObject,
@@ -25,6 +29,14 @@ import type { Kysely } from "kysely";
 import QRCode from "qrcode";
 
 import type { AppDatabase } from "#composition-root/database.module";
+
+import {
+  DEFAULT_SECURITY_POLICY,
+  policyValue,
+  SECURITY_CONFIG_CATALOG,
+  type SecurityPolicy,
+  SecurityPolicySchema,
+} from "./security-policy.js";
 
 export type AuditResult = "success" | "denied" | "technical_failure";
 export type ActorType = "user" | "administrator" | "system" | "anonymous";
@@ -37,89 +49,6 @@ export interface SecurityContext {
   ipAddress?: string;
   client?: string;
 }
-
-export interface SecurityPolicy {
-  accounts: {
-    publicRegistration: boolean;
-    emailVerification: boolean;
-    emailChange: boolean;
-    export: boolean;
-    deletion: boolean;
-    deletionGraceDays: number;
-  };
-  authentication: {
-    mfaAvailable: boolean;
-    mfaRequiredRoles: ("user" | "admin")[];
-    mfaChallengeMinutes: number;
-    mfaMaxAttempts: number;
-    recentAuthenticationMinutes: number;
-  };
-  passwords: {
-    standardMinLength: number;
-    privilegedMinLength: number;
-    maxLength: number;
-  };
-  sessions: { userManagement: boolean; durationMinutes: number };
-  recovery: {
-    enabled: boolean;
-    tokenMinutes: number;
-    requestsPerHour: number;
-  };
-  audit: {
-    consultation: boolean;
-    retentionDays: number;
-  };
-}
-
-export const DEFAULT_SECURITY_POLICY: SecurityPolicy = {
-  accounts: {
-    publicRegistration: true,
-    emailVerification: true,
-    emailChange: true,
-    export: true,
-    deletion: true,
-    deletionGraceDays: 14,
-  },
-  authentication: {
-    mfaAvailable: true,
-    mfaRequiredRoles: [],
-    mfaChallengeMinutes: 5,
-    mfaMaxAttempts: 5,
-    recentAuthenticationMinutes: 15,
-  },
-  passwords: {
-    standardMinLength: 15,
-    privilegedMinLength: 20,
-    maxLength: 128,
-  },
-  sessions: { userManagement: true, durationMinutes: 60 * 24 * 30 },
-  recovery: { enabled: true, tokenMinutes: 30, requestsPerHour: 5 },
-  audit: { consultation: true, retentionDays: 365 },
-};
-
-export const SECURITY_CONFIG_CATALOG = [
-  ["accounts.publicRegistration", "boolean", "medium"],
-  ["accounts.emailVerification", "boolean", "high"],
-  ["accounts.emailChange", "boolean", "high"],
-  ["accounts.export", "boolean", "medium"],
-  ["accounts.deletion", "boolean", "critical"],
-  ["accounts.deletionGraceDays", "integer", "critical"],
-  ["authentication.mfaAvailable", "boolean", "high"],
-  ["authentication.mfaRequiredRoles", "set", "critical"],
-  ["authentication.mfaChallengeMinutes", "duration", "high"],
-  ["authentication.mfaMaxAttempts", "integer", "high"],
-  ["authentication.recentAuthenticationMinutes", "duration", "high"],
-  ["passwords.standardMinLength", "integer", "high"],
-  ["passwords.privilegedMinLength", "integer", "critical"],
-  ["passwords.maxLength", "integer", "high"],
-  ["sessions.userManagement", "boolean", "medium"],
-  ["sessions.durationMinutes", "duration", "high"],
-  ["recovery.enabled", "boolean", "high"],
-  ["recovery.tokenMinutes", "duration", "high"],
-  ["recovery.requestsPerHour", "integer", "high"],
-  ["audit.consultation", "boolean", "medium"],
-  ["audit.retentionDays", "duration", "critical"],
-] as const;
 
 export class SecurityError extends Error {
   constructor(
@@ -147,7 +76,7 @@ interface MfaVerification {
 
 const SENSITIVE_KEY = /(password|token|secret|cookie|authorization|code)/i;
 
-export class SecurityService implements SecondFactorGate {
+export class SecurityService implements SecondFactorGate, IamPolicyProvider {
   private readonly key: Buffer;
 
   constructor(private readonly options: SecurityServiceOptions) {
@@ -164,8 +93,69 @@ export class SecurityService implements SecondFactorGate {
       .orderBy("version", "desc")
       .executeTakeFirst();
     return revision
-      ? (revision.values as unknown as SecurityPolicy)
+      ? validatePolicy(revision.values)
       : structuredClone(DEFAULT_SECURITY_POLICY);
+  }
+
+  async getPasswordPolicy(role: IamActorRole) {
+    const { passwords } = await this.policy();
+    const privileged = role === "admin";
+    return createPasswordPolicy(
+      privileged ? passwords.privilegedLevel : passwords.standardLevel,
+      {
+        minLength: privileged
+          ? passwords.privilegedMinLength
+          : passwords.standardMinLength,
+        maxLength: passwords.maxLength,
+        minimumStrength: privileged
+          ? passwords.privilegedMinimumStrength
+          : passwords.standardMinimumStrength,
+        checkCommonPasswords: passwords.checkCommonPasswords,
+        checkCompromisedPasswords: passwords.checkCompromisedPasswords,
+        checkUserContext: passwords.checkUserContext,
+        rejectCurrentPassword: passwords.rejectCurrentPassword,
+        composition: {
+          requireUppercase: passwords.requireUppercase,
+          requireLowercase: passwords.requireLowercase,
+          requireNumber: passwords.requireNumber,
+          requireSpecialCharacter: passwords.requireSpecialCharacter,
+        },
+      },
+    );
+  }
+
+  async getSessionDurationMinutes(): Promise<number> {
+    return (await this.policy()).sessions.durationMinutes;
+  }
+
+  async isCapabilityEnabled(capability: IamCapability): Promise<boolean> {
+    const policy = await this.policy();
+    const values: Record<IamCapability, boolean> = {
+      "accounts.publicRegistration": policy.accounts.publicRegistration,
+      "accounts.emailVerification": policy.accounts.emailVerification,
+      "accounts.emailChange": policy.accounts.emailChange,
+      "accounts.export": policy.accounts.export,
+      "accounts.deletion": policy.accounts.deletion,
+      "authentication.mfa": policy.authentication.mfaAvailable,
+      "sessions.userManagement": policy.sessions.userManagement,
+      recovery: policy.recovery.enabled,
+      "audit.consultation": policy.audit.consultation,
+    };
+    return values[capability] ?? false;
+  }
+
+  async publicCapabilities() {
+    const policy = await this.policy();
+    return {
+      publicRegistration: policy.accounts.publicRegistration,
+      emailVerification: policy.accounts.emailVerification,
+      emailChange: policy.accounts.emailChange,
+      sessionManagement: policy.sessions.userManagement,
+      recovery: policy.recovery.enabled,
+      mfa: policy.authentication.mfaAvailable,
+      accountExport: policy.accounts.export,
+      accountDeletion: policy.accounts.deletion,
+    };
   }
 
   async configCenter() {
@@ -185,12 +175,7 @@ export class SecurityService implements SecondFactorGate {
       .limit(50)
       .execute();
     return {
-      catalog: SECURITY_CONFIG_CATALOG.map(([key, type, impact]) => ({
-        key,
-        type,
-        impact,
-        available: true,
-      })),
+      catalog: SECURITY_CONFIG_CATALOG,
       effective,
       revisions,
     };
@@ -221,8 +206,7 @@ export class SecurityService implements SecondFactorGate {
       changedKeys,
       impact: changedKeys.some((key) =>
         SECURITY_CONFIG_CATALOG.some(
-          ([catalogKey, , impact]) =>
-            catalogKey === key && impact === "critical",
+          (option) => option.key === key && option.impact === "critical",
         ),
       )
         ? "critical"
@@ -230,6 +214,11 @@ export class SecurityService implements SecondFactorGate {
       affectedAccounts: {
         administratorsRequiringEnrollment: Number(affectedAdministrators.count),
       },
+      changes: changedKeys.map((key) => ({
+        key,
+        before: policyValue(effective, key),
+        after: policyValue(proposed, key),
+      })),
       warnings: [
         ...(effective.authentication.mfaAvailable &&
         !proposed.authentication.mfaAvailable
@@ -248,10 +237,23 @@ export class SecurityService implements SecondFactorGate {
     actorId: string,
     values: unknown,
     expectedVersion: number,
-    justification?: string,
+    justification: string,
+    confirmedCritical = false,
   ) {
     const policy = validatePolicy(values);
     const previousPolicy = await this.policy();
+    const changedKeys = diffKeys(previousPolicy, policy);
+    const critical = changedKeys.some((key) =>
+      SECURITY_CONFIG_CATALOG.some(
+        (option) => option.key === key && option.impact === "critical",
+      ),
+    );
+    if (!justification.trim()) {
+      throw new SecurityError("CONFIG_JUSTIFICATION_REQUIRED");
+    }
+    if (critical && !confirmedCritical) {
+      throw new SecurityError("CONFIG_CRITICAL_CONFIRMATION_REQUIRED", 409);
+    }
     const current = await this.options.db
       .selectFrom("iam_security_config_revisions")
       .select(["id", "version"])
@@ -296,8 +298,8 @@ export class SecurityService implements SecondFactorGate {
       },
       {
         version: currentVersion + 1,
-        changedKeys: diffKeys(previousPolicy, policy),
-        justification: justification?.slice(0, 500),
+        changedKeys,
+        justification: justification.trim().slice(0, 500),
       },
     );
     return { id, version: currentVersion + 1, effective: policy };
@@ -323,6 +325,7 @@ export class SecurityService implements SecondFactorGate {
       target.values,
       current?.version ?? 0,
       `Rollback to ${revisionId}`,
+      true,
     );
   }
 
@@ -749,6 +752,9 @@ export class SecurityService implements SecondFactorGate {
     }
     const session = SessionEntity.createForUser({
       userId: identifier.value,
+      expiresAt: new Date(
+        Date.now() + (await this.getSessionDurationMinutes()) * 60_000,
+      ),
       ...(metadata?.client ? { client: metadata.client } : {}),
       ...(metadata?.network ? { network: metadata.network } : {}),
     });
@@ -1686,46 +1692,11 @@ export class SecurityService implements SecondFactorGate {
 }
 
 function validatePolicy(value: unknown): SecurityPolicy {
-  const candidate = value as SecurityPolicy;
-  if (
-    !candidate ||
-    typeof candidate !== "object" ||
-    !candidate.accounts ||
-    !candidate.authentication ||
-    !candidate.passwords ||
-    !candidate.sessions ||
-    !candidate.recovery ||
-    !candidate.audit
-  ) {
+  const result = SecurityPolicySchema.safeParse(value);
+  if (!result.success) {
     throw new SecurityError("CONFIG_INVALID");
   }
-  const bounded = (number: unknown, min: number, max: number) =>
-    Number.isInteger(number) && Number(number) >= min && Number(number) <= max;
-  if (
-    !bounded(candidate.accounts.deletionGraceDays, 1, 90) ||
-    !bounded(candidate.authentication.mfaChallengeMinutes, 1, 30) ||
-    !bounded(candidate.authentication.mfaMaxAttempts, 3, 20) ||
-    !bounded(candidate.authentication.recentAuthenticationMinutes, 1, 60) ||
-    !bounded(candidate.passwords.standardMinLength, 8, 128) ||
-    !bounded(candidate.passwords.privilegedMinLength, 12, 128) ||
-    !bounded(candidate.passwords.maxLength, 64, 512) ||
-    candidate.passwords.privilegedMinLength <
-      candidate.passwords.standardMinLength ||
-    candidate.passwords.maxLength < candidate.passwords.privilegedMinLength ||
-    !bounded(candidate.sessions.durationMinutes, 5, 525_600) ||
-    !bounded(candidate.recovery.tokenMinutes, 5, 1440) ||
-    !bounded(candidate.recovery.requestsPerHour, 1, 20) ||
-    !bounded(candidate.audit.retentionDays, 30, 3650) ||
-    !Array.isArray(candidate.authentication.mfaRequiredRoles) ||
-    candidate.authentication.mfaRequiredRoles.some(
-      (role) => role !== "user" && role !== "admin",
-    ) ||
-    (candidate.authentication.mfaRequiredRoles.length > 0 &&
-      !candidate.authentication.mfaAvailable)
-  ) {
-    throw new SecurityError("CONFIG_INVALID");
-  }
-  return structuredClone(candidate);
+  return structuredClone(result.data);
 }
 
 function redact(value: unknown): unknown {

@@ -159,11 +159,17 @@ describe("SignUpUseCase - full coverage", () => {
       emailSenderPort,
       new FakeTokenHasher(),
       new PasswordPolicyValidator(
-        createPasswordPolicy("elevated", {
-          checkCommonPasswords: false,
-          checkCompromisedPasswords: false,
-          checkUserContext: false,
-        }),
+        {
+          getPasswordPolicy: async () =>
+            createPasswordPolicy("elevated", {
+              checkCommonPasswords: false,
+              checkCompromisedPasswords: false,
+              checkUserContext: false,
+            }),
+          getSessionDurationMinutes: async () => 60,
+          isCapabilityEnabled: async () => true,
+        },
+        "user",
         {
           evaluate: async () => "acceptable",
         } as PasswordStrengthEvaluator,

@@ -14,7 +14,10 @@ ce document décrit ce que le code exécute aujourd’hui.
 - dans `buildSecurityRoutes`, pour les routes de sécurité ;
 - dans `createIam` comme implémentation du port `SecondFactorGate`, afin que
   `SignInUseCase` suspende la création de session lorsqu’un second facteur est
-  actif.
+  actif ;
+- dans `createIam` comme `IamPolicyProvider`, afin que les cas d’utilisation
+  relisent une policy cohérente pour les mots de passe, les capacités et la
+  durée des sessions.
 
 Ce module est une verticale hybride. Contrairement aux capacités historiques
 du cœur IAM, il n’est pas composé de cas d’utilisation retournant `Result` et
@@ -100,21 +103,26 @@ La dernière révision `published` est relue depuis PostgreSQL ; aucun
 redémarrage n’est nécessaire. La publication utilise un numéro de version
 attendu, et l’API fournit prévisualisation et rollback.
 
-| Groupe d’options                  | Consommateur actuel                          |
-| --------------------------------- | -------------------------------------------- |
-| inscription, changement d’adresse | hook global de `server.ts`                   |
-| gestion des sessions              | hook global de `server.ts`                   |
-| récupération                      | `SecurityService.requestRecovery`            |
-| disponibilité et rôles MFA        | enrôlement, connexion et désactivation       |
-| export et suppression             | parcours correspondants                      |
-| rétention/consultation d’audit    | écriture, consultation et maintenance        |
-| longueurs de mot de passe         | réinitialisation par récupération uniquement |
+| Groupe d’options                  | Consommateur actuel                     |
+| --------------------------------- | --------------------------------------- |
+| inscription, changement d’adresse | cas d’utilisation et hook HTTP anticipé |
+| gestion des sessions              | cas d’utilisation et hook HTTP anticipé |
+| récupération                      | `SecurityService.requestRecovery`       |
+| disponibilité et rôles MFA        | enrôlement, connexion et désactivation  |
+| export et suppression             | parcours correspondants                 |
+| rétention/consultation d’audit    | écriture, consultation et maintenance   |
+| policy complète de mot de passe   | fournisseur injecté dans le cœur IAM    |
+| durée des sessions                | `SignInUseCase` et finalisation MFA     |
 
-Les options `accounts.emailVerification` et `sessions.durationMinutes` sont
-représentées mais ne pilotent aucun comportement. Les options dynamiques de mot
-de passe ne remplacent pas le `PasswordPolicyValidator` construit au démarrage
-pour l’inscription et le changement authentifié. L’interface d’administration
-ne doit donc pas présenter ces trois zones comme universellement effectives.
+`accounts.emailVerification` reste représentée mais ne pilote aucun
+comportement ; le catalogue la marque donc indisponible et en lecture seule.
+Les anciennes variables `PASSWORD_*` ne sont plus lues au démarrage.
+
+Le centre d’administration rend désormais un formulaire typé depuis le
+catalogue, avec contrôles adaptés, prévisualisation avant/après, motif
+obligatoire, confirmation des changements critiques, historique et
+restauration. La confirmation critique actuelle est une confirmation explicite
+dans l’interface ; elle n’est pas encore une réauthentification forte.
 
 ## Audit et limites de preuve
 

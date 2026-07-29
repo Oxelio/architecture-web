@@ -30,17 +30,16 @@ requirements are disabled by default. Administrator password changes use the
 
 ## Configuration
 
-All variables are listed in `apps/api/.env.example`: user and privileged policy
-levels, minimum and maximum lengths, minimum strength,
-common/compromised/context checks, current password reuse, and the four
-optional composition rules. Disabling a security check therefore requires an
-explicit `false`.
+The latest published security-centre revision is the sole policy source.
+`SecurityService` implements `IamPolicyProvider` and builds the standard or
+privileged policy used by `PasswordPolicyValidator` on demand.
 
-The dynamic configuration center also exposes lengths under `passwords`. They
-are currently used only by recovery reset in `SecurityService`; they do not
-rebuild the two startup-created `PasswordPolicyValidator` instances used for
-sign-up and authenticated changes. There are therefore two distinct validation
-paths, not one dynamic policy.
+The versioned schema in `apps/api/src/security/security-policy.ts` defines
+levels, lengths, checks, and composition rules. Previous `PASSWORD_*` startup
+variables have been removed. Sign-up, authenticated change, the public
+contract, and evaluation now use the same persisted revision. Recovery still
+validates inside `SecurityService` and must move to the shared validator to
+cover checks beyond length.
 
 ## HTTP contracts
 
@@ -62,7 +61,7 @@ passwords are not reevaluated at sign-in.
 
 ## Current limitations
 
-The reset flow now exists, but it applies dynamic length bounds only and does
+The reset flow applies dynamic length bounds only and does
 not call `PasswordPolicyValidator`. Invitation, activation-with-password, and
 administrative password-definition flows remain absent.
 

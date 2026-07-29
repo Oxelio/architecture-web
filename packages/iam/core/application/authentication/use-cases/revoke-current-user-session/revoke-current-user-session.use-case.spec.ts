@@ -9,7 +9,10 @@ import { RevokeCurrentUserSessionUseCase } from "./revoke-current-user-session.u
 describe("RevokeCurrentUserSessionUseCase", () => {
   it("revokes only a session owned by the authenticated actor", async () => {
     const actorId = UserIdentifierValueObject.generate();
-    const session = SessionEntity.createForUser({ userId: actorId });
+    const session = SessionEntity.createForUser({
+      userId: actorId,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
     const deleteSession = vi.fn();
     const sessions = {
       findById: async () => session,
@@ -28,6 +31,7 @@ describe("RevokeCurrentUserSessionUseCase", () => {
   it("hides a session owned by another user", async () => {
     const session = SessionEntity.createForUser({
       userId: UserIdentifierValueObject.generate(),
+      expiresAt: new Date(Date.now() + 60_000),
     });
     const sessions = {
       findById: async () => session,

@@ -1,6 +1,9 @@
 // @file bounded-contexts/iam/application/use-cases/change-email/change-email.codes.ts
 
 export const ChangeEmailErrorsCodes = {
+  featureDisabled: {
+    code: "feature.disabled",
+  },
   invalidId: {
     code: "user.invalid_id",
   },

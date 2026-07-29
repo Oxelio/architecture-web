@@ -30,25 +30,18 @@ administrateurs utilisent le niveau `critical` par défaut lors d’un changemen
 
 ## Configuration
 
-Les variables sont documentées dans `apps/api/.env.example` :
+La dernière révision publiée du centre de sécurité est l’unique source de
+policy. `SecurityService` implémente `IamPolicyProvider` et construit à la
+demande la policy standard ou privilégiée utilisée par
+`PasswordPolicyValidator`.
 
-- `PASSWORD_POLICY_LEVEL` ;
-- `PASSWORD_PRIVILEGED_POLICY_LEVEL` ;
-- `PASSWORD_MIN_LENGTH` et `PASSWORD_MAX_LENGTH` ;
-- `PASSWORD_MINIMUM_STRENGTH` ;
-- `PASSWORD_CHECK_COMMON`, `PASSWORD_CHECK_COMPROMISED` et
-  `PASSWORD_CHECK_CONTEXT` ;
-- `PASSWORD_REJECT_CURRENT` ;
-- les quatre options `PASSWORD_REQUIRE_*`.
-
-Désactiver un contrôle nécessite donc une valeur explicite `false`.
-
-Le centre de configuration dynamique expose aussi des longueurs sous
-`passwords`. Elles sont actuellement utilisées uniquement par la
-réinitialisation de récupération dans `SecurityService`. Elles ne reconstruisent
-pas les deux `PasswordPolicyValidator` créés au démarrage pour l’inscription et
-le changement authentifié. Il existe donc deux chemins de validation distincts,
-et non une politique dynamique unique.
+Le schéma versionné `apps/api/src/security/security-policy.ts` définit les
+niveaux, longueurs, contrôles et règles de composition. Les anciennes variables
+`PASSWORD_*` ont été retirées de la configuration de démarrage. L’inscription,
+le changement authentifié, le contrat public et l’évaluation utilisent donc la
+même révision persistée. La récupération applique encore sa validation dans
+`SecurityService` et doit être migrée vers le validateur partagé pour couvrir
+tous les contrôles au-delà de la longueur.
 
 ## Contrats HTTP
 
@@ -73,8 +66,8 @@ Les mots de passe existants ne sont pas réévalués lors de la connexion.
 
 ## Limites actuelles
 
-Le parcours de réinitialisation existe, mais il applique seulement les bornes
-de longueur dynamiques et n’appelle pas `PasswordPolicyValidator`. Les parcours
+Le parcours de réinitialisation applique encore seulement les bornes de longueur
+dynamiques et n’appelle pas `PasswordPolicyValidator`. Les parcours
 d’invitation, d’activation avec définition de mot de passe et de définition
 administrative restent absents.
 

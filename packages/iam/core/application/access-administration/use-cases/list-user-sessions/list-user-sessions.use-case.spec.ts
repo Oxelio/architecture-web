@@ -24,7 +24,10 @@ describe("ListUserSessionsUseCase", () => {
       password: password.value,
     });
     const administrator = createAdministrator();
-    const session = SessionEntity.createForUser({ userId: user.identifier });
+    const session = SessionEntity.createForUser({
+      userId: user.identifier,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
     const users = {
       findById: async (id: UserIdentifierValueObject) =>
         id.equals(administrator.identifier) ? administrator : user,

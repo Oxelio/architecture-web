@@ -7,6 +7,7 @@ import type { EmailVerificationRepository } from "#repositories/email-verificati
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
+import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -24,9 +25,16 @@ export class ChangeEmailUseCase implements ChangeEmail {
     private readonly emailVerification: EmailVerificationRepository,
     private readonly emailSender: EmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
+    private readonly policyProvider?: IamPolicyProvider,
   ) {}
 
   async execute(command: ChangeEmailInput): Promise<ChangeEmailOutput> {
+    if (
+      this.policyProvider &&
+      !(await this.policyProvider.isCapabilityEnabled("accounts.emailChange"))
+    ) {
+      return Result.failure(ChangeEmailErrorsCodes.featureDisabled);
+    }
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
       return Result.failure(ChangeEmailErrorsCodes.invalidId);

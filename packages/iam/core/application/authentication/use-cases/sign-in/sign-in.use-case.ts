@@ -5,6 +5,7 @@ import { Result } from "@architecture/foundation";
 import { SessionEntity } from "#entities/session.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import type { SecondFactorGate } from "#services/second-factor-gate.service";
 import { EmailValueObject } from "#value-objects/email.value-object";
@@ -25,6 +26,7 @@ export class SignInUseCase implements SignIn {
     private readonly user: UserRepository,
     private readonly password: PasswordHasher,
     private readonly session: SessionRepository,
+    private readonly policyProvider: IamPolicyProvider,
     private readonly secondFactor?: SecondFactorGate,
   ) {}
 
@@ -65,8 +67,11 @@ export class SignInUseCase implements SignIn {
       return Result.success(challenge);
     }
 
+    const sessionDurationMinutes =
+      await this.policyProvider.getSessionDurationMinutes();
     const sessionEntity = SessionEntity.createForUser({
       userId: user.identifier,
+      expiresAt: new Date(Date.now() + sessionDurationMinutes * 60_000),
       ...(payload.client ? { client: payload.client } : {}),
       ...(payload.network ? { network: payload.network } : {}),
     });

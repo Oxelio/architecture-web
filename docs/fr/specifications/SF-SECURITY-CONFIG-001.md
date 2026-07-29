@@ -291,20 +291,54 @@ notification ou un événement. La première version ne configure aucun secret.
 
 ## Expérience utilisateur
 
-L’espace **Administration > Configuration** doit :
+L’espace **Administration > Configuration** est une page dédiée. Il ne doit pas
+exposer un document JSON, le nom des variables d’environnement ou le format de
+persistance comme interface principale.
+
+Les réglages sont regroupés par domaine et rendus à partir d’un catalogue
+descriptif :
+
+- interrupteur pour une activation ;
+- boutons radio, cartes de choix ou liste fermée pour un niveau ;
+- champ numérique, éventuellement couplé à un slider, pour une valeur bornée ;
+- sélection multiple pour les rôles ou capacités concernés.
+
+Le slider ne remplace jamais le champ numérique lorsqu’une valeur exacte est
+importante ou que la plage est large. Chaque contrôle affiche son unité, ses
+bornes, sa valeur recommandée, son effet et la raison de son indisponibilité.
+Une option sans consommateur exécutable est visible en lecture seule et marquée
+**non effective** ; elle ne peut pas être publiée.
+
+La page doit :
 
 - afficher l’état effectif, pas seulement la valeur enregistrée ;
 - utiliser des libellés, aides et conséquences compréhensibles ;
+- conserver un brouillon tant qu’il n’est pas publié et permettre de rétablir
+  la valeur publiée d’un champ ou de tout le formulaire ;
+- valider au fil de la saisie et rattacher chaque erreur au contrôle concerné ;
 - signaler les valeurs moins sûres que les recommandations ;
 - distinguer avertissement et erreur bloquante ;
 - rendre visibles les dépendances avant confirmation ;
+- présenter les valeurs avant/après, les fonctions affectées et le mode d’effet
+  dans une étape de prévisualisation ;
+- exiger un motif non vide avant publication ;
 - demander une confirmation explicite pour toute réduction critique ;
+- distinguer conflit de version, validation refusée et échec d’application ;
 - empêcher les doubles soumissions ;
 - être accessible au clavier et aux technologies d’assistance ;
 - afficher la date du dernier rafraîchissement et la révision consultée.
 
 Un indicateur « recommandé » aide au choix sans empêcher un déploiement ayant
 des contraintes différentes.
+
+L’historique et le journal d’audit sont accessibles depuis la page, mais ne
+remplacent pas l’éditeur. L’historique permet d’ouvrir le détail d’une révision,
+d’identifier son auteur et son motif, de comparer les valeurs et de demander
+une restauration.
+
+Les responsabilités techniques et les écarts actuellement observés sont
+documentés dans
+[Refonte de la configuration de sécurité](../architecture/security-configuration-redesign.md).
 
 ## API et fonctionnalités désactivées
 

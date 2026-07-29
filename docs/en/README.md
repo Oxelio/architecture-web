@@ -24,6 +24,7 @@ New contributors should read:
 - [Layers and boundaries](architecture/layers.md)
 - [Dependency rules](architecture/dependency-rules.md)
 - [Packages and public APIs](architecture/packages.md)
+- [Security configuration redesign](architecture/security-configuration-redesign.md)
 - [Architectural decisions](architecture/decisions/README.md)
 
 ### Development

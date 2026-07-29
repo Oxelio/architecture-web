@@ -64,8 +64,9 @@ export class ChangePasswordUseCase implements ChangePassword {
       return Result.failure(password.error);
     }
 
+    const publicPolicy = await activePolicy.getPublicPolicy();
     if (
-      activePolicy.publicPolicy.rejectCurrentPassword &&
+      publicPolicy.rejectCurrentPassword &&
       (await this.passwordHasher.verify(password.value, user.password))
     ) {
       return Result.failure(ChangePasswordErrorsCodes.reused);
