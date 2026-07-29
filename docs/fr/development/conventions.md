@@ -9,16 +9,20 @@
   `NomOutput`, éventuellement `NomError`, et une classe `NomUseCase`.
 - Une implémentation technique se termine par `Adapter` et nomme sa technologie.
 - Les tests sont colocalisés sous la forme `*.spec.ts` ou `*.spec.tsx`.
-- Une fonctionnalité HTTP IAM possède son dossier sous
-  `apps/api/src/features/iam/<feature>`.
+- Une fonctionnalité HTTP IAM suivant l’architecture historique possède son
+  dossier sous `apps/api/src/features/iam/<feature>`. Le vertical de sécurité
+  actuel est regroupé sous `apps/api/src/security` ; cette exception observée
+  n’est pas un modèle implicite pour les nouvelles fonctionnalités.
 
 ## Contrats et résultats
 
-Les erreurs métier attendues **DOIVENT** être représentées par des objets
-portant un `code` stable et retournées dans `Result<TValue, TError>`. Les
-contrats applicatifs ne portent pas de statut HTTP. La couche API associe ces
-codes à un contrat de transport dans `*.http.ts`, puis le presenter transforme
-le résultat.
+Dans le cœur IAM, les erreurs métier attendues **DOIVENT** être représentées par
+des objets portant un `code` stable et retournées dans
+`Result<TValue, TError>`. Les contrats applicatifs ne portent pas de statut
+HTTP. La couche API associe ces codes à un contrat de transport dans
+`*.http.ts`, puis le presenter transforme le résultat. Le vertical de sécurité
+utilise actuellement `SecurityError` et un mapping directement dans ses routes ;
+il s’agit d’une divergence documentée, pas d’une nouvelle règle générale.
 
 ```ts
 export interface SignIn {
@@ -75,7 +79,9 @@ return {
   `request.auth` et **NE DOIT PAS** accepter l’identifiant d’un autre utilisateur.
 - Un contrôleur protégé **DOIT** gérer l’absence d’authentification, même si un
   hook la précède.
-- Les schémas TypeBox décrivent corps, paramètres, query et réponses.
+- Toute nouvelle route **DOIT** décrire corps, paramètres, query et réponses
+  avec TypeBox. Les routes de `apps/api/src/security/security.routes.ts` ne le
+  font pas encore et constituent une dette de documentation OpenAPI.
 - Les cookies de session restent `httpOnly`; leur politique `sameSite` et
   `secure` est centralisée dans `buildSessionCookieOptions`.
 

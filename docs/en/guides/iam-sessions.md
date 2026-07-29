@@ -6,6 +6,12 @@
 successful sign-in creates a 60-minute `SessionEntity` and returns an `httpOnly`
 `sid` cookie.
 
+When MFA is active, password validation does not create a session yet.
+`SignInUseCase` returns the challenge supplied by `SecondFactorGate`, the
+controller responds with `202`, and `POST /v1/iam/mfa/challenge/verify`
+creates the session after second-factor validation. See the
+[security guide](account-security.md).
+
 Before storing a new session, `SignInUseCase` loads active sessions and revokes
 the oldest ones that would exceed the limit of 10. This bound keeps personal
 and administrative session lists durable without pagination.
@@ -31,6 +37,9 @@ invalid cookies, missing or expired sessions, and missing or suspended users.
 Activity is updated at most once every five minutes to avoid a Redis write per
 request.
 
+`pending_deletion` is also refused because resolution now requires an active
+account.
+
 ## Authorization
 
 Protected routes use `authenticate`. Administrator routes add
@@ -40,6 +49,9 @@ use case, so the client cannot choose another user.
 Suspension revokes all sessions. Password changes also revoke sessions as
 defined by the use case. Sensitive administration operations prevent certain
 self-actions through `user.self_administration_forbidden`.
+
+Account recovery, MFA activation or disabling, and a deletion request also
+revoke sessions.
 
 Password changes first verify the current password, then confirmation and the
 [central policy](password-policy.md). Sessions are revoked only after
@@ -64,3 +76,7 @@ dedicated mechanism supplies it.
   affects collected metadata.
 - IP and client data are sensitive. Longer retention, geolocation, or broader
   exposure requires product and compliance decisions.
+
+Dynamic configuration represents `sessions.durationMinutes`, but
+`SessionEntity` currently keeps its hard-coded 60-minute lifetime. Changing
+that option does not alter the actual TTL.

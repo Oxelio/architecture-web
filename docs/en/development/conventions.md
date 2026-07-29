@@ -9,14 +9,19 @@
   `NameError`, and a `NameUseCase` implementation.
 - Technical implementations end in `Adapter` and name their technology.
 - Tests are colocated as `*.spec.ts` or `*.spec.tsx`.
-- Each IAM HTTP feature has a folder under
-  `apps/api/src/features/iam/<feature>`.
+- IAM HTTP features following the historical architecture have a folder under
+  `apps/api/src/features/iam/<feature>`. The current security vertical is
+  grouped under `apps/api/src/security`; this observed exception is not an
+  implicit template for new features.
 
 ## Contracts and results
 
-Expected business errors **MUST** be values with a stable `code`, returned
-through `Result<TValue, TError>`. Application contracts carry no HTTP status.
-The API maps codes in `*.http.ts`, and presenters map results to transport.
+In the IAM core, expected business errors **MUST** be values with a stable
+`code`, returned through `Result<TValue, TError>`. Application contracts carry
+no HTTP status. The API maps codes in `*.http.ts`, and presenters map results
+to transport. The security vertical currently uses `SecurityError` and maps it
+directly in its routes; this is a documented divergence, not a new general
+rule.
 
 Unexpected database, cache, or programming failures **MUST NOT** be invented as
 business errors. They reach the global API handler unless an explicit adapter
@@ -59,7 +64,9 @@ return {
 - User-owned routes **MUST** derive `userId` from `request.auth` and **MUST
   NOT** accept another owner from the client.
 - Protected controllers **MUST** guard missing auth even behind a hook.
-- TypeBox schemas describe body, params, query, and responses.
+- Every new route **MUST** describe body, params, query, and responses with
+  TypeBox. Routes in `apps/api/src/security/security.routes.ts` do not do this
+  yet and therefore leave OpenAPI documentation debt.
 - Session cookies remain `httpOnly`; `sameSite` and `secure` are centralized in
   `buildSessionCookieOptions`.
 

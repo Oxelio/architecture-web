@@ -36,6 +36,12 @@ common/compromised/context checks, current password reuse, and the four
 optional composition rules. Disabling a security check therefore requires an
 explicit `false`.
 
+The dynamic configuration center also exposes lengths under `passwords`. They
+are currently used only by recovery reset in `SecurityService`; they do not
+rebuild the two startup-created `PasswordPolicyValidator` instances used for
+sign-up and authenticated changes. There are therefore two distinct validation
+paths, not one dynamic policy.
+
 ## HTTP contracts
 
 - `GET /v1/iam/password-policy` exposes public requirements;
@@ -56,9 +62,9 @@ passwords are not reevaluated at sign-in.
 
 ## Current limitations
 
-There are no reset, invitation, activation-with-password, or administrative
-password-definition flows. Any future flow must reuse
-`PasswordPolicyValidator`.
+The reset flow now exists, but it applies dynamic length bounds only and does
+not call `PasswordPolicyValidator`. Invitation, activation-with-password, and
+administrative password-definition flows remain absent.
 
 Password history is not represented in persistence; only reuse of the current
 password is rejected. Embedded local lists are a minimal fallback. Sensitive

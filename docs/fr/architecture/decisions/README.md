@@ -80,6 +80,9 @@ d’extension prévu.
 - versionnage commun ou indépendant ;
 - durcissement automatique des règles de dépendance ;
 - correction du chemin historique `persitence`.
+- maintien de `SecurityService` dans l’API ou extraction vers des cas
+  d’utilisation et adaptateurs dédiés ;
+- stratégie de planification de la maintenance de sécurité.
 
 Ces sujets ne doivent pas être présentés comme décidés avant une modification
 explicite du code ou un nouvel ADR.

@@ -4,6 +4,12 @@ This path starts from a business intent and ends at the interface. Not every
 step is mandatory: create a port or domain object only when the feature needs
 one.
 
+This path describes the preferred structure in `packages/iam/core` and
+`apps/api/src/features/iam`. The existing `apps/api/src/security` vertical is a
+documented hybrid exception in the
+[security guide](../guides/account-security.md); it **MUST NOT** become an
+implicit template for a new capability.
+
 ## 1. Define behavior
 
 Identify the actor and access level, business input and output, expected errors,
@@ -109,6 +115,10 @@ example, invalidates both the paginated list and global indicators.
 
 Update the HTTP reference for a new endpoint. Add an ADR only for a durable
 structural decision.
+
+A new route **MUST** define TypeBox schemas for its body, parameters, query,
+and responses. Current security routes do not yet have them; that debt does not
+justify another undocumented route.
 
 ## 9. Verify
 

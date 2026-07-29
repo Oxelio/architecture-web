@@ -46,6 +46,10 @@ Les repositories et services abstraits sont des ports secondaires :
 - repositories pour utilisateurs, vérifications et sessions ;
 - services pour hachage, e-mail et limitation de débit.
 
+`SecondFactorGate` est un port particulier appelé par `SignInUseCase`. Son
+implémentation composée est `SecurityService`, située dans l’API plutôt que
+dans un package d’infrastructure.
+
 Les opérations cohérentes utilisant la même implémentation sont regroupées :
 `UserRepository` porte les écritures, recherches de compte, consultation
 administrative bornée et indicateurs ; `SessionRepository` porte le cycle de
@@ -88,9 +92,16 @@ persistées invalides avec `InvalidPersistenceDataError`.
   route par fonctionnalité ;
 - `routes` sépare les routes publiques, protégées et administrateur.
 
-La connaissance des implémentations concrètes est autorisée dans
-`composition-root`, pas dans les contrôleurs. Les contrôleurs **DOIVENT**
-appeler les interfaces de cas d’utilisation.
+`apps/api/src/security` constitue une seconde organisation HTTP. Il regroupe un
+service concret, ses types et ses routes publiques, protégées et
+administrateur. Ce service orchestre directement Kysely et plusieurs ports
+techniques. Il ne respecte donc pas la séparation contrôleur/cas
+d’utilisation/adaptateur décrite ci-dessus pour `features/iam`.
+
+Pour `features/iam`, la connaissance des implémentations concrètes est autorisée
+dans `composition-root`, pas dans les contrôleurs, qui **DOIVENT** appeler les
+interfaces de cas d’utilisation. `security.routes.ts` est une exception
+observée : ses handlers appellent directement `SecurityService`.
 
 ## Application React
 

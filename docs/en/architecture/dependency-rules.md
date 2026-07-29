@@ -31,6 +31,12 @@ An arrow means “may depend on”; it does not require the dependency.
 | API composition root    | application and concrete adapters           | —                                           |
 | Web                     | UI code and HTTP contract                   | business and infrastructure packages        |
 
+`apps/api/src/security/security.service.ts` is a current exception to the
+“API outside composition” row: it imports Kysely, domain objects, and adapter
+types. The matrix describes the rule followed by `features/iam`, not a
+guarantee enforced across all of `apps/api`. This exception **MUST NOT** be
+copied without an explicit architectural decision.
+
 ## Direct answers
 
 - An entity **MUST NOT** import a use case.
@@ -77,5 +83,7 @@ also breaking.
 ## Current enforcement and limitation
 
 pnpm packages, `exports`, and TypeScript types materialize boundaries. ESLint
-does not yet forbid every dependency direction, so this matrix remains
-normative even when tooling does not block a violation.
+does not yet forbid every dependency direction. The matrix remains normative
+for the core and historical IAM features even when tooling does not block a
+violation. The `apps/api/src/security` vertical demonstrates that the
+convention can currently be bypassed.

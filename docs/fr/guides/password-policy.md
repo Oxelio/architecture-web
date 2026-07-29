@@ -43,6 +43,13 @@ Les variables sont documentées dans `apps/api/.env.example` :
 
 Désactiver un contrôle nécessite donc une valeur explicite `false`.
 
+Le centre de configuration dynamique expose aussi des longueurs sous
+`passwords`. Elles sont actuellement utilisées uniquement par la
+réinitialisation de récupération dans `SecurityService`. Elles ne reconstruisent
+pas les deux `PasswordPolicyValidator` créés au démarrage pour l’inscription et
+le changement authentifié. Il existe donc deux chemins de validation distincts,
+et non une politique dynamique unique.
+
 ## Contrats HTTP
 
 - `GET /v1/iam/password-policy` expose uniquement les exigences publiques ;
@@ -66,9 +73,10 @@ Les mots de passe existants ne sont pas réévalués lors de la connexion.
 
 ## Limites actuelles
 
-Le projet ne contient pas de parcours de réinitialisation, invitation,
-activation avec définition de mot de passe, ni définition administrative. Ils
-devront obligatoirement réutiliser `PasswordPolicyValidator` s’ils sont ajoutés.
+Le parcours de réinitialisation existe, mais il applique seulement les bornes
+de longueur dynamiques et n’appelle pas `PasswordPolicyValidator`. Les parcours
+d’invitation, d’activation avec définition de mot de passe et de définition
+administrative restent absents.
 
 L’historique des mots de passe n’existe pas dans le modèle de persistance ; seul
 le refus du mot de passe actuel est implémenté. Les listes locales embarquées

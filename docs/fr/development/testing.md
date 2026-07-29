@@ -9,6 +9,8 @@ Les tests sont colocalisés avec le code et exécutés par Vitest.
 - Chaque adaptateur teste sa conformité comportementale et ses conversions.
 - L’API teste les helpers et les contrôleurs qui portent une règle d’accès ou
   une adaptation non triviale.
+- Le module de sécurité teste actuellement ses primitives de validation de
+  configuration, redaction, TOTP et construction ZIP.
 - Le web contient des tests unitaires ciblés ; il n’existe pas de suite E2E
   déclarée dans le dépôt.
 
@@ -24,6 +26,12 @@ l’adapter teste les filtres, le comptage, l’ordre et `limit`/`offset` ; l’
 teste l’enveloppe publique ; le web teste la sérialisation des critères. Les
 tests Kysely actuels utilisent des doubles de query builder et ne remplacent
 pas une mesure de plan PostgreSQL sur un volume représentatif.
+
+Les transactions de récupération, MFA, export, suppression, rétention et
+publication dynamique n’ont pas de suite d’intégration automatisée couvrant
+PostgreSQL, Redis et SMTP ensemble. Les tests de primitives de
+`security.service.spec.ts` ne prouvent donc pas tous les scénarios concurrents
+des spécifications de sécurité.
 
 ## Commandes racine
 
@@ -67,15 +75,29 @@ Pour un changement métier :
 
 ## Vérifier les liens Markdown
 
-Le dépôt ne fournit pas encore de script dédié. Un contrôle local doit :
+Le dépôt ne fournit pas de script dédié. Pour un audit documentaire, le script
+externe de la compétence peut être exécuté ainsi :
+
+```bash
+python <skill-dir>/scripts/validate_docs.py <repo-root> \
+  --docs docs \
+  --code-path-prefix apps \
+  --code-path-prefix packages \
+  --exclude "fr/specifications/**" \
+  --exclude "en/specifications/**" \
+  --mirror docs/fr docs/en
+```
+
+Sans ce script, un contrôle local doit :
 
 - ignorer les URL externes et les ancres seules ;
 - résoudre chaque lien relatif depuis son document ;
 - retirer l’ancre et décoder les chemins avant de tester leur existence ;
 - vérifier séparément les ancres si leur validité est critique.
 
-Cette absence d’automatisation est une recommandation d’amélioration, pas une
-garantie actuelle.
+Le script n’est pas versionné dans le dépôt ni exécuté par la CI. Cette absence
+d’automatisation reste une recommandation d’amélioration, pas une garantie
+actuelle.
 
 ## Couverture
 

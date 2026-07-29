@@ -8,6 +8,8 @@ Tests are colocated with code and run with Vitest.
 - IAM core tests entities, value objects, use cases, and its factory.
 - Each adapter tests behavior and conversions for its technology.
 - The API tests helpers and controllers with non-trivial access or mapping.
+- The security module currently tests configuration validation, redaction,
+  TOTP, and ZIP-building primitives.
 - The web has targeted unit tests; no E2E suite is declared.
 
 A use case **MUST** be tested without real infrastructure through port doubles.
@@ -19,6 +21,11 @@ bounds, authorization, and metadata; the adapter tests filters, count, order,
 and `limit`/`offset`; the API tests the public envelope; the web tests criterion
 serialization. Current Kysely tests use query-builder doubles and do not replace
 PostgreSQL plan measurements on representative data.
+
+Recovery, MFA, export, deletion, retention, and dynamic-publication
+transactions have no automated integration suite spanning PostgreSQL, Redis,
+and SMTP. Primitive tests in `security.service.spec.ts` therefore do not prove
+every concurrent scenario from the security specifications.
 
 ## Root commands
 
@@ -54,12 +61,25 @@ export warrants full-workspace validation.
 
 ## Markdown links
 
-No dedicated link-checking script exists yet. A local check must resolve each
-relative link from its document, remove fragments, decode paths, and ignore
-external URLs and standalone anchors. Anchors need a separate check when
-critical.
+No dedicated link-checking script is versioned in the repository. During a
+documentation audit, the external skill script can be run as:
 
-This missing automation is a recommendation, not a current guarantee.
+```bash
+python <skill-dir>/scripts/validate_docs.py <repo-root> \
+  --docs docs \
+  --code-path-prefix apps \
+  --code-path-prefix packages \
+  --exclude "fr/specifications/**" \
+  --exclude "en/specifications/**" \
+  --mirror docs/fr docs/en
+```
+
+Without it, a local check must resolve each relative link from its document,
+remove fragments, decode paths, and ignore external URLs and standalone
+anchors. Anchors need a separate check when critical.
+
+The script is not part of the repository or CI. This missing automation is a
+recommendation, not a current guarantee.
 
 ## Coverage
 

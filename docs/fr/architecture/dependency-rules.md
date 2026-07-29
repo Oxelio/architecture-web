@@ -32,6 +32,13 @@ existe.
 | API composition root | application et adaptateurs concrets        | —                                           |
 | Web                  | son code UI et le contrat HTTP             | packages métier et infrastructure           |
 
+`apps/api/src/security/security.service.ts` est une exception actuelle à la
+ligne « API hors composition » : il importe Kysely, des objets du domaine et
+des types d’adaptateurs. La matrice exprime la règle suivie par
+`features/iam`, pas une garantie automatiquement respectée par tout
+`apps/api`. Cette exception ne **DOIT PAS** être copiée sans décision
+architecturale explicite.
+
 ## Réponses aux questions fréquentes
 
 - Une entité **NE DOIT PAS** importer un cas d’utilisation.
@@ -85,5 +92,7 @@ modifier sa signification est également cassant.
 
 Les frontières de packages sont matérialisées par pnpm, `exports` et les types
 TypeScript. ESLint n’interdit toutefois pas encore toutes les directions de
-dépendance. La matrice ci-dessus est donc normative même lorsqu’aucun outil ne
-la bloque automatiquement.
+dépendance. La matrice ci-dessus est donc normative pour le cœur et les
+fonctionnalités IAM historiques même lorsqu’aucun outil ne la bloque
+automatiquement. La verticale `apps/api/src/security` montre que cette
+convention peut actuellement être contournée.

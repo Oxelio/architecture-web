@@ -4,24 +4,28 @@
 
 Architecture Web est une application de référence pour la gestion d’identité :
 inscription, connexion, vérification d’adresse électronique, profil,
-administration des utilisateurs et gestion des sessions. Son intérêt
-architectural est de conserver les règles métier indépendantes de Fastify,
-React, PostgreSQL, Redis et des fournisseurs d’e-mail.
+administration, sessions, récupération, MFA, audit, export et suppression de
+compte. Le cœur IAM historique conserve ses règles indépendantes de Fastify,
+React, PostgreSQL, Redis et des fournisseurs d’e-mail. La verticale de sécurité
+récente est toutefois orchestrée dans l’API et constitue une exception
+documentée à cette séparation.
 
 Le dépôt applique une architecture modulaire inspirée des ports et adaptateurs.
 Le code n’emploie pas de framework d’injection de dépendances : les
 implémentations sont assemblées explicitement dans l’API.
 
-Le bounded context porte le nom **IAM** (`Identity and Access Management`) et
-se divise en trois capacités internes :
+Le bounded context porte le nom **IAM** (`Identity and Access Management`). Son
+cœur se divise en trois capacités internes :
 
 - `accounts` : compte, adresse électronique, vérification et mot de passe ;
 - `authentication` : connexion, résolution et sessions personnelles ;
 - `access-administration` : consultation paginée, indicateurs globaux, rôles,
   cycle de vie et sessions administrées.
 
-Le statut du compte (`active` ou `suspended`) est indépendant de la vérification
-de l’adresse électronique. Aucun statut `pending` n’existe.
+Le module `apps/api/src/security` ajoute transversalement récupération, MFA,
+audit, configuration, export et suppression. Le statut du compte (`active`,
+`suspended` ou `pending_deletion`) reste indépendant de la vérification de
+l’adresse électronique.
 
 ## Carte du monorepo
 
@@ -62,13 +66,21 @@ flowchart LR
     API -->|compose| Redis
     API -->|compose| Crypto
     API -->|compose| Mail
+    API --> Security[SecurityService hybride]
+    Security -->|requêtes directes| Kysely
+    Security --> Redis
+    Security -. implémente .-> Gate[SecondFactorGate]
+    UC --> Gate
 ```
 
 Une requête arrive dans une route Fastify. Le contrôleur traduit les données
 HTTP vers l’entrée du cas d’utilisation. Le cas d’utilisation valide et
 orchestre le domaine, puis appelle uniquement des ports. Les adaptateurs
 techniques implémentent ces ports. Un presenter transforme enfin le
-`Result` applicatif en statut et corps HTTP.
+`Result` applicatif en statut et corps HTTP. Les routes de
+`apps/api/src/security` suivent un second chemin : elles appellent directement
+`SecurityService`, qui utilise Kysely et traduit ses `SecurityError` à la
+frontière HTTP.
 
 ## Propriétés recherchées
 
@@ -99,3 +111,8 @@ présumés tant qu’une décision et une implémentation ne les introduisent pa
 - Les règles ESLint d’architecture sont actuellement des avertissements limités
   aux imports parents. Une part des frontières reste donc une convention
   documentée et revue humainement.
+- `SecurityService` mélange orchestration applicative et accès technique dans
+  `apps/api`. Aucun ADR n’établit encore si cette exception est durable.
+- Le catalogue de configuration contient des options représentées mais non
+  consommées ; le [guide de sécurité](../guides/account-security.md) distingue
+  les valeurs effectives des valeurs seulement visibles.

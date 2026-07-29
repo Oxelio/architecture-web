@@ -6,9 +6,12 @@ L’API monte les routes sous `/v<version-majeure>/iam`. Avec la version
 actuelle `1.0.0-alpha.1`, le préfixe est `/v1/iam`. Les schémas TypeBox
 alimentent OpenAPI, consultable sur `GET /docs`.
 
-Cette page décrit les frontières et niveaux d’accès. Pour les corps, statuts et
-réponses exacts, Swagger et les fichiers `*.route-options.ts` sont les sources
-de vérité.
+Cette page décrit les frontières et niveaux d’accès. Pour les routes historiques,
+les fichiers `*.route-options.ts` et Swagger décrivent les corps, statuts et
+réponses. Les routes de sécurité déclarées dans
+`apps/api/src/security/security.routes.ts` ne possèdent pas encore de schémas
+TypeBox : ce fichier et `apps/web/src/services/api.ts` sont donc leur source
+exécutable, et Swagger ne couvre pas encore toute l’API.
 
 ## Routes publiques
 
@@ -20,30 +23,51 @@ de vérité.
 | `POST`  | `/password-policy/evaluate` | évaluer un mot de passe                  |
 | `POST`  | `/signin`                   | ouvrir une session                       |
 | `POST`  | `/signout`                  | fermer la session désignée par le cookie |
+| `POST`  | `/recovery`                 | demander une récupération de compte      |
+| `POST`  | `/recovery/reset`           | réinitialiser le mot de passe            |
+| `POST`  | `/mfa/challenge/verify`     | terminer une connexion avec MFA          |
+| `POST`  | `/deletion/cancel`          | annuler une suppression par jeton        |
 
 ## Routes authentifiées
 
-| Méthode  | Chemin                    | Intention                    |
-| -------- | ------------------------- | ---------------------------- |
-| `POST`   | `/verify/resend`          | renvoyer la vérification     |
-| `GET`    | `/me`                     | lire le profil               |
-| `PATCH`  | `/me/email`               | changer l’adresse            |
-| `PATCH`  | `/me/password`            | changer le mot de passe      |
-| `GET`    | `/me/sessions`            | lister ses sessions          |
-| `DELETE` | `/me/sessions/:sessionId` | révoquer une de ses sessions |
+| Méthode  | Chemin                                    | Intention                            |
+| -------- | ----------------------------------------- | ------------------------------------ |
+| `POST`   | `/verify/resend`                          | renvoyer la vérification             |
+| `GET`    | `/me`                                     | lire le profil                       |
+| `PATCH`  | `/me/email`                               | changer l’adresse                    |
+| `PATCH`  | `/me/password`                            | changer le mot de passe              |
+| `GET`    | `/me/sessions`                            | lister ses sessions                  |
+| `DELETE` | `/me/sessions/:sessionId`                 | révoquer une de ses sessions         |
+| `GET`    | `/me/security-events`                     | consulter ses événements de sécurité |
+| `GET`    | `/me/mfa`                                 | lire l’état MFA                      |
+| `POST`   | `/me/mfa/enrollment`                      | commencer l’enrôlement TOTP          |
+| `POST`   | `/me/mfa/enrollment/confirm`              | valider le premier code TOTP         |
+| `POST`   | `/me/mfa/enrollment/backup-codes/confirm` | confirmer la sauvegarde des codes    |
+| `POST`   | `/me/mfa/backup-codes`                    | régénérer les codes de secours       |
+| `DELETE` | `/me/mfa`                                 | désactiver le MFA                    |
+| `POST`   | `/me/exports`                             | demander un export de compte         |
+| `GET`    | `/me/exports`                             | lister ses exports                   |
+| `GET`    | `/me/exports/:exportId/download`          | télécharger une archive prête        |
+| `POST`   | `/me/deletion`                            | programmer la suppression du compte  |
 
 ## Routes administrateur
 
-| Méthode  | Chemin                               | Intention                              |
-| -------- | ------------------------------------ | -------------------------------------- |
-| `GET`    | `/users`                             | rechercher et paginer les utilisateurs |
-| `GET`    | `/users/overview`                    | lire les indicateurs globaux           |
-| `PATCH`  | `/users/:userId/activate`            | activer un utilisateur                 |
-| `PATCH`  | `/users/:userId/suspend`             | suspendre un utilisateur               |
-| `PATCH`  | `/users/:userId/role`                | attribuer `user` ou `admin`            |
-| `GET`    | `/users/:userId/sessions`            | lister ses sessions                    |
-| `DELETE` | `/users/:userId/sessions/:sessionId` | révoquer une session                   |
-| `DELETE` | `/users/:userId/sessions`            | révoquer toutes ses sessions           |
+| Méthode  | Chemin                                        | Intention                               |
+| -------- | --------------------------------------------- | --------------------------------------- |
+| `GET`    | `/users`                                      | rechercher et paginer les utilisateurs  |
+| `GET`    | `/users/overview`                             | lire les indicateurs globaux            |
+| `PATCH`  | `/users/:userId/activate`                     | activer un utilisateur                  |
+| `PATCH`  | `/users/:userId/suspend`                      | suspendre un utilisateur                |
+| `PATCH`  | `/users/:userId/role`                         | attribuer `user` ou `admin`             |
+| `GET`    | `/users/:userId/sessions`                     | lister ses sessions                     |
+| `DELETE` | `/users/:userId/sessions/:sessionId`          | révoquer une session                    |
+| `DELETE` | `/users/:userId/sessions`                     | révoquer toutes ses sessions            |
+| `GET`    | `/admin/security/config`                      | lire la configuration publiée           |
+| `PUT`    | `/admin/security/config`                      | publier une nouvelle révision           |
+| `POST`   | `/admin/security/config/preview`              | prévisualiser une configuration         |
+| `POST`   | `/admin/security/config/:revisionId/rollback` | republier une ancienne révision         |
+| `GET`    | `/admin/security-events`                      | rechercher les événements d’audit       |
+| `POST`   | `/admin/security/maintenance`                 | exécuter rétention et suppressions dues |
 
 ## Enveloppes
 
@@ -56,6 +80,10 @@ sont une ressource séparée dans `data` sur `/users/overview`.
 
 Une réponse sans contenu utilise `204`. Les erreurs HTTP utilisent
 `{ "error": { "code": "...", "message"?: "..." } }`.
+
+`POST /signin` renvoie soit `204` avec le cookie de session, soit `202` avec
+`mfaRequired`, `challengeId` et `expiresAt`. Dans ce second cas, aucun cookie
+n’est émis avant la réussite de `POST /mfa/challenge/verify`.
 
 ### Consultation administrative
 
@@ -79,6 +107,8 @@ expose respectivement sous `INVALID_PAGE` et `INVALID_PAGE_SIZE`.
 
 Voir le guide [Administration des utilisateurs](../guides/iam-user-administration.md)
 pour le flux complet entre application, persistance et client.
+Voir aussi [Sécurité du compte](../guides/account-security.md) pour les flux de
+récupération, MFA, audit, configuration, export et suppression.
 
 Les codes métier sont définis près de chaque cas d’utilisation dans
 `*.codes.ts`. Les mappings vers HTTP sont définis dans `*.http.ts`. Les codes

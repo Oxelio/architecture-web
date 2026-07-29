@@ -40,6 +40,10 @@ Repositories and abstract services are secondary ports. `createIam` is
 the application factory: it receives `IamDependencies` and returns the
 `IamApplication` use-case set.
 
+`SecondFactorGate` is a special port called by `SignInUseCase`. Its composed
+implementation is `SecurityService`, located in the API rather than an
+infrastructure package.
+
 Coherent operations backed by the same implementation are grouped:
 `UserRepository` owns writes, account lookup, bounded administration search,
 and indicators; `SessionRepository` owns session lifecycle and listing. A port
@@ -77,8 +81,15 @@ rows to `UserEntity` and rejects invalid persisted data with
   options by feature;
 - `routes` separates public, authenticated, and administrator endpoints.
 
-Concrete implementations are allowed in `composition-root`, not in
-controllers. Controllers **MUST** call use-case interfaces.
+`apps/api/src/security` uses a second HTTP organization. It groups a concrete
+service, its types, and public/authenticated/administrator routes. The service
+orchestrates Kysely and several technical ports directly, so it does not follow
+the controller/use-case/adapter split described above for `features/iam`.
+
+For `features/iam`, concrete implementations are allowed in
+`composition-root`, not in controllers, which **MUST** call use-case
+interfaces. `security.routes.ts` is an observed exception whose handlers call
+`SecurityService` directly.
 
 ## React application
 

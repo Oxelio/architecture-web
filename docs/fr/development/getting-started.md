@@ -102,5 +102,7 @@ source de vérité pour sa syntaxe exacte.
 - API : `apps/api/src/main.ts`, puis `server.ts` ;
 - composition : `apps/api/src/composition-root/application.module.ts` ;
 - routes IAM : `apps/api/src/features/iam/routes/index.ts` ;
+- vertical sécurité : `apps/api/src/security/security.routes.ts`, puis
+  `security.service.ts` ;
 - web : `apps/web/src/main.tsx`, puis `App.tsx` ;
 - client HTTP web : `apps/web/src/services/api.ts`.

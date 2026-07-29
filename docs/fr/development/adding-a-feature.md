@@ -4,6 +4,12 @@ Ce parcours part d’une intention métier et se termine à l’interface. Toute
 étapes ne sont pas nécessaires : ne créer un port ou un objet de domaine que si
 la fonctionnalité le justifie réellement.
 
+Ce parcours décrit la structure privilégiée de `packages/iam/core` et
+`apps/api/src/features/iam`. La verticale existante
+`apps/api/src/security` est une exception hybride documentée dans le
+[guide de sécurité](../guides/account-security.md) ; elle ne **DOIT PAS** être
+utilisée comme modèle implicite pour une nouvelle capacité.
+
 ## 1. Définir le comportement
 
 Identifier :
@@ -124,6 +130,10 @@ globaux.
 
 Mettre à jour la référence HTTP si un endpoint est ajouté, et créer un ADR
 uniquement si une décision structurante durable a été prise.
+
+Une nouvelle route **DOIT** recevoir des schémas TypeBox pour le corps, les
+paramètres, la query et les réponses. Les routes de sécurité actuelles n’en ont
+pas encore ; cette dette ne justifie pas d’ajouter une autre route non décrite.
 
 ## 9. Valider
 

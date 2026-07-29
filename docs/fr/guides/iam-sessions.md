@@ -6,6 +6,12 @@
 connexion réussie crée une `SessionEntity` d’une durée de 60 minutes et renvoie
 un cookie `sid` `httpOnly`.
 
+Lorsque le MFA est actif, la validation du mot de passe ne crée pas encore de
+session. `SignInUseCase` retourne le challenge fourni par `SecondFactorGate`,
+le contrôleur répond `202`, puis `POST /v1/iam/mfa/challenge/verify` crée la
+session après validation du second facteur. Voir le
+[guide de sécurité](account-security.md).
+
 Avant d’enregistrer une nouvelle session, `SignInUseCase` charge les sessions
 actives et révoque les plus anciennes qui dépasseraient la limite de 10. Cette
 borne rend durables les listes personnelles et administratives non paginées.
@@ -39,6 +45,9 @@ Le plugin Fastify lit le cookie, appelle `ResolveSessionUseCase` et peuple
 - session absente ou expirée ;
 - utilisateur absent ou suspendu.
 
+L’état `pending_deletion` est également refusé, car la résolution exige
+désormais un compte actif.
+
 L’activité est actualisée au plus une fois toutes les cinq minutes afin
 d’éviter une écriture Redis à chaque requête.
 
@@ -51,6 +60,8 @@ d’utilisation : un client ne peut pas choisir le propriétaire.
 
 La suspension d’un utilisateur révoque toutes ses sessions. Les changements de
 mot de passe révoquent aussi les sessions conformément au cas d’utilisation.
+La récupération de compte, l’activation ou la désactivation du MFA et la
+demande de suppression révoquent également les sessions.
 Les opérations d’administration sensibles interdisent certaines actions sur
 son propre compte via `user.self_administration_forbidden`.
 
@@ -78,3 +89,7 @@ Elle reste donc absente (`null`) tant qu’aucun mécanisme dédié ne l’alime
 - Les adresses IP et informations client sont des données sensibles. Toute
   rétention, géolocalisation ou exposition supplémentaire nécessite une
   décision produit et conformité.
+
+La configuration dynamique représente `sessions.durationMinutes`, mais
+`SessionEntity` conserve actuellement sa durée codée de 60 minutes. Modifier
+cette option ne change donc pas le TTL réel.

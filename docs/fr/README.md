@@ -38,6 +38,7 @@ Pour une première prise en main, lire dans cet ordre :
 - [Authentification et sessions](guides/iam-sessions.md)
 - [Administration des utilisateurs](guides/iam-user-administration.md)
 - [Politique de mot de passe](guides/password-policy.md)
+- [Sécurité du compte, MFA, audit et configuration](guides/account-security.md)
 - [Interface HTTP](reference/http-api.md)
 - [Spécifications fonctionnelles](specifications/README.md)
 
@@ -47,9 +48,14 @@ Pour une première prise en main, lire dans cet ordre :
   d’index.
 - Les contrats applicatifs sont dans
   `packages/iam/core/application/<capacité>/use-cases`.
-- Les routes et schémas HTTP sont dans
+- Les routes IAM historiques et leurs schémas HTTP sont dans
   `apps/api/src/features/iam`.
+- Les parcours de récupération, MFA, audit, configuration, export et
+  suppression sont dans `apps/api/src/security`; leurs routes ne possèdent pas
+  encore de schémas TypeBox complets.
 - Les commandes disponibles sont définies par les scripts des `package.json`.
-- Le catalogue HTTP exécutable est l’interface Swagger exposée sur `/docs`.
+- Swagger sur `/docs` est la référence exécutable des routes munies de schémas.
+  Pour les routes de sécurité, consulter aussi la
+  [référence HTTP](reference/http-api.md).
 
 La documentation explique ces sources ; elle ne les remplace pas.

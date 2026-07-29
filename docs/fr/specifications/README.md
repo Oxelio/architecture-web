@@ -30,3 +30,20 @@ détails techniques appartiennent à la documentation d’architecture et doiven
 | [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)   | Acceptée    | Configuration dynamique des fonctionnalités et politiques de sécurité      |
 | [SF-SESSION-001](SF-SESSION-001.md)                   | Implémentée | Enrichissement des sessions actives avec des informations d’identification |
 | [SF-PASSWORD-001](SF-PASSWORD-001.md)                 | Implémentée | Politique configurable de mots de passe sécurisés                          |
+
+## Couverture observée
+
+Les cinq spécifications de sécurité acceptées disposent désormais d’un socle
+exécutable, sans que tous leurs critères soient suffisamment démontrés pour
+passer au statut « Implémentée » :
+
+| Spécification             | Couverture actuelle                                                        | Écarts ou preuves manquantes                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `SF-ACCOUNT-DATA-001`     | export ZIP, téléchargement, suppression différée et annulation             | ordonnanceur externe absent du dépôt ; scénarios d’intégration et contraintes de conservation légale non démontrés |
+| `SF-ACCOUNT-RECOVERY-001` | demande, jeton à usage unique, réinitialisation et révocation des sessions | politique dynamique de longueur différente du validateur partagé ; couverture d’intégration incomplète             |
+| `SF-MFA-001`              | enrôlement TOTP, codes de secours et défi de connexion                     | notifications et scénarios d’intégration/concurrence non démontrés                                                 |
+| `SF-SECURITY-AUDIT-001`   | écriture, consultation et purge d’événements                               | exhaustivité des événements et durabilité transactionnelle non démontrées                                          |
+| `SF-SECURITY-CONFIG-001`  | révisions publiées, prévisualisation et retour arrière                     | plusieurs options stockées ne sont pas encore consommées à l’exécution                                             |
+
+Le guide [Sécurité du compte](../guides/account-security.md) relie ces constats
+aux sources exécutables et détaille les limites connues.

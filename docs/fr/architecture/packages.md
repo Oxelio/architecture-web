@@ -23,20 +23,20 @@ flowchart LR
 
 ## Catalogue
 
-| Package                                       | Responsabilité                                   | API publique                                      |
-| --------------------------------------------- | ------------------------------------------------ | ------------------------------------------------- |
-| `@architecture/foundation`                    | primitives génériques du domaine                 | export racine                                     |
-| `@architecture/iam`                           | domaine et application IAM                       | `./domain`, `./application`                       |
-| `@architecture/iam-persistence-kysely`        | utilisateurs, vérifications et schéma PostgreSQL | export racine                                     |
-| `@architecture/iam-session-redis`             | sessions et limitation de débit                  | export racine                                     |
-| `@architecture/iam-password-argon2`           | hachage de mot de passe sélectionné              | export racine                                     |
-| `@architecture/iam-password-bcrypt`           | implémentation alternative                       | export racine                                     |
-| `@architecture/iam-email-verification-sha256` | hachage des jetons                               | `main`/`types`, sans champ `exports`              |
-| `@architecture/iam-email-nodemailer`          | envoi SMTP sélectionné                           | export racine                                     |
-| `@architecture/iam-email-postmark`            | fournisseur alternatif                           | export racine                                     |
-| `@architecture/eslint-config`                 | configurations ESLint partagées                  | `.`, `node`, `react-vite`, `architecture`, `full` |
-| `api`                                         | serveur et composition                           | privé, non publié                                 |
-| `web`                                         | client React                                     | privé, non publié                                 |
+| Package                                       | Responsabilité                       | API publique                                      |
+| --------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
+| `@architecture/foundation`                    | primitives génériques du domaine     | export racine                                     |
+| `@architecture/iam`                           | domaine et application IAM           | `./domain`, `./application`                       |
+| `@architecture/iam-persistence-kysely`        | schéma et persistance PostgreSQL IAM | export racine                                     |
+| `@architecture/iam-session-redis`             | sessions et limitation de débit      | export racine                                     |
+| `@architecture/iam-password-argon2`           | hachage de mot de passe sélectionné  | export racine                                     |
+| `@architecture/iam-password-bcrypt`           | implémentation alternative           | export racine                                     |
+| `@architecture/iam-email-verification-sha256` | hachage des jetons                   | `main`/`types`, sans champ `exports`              |
+| `@architecture/iam-email-nodemailer`          | envoi SMTP sélectionné               | export racine                                     |
+| `@architecture/iam-email-postmark`            | fournisseur alternatif               | export racine                                     |
+| `@architecture/eslint-config`                 | configurations ESLint partagées      | `.`, `node`, `react-vite`, `architecture`, `full` |
+| `api`                                         | serveur et composition               | privé, non publié                                 |
+| `web`                                         | client React                         | privé, non publié                                 |
 
 Le `package.json` de chaque package reste la source de vérité. Les adaptateurs
 alternatifs bcrypt et Postmark sont testés mais ne sont pas sélectionnés par le
@@ -53,6 +53,7 @@ composition root actuel, qui utilise Argon2 et Nodemailer.
 | `PasswordHasher`               | `Argon2PasswordHasherAdapter`               |
 | `EmailVerificationTokenHasher` | `Sha256EmailVerificationTokenHasherAdapter` |
 | `EmailSender`                  | `NodemailerEmailSenderAdapter`              |
+| `SecondFactorGate`             | `SecurityService` dans `apps/api`           |
 
 Les variantes `BcryptPasswordHasherAdapter` et
 `PostmarkEmailSenderAdapter` satisfont respectivement `PasswordHasher` et
@@ -66,11 +67,17 @@ filtré. `getAdministrationOverview` fournit séparément les indicateurs globau
 
 ## Persistance
 
-PostgreSQL conserve les utilisateurs et les vérifications d’e-mail. Les
-migrations Kysely sont dans
+PostgreSQL conserve les utilisateurs, vérifications, récupérations, paramètres
+MFA, codes de secours, challenges, audits, révisions de configuration, exports
+et demandes de suppression. Les migrations Kysely sont dans
 `packages/iam/infrastructure/persitence/kysely/src/persistence/migrations`.
 Redis conserve les sessions avec expiration et un ensemble trié par
 utilisateur, ainsi que la limitation des renvois de vérification.
+
+Les tables introduites par `003_create_iam_security` sont manipulées
+directement par `SecurityService`; elles n’ont pas de repository ou mapper
+dédié dans le package Kysely. Le package exporte leur schéma TypeScript et la
+migration, mais pas un adaptateur de sécurité complet.
 
 Le schéma, les migrations et les mappers **DOIVENT** évoluer ensemble. Une
 entité réhydratée **DOIT** encore satisfaire ses objets-valeur ; les données

@@ -3,24 +3,27 @@
 ## Project purpose
 
 Architecture Web is a reference identity-management application: sign-up,
-sign-in, email verification, profile, user administration, and session
-management. Its architectural goal is to keep business rules independent from
-Fastify, React, PostgreSQL, Redis, and email providers.
+sign-in, email verification, profile, administration, sessions, recovery, MFA,
+auditing, export, and account deletion. The historical IAM core keeps its rules
+independent from Fastify, React, PostgreSQL, Redis, and email providers. The
+newer security vertical is orchestrated in the API and is a documented
+exception to this separation.
 
 The repository uses a modular architecture inspired by ports and adapters. No
 dependency-injection framework is used: implementations are assembled
 explicitly inside the API.
 
-The bounded context is named **IAM** (`Identity and Access Management`) and is
-split into three internal capabilities:
+The bounded context is named **IAM** (`Identity and Access Management`). Its
+core is split into three internal capabilities:
 
 - `accounts`: account, email address, verification, and password;
 - `authentication`: sign-in, resolution, and personal sessions;
 - `access-administration`: paginated consultation, global indicators, roles,
   lifecycle, and administered sessions.
 
-Account status (`active` or `suspended`) is independent from email
-verification. There is no `pending` status.
+`apps/api/src/security` adds recovery, MFA, audit, configuration, export, and
+deletion across those capabilities. Account status (`active`, `suspended`, or
+`pending_deletion`) remains independent from email verification.
 
 ## Monorepo map
 
@@ -61,12 +64,19 @@ flowchart LR
     API -->|composes| Redis
     API -->|composes| Crypto
     API -->|composes| Mail
+    API --> Security[hybrid SecurityService]
+    Security -->|direct queries| Kysely
+    Security --> Redis
+    Security -. implements .-> Gate[SecondFactorGate]
+    UC --> Gate
 ```
 
 A request reaches a Fastify route. The controller maps HTTP data to a use-case
 input. The use case validates and orchestrates the domain and calls ports only.
 Technical adapters implement those ports. A presenter maps the application
-`Result` to an HTTP status and body.
+`Result` to an HTTP status and body. Routes under `apps/api/src/security` use a
+second path: they call `SecurityService` directly, and that service uses Kysely
+and maps `SecurityError` at the HTTP boundary.
 
 ## Intended properties
 
@@ -96,3 +106,8 @@ introduce them.
   from becoming the business contract.
 - Architecture ESLint rules are currently warnings limited to parent imports.
   Some boundaries therefore rely on documented convention and review.
+- `SecurityService` mixes application orchestration and technical access inside
+  `apps/api`. No ADR establishes whether this exception is durable.
+- The configuration catalog contains represented but unused options. The
+  [security guide](../guides/account-security.md) separates effective settings
+  from visible-only settings.

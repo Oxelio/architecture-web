@@ -6,9 +6,12 @@ The API mounts routes under `/v<major-version>/iam`. With
 `1.0.0-alpha.1`, the prefix is `/v1/iam`. TypeBox schemas feed OpenAPI,
 available at `GET /docs`.
 
-This page describes boundaries and access levels. Swagger and
-`*.route-options.ts` files are the source of truth for exact bodies, statuses,
-and responses.
+This page describes boundaries and access levels. For historical routes,
+`*.route-options.ts` files and Swagger describe exact bodies, statuses, and
+responses. Security routes declared in
+`apps/api/src/security/security.routes.ts` do not have TypeBox schemas yet:
+that file and `apps/web/src/services/api.ts` are their executable source, and
+Swagger does not currently cover the whole API.
 
 ## Public routes
 
@@ -20,30 +23,51 @@ and responses.
 | `POST` | `/password-policy/evaluate` | evaluate a password                   |
 | `POST` | `/signin`                   | open a session                        |
 | `POST` | `/signout`                  | close the session named by the cookie |
+| `POST` | `/recovery`                 | request account recovery              |
+| `POST` | `/recovery/reset`           | reset the password                    |
+| `POST` | `/mfa/challenge/verify`     | complete an MFA sign-in               |
+| `POST` | `/deletion/cancel`          | cancel deletion with a token          |
 
 ## Authenticated routes
 
-| Method   | Path                      | Intent                |
-| -------- | ------------------------- | --------------------- |
-| `POST`   | `/verify/resend`          | resend verification   |
-| `GET`    | `/me`                     | read the profile      |
-| `PATCH`  | `/me/email`               | change email          |
-| `PATCH`  | `/me/password`            | change password       |
-| `GET`    | `/me/sessions`            | list own sessions     |
-| `DELETE` | `/me/sessions/:sessionId` | revoke an own session |
+| Method   | Path                                      | Intent                       |
+| -------- | ----------------------------------------- | ---------------------------- |
+| `POST`   | `/verify/resend`                          | resend verification          |
+| `GET`    | `/me`                                     | read the profile             |
+| `PATCH`  | `/me/email`                               | change email                 |
+| `PATCH`  | `/me/password`                            | change password              |
+| `GET`    | `/me/sessions`                            | list own sessions            |
+| `DELETE` | `/me/sessions/:sessionId`                 | revoke an own session        |
+| `GET`    | `/me/security-events`                     | read own security events     |
+| `GET`    | `/me/mfa`                                 | read MFA state               |
+| `POST`   | `/me/mfa/enrollment`                      | start TOTP enrollment        |
+| `POST`   | `/me/mfa/enrollment/confirm`              | validate the first TOTP code |
+| `POST`   | `/me/mfa/enrollment/backup-codes/confirm` | confirm backup-code storage  |
+| `POST`   | `/me/mfa/backup-codes`                    | regenerate backup codes      |
+| `DELETE` | `/me/mfa`                                 | disable MFA                  |
+| `POST`   | `/me/exports`                             | request an account export    |
+| `GET`    | `/me/exports`                             | list own exports             |
+| `GET`    | `/me/exports/:exportId/download`          | download a ready archive     |
+| `POST`   | `/me/deletion`                            | schedule account deletion    |
 
 ## Administrator routes
 
-| Method   | Path                                 | Intent                     |
-| -------- | ------------------------------------ | -------------------------- |
-| `GET`    | `/users`                             | search and paginate users  |
-| `GET`    | `/users/overview`                    | get global user indicators |
-| `PATCH`  | `/users/:userId/activate`            | activate a user            |
-| `PATCH`  | `/users/:userId/suspend`             | suspend a user             |
-| `PATCH`  | `/users/:userId/role`                | assign `user` or `admin`   |
-| `GET`    | `/users/:userId/sessions`            | list sessions              |
-| `DELETE` | `/users/:userId/sessions/:sessionId` | revoke one session         |
-| `DELETE` | `/users/:userId/sessions`            | revoke all sessions        |
+| Method   | Path                                          | Intent                          |
+| -------- | --------------------------------------------- | ------------------------------- |
+| `GET`    | `/users`                                      | search and paginate users       |
+| `GET`    | `/users/overview`                             | get global user indicators      |
+| `PATCH`  | `/users/:userId/activate`                     | activate a user                 |
+| `PATCH`  | `/users/:userId/suspend`                      | suspend a user                  |
+| `PATCH`  | `/users/:userId/role`                         | assign `user` or `admin`        |
+| `GET`    | `/users/:userId/sessions`                     | list sessions                   |
+| `DELETE` | `/users/:userId/sessions/:sessionId`          | revoke one session              |
+| `DELETE` | `/users/:userId/sessions`                     | revoke all sessions             |
+| `GET`    | `/admin/security/config`                      | read published configuration    |
+| `PUT`    | `/admin/security/config`                      | publish a new revision          |
+| `POST`   | `/admin/security/config/preview`              | preview configuration           |
+| `POST`   | `/admin/security/config/:revisionId/rollback` | republish an old revision       |
+| `GET`    | `/admin/security-events`                      | search audit events             |
+| `POST`   | `/admin/security/maintenance`                 | run retention and due deletions |
 
 ## Envelopes
 
@@ -56,6 +80,10 @@ resource in `data` at `/users/overview`.
 
 No-content responses use `204`. HTTP errors use
 `{ "error": { "code": "...", "message"?: "..." } }`.
+
+`POST /signin` returns either `204` with the session cookie or `202` with
+`mfaRequired`, `challengeId`, and `expiresAt`. In the second case, no cookie is
+issued until `POST /mfa/challenge/verify` succeeds.
 
 ### Administration read
 
@@ -78,6 +106,8 @@ for another interface; the HTTP mapping exposes them as `INVALID_PAGE` and
 
 See [User administration](../guides/iam-user-administration.md) for the complete
 application, persistence, and client flow.
+See also [Account security](../guides/account-security.md) for recovery, MFA,
+audit, configuration, export, and deletion flows.
 
 Business codes are defined next to use cases in `*.codes.ts`. HTTP mappings
 live in `*.http.ts`. Cross-cutting `UNAUTHORIZED` and `FORBIDDEN` codes are

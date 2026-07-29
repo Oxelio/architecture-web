@@ -38,6 +38,7 @@ New contributors should read:
 - [Authentication and sessions](guides/iam-sessions.md)
 - [User administration](guides/iam-user-administration.md)
 - [Password policy](guides/password-policy.md)
+- [Account security, MFA, audit, and configuration](guides/account-security.md)
 - [HTTP interface](reference/http-api.md)
 - [Functional specifications](specifications/README.md)
 
@@ -46,8 +47,13 @@ New contributors should read:
 - Package exports are defined by each `package.json` and index file.
 - Application contracts live in
   `packages/iam/core/application/<capability>/use-cases`.
-- HTTP routes and schemas live in `apps/api/src/features/iam`.
+- Historical IAM routes and their HTTP schemas live in
+  `apps/api/src/features/iam`.
+- Recovery, MFA, audit, configuration, export, and deletion live in
+  `apps/api/src/security`; those routes do not yet have complete TypeBox
+  schemas.
 - Available commands are the scripts in `package.json` files.
-- The executable HTTP catalog is the Swagger interface served on `/docs`.
+- Swagger at `/docs` is executable reference for schema-backed routes. Also use
+  the [HTTP reference](reference/http-api.md) for security routes.
 
 Documentation explains these sources; it does not replace them.
