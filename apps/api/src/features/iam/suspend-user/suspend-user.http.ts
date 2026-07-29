@@ -7,7 +7,7 @@ import type { HttpContract } from "#types/http.types";
 export const SuspendUserHttpContract = {
   success: {
     "user.suspended": {
-      status: 200,
+      status: 204,
 
       description: "User suspended successfully",
     },

@@ -7,7 +7,7 @@ import type { HttpContract } from "#types/http.types";
 export const ChangePasswordHttpContract = {
   success: {
     "user.password_changed": {
-      status: 200,
+      status: 204,
 
       description: "Password changed successfully",
     },

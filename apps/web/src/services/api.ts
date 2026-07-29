@@ -143,13 +143,20 @@ interface ApiError {
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const response = await requestEnvelope<T>(path, init);
+  if (response === null) {
+    throw new Error("INVALID_RESPONSE");
+  }
   return response.data;
+}
+
+async function requestVoid(path: string, init: RequestInit): Promise<void> {
+  await requestEnvelope(path, init);
 }
 
 async function requestEnvelope<T, TMeta = never>(
   path: string,
   init: RequestInit,
-): Promise<ApiResponse<T, TMeta>> {
+): Promise<ApiResponse<T, TMeta> | null> {
   const headers: Record<string, string> = {};
 
   if (init.body !== undefined && init.body !== null) {
@@ -203,14 +210,14 @@ export function evaluatePassword(
 }
 
 export async function signIn(payload: SignInPayload) {
-  return request<{ userId: string }>("/iam/signin", {
+  await requestVoid("/iam/signin", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function signOut() {
-  await request<unknown>("/iam/signout", {
+  await requestVoid("/iam/signout", {
     method: "POST",
   });
 }
@@ -232,27 +239,27 @@ export async function getCurrentUser() {
 }
 
 export async function changeEmail(payload: ChangeEmailPayload) {
-  await request<unknown>("/iam/me/email", {
+  await requestVoid("/iam/me/email", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function changePassword(payload: ChangePasswordPayload) {
-  await request<unknown>("/iam/me/password", {
+  await requestVoid("/iam/me/password", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export async function verifyEmail(token: string) {
-  await request<unknown>(`/iam/verify?token=${encodeURIComponent(token)}`, {
+  await requestVoid(`/iam/verify?token=${encodeURIComponent(token)}`, {
     method: "GET",
   });
 }
 
 export async function resendEmailVerification(): Promise<void> {
-  await request<unknown>("/iam/verify/resend", {
+  await requestVoid("/iam/verify/resend", {
     method: "POST",
   });
 }
@@ -266,7 +273,7 @@ export function listCurrentUserSessions(): Promise<CurrentUserSession[]> {
 export async function revokeCurrentUserSession(
   sessionId: string,
 ): Promise<void> {
-  await request<unknown>(`/iam/me/sessions/${sessionId}`, {
+  await requestVoid(`/iam/me/sessions/${sessionId}`, {
     method: "DELETE",
   });
 }
@@ -275,20 +282,20 @@ export async function assignUserRole(
   userId: string,
   role: "user" | "admin",
 ): Promise<void> {
-  await request<unknown>(`/iam/users/${userId}/role`, {
+  await requestVoid(`/iam/users/${userId}/role`, {
     method: "PATCH",
     body: JSON.stringify({ role }),
   });
 }
 
 export async function suspendUser(userId: string): Promise<void> {
-  await request<unknown>(`/iam/users/${userId}/suspend`, {
+  await requestVoid(`/iam/users/${userId}/suspend`, {
     method: "PATCH",
   });
 }
 
 export async function activateUser(userId: string): Promise<void> {
-  await request<unknown>(`/iam/users/${userId}/activate`, {
+  await requestVoid(`/iam/users/${userId}/activate`, {
     method: "PATCH",
   });
 }
@@ -317,7 +324,7 @@ export async function listUsers(
     AdminUser[],
     { pagination: UserListPagination }
   >(`/iam/users?${parameters.toString()}`, { method: "GET" });
-  if (response.meta === undefined) {
+  if (response === null || response.meta === undefined) {
     throw new Error("INVALID_RESPONSE");
   }
 
@@ -346,7 +353,7 @@ export async function revokeUserSession(
   sessionId?: string,
 ): Promise<void> {
   const suffix = sessionId ? `/${sessionId}` : "";
-  await request<unknown>(`/iam/users/${userId}/sessions${suffix}`, {
+  await requestVoid(`/iam/users/${userId}/sessions${suffix}`, {
     method: "DELETE",
   });
 }

@@ -6,7 +6,7 @@ import type { HttpContract } from "#types/http.types";
 export const ChangeEmailHttpContract = {
   success: {
     "user.email_changed": {
-      status: 200,
+      status: 204,
 
       description: "Email changed successfully",
     },

@@ -7,7 +7,7 @@ import type { HttpContract } from "#types/http.types";
 export const ResendEmailVerificationHttpContract = {
   success: {
     "email_verification.sent": {
-      status: 200,
+      status: 204,
 
       description: "Email verification sent successfully",
     },

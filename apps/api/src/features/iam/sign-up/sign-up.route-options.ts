@@ -35,6 +35,12 @@ export const signUpRouteOptions = {
     response: {
       ...createHttpSuccessResponseSchemas(SignUpHttpContract.success),
 
+      201: Type.Object({
+        data: Type.Object({
+          userId: Type.String(),
+        }),
+      }),
+
       ...createErrorResponseSchemas(SignUpHttpContract.errors),
     },
   },

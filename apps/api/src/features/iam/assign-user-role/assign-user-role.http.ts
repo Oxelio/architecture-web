@@ -5,7 +5,7 @@ import type { HttpContract } from "#types/http.types";
 export const AssignUserRoleHttpContract = {
   success: {
     "user.role_assigned": {
-      status: 200,
+      status: 204,
       description: "User role assigned successfully",
     },
   },

@@ -10,7 +10,12 @@ const toHttpError = createHttpErrorMapper(SignUpHttpContract.errors);
 export const SignUpPresenter = {
   toPresentation(result: SignUpOutput) {
     if (result.success) {
-      return SignUpHttpContract.success["user.created"];
+      return {
+        ...SignUpHttpContract.success["user.created"],
+        body: {
+          data: result.value,
+        },
+      };
     }
 
     return toHttpError(result.error);

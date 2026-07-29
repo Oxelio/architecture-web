@@ -7,7 +7,7 @@ import type { HttpContract } from "#types/http.types";
 export const VerifyEmailHttpContract = {
   success: {
     "user.email_verified": {
-      status: 200,
+      status: 204,
 
       description: "Email verified successfully",
     },

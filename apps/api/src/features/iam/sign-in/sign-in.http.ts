@@ -7,7 +7,7 @@ import type { HttpContract } from "#types/http.types";
 export const SignInHttpContract = {
   success: {
     "user.authenticated": {
-      status: 200,
+      status: 204,
 
       description: "User authenticated successfully",
     },
