@@ -2,6 +2,7 @@
 
 import { AggregateRoot } from "@architecture/foundation";
 
+import { SessionStarted } from "#domain/events/iam-domain-events";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -61,7 +62,7 @@ export class SessionEntity extends AggregateRoot<SessionProperties> {
     if (properties.expiresAt.getTime() <= now.getTime()) {
       throw new Error("Session expiration must be in the future");
     }
-    return new SessionEntity({
+    const session = new SessionEntity({
       userId: properties.userId,
       userSessionVersion: properties.userSessionVersion,
       expiresAt: properties.expiresAt,
@@ -71,6 +72,10 @@ export class SessionEntity extends AggregateRoot<SessionProperties> {
       ...(properties.client ? { client: properties.client } : {}),
       ...(properties.network ? { network: properties.network } : {}),
     });
+    session.recordDomainEvent(
+      new SessionStarted(properties.userId, session.identifier.value),
+    );
+    return session;
   }
 
   public static rehydrate(props: SessionProperties) {

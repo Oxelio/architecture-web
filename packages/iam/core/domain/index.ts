@@ -1,6 +1,16 @@
 // @file bounded-contexts/iam/domain/index.ts
 
 export {
+  SessionStarted,
+  UserActivated,
+  UserEmailChanged,
+  UserEmailVerified,
+  UserPasswordChanged,
+  UserRegistered,
+  UserRoleChanged,
+  UserSuspended,
+} from "./events/iam-domain-events.js";
+export {
   comparePasswordStrength,
   createPasswordPolicy,
   type PasswordCompositionRules,

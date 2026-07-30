@@ -99,6 +99,22 @@ export interface ChangePasswordPayload {
   passwordConfirmation: string;
 }
 
+export interface NotificationItem {
+  id: string;
+  type: string;
+  severity: "information" | "warning" | "critical";
+  title: string;
+  message: string;
+  actionUrl: string | null;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationPreference {
+  channel: "email" | "slack" | "sms";
+  enabled: boolean;
+}
+
 export interface PasswordPolicy {
   level: "standard" | "elevated" | "critical" | "custom";
   minLength: number;
@@ -477,6 +493,46 @@ export async function getCurrentUser() {
     }
     throw error;
   }
+}
+
+export function listNotifications(page = 1, pageSize = 25) {
+  return request<NotificationItem[]>(
+    `/notifications?page=${page}&pageSize=${pageSize}`,
+    { method: "GET" },
+  );
+}
+
+export function getUnreadNotificationCount() {
+  return request<{ count: number }>("/notifications/unread-count", {
+    method: "GET",
+  });
+}
+
+export function markNotificationRead(notificationId: string) {
+  return requestVoid(
+    `/notifications/${encodeURIComponent(notificationId)}/read`,
+    { method: "POST" },
+  );
+}
+
+export function markAllNotificationsRead() {
+  return requestVoid("/notifications/read-all", { method: "POST" });
+}
+
+export function getNotificationPreferences() {
+  return request<NotificationPreference[]>("/notifications/preferences", {
+    method: "GET",
+  });
+}
+
+export function updateNotificationPreference(
+  channel: NotificationPreference["channel"],
+  enabled: boolean,
+) {
+  return requestVoid(`/notifications/preferences/${channel}`, {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
 }
 
 export async function changeEmail(payload: ChangeEmailPayload) {

@@ -1,5 +1,7 @@
 // @file apps/web/src/App.tsx
 
+import { useQuery } from "@tanstack/react-query";
+import { Bell } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -7,6 +9,7 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { useCurrentUser } from "./hooks/useCurrentUser";
 import { cn } from "./lib/cn";
+import { getUnreadNotificationCount } from "./services/api";
 
 const HomePage = lazy(() =>
   import("./pages/HomePage").then((mod) => ({ default: mod.HomePage })),
@@ -38,11 +41,22 @@ const ProfilePage = lazy(() =>
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((mod) => ({ default: mod.AdminPage })),
 );
+const NotificationsPage = lazy(() =>
+  import("./pages/NotificationsPage").then((mod) => ({
+    default: mod.NotificationsPage,
+  })),
+);
 
 function App() {
   const location = useLocation();
   const { data: user, isLoading } = useCurrentUser();
   const { t } = useTranslation();
+  const unread = useQuery({
+    queryKey: ["notification-unread"],
+    queryFn: getUnreadNotificationCount,
+    enabled: Boolean(user),
+    refetchInterval: 15_000,
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -85,6 +99,23 @@ function App() {
                   )}
                 >
                   {t("nav.profile")}
+                </Link>
+                <Link
+                  to="/notifications"
+                  className={cn(
+                    "relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                    location.pathname === "/notifications"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400",
+                  )}
+                >
+                  <Bell className="h-4 w-4" />
+                  {t("nav.notifications")}
+                  {(unread.data?.count ?? 0) > 0 ? (
+                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white">
+                      {unread.data?.count}
+                    </span>
+                  ) : null}
                 </Link>
                 {user.role === "admin" ? (
                   <Link
@@ -176,6 +207,12 @@ function App() {
                 ) : (
                   <Navigate to="/signin" replace />
                 )
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                user ? <NotificationsPage /> : <Navigate to="/signin" replace />
               }
             />
             <Route path="*" element={<Navigate to="/" replace />} />

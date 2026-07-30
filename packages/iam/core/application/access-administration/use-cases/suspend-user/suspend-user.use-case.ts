@@ -5,6 +5,7 @@ import { Result } from "@architecture/foundation";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { SuspendUserErrorCodes } from "./suspend-user.codes.js";
@@ -20,6 +21,7 @@ export class SuspendUserUseCase implements SuspendUser {
   constructor(
     private readonly userPort: UserRepository,
     private readonly sessionPort: SessionRepository,
+    private readonly unitOfWork?: IamUnitOfWork,
   ) {
     this.authorizer = new AdministratorAuthorizer(userPort);
   }
@@ -43,8 +45,13 @@ export class SuspendUserUseCase implements SuspendUser {
       return Result.failure(SuspendUserErrorCodes.notFound);
     }
 
-    user.suspend();
-    await this.userPort.save(user);
+    const actorId = UserIdentifierValueObject.create(input.actorUserId);
+    user.suspend(actorId.success ? actorId.value : undefined);
+    if (this.unitOfWork) {
+      await this.unitOfWork.execute(({ users }) => users.save(user));
+    } else {
+      await this.userPort.save(user);
+    }
     await this.sessionPort.deleteAllForUser(user.identifier);
 
     return Result.success(undefined);

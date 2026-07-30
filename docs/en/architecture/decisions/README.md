@@ -6,6 +6,8 @@ decision, consequences, and status.
 
 Aggregates and their consistency boundaries are detailed in
 [ADR-0004](0004-aggregates-and-consistency.md).
+Domain Events, the outbox, and exchanges with Audit and Notifications are
+detailed in [ADR-0005](0005-domain-events-messaging.md).
 
 ## ADR-0001 — Technology-independent IAM core
 

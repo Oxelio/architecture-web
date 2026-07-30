@@ -2,6 +2,15 @@
 
 import { AggregateRoot } from "@architecture/foundation";
 
+import {
+  UserActivated,
+  UserEmailChanged,
+  UserEmailVerified,
+  UserPasswordChanged,
+  UserRegistered,
+  UserRoleChanged,
+  UserSuspended,
+} from "#domain/events/iam-domain-events";
 import type { EmailValueObject } from "#value-objects/email.value-object";
 import type { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
@@ -29,7 +38,7 @@ export class UserEntity extends AggregateRoot<UserProperties> {
   public static create(properties: UserCreationProperties): UserEntity {
     const now = new Date();
 
-    return new UserEntity({
+    const user = new UserEntity({
       identifier: UserIdentifierValueObject.generate(),
       email: properties.email,
       password: properties.password,
@@ -40,6 +49,8 @@ export class UserEntity extends AggregateRoot<UserProperties> {
       createdAt: now,
       updatedAt: now,
     });
+    user.recordDomainEvent(new UserRegistered(user.identifier));
+    return user;
   }
 
   public static rehydrate(
@@ -107,21 +118,29 @@ export class UserEntity extends AggregateRoot<UserProperties> {
     this.props.email = newEmail;
     this.props.isEmailVerified = false;
     this.touch();
+    this.recordDomainEvent(new UserEmailChanged(this.identifier));
   }
 
   changePassword(newPassword: PasswordHashValueObject): void {
     this.props.password = newPassword;
     this.props.sessionVersion += 1;
     this.touch();
+    this.recordDomainEvent(new UserPasswordChanged(this.identifier));
   }
 
-  changeRole(newRole: UserRoleValueObject): void {
+  changeRole(
+    newRole: UserRoleValueObject,
+    actorId?: UserIdentifierValueObject,
+  ): void {
     if (newRole.equals(this.props.role)) {
       return;
     }
 
     this.props.role = newRole;
     this.touch();
+    this.recordDomainEvent(
+      new UserRoleChanged(this.identifier, newRole, actorId),
+    );
   }
 
   verifyEmail(): void {
@@ -131,24 +150,27 @@ export class UserEntity extends AggregateRoot<UserProperties> {
 
     this.props.isEmailVerified = true;
     this.touch();
+    this.recordDomainEvent(new UserEmailVerified(this.identifier));
   }
 
-  suspend(): void {
+  suspend(actorId?: UserIdentifierValueObject): void {
     if (this.props.status.isSuspended()) {
       return;
     }
 
     this.props.status = StatusValueObject.suspended();
     this.touch();
+    this.recordDomainEvent(new UserSuspended(this.identifier, actorId));
   }
 
-  activate(): void {
+  activate(actorId?: UserIdentifierValueObject): void {
     if (this.props.status.isActive()) {
       return;
     }
 
     this.props.status = StatusValueObject.active();
     this.touch();
+    this.recordDomainEvent(new UserActivated(this.identifier, actorId));
   }
 
   // ------------------------

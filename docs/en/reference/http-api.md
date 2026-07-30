@@ -6,12 +6,14 @@ The API mounts routes under `/v<major-version>/iam`. With
 `1.0.0-alpha.1`, the prefix is `/v1/iam`. TypeBox schemas feed OpenAPI,
 available at `GET /docs`.
 
-This page describes boundaries and access levels. For historical routes,
+This page describes boundaries and access levels. IAM routes use the
+`/v1/iam` prefix and the notification center uses `/v1/notifications`. For historical routes,
 `*.route-options.ts` files and Swagger describe exact bodies, statuses, and
-responses. Security routes declared in
-`apps/api/src/security/security.routes.ts` do not have TypeBox schemas yet:
-that file and `apps/web/src/services/api.ts` are their executable source, and
-Swagger does not currently cover the whole API.
+responses. Security and notification routes declared in
+`apps/api/src/security/security.routes.ts` and
+`apps/api/src/notifications/notification.routes.ts` do not have TypeBox
+schemas yet: those files and `apps/web/src/services/api.ts` are their executable
+source, and Swagger does not currently cover the whole API.
 
 ## Public routes
 
@@ -49,6 +51,17 @@ Swagger does not currently cover the whole API.
 | `GET`    | `/me/exports`                             | list own exports             |
 | `GET`    | `/me/exports/:exportId/download`          | download a ready archive     |
 | `POST`   | `/me/deletion`                            | schedule account deletion    |
+
+### Notification center (`/v1/notifications`)
+
+| Method | Path                    | Intent                                    |
+| ------ | ----------------------- | ----------------------------------------- |
+| `GET`  | `/`                     | list own notifications                    |
+| `GET`  | `/unread-count`         | count own unread notifications            |
+| `POST` | `/:notificationId/read` | mark one notification as read             |
+| `POST` | `/read-all`             | mark all own notifications as read        |
+| `GET`  | `/preferences`          | read per-channel preferences              |
+| `PUT`  | `/preferences/:channel` | enable or disable `email`, `slack`, `sms` |
 
 ## Administrator routes
 

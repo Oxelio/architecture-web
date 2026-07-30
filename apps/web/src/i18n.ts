@@ -37,9 +37,27 @@ const resources = {
       nav: {
         home: "Accueil",
         profile: "Profil",
+        notifications: "Notifications",
         admin: "Administration",
         signIn: "Connexion",
         signUp: "Inscription",
+      },
+      notifications: {
+        eyebrow: "Centre de notifications",
+        title: "Vos alertes",
+        description:
+          "Retrouvez les changements importants concernant votre compte et votre sécurité.",
+        markAllRead: "Tout marquer comme lu",
+        empty: "Vous n’avez aucune notification.",
+        error: "Impossible de charger les notifications.",
+        preferences: "Préférences de diffusion",
+        preferencesHint:
+          "Les alertes de sécurité critiques restent obligatoires.",
+        channel: {
+          email: "E-mail",
+          slack: "Slack",
+          sms: "SMS",
+        },
       },
       home: {
         eyebrow: "IAM platform",
@@ -296,9 +314,26 @@ const resources = {
       nav: {
         home: "Home",
         profile: "Profile",
+        notifications: "Notifications",
         admin: "Administration",
         signIn: "Sign in",
         signUp: "Sign up",
+      },
+      notifications: {
+        eyebrow: "Notification center",
+        title: "Your alerts",
+        description:
+          "Review important changes concerning your account and security.",
+        markAllRead: "Mark all as read",
+        empty: "You have no notifications.",
+        error: "Unable to load notifications.",
+        preferences: "Delivery preferences",
+        preferencesHint: "Critical security alerts remain mandatory.",
+        channel: {
+          email: "Email",
+          slack: "Slack",
+          sms: "SMS",
+        },
       },
       home: {
         eyebrow: "IAM platform",

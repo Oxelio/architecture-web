@@ -6,6 +6,8 @@ Une décision future **DEVRAIT** être ajoutée dans un fichier
 
 Les agrégats et leurs frontières de cohérence sont détaillés dans
 [ADR-0004](0004-aggregates-and-consistency.md).
+Les Domain Events, l’outbox et les échanges avec Audit et Notifications sont
+détaillés dans [ADR-0005](0005-domain-events-messaging.md).
 
 ## ADR-0001 — Cœur IAM indépendant des technologies
 

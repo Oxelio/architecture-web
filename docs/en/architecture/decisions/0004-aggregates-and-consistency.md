@@ -47,6 +47,6 @@ change.
 
 ## Open limits
 
-Verification email is sent after commit, but no durable outbox exists. Such an
-evolution must protect the raw token at rest and define its worker, retries,
-and idempotency before being introduced.
+The durable outbox introduced by ADR-0005 does not contain the plain
+verification token. Its email remains post-commit; making it retryable requires
+a dedicated encrypted delivery mechanism.

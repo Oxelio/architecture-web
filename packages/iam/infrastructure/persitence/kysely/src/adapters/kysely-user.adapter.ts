@@ -5,18 +5,23 @@ import type {
   UserSearchCriteria,
   UserSearchResult,
 } from "@architecture/iam/application";
+import { toIamIntegrationEvent as mapDomainEvent } from "@architecture/iam/application";
 import type { UserEntity } from "@architecture/iam/domain";
 import {
   EmailValueObject,
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
+import type { OutboxWriter } from "@architecture/messaging";
 import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import { UserMapper } from "#mappers/user.mapper";
 import type { IamDatabase } from "#persistence/schema";
 
 export class KyselyUserAdapter implements UserRepository {
-  constructor(private readonly db: Kysely<IamDatabase>) {}
+  constructor(
+    private readonly db: Kysely<IamDatabase>,
+    private readonly outbox?: OutboxWriter,
+  ) {}
 
   async save(user: UserEntity): Promise<void> {
     const row = UserMapper.toPersistence(user);
@@ -36,6 +41,10 @@ export class KyselyUserAdapter implements UserRepository {
         }),
       )
       .execute();
+
+    if (this.outbox) {
+      await this.outbox.append(user.pullDomainEvents().map(mapDomainEvent));
+    }
   }
 
   async findByEmail(email: EmailValueObject): Promise<UserEntity | null> {

@@ -11,6 +11,9 @@ flowchart TD
     App --> Domain[iam/domain]
     Domain --> Foundation[foundation]
     App --> Foundation
+    App --> Messaging[messaging]
+    Audit[audit] --> Messaging
+    Notifications[notifications] --> Messaging
     Infra[iam/infrastructure] --> App
     Infra --> Domain
     Composition[apps/api/composition-root] --> Infra
@@ -22,15 +25,17 @@ existe.
 
 ## Matrice
 
-| Depuis               | Peut importer                              | Ne peut pas importer                        |
-| -------------------- | ------------------------------------------ | ------------------------------------------- |
-| Foundation           | bibliothèques génériques nécessaires       | IAM, applications, infrastructure           |
-| IAM domain           | Foundation, domaine IAM                    | application, infrastructure, Fastify, React |
-| IAM application      | domaine IAM, Foundation, ports locaux      | adaptateurs, base, cache, HTTP, UI          |
-| Infrastructure IAM   | exports publics IAM, technologie ciblée    | internes privés du cœur, applications       |
-| API hors composition | contrats applicatifs, Fastify, helpers API | internals du domaine, adaptateur concret    |
-| API composition root | application et adaptateurs concrets        | —                                           |
-| Web                  | son code UI et le contrat HTTP             | packages métier et infrastructure           |
+| Depuis               | Peut importer                                    | Ne peut pas importer                        |
+| -------------------- | ------------------------------------------------ | ------------------------------------------- |
+| Foundation           | bibliothèques génériques nécessaires             | IAM, applications, infrastructure           |
+| IAM domain           | Foundation, domaine IAM                          | application, infrastructure, Fastify, React |
+| IAM application      | domaine IAM, Foundation, Messaging, ports locaux | adaptateurs, base, cache, HTTP, UI          |
+| Audit                | Messaging, ses ports et son modèle               | entités internes IAM, HTTP, UI              |
+| Notifications        | Messaging, ses ports et son modèle               | entités internes IAM, HTTP, UI              |
+| Infrastructure IAM   | exports publics IAM, technologie ciblée          | internes privés du cœur, applications       |
+| API hors composition | contrats applicatifs, Fastify, helpers API       | internals du domaine, adaptateur concret    |
+| API composition root | application et adaptateurs concrets              | —                                           |
+| Web                  | son code UI et le contrat HTTP                   | packages métier et infrastructure           |
 
 `apps/api/src/security/security.service.ts` est une exception actuelle à la
 ligne « API hors composition » : il importe Kysely, des objets du domaine et

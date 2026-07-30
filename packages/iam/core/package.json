@@ -48,6 +48,10 @@
       "types": "./application/services/*.ts",
       "default": "./dist/application/services/*.js"
     },
+    "#events/*": {
+      "types": "./application/events/*.ts",
+      "default": "./dist/application/events/*.js"
+    },
     "#repositories/*": {
       "types": "./application/repositories/*.ts",
       "default": "./dist/application/repositories/*.js"
@@ -69,6 +73,7 @@
   },
   "dependencies": {
     "@architecture/foundation": "workspace:*",
+    "@architecture/messaging": "workspace:*",
     "ioredis": "^5.11.1",
     "uuid": "^14.0.1"
   },

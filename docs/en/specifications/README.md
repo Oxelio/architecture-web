@@ -37,10 +37,11 @@ The five accepted security specifications now have an executable foundation,
 but not enough evidence for every acceptance criterion to move them to
 “Implemented”:
 
-`SF-NOTIFICATIONS-001` defines an accepted target with no current executable
-foundation: the repository does not yet contain a Notifications bounded
-context, event bus, or durable outbox. It is therefore not included among the
-five covered specifications in the following table.
+`SF-NOTIFICATIONS-001` now has an executable foundation: Domain Events, an
+outbox, Audit and Notifications bounded contexts, a Web center, preferences,
+and email, Slack, and SMS adapters. It remains accepted until verified-phone
+enrollment, real external-provider configuration, and integration scenarios
+are demonstrated.
 
 | Specification             | Current coverage                                            | Gaps or missing evidence                                                                                              |
 | ------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |

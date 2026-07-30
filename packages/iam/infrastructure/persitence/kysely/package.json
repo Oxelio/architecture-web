@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@architecture/iam": "workspace:*",
+    "@architecture/messaging": "workspace:*",
     "kysely": "^0.29.4"
   },
   "devDependencies": {

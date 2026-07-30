@@ -35,6 +35,10 @@ Variables requises :
 - sécurité : `SECURITY_ENCRYPTION_KEY`, clé aléatoire d’au moins 32 caractères
   utilisée pour chiffrer les secrets TOTP au repos.
 
+Les variables facultatives `NOTIFICATIONS_SLACK_WEBHOOK_URL` et
+`NOTIFICATIONS_SMS_WEBHOOK_URL` activent les adaptateurs de notification
+correspondants.
+
 `COOKIE_SECURE` et `TRUST_PROXY` ajustent la sécurité du cookie et la confiance
 accordée au proxy. `SMTP_VERIFY_URL` est l’URL complète de la page web qui
 reçoit le jeton. `WEB_ORIGIN` figure dans l’exemple et dans Docker Compose,

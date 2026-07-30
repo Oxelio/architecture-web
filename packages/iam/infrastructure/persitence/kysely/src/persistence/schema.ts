@@ -9,7 +9,6 @@ export interface IamDatabase {
   iam_mfa_settings: IamMfaSettingTable;
   iam_mfa_backup_codes: IamMfaBackupCodeTable;
   iam_mfa_challenges: IamMfaChallengeTable;
-  iam_security_audit_events: IamSecurityAuditEventTable;
   iam_security_config_revisions: IamSecurityConfigRevisionTable;
   iam_account_exports: IamAccountExportTable;
   iam_account_deletions: IamAccountDeletionTable;
@@ -80,22 +79,6 @@ export interface IamMfaChallengeTable {
   expires_at: Date;
   consumed_at: Date | null;
   created_at: Date;
-}
-
-export interface IamSecurityAuditEventTable {
-  id: string;
-  type: string;
-  occurred_at: Date;
-  result: string;
-  actor_type: string;
-  actor_id: string | null;
-  subject_id: string | null;
-  correlation_id: string | null;
-  network_fingerprint: string | null;
-  client: string | null;
-  metadata: string;
-  expires_at: Date;
-  legal_hold: boolean;
 }
 
 export interface IamSecurityConfigRevisionTable {

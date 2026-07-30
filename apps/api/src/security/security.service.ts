@@ -8,6 +8,12 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
+import {
+  AuditApplication,
+  type AuditContext,
+  type AuditEntry,
+  type AuditResult,
+} from "@architecture/audit";
 import type {
   IamActorRole,
   IamCapability,
@@ -26,6 +32,7 @@ import {
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
 import type { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
+import type { OutboxWriter } from "@architecture/messaging";
 import type { Kysely } from "kysely";
 import QRCode from "qrcode";
 
@@ -39,16 +46,10 @@ import {
   SecurityPolicySchema,
 } from "./security-policy.js";
 
-export type AuditResult = "success" | "denied" | "technical_failure";
 export type ActorType = "user" | "administrator" | "system" | "anonymous";
 
-export interface SecurityContext {
+export interface SecurityContext extends AuditContext {
   actorType: ActorType;
-  actorId?: string;
-  subjectId?: string;
-  correlationId?: string;
-  ipAddress?: string;
-  client?: string;
 }
 
 export class SecurityError extends Error {
@@ -68,6 +69,8 @@ interface SecurityServiceOptions {
   encryptionKey: string;
   recoveryUrl: string;
   deletionCancellationUrl: string;
+  audit: AuditApplication;
+  outbox: OutboxWriter;
 }
 
 interface MfaVerification {
@@ -76,6 +79,30 @@ interface MfaVerification {
 }
 
 const SENSITIVE_KEY = /(password|token|secret|cookie|authorization|code)/i;
+const NOTIFIABLE_SECURITY_EVENTS = new Set([
+  "account.recovery.completed",
+  "account.deletion.requested",
+  "account.deletion.cancelled",
+  "mfa.activated",
+  "mfa.disabled",
+  "mfa.backup_codes.regenerated",
+  "mfa.backup_code.used",
+]);
+
+function toAuditResponse(entry: AuditEntry) {
+  return {
+    id: entry.id,
+    type: entry.type,
+    occurred_at: entry.occurredAt,
+    result: entry.result,
+    actor_type: entry.actorType,
+    actor_id: entry.actorId,
+    subject_id: entry.subjectId,
+    correlation_id: entry.correlationId,
+    client: entry.client,
+    metadata: entry.metadata,
+  };
+}
 
 export class SecurityService implements SecondFactorGate, IamPolicyProvider {
   private readonly key: Buffer;
@@ -341,14 +368,12 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
       ? this.hash(context.ipAddress)
       : null;
     const originRequests = originFingerprint
-      ? await this.options.db
-          .selectFrom("iam_security_audit_events")
-          .select(({ fn }) => fn.countAll<number>().as("count"))
-          .where("type", "=", "account.recovery.requested")
-          .where("network_fingerprint", "=", originFingerprint)
-          .where("occurred_at", ">", new Date(Date.now() - 60 * 60 * 1000))
-          .executeTakeFirstOrThrow()
-      : { count: 0 };
+      ? await this.options.audit.countRecentByNetworkFingerprint(
+          "account.recovery.requested",
+          originFingerprint,
+          new Date(Date.now() - 60 * 60 * 1000),
+        )
+      : 0;
     const user = await this.options.db
       .selectFrom("iam_users")
       .select(["id", "email", "status", "is_email_verified"])
@@ -357,7 +382,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
     const eligible =
       policy.recovery.enabled &&
       user?.is_email_verified === true &&
-      Number(originRequests.count) < policy.recovery.requestsPerHour * 4;
+      originRequests < policy.recovery.requestsPerHour * 4;
 
     if (eligible && user) {
       const recent = await this.options.db
@@ -1113,23 +1138,8 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
       .where("legal_hold_reason", "is", null)
       .execute();
     for (const deletion of due) {
+      await this.options.audit.pseudonymize(deletion.user_id);
       await this.options.db.transaction().execute(async (transaction) => {
-        await transaction
-          .updateTable("iam_security_audit_events")
-          .set({
-            actor_id: null,
-            subject_id: null,
-            metadata: JSON.stringify({
-              pseudonymousSubject: this.hash(deletion.user_id),
-            }),
-          })
-          .where((expression) =>
-            expression.or([
-              expression("actor_id", "=", deletion.user_id),
-              expression("subject_id", "=", deletion.user_id),
-            ]),
-          )
-          .execute();
         await transaction
           .deleteFrom("iam_users")
           .where("id", "=", deletion.user_id)
@@ -1146,14 +1156,10 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
       );
     }
     await this.expireExports();
-    const purged = await this.options.db
-      .deleteFrom("iam_security_audit_events")
-      .where("expires_at", "<=", now)
-      .where("legal_hold", "=", false)
-      .executeTakeFirst();
+    const purgedEvents = await this.options.audit.purge(now);
     return {
       deletedAccounts: due.length,
-      purgedEvents: Number(purged.numDeletedRows),
+      purgedEvents,
     };
   }
 
@@ -1162,31 +1168,9 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
     if (!policy.audit.consultation) {
       throw new SecurityError("AUDIT_CONSULTATION_DISABLED", 403);
     }
-    const safeSize = Math.min(100, Math.max(1, pageSize));
-    const rows = await this.options.db
-      .selectFrom("iam_security_audit_events")
-      .select([
-        "id",
-        "type",
-        "occurred_at",
-        "result",
-        "actor_type",
-        "correlation_id",
-        "client",
-        "metadata",
-      ])
-      .where((expression) =>
-        expression.or([
-          expression("actor_id", "=", userId),
-          expression("subject_id", "=", userId),
-        ]),
-      )
-      .orderBy("occurred_at", "desc")
-      .orderBy("id", "desc")
-      .limit(safeSize)
-      .offset((Math.max(1, page) - 1) * safeSize)
-      .execute();
-    return rows.map((row) => ({ ...row, metadata: redact(row.metadata) }));
+    return (await this.options.audit.listOwn(userId, page, pageSize)).map(
+      toAuditResponse,
+    );
   }
 
   async listAdminAudit(
@@ -1203,39 +1187,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
       to?: Date;
     },
   ) {
-    let query = this.options.db
-      .selectFrom("iam_security_audit_events")
-      .selectAll();
-    if (filters.type) {
-      query = query.where("type", "=", filters.type);
-    }
-    if (filters.result) {
-      query = query.where("result", "=", filters.result);
-    }
-    if (filters.actorId) {
-      query = query.where("actor_id", "=", filters.actorId);
-    }
-    if (filters.subjectId) {
-      query = query.where("subject_id", "=", filters.subjectId);
-    }
-    if (filters.correlationId) {
-      query = query.where("correlation_id", "=", filters.correlationId);
-    }
-    if (filters.from) {
-      query = query.where("occurred_at", ">=", filters.from);
-    }
-    if (filters.to) {
-      query = query.where("occurred_at", "<=", filters.to);
-    }
-    const rows = await query
-      .orderBy("occurred_at", "desc")
-      .orderBy("id", "desc")
-      .limit(Math.min(100, Math.max(1, filters.pageSize)))
-      .offset(
-        (Math.max(1, filters.page) - 1) *
-          Math.min(100, Math.max(1, filters.pageSize)),
-      )
-      .execute();
+    const rows = await this.options.audit.list(filters);
     await this.audit(
       "security.audit.consulted",
       "success",
@@ -1246,7 +1198,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
       },
       { filters: redact(filters) },
     );
-    return rows.map((row) => ({ ...row, metadata: redact(row.metadata) }));
+    return rows.map(toAuditResponse);
   }
 
   async audit(
@@ -1256,29 +1208,41 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
     metadata: Record<string, unknown> = {},
   ) {
     const policy = await this.policy();
-    const now = new Date();
-    await this.options.db
-      .insertInto("iam_security_audit_events")
-      .values({
-        id: randomUUID(),
-        type,
-        occurred_at: now,
-        result,
-        actor_type: context.actorType,
-        actor_id: context.actorId ?? null,
-        subject_id: context.subjectId ?? null,
-        correlation_id: context.correlationId?.slice(0, 128) ?? null,
-        network_fingerprint: context.ipAddress
-          ? this.hash(context.ipAddress)
-          : null,
-        client: context.client?.slice(0, 256) ?? null,
-        metadata: JSON.stringify(redact(metadata)),
-        expires_at: new Date(
-          now.getTime() + policy.audit.retentionDays * 86_400_000,
-        ),
-        legal_hold: false,
-      })
-      .execute();
+    const eventId = randomUUID();
+    const occurredAt = new Date();
+    await this.options.audit.record({
+      id: eventId,
+      type,
+      occurredAt,
+      result,
+      context,
+      metadata: redact(metadata) as Record<string, unknown>,
+      retentionDays: policy.audit.retentionDays,
+    });
+    if (
+      result === "success" &&
+      context.subjectId &&
+      NOTIFIABLE_SECURITY_EVENTS.has(type)
+    ) {
+      await this.options.outbox.append([
+        {
+          eventId: randomUUID(),
+          topic: type,
+          version: 1,
+          aggregateId: context.subjectId,
+          occurredAt,
+          payload: { userId: context.subjectId },
+          context: {
+            actorType: context.actorType,
+            ...(context.actorId ? { actorId: context.actorId } : {}),
+            subjectId: context.subjectId,
+            ...(context.correlationId
+              ? { correlationId: context.correlationId }
+              : {}),
+          },
+        },
+      ]);
+    }
   }
 
   private async generateExport(exportId: string, userId: string) {
@@ -1590,29 +1554,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
   }
 
   private async exportableAuditEvents(userId: string) {
-    const rows = await this.options.db
-      .selectFrom("iam_security_audit_events")
-      .select([
-        "id",
-        "type",
-        "occurred_at",
-        "result",
-        "actor_type",
-        "correlation_id",
-        "client",
-        "metadata",
-      ])
-      .where((expression) =>
-        expression.or([
-          expression("actor_id", "=", userId),
-          expression("subject_id", "=", userId),
-        ]),
-      )
-      .orderBy("occurred_at", "desc")
-      .orderBy("id", "desc")
-      .limit(10_000)
-      .execute();
-    return rows.map((row) => ({ ...row, metadata: redact(row.metadata) }));
+    return (await this.options.audit.exportFor(userId)).map(toAuditResponse);
   }
 
   private async assertPasswordPolicy(password: string, role: string) {

@@ -36,6 +36,11 @@ const ConfigSchema = z.object({
   security: z.object({
     encryptionKey: z.string().min(32),
   }),
+
+  notifications: z.object({
+    slackWebhookUrl: z.url().optional(),
+    smsWebhookUrl: z.url().optional(),
+  }),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
@@ -65,6 +70,10 @@ export function loadConfig(): AppConfig {
     },
     security: {
       encryptionKey: process.env["SECURITY_ENCRYPTION_KEY"],
+    },
+    notifications: {
+      slackWebhookUrl: process.env["NOTIFICATIONS_SLACK_WEBHOOK_URL"],
+      smsWebhookUrl: process.env["NOTIFICATIONS_SMS_WEBHOOK_URL"],
     },
   });
 }

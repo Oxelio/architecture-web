@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AggregateRoot } from "./aggregate-root.js";
+import { DomainEvent } from "./domain-event.js";
 import { Entity } from "./entity.js";
 import { Identifier } from "./identifier.js";
 import { Result } from "./result.js";
@@ -21,6 +22,16 @@ class TestEntity extends Entity<{ identifier: Identifier }> {
 class TestAggregateRoot extends AggregateRoot<{ identifier: Identifier }> {
   static create(identifier: Identifier): TestAggregateRoot {
     return new TestAggregateRoot({ identifier });
+  }
+
+  change(): void {
+    this.recordDomainEvent(
+      new DomainEvent({
+        type: "test.changed",
+        aggregateId: this.identifier.value,
+        payload: {},
+      }),
+    );
   }
 }
 
@@ -59,5 +70,15 @@ describe("foundation domain primitives", () => {
 
     expect(root).toBeInstanceOf(Entity);
     expect(root.identifier.value).toBe("aggregate-1");
+  });
+
+  it("records and releases domain events", () => {
+    const root = TestAggregateRoot.create(new TestIdentifier("aggregate-1"));
+
+    root.change();
+
+    expect(root.pendingDomainEvents).toHaveLength(1);
+    expect(root.pullDomainEvents()).toHaveLength(1);
+    expect(root.pendingDomainEvents).toHaveLength(0);
   });
 });

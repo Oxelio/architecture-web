@@ -38,10 +38,11 @@ Les cinq spécifications de sécurité acceptées disposent désormais d’un so
 exécutable, sans que tous leurs critères soient suffisamment démontrés pour
 passer au statut « Implémentée » :
 
-`SF-NOTIFICATIONS-001` décrit une cible acceptée sans socle exécutable actuel :
-le dépôt ne contient encore ni bounded context Notifications, ni bus
-d’événements, ni outbox durable. Elle n’est donc pas incluse parmi les cinq
-spécifications couvertes dans le tableau suivant.
+`SF-NOTIFICATIONS-001` possède désormais un socle exécutable : Domain Events,
+outbox, bounded contexts Audit et Notifications, centre Web, préférences et
+adaptateurs e-mail, Slack et SMS. Elle reste acceptée tant que l’enrôlement d’un
+numéro vérifié, la configuration réelle des fournisseurs externes et les
+scénarios d’intégration ne sont pas démontrés.
 
 | Spécification             | Couverture actuelle                                                         | Écarts ou preuves manquantes                                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |

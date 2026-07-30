@@ -1,3 +1,5 @@
+import type { OutboxWriter } from "@architecture/messaging";
+
 import type { ActivateUser } from "#access-administration/use-cases/activate-user/activate-user.contracts";
 import { ActivateUserUseCase } from "#access-administration/use-cases/activate-user/activate-user.use-case";
 import type { AssignUserRole } from "#access-administration/use-cases/assign-user-role/assign-user-role.contracts";
@@ -72,6 +74,7 @@ export interface IamDependencies {
   rateLimiter: EmailVerificationRateLimiter;
   emailVerificationTokenHasher: EmailVerificationTokenHasher;
   unitOfWork: IamUnitOfWork;
+  outbox?: OutboxWriter;
   secondFactorGate?: SecondFactorGate;
 }
 
@@ -115,8 +118,14 @@ export function createIam(dependencies: IamDependencies): IamApplication {
   );
 
   return {
-    assignUserRole: new AssignUserRoleUseCase(dependencies.userRepository),
-    activateUser: new ActivateUserUseCase(dependencies.userRepository),
+    assignUserRole: new AssignUserRoleUseCase(
+      dependencies.userRepository,
+      dependencies.unitOfWork,
+    ),
+    activateUser: new ActivateUserUseCase(
+      dependencies.userRepository,
+      dependencies.unitOfWork,
+    ),
     changeEmail: new ChangeEmailUseCase(
       dependencies.userRepository,
       dependencies.emailSender,
@@ -130,6 +139,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.sessionRepository,
       passwordPolicy,
       privilegedPasswordPolicy,
+      dependencies.unitOfWork,
     ),
     getCurrentAccount: new GetCurrentAccountUseCase(
       dependencies.userRepository,
@@ -174,6 +184,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.sessionRepository,
       dependencies.policyProvider,
       dependencies.secondFactorGate,
+      dependencies.outbox,
     ),
     signOut: new SignOutUseCase(dependencies.sessionRepository),
     signUp: new SignUpUseCase(
@@ -188,6 +199,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     suspendUser: new SuspendUserUseCase(
       dependencies.userRepository,
       dependencies.sessionRepository,
+      dependencies.unitOfWork,
     ),
     verifyEmail: new VerifyEmailUseCase(
       dependencies.userRepository,

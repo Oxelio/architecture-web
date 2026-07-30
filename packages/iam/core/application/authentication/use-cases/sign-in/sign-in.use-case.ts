@@ -1,8 +1,10 @@
 // @file bounded-contexts/iam/application/use-cases/sign-in/sign-in.use-case.ts
 
 import { Result } from "@architecture/foundation";
+import type { OutboxWriter } from "@architecture/messaging";
 
 import { SessionEntity } from "#entities/session.entity";
+import { toIamIntegrationEvent } from "#events/iam-integration-event";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
@@ -28,6 +30,7 @@ export class SignInUseCase implements SignIn {
     private readonly session: SessionRepository,
     private readonly policyProvider: IamPolicyProvider,
     private readonly secondFactor?: SecondFactorGate,
+    private readonly outbox?: OutboxWriter,
   ) {}
 
   async execute(payload: SignInInput): Promise<SignInOutput> {
@@ -81,6 +84,11 @@ export class SignInUseCase implements SignIn {
       sessionEntity,
       MAX_ACTIVE_SESSIONS_PER_USER,
     );
+    if (this.outbox) {
+      await this.outbox.append(
+        sessionEntity.pullDomainEvents().map(toIamIntegrationEvent),
+      );
+    }
 
     const data: AuthenticationSession = {
       userId: user.identifier.value,

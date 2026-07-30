@@ -4,6 +4,7 @@ import { Result } from "@architecture/foundation";
 
 import type { UserRepository } from "#repositories/user.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ActivateUserErrorsCodes } from "./activate-user.codes.js";
@@ -16,7 +17,10 @@ import type {
 export class ActivateUserUseCase implements ActivateUser {
   private readonly authorizer: AdministratorAuthorizer;
 
-  constructor(private readonly userPort: UserRepository) {
+  constructor(
+    private readonly userPort: UserRepository,
+    private readonly unitOfWork?: IamUnitOfWork,
+  ) {
     this.authorizer = new AdministratorAuthorizer(userPort);
   }
 
@@ -36,9 +40,14 @@ export class ActivateUserUseCase implements ActivateUser {
       return Result.failure(ActivateUserErrorsCodes.notFound);
     }
 
-    user.activate();
+    const actorId = UserIdentifierValueObject.create(command.actorUserId);
+    user.activate(actorId.success ? actorId.value : undefined);
 
-    await this.userPort.save(user);
+    if (this.unitOfWork) {
+      await this.unitOfWork.execute(({ users }) => users.save(user));
+    } else {
+      await this.userPort.save(user);
+    }
 
     return Result.success(undefined);
   }

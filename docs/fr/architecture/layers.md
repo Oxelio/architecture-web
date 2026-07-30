@@ -2,10 +2,11 @@
 
 ## Foundation
 
-`packages/foundation` fournit `AggregateRoot`, `Entity`, `Identifier`,
-`ValueObject`, `Result` et `ValueOf`. Il ne contient aucune règle propre à
-l’identité. `AggregateRoot` marque l’entrée d’une frontière de cohérence sans
-introduire de dépendance vers un repository ou une base de données.
+`packages/foundation` fournit `AggregateRoot`, `DomainEvent`, `Entity`,
+`Identifier`, `ValueObject`, `Result` et `ValueOf`. Il ne contient aucune règle
+propre à l’identité. `AggregateRoot` marque l’entrée d’une frontière de
+cohérence et collecte les événements métier sans introduire de dépendance vers
+un repository ou une base de données.
 
 Il **PEUT** contenir une primitive générique utile à plusieurs domaines. Il
 **NE DOIT PAS** importer un package métier, une application ou une technologie
@@ -95,6 +96,22 @@ persistées invalides avec `InvalidPersistenceDataError`.
 même transaction. `RedisSessionAdapter.saveEnforcingMaximum` utilise un script
 Redis unique pour sauvegarder la session, nettoyer l’index expiré et révoquer
 les sessions excédentaires.
+
+## Messaging, Audit et Notifications
+
+`packages/messaging` porte les contrats d’événement d’intégration, l’outbox
+PostgreSQL, le routeur interne et son worker. C’est une infrastructure
+transverse, pas du Shared Kernel métier.
+
+`packages/audit` est un bounded context append-only. Il reçoit les événements
+d’intégration et les tentatives applicatives ou de sécurité, applique la
+redaction et expose les recherches, exports, rétentions et pseudonymisations.
+
+`packages/notifications` est un bounded context distinct. Il transforme les
+faits reçus en notifications destinées aux utilisateurs ou administrateurs,
+conserve leur état lu/non lu et programme les livraisons e-mail, Slack ou SMS
+selon les préférences et les politiques obligatoires. Les adaptateurs de canal
+restent à l’extérieur de ce package.
 
 ## API Fastify
 

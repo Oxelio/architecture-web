@@ -6,12 +6,18 @@
 flowchart LR
     foundation["@architecture/foundation"]
     iam["@architecture/iam"]
+    messaging["@architecture/messaging"]
+    audit["@architecture/audit"]
+    notifications["@architecture/notifications"]
     adapters["IAM adapters"]
     api["api (private)"]
     web["web (private)"]
     lint["@architecture/eslint-config"]
 
     iam --> foundation
+    iam --> messaging
+    audit --> messaging
+    notifications --> messaging
     adapters --> iam
     api --> iam
     api --> adapters
@@ -27,6 +33,9 @@ flowchart LR
 | --------------------------------------------- | ------------------------------------- | ------------------------------------------------- |
 | `@architecture/foundation`                    | generic domain primitives             | root export                                       |
 | `@architecture/iam`                           | IAM domain and application            | `./domain`, `./application`                       |
+| `@architecture/messaging`                     | contracts, outbox, router, and worker | root export                                       |
+| `@architecture/audit`                         | Audit bounded context                 | root export                                       |
+| `@architecture/notifications`                 | Notifications bounded context         | root export                                       |
 | `@architecture/iam-persistence-kysely`        | IAM PostgreSQL schema and persistence | root export                                       |
 | `@architecture/iam-session-redis`             | sessions and rate limiting            | root export                                       |
 | `@architecture/iam-password-argon2`           | selected password hashing             | root export                                       |
@@ -54,6 +63,9 @@ Nodemailer.
 | `EmailVerificationTokenHasher` | `Sha256EmailVerificationTokenHasherAdapter` |
 | `EmailSender`                  | `NodemailerEmailSenderAdapter`              |
 | `SecondFactorGate`             | `SecurityService` in `apps/api`             |
+| `OutboxWriter`                 | `KyselyOutboxWriter`                        |
+| `AuditRepository`              | `KyselyAuditRepository`                     |
+| `NotificationRepository`       | `KyselyNotificationRepository`              |
 
 `BcryptPasswordHasherAdapter` and `PostmarkEmailSenderAdapter` also satisfy
 `PasswordHasher` and `EmailSender`.
@@ -67,15 +79,15 @@ page and page size, then returns the entity page and filtered total.
 ## Persistence
 
 PostgreSQL stores users, verifications, recoveries, MFA settings, backup codes,
-challenges, audits, configuration revisions, exports, and deletion requests.
-Kysely migrations live in
-`packages/iam/infrastructure/persitence/kysely/src/persistence/migrations`.
+challenges, audits, notifications, deliveries, the outbox, configuration
+revisions, exports, and deletion requests. IAM Kysely migrations remain in
+`packages/iam/infrastructure/persitence/kysely/src/persistence/migrations`;
+Messaging, Audit, and Notifications each export their own migration.
 Redis stores expiring sessions, a per-user sorted set, and resend rate limits.
 
-Tables introduced by `003_create_iam_security` are queried directly by
-`SecurityService`; they have no dedicated repository or mapper in the Kysely
-package. The package exports their TypeScript schema and migration, not a
-complete security adapter.
+`SecurityService` still queries recovery, MFA, configuration, export, and
+deletion tables directly. The audit trail has been extracted to
+`@architecture/audit` and no longer belongs to the IAM schema.
 
 Schema, migrations, and mappers **MUST** evolve together. Rehydrated entities
 **MUST** still satisfy their value objects; invalid persisted data must not be

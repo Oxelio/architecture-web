@@ -2,6 +2,7 @@ import { Result } from "@architecture/foundation";
 
 import type { UserRepository } from "#repositories/user.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
@@ -15,7 +16,10 @@ import type {
 export class AssignUserRoleUseCase implements AssignUserRole {
   private readonly authorizer: AdministratorAuthorizer;
 
-  constructor(private readonly userPort: UserRepository) {
+  constructor(
+    private readonly userPort: UserRepository,
+    private readonly unitOfWork?: IamUnitOfWork,
+  ) {
     this.authorizer = new AdministratorAuthorizer(userPort);
   }
 
@@ -43,8 +47,13 @@ export class AssignUserRoleUseCase implements AssignUserRole {
       return Result.failure(AssignUserRoleErrorCodes.notFound);
     }
 
-    user.changeRole(role.value);
-    await this.userPort.save(user);
+    const actorId = UserIdentifierValueObject.create(command.actorUserId);
+    user.changeRole(role.value, actorId.success ? actorId.value : undefined);
+    if (this.unitOfWork) {
+      await this.unitOfWork.execute(({ users }) => users.save(user));
+    } else {
+      await this.userPort.save(user);
+    }
 
     return Result.success(undefined);
   }

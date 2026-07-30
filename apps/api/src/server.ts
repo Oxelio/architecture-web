@@ -16,6 +16,7 @@ import {
 } from "./auth.js";
 import { buildApplicationModule } from "./composition-root/application.module.js";
 import { buildIamRoutes } from "./features/iam/routes/index.js";
+import { buildNotificationRoutes } from "./notifications/notification.routes.js";
 import { buildSecurityRoutes } from "./security/security.routes.js";
 import { errorHandler } from "./types/error-handler.js";
 
@@ -83,6 +84,9 @@ export async function buildServer() {
     if (!type) {
       return;
     }
+    if (reply.statusCode < 400 && DOMAIN_AUDITED_HTTP_EVENTS.has(type)) {
+      return;
+    }
     try {
       await container.security.audit(
         type,
@@ -130,6 +134,9 @@ export async function buildServer() {
       prefix: `/${apiVersion}/iam`,
     },
   );
+  await app.register(buildNotificationRoutes(container.notifications), {
+    prefix: `/${apiVersion}/notifications`,
+  });
   await app.register(
     buildSecurityRoutes(container.security, {
       name: SESSION_COOKIE_NAME,
@@ -162,3 +169,12 @@ function auditTypeFor(method: string, path: string): string | null {
   ];
   return rules.find(([pattern]) => pattern.test(path))?.[1] ?? null;
 }
+
+const DOMAIN_AUDITED_HTTP_EVENTS = new Set([
+  "account.created",
+  "account.email_verification",
+  "account.password.changed",
+  "account.email.changed",
+  "account.role.changed",
+  "account.status.changed",
+]);

@@ -79,33 +79,6 @@ async function up(db: Kysely<IamDatabase>): Promise<void> {
     .execute();
 
   await db.schema
-    .createTable("iam_security_audit_events")
-    .addColumn("id", "uuid", (column) => column.primaryKey())
-    .addColumn("type", "varchar(96)", (column) => column.notNull())
-    .addColumn("occurred_at", "timestamptz", (column) => column.notNull())
-    .addColumn("result", "varchar(24)", (column) => column.notNull())
-    .addColumn("actor_type", "varchar(24)", (column) => column.notNull())
-    .addColumn("actor_id", "uuid")
-    .addColumn("subject_id", "uuid")
-    .addColumn("correlation_id", "varchar(128)")
-    .addColumn("network_fingerprint", "varchar(64)")
-    .addColumn("client", "varchar(256)")
-    .addColumn("metadata", "jsonb", (column) =>
-      column.defaultTo(sql`'{}'::jsonb`).notNull(),
-    )
-    .addColumn("expires_at", "timestamptz", (column) => column.notNull())
-    .addColumn("legal_hold", "boolean", (column) =>
-      column.defaultTo(false).notNull(),
-    )
-    .execute();
-
-  await db.schema
-    .createIndex("iam_security_audit_subject_idx")
-    .on("iam_security_audit_events")
-    .columns(["subject_id", "occurred_at"])
-    .execute();
-
-  await db.schema
     .createTable("iam_security_config_revisions")
     .addColumn("id", "uuid", (column) => column.primaryKey())
     .addColumn("version", "integer", (column) => column.unique().notNull())
@@ -187,7 +160,6 @@ async function down(db: Kysely<IamDatabase>): Promise<void> {
     "iam_account_deletions",
     "iam_account_exports",
     "iam_security_config_revisions",
-    "iam_security_audit_events",
     "iam_mfa_challenges",
     "iam_mfa_backup_codes",
     "iam_mfa_settings",

@@ -2,10 +2,11 @@
 
 ## Foundation
 
-`packages/foundation` provides `AggregateRoot`, `Entity`, `Identifier`,
-`ValueObject`, `Result`, and `ValueOf`. It contains no IAM-specific rule.
-`AggregateRoot` marks the entry point of a consistency boundary without
-depending on a repository or database.
+`packages/foundation` provides `AggregateRoot`, `DomainEvent`, `Entity`,
+`Identifier`, `ValueObject`, `Result`, and `ValueOf`. It contains no
+IAM-specific rule. `AggregateRoot` marks the entry point of a consistency
+boundary and collects business events without depending on a repository or
+database.
 
 It **MAY** contain a generic primitive useful to multiple domains. It **MUST
 NOT** import a business package, application, or infrastructure technology.
@@ -81,6 +82,21 @@ rows to `UserEntity` and rejects invalid persisted data with
 `KyselyIamUnitOfWorkAdapter` provides repositories bound to one transaction.
 `RedisSessionAdapter.saveEnforcingMaximum` uses one Redis script to save the
 session, clean the expired index, and revoke excess sessions.
+
+## Messaging, Audit, and Notifications
+
+`packages/messaging` owns integration-event contracts, the PostgreSQL outbox,
+the in-process router, and its worker. It is cross-cutting infrastructure, not
+a business Shared Kernel.
+
+`packages/audit` is an append-only bounded context. It consumes integration
+events and application or security attempts, applies redaction, and exposes
+search, export, retention, and pseudonymization operations.
+
+`packages/notifications` is a separate bounded context. It turns received
+facts into user or administrator notifications, stores read/unread state, and
+schedules email, Slack, or SMS delivery according to preferences and mandatory
+policies. Channel adapters remain outside this package.
 
 ## Fastify API
 

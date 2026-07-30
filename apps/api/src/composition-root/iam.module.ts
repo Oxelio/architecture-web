@@ -19,6 +19,7 @@ import {
   RedisEmailVerificationRateLimitAdapter,
   RedisSessionAdapter,
 } from "@architecture/iam-session-redis";
+import { KyselyOutboxWriter, type OutboxWriter } from "@architecture/messaging";
 import { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 
@@ -27,15 +28,15 @@ import {
   LocalCommonPasswordChecker,
   LocalCompromisedPasswordChecker,
 } from "#adapters/local-password-security.adapter";
-import type { AppConfig } from "#config/app.config";
 
 import type { AppDatabase } from "./database.module.js";
 
 function buildIamDependencies(
   db: Kysely<AppDatabase>,
   redis: Redis,
-  config: AppConfig,
   policyProvider: IamDependencies["policyProvider"],
+  emailSender: NodemailerEmailSenderAdapter,
+  outbox: OutboxWriter,
 ): IamDependencies {
   return {
     passwordHasher: new Argon2PasswordHasherAdapter(),
@@ -46,34 +47,40 @@ function buildIamDependencies(
     emailVerificationTokenHasher:
       new Sha256EmailVerificationTokenHasherAdapter(),
 
-    userRepository: new KyselyUserAdapter(db),
+    userRepository: new KyselyUserAdapter(db as never),
 
-    emailVerificationRepository: new KyselyEmailVerificationAdapter(db),
+    emailVerificationRepository: new KyselyEmailVerificationAdapter(
+      db as never,
+    ),
 
-    unitOfWork: new KyselyIamUnitOfWorkAdapter(db),
+    unitOfWork: new KyselyIamUnitOfWorkAdapter(
+      db as never,
+      (transaction) => new KyselyOutboxWriter(transaction as never),
+    ),
+    outbox,
 
     sessionRepository: new RedisSessionAdapter(redis),
 
     rateLimiter: new RedisEmailVerificationRateLimitAdapter(redis),
 
-    emailSender: new NodemailerEmailSenderAdapter(
-      config.smtp.host,
-      config.smtp.port,
-      config.smtp.username,
-      config.smtp.password,
-      config.smtp.from,
-      config.smtp.verifyUrl,
-    ),
+    emailSender,
   };
 }
 
 export function buildIamModule(
   db: Kysely<AppDatabase>,
   redis: Redis,
-  config: AppConfig,
   security: SecondFactorGate & IamPolicyProvider,
+  emailSender: NodemailerEmailSenderAdapter,
+  outbox: OutboxWriter,
 ): IamApplication {
-  const dependencies = buildIamDependencies(db, redis, config, security);
+  const dependencies = buildIamDependencies(
+    db,
+    redis,
+    security,
+    emailSender,
+    outbox,
+  );
 
   return createIam({
     ...dependencies,

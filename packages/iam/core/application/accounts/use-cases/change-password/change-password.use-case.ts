@@ -6,6 +6,7 @@ import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import type { PasswordPolicyValidator } from "#services/password-policy-validator.service";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -23,6 +24,7 @@ export class ChangePasswordUseCase implements ChangePassword {
     private readonly sessionPort: SessionRepository,
     private readonly passwordPolicy: PasswordPolicyValidator,
     private readonly privilegedPasswordPolicy: PasswordPolicyValidator = passwordPolicy,
+    private readonly unitOfWork?: IamUnitOfWork,
   ) {}
 
   async execute(payload: ChangePasswordInput): Promise<ChangePasswordOutput> {
@@ -76,7 +78,11 @@ export class ChangePasswordUseCase implements ChangePassword {
 
     user.changePassword(hashed);
 
-    await this.userPort.save(user);
+    if (this.unitOfWork) {
+      await this.unitOfWork.execute(({ users }) => users.save(user));
+    } else {
+      await this.userPort.save(user);
+    }
     await this.sessionPort.deleteAllForUser(user.identifier);
 
     return Result.success(undefined);

@@ -135,6 +135,7 @@ export type {
 // ============================================================
 export type { IamApplication, IamDependencies } from "./create-iam.js";
 export { createIam } from "./create-iam.js";
+export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 
 // Ports
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";

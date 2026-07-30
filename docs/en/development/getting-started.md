@@ -29,6 +29,10 @@ least 32 characters and encrypts TOTP secrets at rest. Rotating it requires a
 controlled migration of existing MFA secrets. `COOKIE_SECURE` and
 `TRUST_PROXY` adjust cookie and proxy security.
 
+Optional `NOTIFICATIONS_SLACK_WEBHOOK_URL` and
+`NOTIFICATIONS_SMS_WEBHOOK_URL` values enable the corresponding notification
+adapters.
+
 `WEB_ORIGIN` appears in the example and Compose file, but the current Fastify
 configuration uses `origin: true` and does not read it.
 

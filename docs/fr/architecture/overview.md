@@ -34,8 +34,11 @@ apps/
 ├── api/                         interface HTTP et composition
 └── web/                         interface React
 packages/
+├── audit/                       bounded context Audit
 ├── foundation/                  primitives de modélisation
 ├── eslint-config/               règles ESLint partagées
+├── messaging/                   outbox et livraison d’événements
+├── notifications/               bounded context Notifications
 └── iam/
     ├── core/                    domaine + application
     └── infrastructure/
@@ -106,10 +109,13 @@ graphe `User`. Les commandes qui modifient `UserEntity` et
 par une transaction Kysely. La création d’une session et l’application de la
 limite par utilisateur sont atomiques dans Redis.
 
-Le code ne définit toujours ni bus d’événements, ni événements de domaine, ni
-service de domaine distinct. L’envoi d’e-mail a lieu après le commit
-PostgreSQL, mais aucun outbox durable ne permet encore de le réessayer après
-une défaillance SMTP.
+Les agrégats IAM enregistrent désormais des Domain Events. Les adaptateurs
+PostgreSQL les traduisent en événements d’intégration et les placent dans une
+outbox au sein de la transaction IAM. Un worker les distribue aux bounded
+contexts Audit et Notifications avec reprise et consommation idempotente.
+
+L’e-mail contenant le jeton brut de vérification reste volontairement dans le
+parcours applicatif après commit et n’est pas placé dans l’outbox générique.
 
 ## Compromis observés
 

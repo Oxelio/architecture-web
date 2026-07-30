@@ -276,9 +276,10 @@ describe the current implementation.
 - Transactional storage of an outgoing fact remains coordinated with the
   producer bounded context's storage.
 
-The repository currently provides neither a Notifications bounded context, an
-event bus, nor a durable outbox. Their introduction is therefore a future
-change and requires a detailed architecture decision before implementation.
+The repository now provides the Notifications and Audit bounded contexts, IAM
+Domain Events, a durable outbox, and local workers. The implemented architecture
+is detailed in
+[ADR-0005](../architecture/decisions/0005-domain-events-messaging.md).
 
 ## Test scenarios
 

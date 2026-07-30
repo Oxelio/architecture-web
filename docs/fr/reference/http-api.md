@@ -6,12 +6,14 @@ L’API monte les routes sous `/v<version-majeure>/iam`. Avec la version
 actuelle `1.0.0-alpha.1`, le préfixe est `/v1/iam`. Les schémas TypeBox
 alimentent OpenAPI, consultable sur `GET /docs`.
 
-Cette page décrit les frontières et niveaux d’accès. Pour les routes historiques,
+Cette page décrit les frontières et niveaux d’accès. Les routes IAM utilisent
+le préfixe `/v1/iam` et le centre de notifications `/v1/notifications`. Pour les routes historiques,
 les fichiers `*.route-options.ts` et Swagger décrivent les corps, statuts et
-réponses. Les routes de sécurité déclarées dans
-`apps/api/src/security/security.routes.ts` ne possèdent pas encore de schémas
-TypeBox : ce fichier et `apps/web/src/services/api.ts` sont donc leur source
-exécutable, et Swagger ne couvre pas encore toute l’API.
+réponses. Les routes de sécurité et de notifications déclarées dans
+`apps/api/src/security/security.routes.ts` et
+`apps/api/src/notifications/notification.routes.ts` ne possèdent pas encore de
+schémas TypeBox : ces fichiers et `apps/web/src/services/api.ts` sont donc leur
+source exécutable, et Swagger ne couvre pas encore toute l’API.
 
 ## Routes publiques
 
@@ -49,6 +51,17 @@ exécutable, et Swagger ne couvre pas encore toute l’API.
 | `GET`    | `/me/exports`                             | lister ses exports                   |
 | `GET`    | `/me/exports/:exportId/download`          | télécharger une archive prête        |
 | `POST`   | `/me/deletion`                            | programmer la suppression du compte  |
+
+### Centre de notifications (`/v1/notifications`)
+
+| Méthode | Chemin                  | Intention                                     |
+| ------- | ----------------------- | --------------------------------------------- |
+| `GET`   | `/`                     | lister ses notifications                      |
+| `GET`   | `/unread-count`         | compter ses notifications non lues            |
+| `POST`  | `/:notificationId/read` | marquer une notification comme lue            |
+| `POST`  | `/read-all`             | marquer toutes ses notifications comme lues   |
+| `GET`   | `/preferences`          | lire ses préférences par canal                |
+| `PUT`   | `/preferences/:channel` | activer ou désactiver `email`, `slack`, `sms` |
 
 ## Routes administrateur
 

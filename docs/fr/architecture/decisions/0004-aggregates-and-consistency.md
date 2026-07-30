@@ -48,6 +48,6 @@ antérieures à un changement de mot de passe.
 
 ## Limites ouvertes
 
-L’e-mail de vérification est envoyé après le commit, mais aucun outbox durable
-n’existe. Une telle évolution devra protéger le jeton brut au repos et définir
-le worker, les reprises et l’idempotence avant d’être introduite.
+L’outbox durable introduite par l’ADR-0005 ne contient pas le jeton brut de
+vérification. L’e-mail correspondant reste envoyé après le commit ; le rendre
+reprenable exigera un mécanisme de livraison chiffré spécifique.

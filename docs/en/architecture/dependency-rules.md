@@ -11,6 +11,9 @@ flowchart TD
     App --> Domain[iam/domain]
     Domain --> Foundation[foundation]
     App --> Foundation
+    App --> Messaging[messaging]
+    Audit[audit] --> Messaging
+    Notifications[notifications] --> Messaging
     Infra[iam/infrastructure] --> App
     Infra --> Domain
     Composition[apps/api/composition-root] --> Infra
@@ -21,15 +24,17 @@ An arrow means “may depend on”; it does not require the dependency.
 
 ## Matrix
 
-| From                    | May import                                  | Must not import                             |
-| ----------------------- | ------------------------------------------- | ------------------------------------------- |
-| Foundation              | required generic libraries                  | IAM, apps, infrastructure                   |
-| IAM domain              | Foundation, IAM domain                      | application, infrastructure, Fastify, React |
-| IAM application         | IAM domain, Foundation, local ports         | adapters, database, cache, HTTP, UI         |
-| IAM infrastructure      | public IAM exports, targeted technology     | private core internals, apps                |
-| API outside composition | application contracts, Fastify, API helpers | domain internals, concrete adapters         |
-| API composition root    | application and concrete adapters           | —                                           |
-| Web                     | UI code and HTTP contract                   | business and infrastructure packages        |
+| From                    | May import                                     | Must not import                             |
+| ----------------------- | ---------------------------------------------- | ------------------------------------------- |
+| Foundation              | required generic libraries                     | IAM, apps, infrastructure                   |
+| IAM domain              | Foundation, IAM domain                         | application, infrastructure, Fastify, React |
+| IAM application         | IAM domain, Foundation, Messaging, local ports | adapters, database, cache, HTTP, UI         |
+| Audit                   | Messaging, its ports and model                 | internal IAM entities, HTTP, UI             |
+| Notifications           | Messaging, its ports and model                 | internal IAM entities, HTTP, UI             |
+| IAM infrastructure      | public IAM exports, targeted technology        | private core internals, apps                |
+| API outside composition | application contracts, Fastify, API helpers    | domain internals, concrete adapters         |
+| API composition root    | application and concrete adapters              | —                                           |
+| Web                     | UI code and HTTP contract                      | business and infrastructure packages        |
 
 `apps/api/src/security/security.service.ts` is a current exception to the
 “API outside composition” row: it imports Kysely, domain objects, and adapter

@@ -1,3 +1,4 @@
+import type { DomainEvent } from "./domain-event.js";
 import { Entity } from "./entity.js";
 import type { Identifier } from "./identifier.js";
 
@@ -10,4 +11,18 @@ import type { Identifier } from "./identifier.js";
  */
 export abstract class AggregateRoot<
   TProperties extends { identifier: Identifier },
-> extends Entity<TProperties> {}
+> extends Entity<TProperties> {
+  readonly #domainEvents: DomainEvent[] = [];
+
+  protected recordDomainEvent(event: DomainEvent): void {
+    this.#domainEvents.push(event);
+  }
+
+  public pullDomainEvents(): readonly DomainEvent[] {
+    return this.#domainEvents.splice(0);
+  }
+
+  public get pendingDomainEvents(): readonly DomainEvent[] {
+    return [...this.#domainEvents];
+  }
+}

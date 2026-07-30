@@ -291,10 +291,10 @@ elle ne décrit pas l’implémentation actuelle.
 - Le stockage transactionnel d’un fait sortant reste coordonné avec le stockage
   du bounded context producteur.
 
-Le dépôt ne fournit actuellement ni bounded context Notifications, ni bus
-d’événements, ni outbox durable. Leur introduction est donc une évolution
-future et doit faire l’objet d’une décision architecturale détaillée avant
-implémentation.
+Le dépôt fournit désormais les bounded contexts Notifications et Audit, des
+Domain Events IAM, une outbox durable et des workers locaux. L’architecture
+mise en œuvre est détaillée par
+[ADR-0005](../architecture/decisions/0005-domain-events-messaging.md).
 
 ## Scénarios de test
 
