@@ -57,6 +57,9 @@ architecturale explicite.
 ## Réponses aux questions fréquentes
 
 - Une entité **NE DOIT PAS** importer un cas d’utilisation.
+- Une entité est définie par son identité et sa continuité métier ; elle **PEUT**
+  être transitoire ou enfant d’un agrégat et n’exige donc pas de repository
+  dédié.
 - Un cas d’utilisation **NE DOIT PAS** dépendre de Redis ou Kysely.
 - Une infrastructure **DOIT** dépendre du port applicatif qu’elle implémente.
 - Un repository de commande **DOIT** recevoir et sauvegarder une racine

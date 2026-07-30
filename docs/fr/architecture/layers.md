@@ -111,10 +111,24 @@ d’intégration et les tentatives applicatives ou de sécurité, applique la
 redaction et expose les recherches, exports, rétentions et pseudonymisations.
 
 `packages/notifications/core` est un bounded context distinct. Son domaine
-porte `NotificationEntity`, `NotificationDeliveryEntity`, les identifiants,
-canaux et sévérités. Son application transforme les faits reçus en agrégats,
-expose les cas d’utilisation de consultation et de transition, et programme
-les livraisons selon les préférences et politiques obligatoires.
+porte `NotificationEntity`, `NotificationDeliveryEntity`,
+`NotificationPreferenceEntity`, `NotificationRecipientEntity`, les
+identifiants, canaux et sévérités. La préférence possède l’identité composite
+destinataire-canal et contrôle sa transition d’activation. Le destinataire est
+un concept identifié construit par l’adaptateur d’annuaire IAM ; il sélectionne
+la destination compatible avec un canal sans exiger de persistance propre.
+`NotificationDeliveryEntity`, enfant de l’agrégat `NotificationEntity`, porte
+les transitions de réclamation, succès, échec, nouvelle tentative et lettre
+morte. Le DTO présenté au client reste un contrat applicatif.
+
+L’application transforme les faits reçus en agrégats, expose chaque intention
+dans un dossier de cas d’utilisation avec son contrat et ses éventuels codes
+d’erreur stables, puis programme les livraisons selon les préférences et
+politiques obligatoires. `NotificationRepository` et
+`NotificationPreferenceRepository` sauvegardent chacun leur racine d’agrégat ;
+les ports `NotificationDelivery` et `NotificationRecipientDirectory` sont des
+classes abstraites dont les signatures emploient directement les objets du
+domaine.
 
 Les implémentations restent sous `packages/notifications/infrastructure` :
 Kysely pour la persistance, Nodemailer pour l’e-mail, deux webhooks séparés

@@ -1,4 +1,5 @@
 export { KyselyNotificationRepositoryAdapter } from "./kysely-notification.repository.adapter.js";
+export { KyselyNotificationPreferenceRepositoryAdapter } from "./kysely-notification-preference.repository.adapter.js";
 export { notificationMigrations } from "./migration.js";
 export { notificationRowToEntity } from "./notification.mapper.js";
 export type {

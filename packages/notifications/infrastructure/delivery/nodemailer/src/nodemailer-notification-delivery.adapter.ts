@@ -1,10 +1,11 @@
+import { NotificationDelivery } from "@architecture/notifications/application";
 import type {
-  NotificationDelivery,
-  PendingDelivery,
-} from "@architecture/notifications/application";
+  NotificationDeliveryEntity,
+  NotificationEntity,
+} from "@architecture/notifications/domain";
 import nodemailer, { type Transporter } from "nodemailer";
 
-export class NodemailerNotificationDeliveryAdapter implements NotificationDelivery {
+export class NodemailerNotificationDeliveryAdapter extends NotificationDelivery {
   readonly channel = "email" as const;
   private readonly transporter: Transporter;
 
@@ -15,6 +16,7 @@ export class NodemailerNotificationDeliveryAdapter implements NotificationDelive
     password: string,
     private readonly fromAddress: string,
   ) {
+    super();
     this.transporter = nodemailer.createTransport({
       host,
       port,
@@ -23,13 +25,16 @@ export class NodemailerNotificationDeliveryAdapter implements NotificationDelive
     });
   }
 
-  async send(delivery: PendingDelivery): Promise<void> {
+  async send(
+    notification: NotificationEntity,
+    delivery: NotificationDeliveryEntity,
+  ): Promise<void> {
     await this.transporter.sendMail({
       from: this.fromAddress,
       to: delivery.destination,
-      subject: delivery.title,
-      html: `<p>${escapeHtml(delivery.message)}</p>`,
-      text: delivery.message,
+      subject: notification.title,
+      html: `<p>${escapeHtml(notification.message)}</p>`,
+      text: notification.message,
     });
   }
 }

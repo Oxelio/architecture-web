@@ -1,8 +1,13 @@
-import type { NotificationChannelType } from "@architecture/notifications/domain";
+import type {
+  NotificationChannelType,
+  NotificationDeliveryEntity,
+  NotificationEntity,
+} from "@architecture/notifications/domain";
 
-import type { PendingDelivery } from "#repositories/notification.repository";
-
-export interface NotificationDelivery {
-  readonly channel: NotificationChannelType;
-  send(delivery: PendingDelivery): Promise<void>;
+export abstract class NotificationDelivery {
+  abstract readonly channel: NotificationChannelType;
+  abstract send(
+    notification: NotificationEntity,
+    delivery: NotificationDeliveryEntity,
+  ): Promise<void>;
 }

@@ -12,46 +12,55 @@ export function buildNotificationRoutes(
     const { authenticate } = app as AuthenticatedFastifyInstance;
     app.addHook("preHandler", authenticate);
 
-    app.get("/", async (request) => {
+    app.get("/", async (request, reply) => {
       const query = request.query as { page?: string; pageSize?: string };
+      const result = await notifications.listNotifications.execute({
+        actorUserId: authenticatedUserId(request),
+        page: numberFrom(query.page, 1),
+        pageSize: numberFrom(query.pageSize, 25),
+      });
+      if (!result.success) {
+        return reply.status(400).send({ error: result.error });
+      }
       return {
-        data: await notifications.listNotifications.execute(
-          authenticatedUserId(request),
-          numberOr(query.page, 1),
-          numberOr(query.pageSize, 25),
-        ),
+        data: result.value,
       };
     });
 
-    app.get("/unread-count", async (request) => ({
-      data: {
-        count: await notifications.unreadCount.execute(
-          authenticatedUserId(request),
-        ),
-      },
-    }));
+    app.get("/unread-count", async (request) => {
+      const result = await notifications.unreadCount.execute({
+        actorUserId: authenticatedUserId(request),
+      });
+      return { data: { count: successfulValue(result) } };
+    });
 
     app.post("/:notificationId/read", async (request, reply) => {
       const { notificationId } = request.params as { notificationId: string };
-      const updated = await notifications.markRead.execute(
-        authenticatedUserId(request),
+      const result = await notifications.markRead.execute({
+        actorUserId: authenticatedUserId(request),
         notificationId,
-      );
-      return updated
+      });
+      return result.success
         ? reply.status(204).send()
-        : reply.status(404).send({ error: { code: "NOTIFICATION_NOT_FOUND" } });
+        : reply
+            .status(result.error.code === "notification.invalid_id" ? 400 : 404)
+            .send({ error: result.error });
     });
 
     app.post("/read-all", async (request, reply) => {
-      await notifications.markAllRead.execute(authenticatedUserId(request));
+      const result = await notifications.markAllRead.execute({
+        actorUserId: authenticatedUserId(request),
+      });
+      successfulValue(result);
       return reply.status(204).send();
     });
 
-    app.get("/preferences", async (request) => ({
-      data: await notifications.getPreferences.execute(
-        authenticatedUserId(request),
-      ),
-    }));
+    app.get("/preferences", async (request) => {
+      const result = await notifications.getPreferences.execute({
+        actorUserId: authenticatedUserId(request),
+      });
+      return { data: successfulValue(result) };
+    });
 
     app.put("/preferences/:channel", async (request, reply) => {
       const { channel } = request.params as { channel: string };
@@ -64,11 +73,12 @@ export function buildNotificationRoutes(
           .status(400)
           .send({ error: { code: "INVALID_NOTIFICATION_PREFERENCE" } });
       }
-      await notifications.updatePreference.execute(
-        authenticatedUserId(request),
-        channel as (typeof channels)[number],
+      const result = await notifications.updatePreference.execute({
+        actorUserId: authenticatedUserId(request),
+        channel: channel as (typeof channels)[number],
         enabled,
-      );
+      });
+      successfulValue(result);
       return reply.status(204).send();
     });
   };
@@ -82,7 +92,17 @@ function authenticatedUserId(request: FastifyRequest): string {
   return userId;
 }
 
-function numberOr(value: string | undefined, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+function numberFrom(value: string | undefined, fallback: number): number {
+  return value === undefined ? fallback : Number(value);
+}
+
+function successfulValue<T>(
+  result:
+    | { readonly success: true; readonly value: T }
+    | { readonly success: false; readonly error: unknown },
+): T {
+  if (!result.success) {
+    throw new Error("An infallible notification use case failed");
+  }
+  return result.value;
 }

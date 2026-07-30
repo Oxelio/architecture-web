@@ -7,6 +7,11 @@ export {
   type NotificationDeliveryStatus,
 } from "./entities/notification-delivery.entity.js";
 export {
+  NotificationPreferenceEntity,
+  type RehydratedNotificationPreferenceProperties,
+} from "./entities/notification-preference.entity.js";
+export { NotificationRecipientEntity } from "./entities/notification-recipient.entity.js";
+export {
   notificationChannels,
   type NotificationChannelType,
   NotificationChannelValueObject,
@@ -15,6 +20,14 @@ export {
   NotificationDeliveryIdentifierValueObject,
   NotificationIdentifierValueObject,
 } from "./value-objects/notification-identifier.value-object.js";
+export {
+  type NotificationPreferenceIdentifierError,
+  NotificationPreferenceIdentifierValueObject,
+} from "./value-objects/notification-preference-identifier.value-object.js";
+export {
+  type NotificationRecipientIdentifierError,
+  NotificationRecipientIdentifierValueObject,
+} from "./value-objects/notification-recipient-identifier.value-object.js";
 export {
   notificationSeverities,
   type NotificationSeverity,

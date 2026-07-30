@@ -97,10 +97,23 @@ events and application or security attempts, applies redaction, and exposes
 search, export, retention, and pseudonymization operations.
 
 `packages/notifications/core` is a separate bounded context. Its domain owns
-`NotificationEntity`, `NotificationDeliveryEntity`, identifiers, channels,
-and severities. Its application turns received facts into aggregates, exposes
-query and transition use cases, and schedules deliveries according to
-preferences and mandatory policies.
+`NotificationEntity`, `NotificationDeliveryEntity`,
+`NotificationPreferenceEntity`, `NotificationRecipientEntity`, identifiers,
+channels, and severities. A preference owns the recipient-channel composite
+identity and its enabled-state transition. A recipient is an identified concept
+built by the IAM directory adapter; it selects the destination compatible with
+a channel without requiring its own persistence. `NotificationDeliveryEntity`,
+a child of the `NotificationEntity` aggregate, owns claim, success, failure,
+retry, and dead-letter transitions. The client-facing DTO remains an
+application contract.
+
+The application turns received facts into aggregates, exposes each intention
+in a use-case directory with its contract and any stable error codes, and
+schedules deliveries according to preferences and mandatory policies.
+`NotificationRepository` and `NotificationPreferenceRepository` each save
+their aggregate root; the `NotificationDelivery` and
+`NotificationRecipientDirectory` ports are abstract classes whose signatures
+use domain objects directly.
 
 Implementations remain under `packages/notifications/infrastructure`: Kysely
 persistence, Nodemailer email, separate Slack and SMS webhooks, and a Kysely

@@ -1,7 +1,6 @@
 import type { IntegrationEventHandler } from "@architecture/messaging/application";
 import type { IntegrationEvent } from "@architecture/messaging/domain";
 import {
-  type NotificationChannelType,
   NotificationEntity,
   NotificationSeverityValueObject,
 } from "@architecture/notifications/domain";
@@ -10,15 +9,18 @@ import {
   notificationPolicies,
   type NotificationPolicy,
 } from "#application/policies/notification.policies";
-import { NotificationRepository } from "#repositories/notification.repository";
-import { NotificationRecipientDirectory } from "#repositories/notification-recipient-directory.repository";
+import type { NotificationRecipientEntity } from "#entities/notification-recipient.entity";
+import type { NotificationRepository } from "#repositories/notification.repository";
+import type { NotificationPreferenceRepository } from "#repositories/notification-preference.repository";
 import type { NotificationDelivery } from "#services/notification-delivery.service";
+import type { NotificationRecipientDirectory } from "#services/notification-recipient-directory.service";
 
 export class NotificationEventHandlerUseCase implements IntegrationEventHandler {
   readonly topics = Object.keys(notificationPolicies);
 
   constructor(
     private readonly repository: NotificationRepository,
+    private readonly preferences: NotificationPreferenceRepository,
     private readonly directory: NotificationRecipientDirectory,
     private readonly deliveries: readonly NotificationDelivery[],
   ) {}
@@ -51,30 +53,23 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
 
   private async createForRecipient(
     event: IntegrationEvent,
-    recipient: {
-      readonly userId: string;
-      readonly email?: string;
-      readonly phoneNumber?: string;
-    },
+    recipient: NotificationRecipientEntity,
     policy: NotificationPolicy,
     administrator: boolean,
   ): Promise<void> {
     const requested = administrator
       ? (policy.administratorChannels ?? [])
       : policy.userChannels;
-    const destinations: Partial<
-      Record<NotificationChannelType, string | undefined>
-    > = {
-      email: recipient.email,
-      sms: recipient.phoneNumber,
-      slack: administrator ? "security" : undefined,
-    };
     const deliveries = [];
     for (const channel of requested) {
-      const destination = destinations[channel];
+      const destination =
+        channel === "slack" && administrator
+          ? "security"
+          : recipient.destinationFor(channel);
       const enabled =
         policy.mandatory ||
-        (await this.repository.isChannelEnabled(recipient.userId, channel));
+        (await this.preferences.find(recipient.userId, channel))?.enabled !==
+          false;
       const available = this.deliveries.some(
         (delivery) => delivery.channel === channel,
       );

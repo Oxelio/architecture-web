@@ -18,10 +18,10 @@ describe("KyselyIamNotificationRecipientDirectoryAdapter", () => {
       db as never,
     );
 
-    await expect(adapter.findUser("user-1")).resolves.toEqual({
-      userId: "user-1",
-      email: "user@example.test",
-    });
+    const recipient = await adapter.findUser("user-1");
+
+    expect(recipient?.userId).toBe("user-1");
+    expect(recipient?.destinationFor("email")).toBe("user@example.test");
   });
 
   it("lists active IAM administrators", async () => {

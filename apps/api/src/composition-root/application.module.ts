@@ -25,7 +25,10 @@ import {
 import { NodemailerNotificationDeliveryAdapter } from "@architecture/notifications-delivery-nodemailer";
 import { SlackWebhookNotificationDeliveryAdapter } from "@architecture/notifications-delivery-slack-webhook";
 import { SmsWebhookNotificationDeliveryAdapter } from "@architecture/notifications-delivery-sms-webhook";
-import { KyselyNotificationRepositoryAdapter } from "@architecture/notifications-persistence-kysely";
+import {
+  KyselyNotificationPreferenceRepositoryAdapter,
+  KyselyNotificationRepositoryAdapter,
+} from "@architecture/notifications-persistence-kysely";
 import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 
 import { SecurityService } from "#app/security/security.service";
@@ -85,7 +88,12 @@ export function buildApplicationModule(): ApplicationModule {
     );
   }
   const notifications = createNotifications({
-    repository: new KyselyNotificationRepositoryAdapter(db as never),
+    notificationRepository: new KyselyNotificationRepositoryAdapter(
+      db as never,
+    ),
+    preferenceRepository: new KyselyNotificationPreferenceRepositoryAdapter(
+      db as never,
+    ),
     recipientDirectory: new KyselyIamNotificationRecipientDirectoryAdapter(
       db as never,
     ),

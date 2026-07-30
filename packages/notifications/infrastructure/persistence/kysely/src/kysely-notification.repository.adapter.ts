@@ -1,16 +1,11 @@
-import {
-  type NotificationPreference,
-  NotificationRepository,
-  type NotificationView,
-  type PendingDelivery,
-} from "@architecture/notifications/application";
-import type {
-  NotificationChannelType,
-  NotificationEntity,
-} from "@architecture/notifications/domain";
+import { NotificationRepository } from "@architecture/notifications/application";
+import type { NotificationEntity } from "@architecture/notifications/domain";
 import type { Kysely } from "kysely";
 
-import { notificationRowToEntity } from "./notification.mapper.js";
+import {
+  claimableNotificationRowsToEntities,
+  notificationRowToEntity,
+} from "./notification.mapper.js";
 import type { NotificationDatabase } from "./schema.js";
 
 export class KyselyNotificationRepositoryAdapter extends NotificationRepository {
@@ -85,23 +80,39 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
   }
 
   async save(notification: NotificationEntity): Promise<void> {
-    await this.db
-      .updateTable("notifications")
-      .set({
-        read_at: notification.readAt,
-        archived_at: notification.archivedAt,
-      })
-      .where("id", "=", notification.identifier.value)
-      .where("recipient_id", "=", notification.recipientId)
-      .execute();
+    await this.db.transaction().execute(async (transaction) => {
+      await transaction
+        .updateTable("notifications")
+        .set({
+          read_at: notification.readAt,
+          archived_at: notification.archivedAt,
+        })
+        .where("id", "=", notification.identifier.value)
+        .where("recipient_id", "=", notification.recipientId)
+        .execute();
+      for (const delivery of notification.deliveries) {
+        await transaction
+          .updateTable("notification_deliveries")
+          .set({
+            status: delivery.status,
+            attempts: delivery.attempts,
+            available_at: delivery.availableAt,
+            claimed_at: delivery.claimedAt,
+            sent_at: delivery.sentAt,
+            last_error: delivery.lastError,
+          })
+          .where("id", "=", delivery.identifier.value)
+          .where("notification_id", "=", notification.identifier.value)
+          .execute();
+      }
+    });
   }
 
   async list(
     recipientId: string,
     page: number,
     pageSize: number,
-  ): Promise<NotificationView[]> {
-    const size = Math.min(100, Math.max(1, pageSize));
+  ): Promise<NotificationEntity[]> {
     const rows = await this.db
       .selectFrom("notifications")
       .selectAll()
@@ -109,19 +120,10 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
       .where("archived_at", "is", null)
       .orderBy("created_at", "desc")
       .orderBy("id", "desc")
-      .limit(size)
-      .offset((Math.max(1, page) - 1) * size)
+      .limit(pageSize)
+      .offset((page - 1) * pageSize)
       .execute();
-    return rows.map((row) => ({
-      id: row.id,
-      type: row.type,
-      severity: row.severity,
-      title: row.title,
-      message: row.message,
-      actionUrl: row.action_url,
-      createdAt: row.created_at,
-      readAt: row.read_at,
-    }));
+    return rows.map(notificationRowToEntity);
   }
 
   async unreadCount(recipientId: string): Promise<number> {
@@ -144,60 +146,18 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
       .execute();
   }
 
-  async preferences(recipientId: string): Promise<NotificationPreference[]> {
-    return this.db
-      .selectFrom("notification_preferences")
-      .select(["channel", "enabled"])
-      .where("user_id", "=", recipientId)
-      .execute();
-  }
-
-  async setPreference(
-    recipientId: string,
-    channel: NotificationChannelType,
-    enabled: boolean,
-  ): Promise<void> {
-    await this.db
-      .insertInto("notification_preferences")
-      .values({
-        user_id: recipientId,
-        channel,
-        enabled,
-        updated_at: new Date(),
-      } as never)
-      .onConflict((conflict) =>
-        conflict.columns(["user_id", "channel"]).doUpdateSet({
-          enabled,
-          updated_at: new Date(),
-        }),
-      )
-      .execute();
-  }
-
-  async isChannelEnabled(
-    recipientId: string,
-    channel: NotificationChannelType,
-  ): Promise<boolean> {
-    const row = await this.db
-      .selectFrom("notification_preferences")
-      .select("enabled")
-      .where("user_id", "=", recipientId)
-      .where("channel", "=", channel)
-      .executeTakeFirst();
-    return row?.enabled ?? true;
-  }
-
-  async claimDeliveries(limit: number): Promise<PendingDelivery[]> {
+  async claimDeliveries(limit: number): Promise<NotificationEntity[]> {
     return this.db.transaction().execute(async (transaction) => {
+      const now = new Date();
       await transaction
         .updateTable("notification_deliveries")
         .set({
           status: "failed",
           claimed_at: null,
-          available_at: new Date(),
+          available_at: now,
         })
         .where("status", "=", "processing")
-        .where("claimed_at", "<", new Date(Date.now() - 5 * 60_000))
+        .where("claimed_at", "<", new Date(now.getTime() - 5 * 60_000))
         .execute();
       const rows = await transaction
         .selectFrom("notification_deliveries")
@@ -207,73 +167,55 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
           "notification_deliveries.notification_id",
         )
         .select([
-          "notification_deliveries.id",
-          "notification_deliveries.notification_id",
-          "notification_deliveries.channel",
-          "notification_deliveries.destination",
-          "notification_deliveries.attempts",
+          "notifications.id as notification_id",
+          "notifications.recipient_id",
+          "notifications.source_event_id",
+          "notifications.type",
+          "notifications.severity",
           "notifications.title",
           "notifications.message",
+          "notifications.action_url",
+          "notifications.created_at",
+          "notifications.read_at",
+          "notifications.archived_at",
+          "notification_deliveries.id as delivery_id",
+          "notification_deliveries.channel",
+          "notification_deliveries.destination",
+          "notification_deliveries.status",
+          "notification_deliveries.attempts",
+          "notification_deliveries.available_at",
+          "notification_deliveries.claimed_at",
+          "notification_deliveries.sent_at",
+          "notification_deliveries.last_error",
         ])
         .where("notification_deliveries.status", "in", ["pending", "failed"])
-        .where("notification_deliveries.available_at", "<=", new Date())
+        .where("notification_deliveries.available_at", "<=", now)
         .orderBy("notification_deliveries.available_at", "asc")
         .limit(limit)
         .forUpdate()
         .skipLocked()
         .execute();
-      if (rows.length > 0) {
+      const notifications = claimableNotificationRowsToEntities(rows);
+      const deliveries = notifications.flatMap(
+        (notification) => notification.deliveries,
+      );
+      for (const delivery of deliveries) {
+        if (!delivery.claim(now)) {
+          throw new Error("A selected notification delivery cannot be claimed");
+        }
+      }
+      if (deliveries.length > 0) {
         await transaction
           .updateTable("notification_deliveries")
-          .set({ status: "processing", claimed_at: new Date() })
+          .set({ status: "processing", claimed_at: now })
           .where(
             "id",
             "in",
-            rows.map((row) => row.id),
+            deliveries.map((delivery) => delivery.identifier.value),
           )
           .execute();
       }
-      return rows.map((row) => ({
-        id: row.id,
-        notificationId: row.notification_id,
-        channel: row.channel,
-        destination: row.destination,
-        title: row.title,
-        message: row.message,
-        attempts: row.attempts,
-      }));
+      return notifications;
     });
-  }
-
-  async deliverySucceeded(id: string): Promise<void> {
-    await this.db
-      .updateTable("notification_deliveries")
-      .set({
-        status: "sent",
-        sent_at: new Date(),
-        claimed_at: null,
-        last_error: null,
-      })
-      .where("id", "=", id)
-      .execute();
-  }
-
-  async deliveryFailed(
-    id: string,
-    attempts: number,
-    error: unknown,
-  ): Promise<void> {
-    const delay = Math.min(60_000, 2 ** Math.min(attempts, 10) * 1_000);
-    await this.db
-      .updateTable("notification_deliveries")
-      .set({
-        status: attempts >= 10 ? "dead_letter" : "failed",
-        attempts,
-        available_at: new Date(Date.now() + delay),
-        claimed_at: null,
-        last_error: String(error).slice(0, 2_000),
-      })
-      .where("id", "=", id)
-      .execute();
   }
 }

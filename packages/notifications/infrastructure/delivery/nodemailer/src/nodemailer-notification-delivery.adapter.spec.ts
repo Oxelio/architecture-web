@@ -1,3 +1,7 @@
+import {
+  NotificationEntity,
+  NotificationSeverityValueObject,
+} from "@architecture/notifications/domain";
 import nodemailer from "nodemailer";
 import { describe, expect, it, vi } from "vitest";
 
@@ -17,15 +21,25 @@ describe("NodemailerNotificationDeliveryAdapter", () => {
       "notifications@example.test",
     );
 
-    await adapter.send({
-      id: "delivery-1",
-      notificationId: "notification-1",
-      channel: "email",
-      destination: "user@example.test",
+    const severity = NotificationSeverityValueObject.create("warning");
+    if (!severity.success) {
+      throw new Error("Test fixture is invalid");
+    }
+    const notification = NotificationEntity.create({
+      recipientId: "user-1",
+      sourceEventId: "event-1",
+      type: "iam.session-started",
+      severity: severity.value,
       title: "Security alert",
       message: "A <new> session was opened.",
-      attempts: 0,
+      deliveries: [{ channel: "email", destination: "user@example.test" }],
     });
+    const [delivery] = notification.deliveries;
+    if (!delivery) {
+      throw new Error("Test fixture is invalid");
+    }
+
+    await adapter.send(notification, delivery);
 
     expect(sendMail).toHaveBeenCalledWith({
       from: "notifications@example.test",

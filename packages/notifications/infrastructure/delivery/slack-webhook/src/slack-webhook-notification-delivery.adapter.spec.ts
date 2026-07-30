@@ -1,3 +1,7 @@
+import {
+  NotificationEntity,
+  NotificationSeverityValueObject,
+} from "@architecture/notifications/domain";
 import { describe, expect, it, vi } from "vitest";
 
 import { SlackWebhookNotificationDeliveryAdapter } from "./slack-webhook-notification-delivery.adapter.js";
@@ -11,17 +15,24 @@ describe("SlackWebhookNotificationDeliveryAdapter", () => {
     const adapter = new SlackWebhookNotificationDeliveryAdapter(
       "https://example.test/hook",
     );
+    const severity = NotificationSeverityValueObject.create("critical");
+    if (!severity.success) {
+      throw new Error("Test fixture is invalid");
+    }
+    const notification = NotificationEntity.create({
+      recipientId: "admin-1",
+      sourceEventId: "event-1",
+      type: "security.suspicious-activity-detected",
+      severity: severity.value,
+      title: "Alert",
+      message: "Suspicious activity",
+      deliveries: [{ channel: "slack", destination: "security" }],
+    });
+    const [delivery] = notification.deliveries;
+    if (!delivery) {
+      throw new Error("Test fixture is invalid");
+    }
 
-    await expect(
-      adapter.send({
-        id: "delivery-1",
-        notificationId: "notification-1",
-        channel: "slack",
-        destination: "security",
-        title: "Alert",
-        message: "Suspicious activity",
-        attempts: 0,
-      }),
-    ).rejects.toThrow("503");
+    await expect(adapter.send(notification, delivery)).rejects.toThrow("503");
   });
 });

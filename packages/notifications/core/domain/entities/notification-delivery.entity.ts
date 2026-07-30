@@ -10,13 +10,16 @@ interface NotificationDeliveryProperties {
   readonly identifier: NotificationDeliveryIdentifierValueObject;
   readonly channel: NotificationChannelValueObject;
   readonly destination: string;
-  readonly status: NotificationDeliveryStatus;
-  readonly attempts: number;
-  readonly availableAt: Date;
-  readonly claimedAt: Date | null;
-  readonly sentAt: Date | null;
-  readonly lastError: string | null;
+  status: NotificationDeliveryStatus;
+  attempts: number;
+  availableAt: Date;
+  claimedAt: Date | null;
+  sentAt: Date | null;
+  lastError: string | null;
 }
+
+const MAX_DELIVERY_ATTEMPTS = 10;
+const MAX_RETRY_DELAY_MS = 60_000;
 
 export class NotificationDeliveryEntity extends Entity<NotificationDeliveryProperties> {
   static create(
@@ -79,5 +82,45 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
 
   get lastError(): string | null {
     return this.props.lastError;
+  }
+
+  claim(now = new Date()): boolean {
+    if (
+      !["pending", "failed"].includes(this.props.status) ||
+      this.props.availableAt.getTime() > now.getTime()
+    ) {
+      return false;
+    }
+    this.props.status = "processing";
+    this.props.claimedAt = now;
+    return true;
+  }
+
+  markSent(now = new Date()): void {
+    if (this.props.status !== "processing") {
+      throw new Error("Only a claimed notification delivery can be sent");
+    }
+    this.props.status = "sent";
+    this.props.sentAt = now;
+    this.props.claimedAt = null;
+    this.props.lastError = null;
+  }
+
+  markFailed(error: unknown, now = new Date()): void {
+    if (this.props.status !== "processing") {
+      throw new Error("Only a claimed notification delivery can fail");
+    }
+    this.props.attempts += 1;
+    this.props.status =
+      this.props.attempts >= MAX_DELIVERY_ATTEMPTS ? "dead_letter" : "failed";
+    this.props.availableAt = new Date(
+      now.getTime() +
+        Math.min(
+          MAX_RETRY_DELAY_MS,
+          2 ** Math.min(this.props.attempts, MAX_DELIVERY_ATTEMPTS) * 1_000,
+        ),
+    );
+    this.props.claimedAt = null;
+    this.props.lastError = String(error).slice(0, 2_000);
   }
 }

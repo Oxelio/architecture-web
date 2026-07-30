@@ -55,6 +55,9 @@ copied without an explicit architectural decision.
 ## Direct answers
 
 - An entity **MUST NOT** import a use case.
+- An entity is defined by business identity and continuity; it **MAY** be
+  transient or an aggregate child and therefore does not require a dedicated
+  repository.
 - A use case **MUST NOT** depend on Redis or Kysely.
 - Infrastructure **MUST** depend on the application port it implements.
 - A command repository **MUST** receive and save an aggregate root.

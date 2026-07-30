@@ -1,8 +1,9 @@
 import type { IamDatabase } from "@architecture/iam-persistence-kysely";
+import { NotificationRecipientDirectory } from "@architecture/notifications/application";
 import {
-  type NotificationRecipient,
-  NotificationRecipientDirectory,
-} from "@architecture/notifications/application";
+  NotificationRecipientEntity,
+  NotificationRecipientIdentifierValueObject,
+} from "@architecture/notifications/domain";
 import type { Kysely } from "kysely";
 
 export class KyselyIamNotificationRecipientDirectoryAdapter extends NotificationRecipientDirectory {
@@ -10,13 +11,26 @@ export class KyselyIamNotificationRecipientDirectoryAdapter extends Notification
     super();
   }
 
-  async findUser(userId: string): Promise<NotificationRecipient | null> {
+  async findUser(userId: string): Promise<NotificationRecipientEntity | null> {
     const row = await this.db
       .selectFrom("iam_users")
       .select(["id", "email"])
       .where("id", "=", userId)
       .executeTakeFirst();
-    return row ? { userId: row.id, email: row.email } : null;
+    if (!row) {
+      return null;
+    }
+    const identifier = NotificationRecipientIdentifierValueObject.create(
+      row.id,
+    );
+    if (!identifier.success) {
+      throw new Error("Invalid IAM notification recipient identifier");
+    }
+    return NotificationRecipientEntity.create({
+      identifier: identifier.value,
+      email: row.email,
+      phoneNumber: null,
+    });
   }
 
   async listAdministratorIds(): Promise<string[]> {

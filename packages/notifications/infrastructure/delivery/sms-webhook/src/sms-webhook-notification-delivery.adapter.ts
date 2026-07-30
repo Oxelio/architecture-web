@@ -1,20 +1,26 @@
+import { NotificationDelivery } from "@architecture/notifications/application";
 import type {
-  NotificationDelivery,
-  PendingDelivery,
-} from "@architecture/notifications/application";
+  NotificationDeliveryEntity,
+  NotificationEntity,
+} from "@architecture/notifications/domain";
 
-export class SmsWebhookNotificationDeliveryAdapter implements NotificationDelivery {
+export class SmsWebhookNotificationDeliveryAdapter extends NotificationDelivery {
   readonly channel = "sms" as const;
 
-  constructor(private readonly webhookUrl: string) {}
+  constructor(private readonly webhookUrl: string) {
+    super();
+  }
 
-  async send(delivery: PendingDelivery): Promise<void> {
+  async send(
+    notification: NotificationEntity,
+    delivery: NotificationDeliveryEntity,
+  ): Promise<void> {
     const response = await fetch(this.webhookUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         to: delivery.destination,
-        message: `${delivery.title}: ${delivery.message}`,
+        message: `${notification.title}: ${notification.message}`,
       }),
     });
     if (!response.ok) {
