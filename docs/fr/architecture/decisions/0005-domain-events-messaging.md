@@ -31,18 +31,21 @@ contrats d’intégration versionnés. Une sauvegarde PostgreSQL réalisée par
 `IamUnitOfWork` écrit l’état métier et les messages sortants dans la même
 transaction.
 
-Le package `@architecture/messaging` fournit l’enveloppe d’intégration, l’outbox
-Kysely, le routeur et le worker. La livraison est au moins une fois ; les
-consommateurs sont idempotents grâce à l’identifiant stable de l’événement. Les
-échecs sont repris avec temporisation puis placés en échec définitif après dix
-tentatives.
+Le core `@architecture/messaging` fournit le domaine de l’outbox, l’enveloppe
+d’intégration, les ports, le routeur et le worker. L’adaptateur
+`@architecture/messaging-persistence-kysely` implémente les ports de l’outbox
+et porte la migration PostgreSQL. La livraison est au moins une fois ; les
+consommateurs sont idempotents grâce à l’identifiant stable de l’événement.
+Les échecs sont repris avec temporisation puis placés en échec définitif après
+dix tentatives.
 
 Audit et Notifications sont des bounded contexts séparés :
 
 - Audit conserve des preuves en ajout uniquement, applique la rétention et
   répond aux consultations ;
-- Notifications possède les messages, états lu/non lu, préférences et
-  livraisons e-mail, Slack ou SMS ;
+- Notifications possède son agrégat, les états lu/non lu, les préférences et
+  les demandes de livraison ; ses packages d’infrastructure implémentent
+  Kysely, e-mail, Slack, SMS et l’annuaire IAM ;
 - le client Web consulte les notifications persistées et interroge
   périodiquement le nombre de non-lues.
 

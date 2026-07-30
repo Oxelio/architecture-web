@@ -32,7 +32,7 @@ import {
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
 import type { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
-import type { OutboxWriter } from "@architecture/messaging";
+import type { OutboxWriter } from "@architecture/messaging/application";
 import type { Kysely } from "kysely";
 import QRCode from "qrcode";
 

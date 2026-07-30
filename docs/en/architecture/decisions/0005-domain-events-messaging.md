@@ -28,16 +28,19 @@ IAM owns its business events and their translation into versioned integration
 contracts. A PostgreSQL save through `IamUnitOfWork` writes business state and
 outgoing messages in the same transaction.
 
-The `@architecture/messaging` package provides the integration envelope,
-Kysely outbox, router, and worker. Delivery is at least once; consumers are
-idempotent through the stable event identifier. Failures are retried with
+The `@architecture/messaging` core provides the outbox domain, integration
+envelope, ports, router, and worker. The
+`@architecture/messaging-persistence-kysely` adapter implements the outbox
+ports and owns the PostgreSQL migration. Delivery is at least once; consumers
+are idempotent through the stable event identifier. Failures are retried with
 backoff and moved to a permanent failure state after ten attempts.
 
 Audit and Notifications are separate bounded contexts:
 
 - Audit keeps append-only evidence, applies retention, and serves queries;
-- Notifications owns messages, read state, preferences, and email, Slack, or
-  SMS deliveries;
+- Notifications owns its aggregate, read state, preferences, and delivery
+  requests; its infrastructure packages implement Kysely, email, Slack, SMS,
+  and the IAM directory;
 - the Web client reads persisted notifications and periodically polls the
   unread count.
 

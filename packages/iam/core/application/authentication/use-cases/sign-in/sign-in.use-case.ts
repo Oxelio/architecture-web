@@ -1,7 +1,7 @@
 // @file bounded-contexts/iam/application/use-cases/sign-in/sign-in.use-case.ts
 
 import { Result } from "@architecture/foundation";
-import type { OutboxWriter } from "@architecture/messaging";
+import type { OutboxWriter } from "@architecture/messaging/application";
 
 import { SessionEntity } from "#entities/session.entity";
 import { toIamIntegrationEvent } from "#events/iam-integration-event";

@@ -19,7 +19,8 @@ import {
   RedisEmailVerificationRateLimitAdapter,
   RedisSessionAdapter,
 } from "@architecture/iam-session-redis";
-import { KyselyOutboxWriter, type OutboxWriter } from "@architecture/messaging";
+import type { OutboxWriter } from "@architecture/messaging/application";
+import { KyselyOutboxWriterAdapter } from "@architecture/messaging-persistence-kysely";
 import { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 
@@ -55,7 +56,7 @@ function buildIamDependencies(
 
     unitOfWork: new KyselyIamUnitOfWorkAdapter(
       db as never,
-      (transaction) => new KyselyOutboxWriter(transaction as never),
+      (transaction) => new KyselyOutboxWriterAdapter(transaction as never),
     ),
     outbox,
 

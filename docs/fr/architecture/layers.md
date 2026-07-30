@@ -99,19 +99,27 @@ les sessions excédentaires.
 
 ## Messaging, Audit et Notifications
 
-`packages/messaging` porte les contrats d’événement d’intégration, l’outbox
-PostgreSQL, le routeur interne et son worker. C’est une infrastructure
-transverse, pas du Shared Kernel métier.
+`packages/messaging/core` sépare le domaine Messaging de son application.
+Le domaine porte l’enveloppe d’intégration, `OutboxMessageEntity` et ses
+objets-valeur. L’application expose `OutboxWriter`, `OutboxRepository`, le
+routeur et le worker sans dépendre d’une base de données. L’implémentation
+PostgreSQL et sa migration appartiennent à
+`packages/messaging/infrastructure/persistence/kysely`.
 
 `packages/audit` est un bounded context append-only. Il reçoit les événements
 d’intégration et les tentatives applicatives ou de sécurité, applique la
 redaction et expose les recherches, exports, rétentions et pseudonymisations.
 
-`packages/notifications` est un bounded context distinct. Il transforme les
-faits reçus en notifications destinées aux utilisateurs ou administrateurs,
-conserve leur état lu/non lu et programme les livraisons e-mail, Slack ou SMS
-selon les préférences et les politiques obligatoires. Les adaptateurs de canal
-restent à l’extérieur de ce package.
+`packages/notifications/core` est un bounded context distinct. Son domaine
+porte `NotificationEntity`, `NotificationDeliveryEntity`, les identifiants,
+canaux et sévérités. Son application transforme les faits reçus en agrégats,
+expose les cas d’utilisation de consultation et de transition, et programme
+les livraisons selon les préférences et politiques obligatoires.
+
+Les implémentations restent sous `packages/notifications/infrastructure` :
+Kysely pour la persistance, Nodemailer pour l’e-mail, deux webhooks séparés
+pour Slack et SMS, et un annuaire Kysely qui adapte les utilisateurs IAM au
+port `NotificationRecipientDirectory`. Le core ne connaît aucun de ces choix.
 
 ## API Fastify
 

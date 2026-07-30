@@ -7,8 +7,8 @@ import {
   iamSecurityMigrations,
   iamUserMigrations,
 } from "@architecture/iam-persistence-kysely";
-import { messagingMigrations } from "@architecture/messaging";
-import { notificationMigrations } from "@architecture/notifications";
+import { messagingMigrations } from "@architecture/messaging-persistence-kysely";
+import { notificationMigrations } from "@architecture/notifications-persistence-kysely";
 import type { Migration } from "kysely/migration";
 
 export const getAllMigrations = (): Record<string, Migration> => {

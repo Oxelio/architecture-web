@@ -1,9 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import type {
-  IntegrationEvent,
-  IntegrationEventHandler,
-} from "@architecture/messaging";
+import type { IntegrationEventHandler } from "@architecture/messaging/application";
+import type { IntegrationEvent } from "@architecture/messaging/domain";
 
 export type AuditResult = "success" | "denied" | "technical_failure";
 export type AuditActorType = "user" | "administrator" | "system" | "anonymous";

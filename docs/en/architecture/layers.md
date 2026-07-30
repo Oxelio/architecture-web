@@ -85,18 +85,27 @@ session, clean the expired index, and revoke excess sessions.
 
 ## Messaging, Audit, and Notifications
 
-`packages/messaging` owns integration-event contracts, the PostgreSQL outbox,
-the in-process router, and its worker. It is cross-cutting infrastructure, not
-a business Shared Kernel.
+`packages/messaging/core` separates the Messaging domain from its application.
+The domain owns the integration envelope, `OutboxMessageEntity`, and its value
+objects. The application exposes `OutboxWriter`, `OutboxRepository`, the
+router, and the worker without depending on a database. The PostgreSQL
+implementation and migration belong to
+`packages/messaging/infrastructure/persistence/kysely`.
 
 `packages/audit` is an append-only bounded context. It consumes integration
 events and application or security attempts, applies redaction, and exposes
 search, export, retention, and pseudonymization operations.
 
-`packages/notifications` is a separate bounded context. It turns received
-facts into user or administrator notifications, stores read/unread state, and
-schedules email, Slack, or SMS delivery according to preferences and mandatory
-policies. Channel adapters remain outside this package.
+`packages/notifications/core` is a separate bounded context. Its domain owns
+`NotificationEntity`, `NotificationDeliveryEntity`, identifiers, channels,
+and severities. Its application turns received facts into aggregates, exposes
+query and transition use cases, and schedules deliveries according to
+preferences and mandatory policies.
+
+Implementations remain under `packages/notifications/infrastructure`: Kysely
+persistence, Nodemailer email, separate Slack and SMS webhooks, and a Kysely
+directory adapting IAM users to `NotificationRecipientDirectory`. The core
+knows none of these choices.
 
 ## Fastify API
 

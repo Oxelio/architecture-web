@@ -11,7 +11,7 @@ import {
   EmailValueObject,
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
-import type { OutboxWriter } from "@architecture/messaging";
+import type { OutboxWriter } from "@architecture/messaging/application";
 import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import { UserMapper } from "#mappers/user.mapper";

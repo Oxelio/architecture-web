@@ -1,4 +1,4 @@
-import type { OutboxWriter } from "@architecture/messaging";
+import type { OutboxWriter } from "@architecture/messaging/application";
 
 import type { ActivateUser } from "#access-administration/use-cases/activate-user/activate-user.contracts";
 import { ActivateUserUseCase } from "#access-administration/use-cases/activate-user/activate-user.use-case";

@@ -1,5 +1,5 @@
 import type { DomainEvent } from "@architecture/foundation";
-import type { IntegrationEvent } from "@architecture/messaging";
+import type { IntegrationEvent } from "@architecture/messaging/domain";
 
 export function toIamIntegrationEvent(event: DomainEvent): IntegrationEvent {
   const actorId =

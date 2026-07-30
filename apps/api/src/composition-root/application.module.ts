@@ -11,21 +11,23 @@ import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
 import { RedisSessionAdapter } from "@architecture/iam-session-redis";
 import {
   IntegrationEventRouter,
-  KyselyOutboxStore,
-  KyselyOutboxWriter,
   OutboxWorker,
-} from "@architecture/messaging";
+} from "@architecture/messaging/application";
 import {
-  KyselyNotificationRepository,
-  NotificationApplication,
+  KyselyOutboxRepositoryAdapter,
+  KyselyOutboxWriterAdapter,
+} from "@architecture/messaging-persistence-kysely";
+import {
+  createNotifications,
   type NotificationDelivery,
-} from "@architecture/notifications";
+  type NotificationsApplication,
+} from "@architecture/notifications/application";
+import { NodemailerNotificationDeliveryAdapter } from "@architecture/notifications-delivery-nodemailer";
+import { SlackWebhookNotificationDeliveryAdapter } from "@architecture/notifications-delivery-slack-webhook";
+import { SmsWebhookNotificationDeliveryAdapter } from "@architecture/notifications-delivery-sms-webhook";
+import { KyselyNotificationRepositoryAdapter } from "@architecture/notifications-persistence-kysely";
+import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 
-import {
-  KyselyNotificationRecipientDirectory,
-  SlackWebhookNotificationAdapter,
-  SmsWebhookNotificationAdapter,
-} from "#adapters/notification.adapters";
 import { SecurityService } from "#app/security/security.service";
 import { loadConfig } from "#config/app.config";
 
@@ -37,7 +39,7 @@ export interface ApplicationModule {
   readonly iam: IamApplication;
   readonly security: SecurityService;
   readonly audit: AuditApplication;
-  readonly notifications: NotificationApplication;
+  readonly notifications: NotificationsApplication;
   readonly outboxWorker: OutboxWorker;
 
   dispose(): Promise<void>;
@@ -59,38 +61,57 @@ export function buildApplicationModule(): ApplicationModule {
     config.smtp.verifyUrl,
   );
   const audit = new AuditApplication(new KyselyAuditRepository(db as never));
-  const deliveries: NotificationDelivery[] = [email];
+  const deliveries: NotificationDelivery[] = [
+    new NodemailerNotificationDeliveryAdapter(
+      config.smtp.host,
+      config.smtp.port,
+      config.smtp.username,
+      config.smtp.password,
+      config.smtp.from,
+    ),
+  ];
   if (config.notifications.slackWebhookUrl) {
     deliveries.push(
-      new SlackWebhookNotificationAdapter(config.notifications.slackWebhookUrl),
+      new SlackWebhookNotificationDeliveryAdapter(
+        config.notifications.slackWebhookUrl,
+      ),
     );
   }
   if (config.notifications.smsWebhookUrl) {
     deliveries.push(
-      new SmsWebhookNotificationAdapter(config.notifications.smsWebhookUrl),
+      new SmsWebhookNotificationDeliveryAdapter(
+        config.notifications.smsWebhookUrl,
+      ),
     );
   }
-  const notifications = new NotificationApplication(
-    new KyselyNotificationRepository(db as never),
-    new KyselyNotificationRecipientDirectory(db),
+  const notifications = createNotifications({
+    repository: new KyselyNotificationRepositoryAdapter(db as never),
+    recipientDirectory: new KyselyIamNotificationRecipientDirectoryAdapter(
+      db as never,
+    ),
     deliveries,
-  );
+  });
   const router = new IntegrationEventRouter([
     new AuditIntegrationEventHandler(audit),
-    notifications,
+    notifications.integrationEventHandler,
   ]);
   const outboxWorker = new OutboxWorker(
-    new KyselyOutboxStore(db as never),
+    new KyselyOutboxRepositoryAdapter(db as never),
     router,
   );
-  outboxWorker.start();
+  const outboxTimer = setInterval(() => {
+    void outboxWorker.drain().catch((error: unknown) => {
+      console.error("Outbox polling failed", error);
+    });
+  }, 1_000);
+  outboxTimer.unref();
   const notificationTimer = setInterval(() => {
-    void notifications.deliverPending().catch((error: unknown) => {
+    void notifications.deliverPending.execute().catch((error: unknown) => {
       console.error("Notification delivery polling failed", error);
     });
   }, 1_000);
   notificationTimer.unref();
-  const outbox = new KyselyOutboxWriter(db as never);
+  const outbox = new KyselyOutboxWriterAdapter(db as never);
   const security = new SecurityService({
     db,
     passwordHasher,
@@ -111,7 +132,7 @@ export function buildApplicationModule(): ApplicationModule {
     outboxWorker,
 
     async dispose() {
-      outboxWorker.stop();
+      clearInterval(outboxTimer);
       clearInterval(notificationTimer);
       await Promise.all([redis.quit(), db.destroy()]);
     },

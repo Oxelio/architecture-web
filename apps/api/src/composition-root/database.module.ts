@@ -2,8 +2,8 @@
 
 import type { AuditDatabase } from "@architecture/audit";
 import type { IamDatabase } from "@architecture/iam-persistence-kysely";
-import type { MessagingDatabase } from "@architecture/messaging";
-import type { NotificationDatabase } from "@architecture/notifications";
+import type { MessagingDatabase } from "@architecture/messaging-persistence-kysely";
+import type { NotificationDatabase } from "@architecture/notifications-persistence-kysely";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 

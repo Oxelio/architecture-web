@@ -2,7 +2,7 @@ import {
   type IamTransactionalRepositories,
   IamUnitOfWork,
 } from "@architecture/iam/application";
-import type { OutboxWriter } from "@architecture/messaging";
+import type { OutboxWriter } from "@architecture/messaging/application";
 import type { Kysely } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";

@@ -2,16 +2,9 @@
 
 import type { EmailSender } from "@architecture/iam/application";
 import type { EmailValueObject } from "@architecture/iam/domain";
-import type {
-  NotificationDelivery,
-  PendingDelivery,
-} from "@architecture/notifications";
 import nodemailer, { type Transporter } from "nodemailer";
 
-export class NodemailerEmailSenderAdapter
-  implements EmailSender, NotificationDelivery
-{
-  readonly channel = "email" as const;
+export class NodemailerEmailSenderAdapter implements EmailSender {
   private readonly transporter: Transporter;
   private readonly fromAddress: string;
   private readonly verificationUrl: string;
@@ -53,17 +46,6 @@ export class NodemailerEmailSenderAdapter
     );
   }
 
-  async sendNotification(delivery: PendingDelivery): Promise<void> {
-    await this.transporter.sendMail({
-      from: this.fromAddress,
-      to: delivery.destination,
-      subject: delivery.title,
-      html: `<p>${escapeHtml(delivery.message)}</p>`,
-      text: delivery.message,
-    });
-  }
-
-  async send(delivery: PendingDelivery): Promise<void>;
   async send(
     to: EmailValueObject,
     subject: string,
@@ -71,34 +53,17 @@ export class NodemailerEmailSenderAdapter
     text?: string,
   ): Promise<void>;
   async send(
-    toOrDelivery: EmailValueObject | PendingDelivery,
+    to: EmailValueObject,
     subject?: string,
     html?: string,
     text?: string,
   ): Promise<void> {
-    if ("destination" in toOrDelivery) {
-      return this.sendNotification(toOrDelivery);
-    }
     await this.transporter.sendMail({
       from: this.fromAddress,
-      to: toOrDelivery.value,
+      to: to.value,
       subject,
       html,
       text,
     });
   }
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;",
-      })[character] ?? character,
-  );
 }

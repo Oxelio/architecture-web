@@ -310,10 +310,28 @@ importers:
         version: link:../../packages/iam/infrastructure/session/redis
       "@architecture/messaging":
         specifier: workspace:*
-        version: link:../../packages/messaging
+        version: link:../../packages/messaging/core
+      "@architecture/messaging-persistence-kysely":
+        specifier: workspace:*
+        version: link:../../packages/messaging/infrastructure/persistence/kysely
       "@architecture/notifications":
         specifier: workspace:*
-        version: link:../../packages/notifications
+        version: link:../../packages/notifications/core
+      "@architecture/notifications-delivery-nodemailer":
+        specifier: workspace:*
+        version: link:../../packages/notifications/infrastructure/delivery/nodemailer
+      "@architecture/notifications-delivery-slack-webhook":
+        specifier: workspace:*
+        version: link:../../packages/notifications/infrastructure/delivery/slack-webhook
+      "@architecture/notifications-delivery-sms-webhook":
+        specifier: workspace:*
+        version: link:../../packages/notifications/infrastructure/delivery/sms-webhook
+      "@architecture/notifications-persistence-kysely":
+        specifier: workspace:*
+        version: link:../../packages/notifications/infrastructure/persistence/kysely
+      "@architecture/notifications-recipient-iam-kysely":
+        specifier: workspace:*
+        version: link:../../packages/notifications/infrastructure/recipient/iam-kysely
       "@fastify/cookie":
         specifier: ^11.1.2
         version: 11.1.2
@@ -495,7 +513,7 @@ importers:
     dependencies:
       "@architecture/messaging":
         specifier: workspace:*
-        version: link:../messaging
+        version: link:../messaging/core
       kysely:
         specifier: ^0.29.4
         version: 0.29.4
@@ -591,7 +609,7 @@ importers:
         version: link:../../foundation
       "@architecture/messaging":
         specifier: workspace:*
-        version: link:../../messaging
+        version: link:../../messaging/core
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1(supports-color@7.2.0)
@@ -626,9 +644,6 @@ importers:
       "@architecture/iam":
         specifier: workspace:*
         version: link:../../../core
-      "@architecture/notifications":
-        specifier: workspace:*
-        version: link:../../../../notifications
       nodemailer:
         specifier: ^9.0.3
         version: 9.0.3
@@ -693,7 +708,7 @@ importers:
         version: link:../../../core
       "@architecture/messaging":
         specifier: workspace:*
-        version: link:../../../../messaging
+        version: link:../../../../messaging/core
       kysely:
         specifier: ^0.29.4
         version: 0.29.4
@@ -835,15 +850,15 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
 
-  packages/messaging:
+  packages/messaging/core:
     dependencies:
-      kysely:
-        specifier: ^0.29.4
-        version: 0.29.4
+      "@architecture/foundation":
+        specifier: workspace:*
+        version: link:../../foundation
     devDependencies:
       "@architecture/eslint-config":
         specifier: workspace:*
-        version: link:../eslint-config
+        version: link:../../eslint-config
       "@types/node":
         specifier: ^25.9.5
         version: 25.9.5
@@ -860,18 +875,186 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
 
-  packages/notifications:
+  packages/messaging/infrastructure/persistence/kysely:
     dependencies:
       "@architecture/messaging":
         specifier: workspace:*
-        version: link:../messaging
+        version: link:../../../core
       kysely:
         specifier: ^0.29.4
         version: 0.29.4
     devDependencies:
       "@architecture/eslint-config":
         specifier: workspace:*
-        version: link:../eslint-config
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/notifications/core:
+    dependencies:
+      "@architecture/foundation":
+        specifier: workspace:*
+        version: link:../../foundation
+      "@architecture/messaging":
+        specifier: workspace:*
+        version: link:../../messaging/core
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/notifications/infrastructure/delivery/nodemailer:
+    dependencies:
+      "@architecture/notifications":
+        specifier: workspace:*
+        version: link:../../../core
+      nodemailer:
+        specifier: ^9.0.3
+        version: 9.0.3
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      "@types/nodemailer":
+        specifier: ^8.0.1
+        version: 8.0.1
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/notifications/infrastructure/delivery/slack-webhook:
+    dependencies:
+      "@architecture/notifications":
+        specifier: workspace:*
+        version: link:../../../core
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/notifications/infrastructure/delivery/sms-webhook:
+    dependencies:
+      "@architecture/notifications":
+        specifier: workspace:*
+        version: link:../../../core
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/notifications/infrastructure/persistence/kysely:
+    dependencies:
+      "@architecture/notifications":
+        specifier: workspace:*
+        version: link:../../../core
+      kysely:
+        specifier: ^0.29.4
+        version: 0.29.4
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/notifications/infrastructure/recipient/iam-kysely:
+    dependencies:
+      "@architecture/iam-persistence-kysely":
+        specifier: workspace:*
+        version: link:../../../../iam/infrastructure/persitence/kysely
+      "@architecture/notifications":
+        specifier: workspace:*
+        version: link:../../../core
+      kysely:
+        specifier: ^0.29.4
+        version: 0.29.4
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../../../eslint-config
       "@types/node":
         specifier: ^25.9.5
         version: 25.9.5

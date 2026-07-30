@@ -24,7 +24,6 @@
   },
   "dependencies": {
     "@architecture/iam": "workspace:*",
-    "@architecture/notifications": "workspace:*",
     "nodemailer": "^9.0.3"
   },
   "devDependencies": {

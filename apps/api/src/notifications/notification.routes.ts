@@ -1,4 +1,4 @@
-import type { NotificationApplication } from "@architecture/notifications";
+import type { NotificationsApplication } from "@architecture/notifications/application";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import type { AuthenticatedFastifyInstance } from "#app/auth";
@@ -6,7 +6,7 @@ import type { AuthenticatedFastifyInstance } from "#app/auth";
 const channels = ["email", "slack", "sms"] as const;
 
 export function buildNotificationRoutes(
-  notifications: NotificationApplication,
+  notifications: NotificationsApplication,
 ) {
   return async (app: FastifyInstance) => {
     const { authenticate } = app as AuthenticatedFastifyInstance;
@@ -15,7 +15,7 @@ export function buildNotificationRoutes(
     app.get("/", async (request) => {
       const query = request.query as { page?: string; pageSize?: string };
       return {
-        data: await notifications.list(
+        data: await notifications.listNotifications.execute(
           authenticatedUserId(request),
           numberOr(query.page, 1),
           numberOr(query.pageSize, 25),
@@ -25,13 +25,15 @@ export function buildNotificationRoutes(
 
     app.get("/unread-count", async (request) => ({
       data: {
-        count: await notifications.unreadCount(authenticatedUserId(request)),
+        count: await notifications.unreadCount.execute(
+          authenticatedUserId(request),
+        ),
       },
     }));
 
     app.post("/:notificationId/read", async (request, reply) => {
       const { notificationId } = request.params as { notificationId: string };
-      const updated = await notifications.markRead(
+      const updated = await notifications.markRead.execute(
         authenticatedUserId(request),
         notificationId,
       );
@@ -41,12 +43,14 @@ export function buildNotificationRoutes(
     });
 
     app.post("/read-all", async (request, reply) => {
-      await notifications.markAllRead(authenticatedUserId(request));
+      await notifications.markAllRead.execute(authenticatedUserId(request));
       return reply.status(204).send();
     });
 
     app.get("/preferences", async (request) => ({
-      data: await notifications.preferences(authenticatedUserId(request)),
+      data: await notifications.getPreferences.execute(
+        authenticatedUserId(request),
+      ),
     }));
 
     app.put("/preferences/:channel", async (request, reply) => {
@@ -60,7 +64,7 @@ export function buildNotificationRoutes(
           .status(400)
           .send({ error: { code: "INVALID_NOTIFICATION_PREFERENCE" } });
       }
-      await notifications.setPreference(
+      await notifications.updatePreference.execute(
         authenticatedUserId(request),
         channel as (typeof channels)[number],
         enabled,

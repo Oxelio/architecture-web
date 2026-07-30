@@ -7,8 +7,10 @@ flowchart LR
     foundation["@architecture/foundation"]
     iam["@architecture/iam"]
     messaging["@architecture/messaging"]
+    messagingKysely["@architecture/messaging-persistence-kysely"]
     audit["@architecture/audit"]
     notifications["@architecture/notifications"]
+    notificationsInfra["infrastructures Notifications"]
     adapters["adaptateurs IAM"]
     api["api (privé)"]
     web["web (privé)"]
@@ -18,9 +20,13 @@ flowchart LR
     iam --> messaging
     audit --> messaging
     notifications --> messaging
+    messagingKysely --> messaging
+    notificationsInfra --> notifications
     adapters --> iam
     api --> iam
     api --> adapters
+    api --> messagingKysely
+    api --> notificationsInfra
     web -. HTTP .-> api
     api -. outillage .-> lint
     web -. outillage .-> lint
@@ -29,23 +35,29 @@ flowchart LR
 
 ## Catalogue
 
-| Package                                       | Responsabilité                       | API publique                                      |
-| --------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
-| `@architecture/foundation`                    | primitives génériques du domaine     | export racine                                     |
-| `@architecture/iam`                           | domaine et application IAM           | `./domain`, `./application`                       |
-| `@architecture/messaging`                     | contrats, outbox, routeur et worker  | export racine                                     |
-| `@architecture/audit`                         | bounded context Audit                | export racine                                     |
-| `@architecture/notifications`                 | bounded context Notifications        | export racine                                     |
-| `@architecture/iam-persistence-kysely`        | schéma et persistance PostgreSQL IAM | export racine                                     |
-| `@architecture/iam-session-redis`             | sessions et limitation de débit      | export racine                                     |
-| `@architecture/iam-password-argon2`           | hachage de mot de passe sélectionné  | export racine                                     |
-| `@architecture/iam-password-bcrypt`           | implémentation alternative           | export racine                                     |
-| `@architecture/iam-email-verification-sha256` | hachage des jetons                   | `main`/`types`, sans champ `exports`              |
-| `@architecture/iam-email-nodemailer`          | envoi SMTP sélectionné               | export racine                                     |
-| `@architecture/iam-email-postmark`            | fournisseur alternatif               | export racine                                     |
-| `@architecture/eslint-config`                 | configurations ESLint partagées      | `.`, `node`, `react-vite`, `architecture`, `full` |
-| `api`                                         | serveur et composition               | privé, non publié                                 |
-| `web`                                         | client React                         | privé, non publié                                 |
+| Package                                              | Responsabilité                       | API publique                                      |
+| ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------- |
+| `@architecture/foundation`                           | primitives génériques du domaine     | export racine                                     |
+| `@architecture/iam`                                  | domaine et application IAM           | `./domain`, `./application`                       |
+| `@architecture/messaging`                            | domaine et application Messaging     | `./domain`, `./application`                       |
+| `@architecture/messaging-persistence-kysely`         | outbox et migration PostgreSQL       | export racine                                     |
+| `@architecture/audit`                                | bounded context Audit                | export racine                                     |
+| `@architecture/notifications`                        | domaine et application Notifications | `./domain`, `./application`                       |
+| `@architecture/notifications-persistence-kysely`     | persistance PostgreSQL Notifications | export racine                                     |
+| `@architecture/notifications-delivery-nodemailer`    | livraison de notifications SMTP      | export racine                                     |
+| `@architecture/notifications-delivery-slack-webhook` | livraison Slack par webhook          | export racine                                     |
+| `@architecture/notifications-delivery-sms-webhook`   | livraison SMS par webhook            | export racine                                     |
+| `@architecture/notifications-recipient-iam-kysely`   | annuaire de destinataires IAM        | export racine                                     |
+| `@architecture/iam-persistence-kysely`               | schéma et persistance PostgreSQL IAM | export racine                                     |
+| `@architecture/iam-session-redis`                    | sessions et limitation de débit      | export racine                                     |
+| `@architecture/iam-password-argon2`                  | hachage de mot de passe sélectionné  | export racine                                     |
+| `@architecture/iam-password-bcrypt`                  | implémentation alternative           | export racine                                     |
+| `@architecture/iam-email-verification-sha256`        | hachage des jetons                   | `main`/`types`, sans champ `exports`              |
+| `@architecture/iam-email-nodemailer`                 | envoi SMTP sélectionné               | export racine                                     |
+| `@architecture/iam-email-postmark`                   | fournisseur alternatif               | export racine                                     |
+| `@architecture/eslint-config`                        | configurations ESLint partagées      | `.`, `node`, `react-vite`, `architecture`, `full` |
+| `api`                                                | serveur et composition               | privé, non publié                                 |
+| `web`                                                | client React                         | privé, non publié                                 |
 
 Le `package.json` de chaque package reste la source de vérité. Les adaptateurs
 alternatifs bcrypt et Postmark sont testés mais ne sont pas sélectionnés par le
@@ -53,19 +65,24 @@ composition root actuel, qui utilise Argon2 et Nodemailer.
 
 ## Ports et implémentations actuelles
 
-| Port applicatif                | Implémentation composée                     |
-| ------------------------------ | ------------------------------------------- |
-| `UserRepository`               | `KyselyUserAdapter`                         |
-| `EmailVerificationRepository`  | `KyselyEmailVerificationAdapter`            |
-| `SessionRepository`            | `RedisSessionAdapter`                       |
-| `EmailVerificationRateLimiter` | `RedisEmailVerificationRateLimitAdapter`    |
-| `PasswordHasher`               | `Argon2PasswordHasherAdapter`               |
-| `EmailVerificationTokenHasher` | `Sha256EmailVerificationTokenHasherAdapter` |
-| `EmailSender`                  | `NodemailerEmailSenderAdapter`              |
-| `SecondFactorGate`             | `SecurityService` dans `apps/api`           |
-| `OutboxWriter`                 | `KyselyOutboxWriter`                        |
-| `AuditRepository`              | `KyselyAuditRepository`                     |
-| `NotificationRepository`       | `KyselyNotificationRepository`              |
+| Port applicatif                  | Implémentation composée                          |
+| -------------------------------- | ------------------------------------------------ |
+| `UserRepository`                 | `KyselyUserAdapter`                              |
+| `EmailVerificationRepository`    | `KyselyEmailVerificationAdapter`                 |
+| `SessionRepository`              | `RedisSessionAdapter`                            |
+| `EmailVerificationRateLimiter`   | `RedisEmailVerificationRateLimitAdapter`         |
+| `PasswordHasher`                 | `Argon2PasswordHasherAdapter`                    |
+| `EmailVerificationTokenHasher`   | `Sha256EmailVerificationTokenHasherAdapter`      |
+| `EmailSender`                    | `NodemailerEmailSenderAdapter`                   |
+| `SecondFactorGate`               | `SecurityService` dans `apps/api`                |
+| `OutboxWriter`                   | `KyselyOutboxWriterAdapter`                      |
+| `OutboxRepository`               | `KyselyOutboxRepositoryAdapter`                  |
+| `AuditRepository`                | `KyselyAuditRepository`                          |
+| `NotificationRepository`         | `KyselyNotificationRepositoryAdapter`            |
+| `NotificationRecipientDirectory` | `KyselyIamNotificationRecipientDirectoryAdapter` |
+| `NotificationDelivery` (email)   | `NodemailerNotificationDeliveryAdapter`          |
+| `NotificationDelivery` (Slack)   | `SlackWebhookNotificationDeliveryAdapter`        |
+| `NotificationDelivery` (SMS)     | `SmsWebhookNotificationDeliveryAdapter`          |
 
 Les variantes `BcryptPasswordHasherAdapter` et
 `PostmarkEmailSenderAdapter` satisfont respectivement `PasswordHasher` et
@@ -84,7 +101,9 @@ MFA, codes de secours, challenges, audits, notifications, livraisons, outbox,
 révisions de configuration, exports et demandes de suppression. Les migrations
 IAM restent dans
 `packages/iam/infrastructure/persitence/kysely/src/persistence/migrations` ;
-Messaging, Audit et Notifications exportent chacun leur propre migration.
+les migrations Messaging et Notifications résident dans leurs packages
+`infrastructure/persistence/kysely`, tandis qu’Audit exporte encore la sienne
+depuis son package.
 Redis conserve les sessions avec expiration et un ensemble trié par
 utilisateur, ainsi que la limitation des renvois de vérification.
 
