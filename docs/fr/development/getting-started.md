@@ -89,6 +89,7 @@ pnpm --filter api migrate:up
 pnpm --filter api migrate:down
 pnpm --filter api migrate:reset
 pnpm --filter api promote:admin <email>
+pnpm --filter api promote:admin:id <identifiant-utilisateur>
 ```
 
 La migration `003_create_iam_security` ajoute la récupération de compte, le

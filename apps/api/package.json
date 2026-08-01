@@ -12,6 +12,7 @@
     "migrate:down": "tsx src/scripts/migrate-down.ts",
     "migrate:reset": "tsx src/scripts/migrate-reset.ts",
     "promote:admin": "tsx src/scripts/promote-admin.ts",
+    "promote:admin:id": "tsx src/scripts/promote-admin-by-id.ts",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "lint": "eslint .",

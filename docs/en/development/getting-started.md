@@ -72,6 +72,7 @@ pnpm --filter api migrate:up
 pnpm --filter api migrate:down
 pnpm --filter api migrate:reset
 pnpm --filter api promote:admin <email>
+pnpm --filter api promote:admin:id <user-id>
 ```
 
 Migration `003_create_iam_security` adds account recovery, MFA, auditing,
