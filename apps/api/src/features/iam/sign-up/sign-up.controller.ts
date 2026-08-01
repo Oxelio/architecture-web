@@ -13,7 +13,7 @@ type SignUpHTTPRequest = FastifyRequest<SignUpRoute>;
 export function createSignUpController(useCase: SignUp) {
   return async (request: SignUpHTTPRequest, reply: FastifyReply) => {
     const command: SignUpInput = {
-      email: request.body.email,
+      login: request.body.login,
       password: request.body.password,
       passwordConfirmation: request.body.passwordConfirmation,
     };

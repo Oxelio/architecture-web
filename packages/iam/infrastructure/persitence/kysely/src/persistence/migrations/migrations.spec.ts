@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { iamUserMigrations } from "./001_create_iam_users.js";
 import { iamEmailVerificationMigrations } from "./002_create_iam_email_verifications.js";
 import { iamAggregateConsistencyMigrations } from "./004_add_iam_aggregate_consistency.js";
+import { iamAuthenticationMigrations } from "./005_extract_iam_authentication.js";
 
 function database() {
   const execute = vi.fn().mockResolvedValue(undefined);
@@ -46,6 +47,12 @@ function database() {
 }
 
 describe("iam migrations", () => {
+  it("registers the authentication extraction migration", () => {
+    expect(iamAuthenticationMigrations).toHaveProperty(
+      "005_extract_iam_authentication",
+    );
+  });
+
   it("creates the user role as part of the initial schema", async () => {
     const db = database();
     const migration = iamUserMigrations["001_create_iam_users"];

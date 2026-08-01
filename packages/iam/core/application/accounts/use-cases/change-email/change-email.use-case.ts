@@ -3,6 +3,8 @@
 import { Result } from "@architecture/foundation";
 
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
+import { LoginIdentityEntity } from "#entities/login-identity.entity";
+import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
@@ -10,6 +12,7 @@ import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
+import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ChangeEmailErrorsCodes } from "./change-email.codes.js";
@@ -22,6 +25,7 @@ import type {
 export class ChangeEmailUseCase implements ChangeEmail {
   constructor(
     private readonly userPort: UserRepository,
+    private readonly loginIdentities: LoginIdentityRepository,
     private readonly emailSender: EmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
     private readonly unitOfWork: IamUnitOfWork,
@@ -45,9 +49,12 @@ export class ChangeEmailUseCase implements ChangeEmail {
       return Result.failure(email.error);
     }
 
-    // check existing email
-    const existing = await this.userPort.findByEmail(email.value);
-    if (existing && existing.identifier.value !== userId.value.value) {
+    const login = LoginIdentifierValueObject.create("email", email.value.value);
+    if (!login.success) {
+      throw new Error("A validated email must be a valid login identifier");
+    }
+    const existing = await this.loginIdentities.findByLogin(login.value);
+    if (existing && existing.userId.value !== userId.value.value) {
       return Result.failure(ChangeEmailErrorsCodes.userAlreadyExists);
     }
 
@@ -56,28 +63,53 @@ export class ChangeEmailUseCase implements ChangeEmail {
       return Result.failure(ChangeEmailErrorsCodes.notFound);
     }
 
-    if (user.email.equals(email.value)) {
+    const currentIdentity = await this.loginIdentities.findForUser(
+      user.identifier,
+      "email",
+    );
+    if (currentIdentity?.login.equals(login.value)) {
       return Result.success(undefined);
     }
 
-    user.changeEmail(email.value);
+    const verificationRequired = await this.policyProvider?.isCapabilityEnabled(
+      "accounts.emailVerification",
+    );
+    const identity =
+      currentIdentity ??
+      LoginIdentityEntity.create({
+        userId: user.identifier,
+        login: login.value,
+        verificationRequired: verificationRequired ?? true,
+      });
+    if (currentIdentity) {
+      identity.replace(login.value, verificationRequired ?? true);
+    }
 
-    const token = EmailVerificationTokenValueObject.generate();
-    const tokenHash = await this.tokenHasher.hash(token);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    const token =
+      identity.verificationStatus === "pending"
+        ? EmailVerificationTokenValueObject.generate()
+        : null;
+    const verification = token
+      ? EmailVerificationEntity.create({
+          userId: user.identifier,
+          loginIdentityId: identity.identifier,
+          tokenHash: await this.tokenHasher.hash(token),
+          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+        })
+      : null;
 
-    const verification = EmailVerificationEntity.create({
-      userId: user.identifier,
-      tokenHash,
-      expiresAt,
-    });
-
-    await this.unitOfWork.execute(async ({ emailVerifications, users }) => {
-      await users.save(user);
-      await emailVerifications.invalidatePreviousFor(user.identifier);
-      await emailVerifications.save(verification);
-    });
-    await this.emailSender.sendVerificationEmail(user.email, token.value);
+    await this.unitOfWork.execute(
+      async ({ emailVerifications, loginIdentities }) => {
+        await loginIdentities.save(identity);
+        await emailVerifications.invalidatePreviousFor(identity.identifier);
+        if (verification) {
+          await emailVerifications.save(verification);
+        }
+      },
+    );
+    if (token) {
+      await this.emailSender.sendVerificationEmail(email.value, token.value);
+    }
 
     return Result.success(undefined);
   }

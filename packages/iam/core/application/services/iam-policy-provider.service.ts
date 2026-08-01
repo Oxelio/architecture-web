@@ -13,8 +13,14 @@ export type IamCapability =
   | "recovery"
   | "audit.consultation";
 
+export interface IamAccountIdentityPolicy {
+  readonly allowedLoginIdentifiers: readonly ("username" | "email")[];
+  readonly requireEmailVerification: boolean;
+}
+
 export interface IamPolicyProvider {
   getPasswordPolicy(role: IamActorRole): Promise<PasswordPolicy>;
+  getAccountIdentityPolicy?(): Promise<IamAccountIdentityPolicy>;
   getSessionDurationMinutes(): Promise<number>;
   isCapabilityEnabled(capability: IamCapability): Promise<boolean>;
 }

@@ -13,8 +13,12 @@ export interface SignInRoute {
 }
 
 const SignInBodySchema = Type.Object({
-  email: Type.String({
-    format: "email",
+  login: Type.Object({
+    kind: Type.Union([Type.Literal("username"), Type.Literal("email")]),
+    value: Type.String({
+      minLength: 1,
+      maxLength: 254,
+    }),
   }),
   password: Type.String(),
 });

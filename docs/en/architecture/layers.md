@@ -22,12 +22,15 @@ value without its own identity.
 The domain **MAY** depend on Foundation and its own types. It **MUST NOT** import
 use cases, Fastify, React, Kysely, Redis, an email SDK, or an adapter.
 
-Examples include `UserEntity` for account transitions, `SessionEntity` for
-lifetime and validity, and `EmailValueObject.create` for validation through a
-`Result`.
+Examples include `UserEntity` for account status and session-version
+transitions, `LoginIdentityEntity` for normalized usernames and emails,
+`PasswordAuthenticatorEntity` for password-derivative lifecycle,
+`SessionEntity` for lifetime and validity, and `EmailValueObject.create` for
+validation through a `Result`.
 
-`UserEntity`, `SessionEntity`, and `EmailVerificationEntity` are the current
-three aggregate roots. A repository **MUST** load or save a root and **MUST
+`UserEntity`, `LoginIdentityEntity`, `PasswordAuthenticatorEntity`,
+`SessionEntity`, and `EmailVerificationEntity` are the current IAM aggregate
+roots. A repository **MUST** load or save a root and **MUST
 NOT** expose direct mutation of an internal aggregate object. References
 between aggregates **MUST** use identifiers.
 
@@ -44,8 +47,11 @@ This layer **MAY** depend on the domain, Foundation, and its own ports. It
 **MUST NOT** depend on Kysely, Redis, Argon2, Nodemailer, Postmark, or Fastify
 implementations.
 
-Repositories and abstract services are secondary ports. `IamUnitOfWork`
-provides a transaction spanning PostgreSQL user and verification repositories.
+Repositories and abstract services are secondary ports. Command repositories
+persist users, login identities, authenticators, verifications, and sessions.
+`UserQueryRepository` builds projections spanning several roots.
+`IamUnitOfWork` provides a transaction spanning PostgreSQL user, identity,
+authenticator, and verification repositories.
 `createIam` is the application factory: it receives `IamDependencies` and
 returns the `IamApplication` use-case set.
 
@@ -53,10 +59,10 @@ returns the `IamApplication` use-case set.
 implementation is `SecurityService`, located in the API rather than an
 infrastructure package.
 
-Coherent operations backed by the same implementation are grouped:
-`UserRepository` owns writes, account lookup, bounded administration search,
-and indicators; `SessionRepository` owns session lifecycle and listing. A port
-name is not an authorization mechanism: authorization remains in use cases.
+`UserRepository` owns only `UserEntity` writes and lookup by identifier;
+`UserQueryRepository` owns account and administration reads;
+`SessionRepository` owns session lifecycle and listing. A port name is not an
+authorization mechanism: authorization remains in use cases.
 
 Administration commands require the actor identifier.
 `AdministratorAuthorizer` reloads that actor from the repository and verifies

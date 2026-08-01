@@ -8,6 +8,9 @@ Les agrégats et leurs frontières de cohérence sont détaillés dans
 [ADR-0004](0004-aggregates-and-consistency.md).
 Les Domain Events, l’outbox et les échanges avec Audit et Notifications sont
 détaillés dans [ADR-0005](0005-domain-events-messaging.md).
+La séparation entre compte, identités de connexion et authentificateurs est
+détaillée dans
+[ADR-0006](0006-iam-account-identities-and-authenticators.md).
 
 ## ADR-0001 — Cœur IAM indépendant des technologies
 

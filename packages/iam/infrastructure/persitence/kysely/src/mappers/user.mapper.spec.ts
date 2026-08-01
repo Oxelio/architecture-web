@@ -5,11 +5,8 @@ import { UserMapper } from "./user.mapper.js";
 
 const row = {
   id: UserIdentifierValueObject.generate().value,
-  email: "user@example.com",
-  password_hash: "hash",
   role: "user",
   status: "active",
-  is_email_verified: false,
   session_version: 1,
   created_at: new Date("2025-01-01"),
   updated_at: new Date("2025-01-02"),
@@ -22,8 +19,6 @@ describe("UserMapper", () => {
   });
 
   it.each([
-    ["email", "invalid"],
-    ["password_hash", ""],
     ["id", "invalid"],
     ["status", "invalid"],
     ["role", "invalid"],

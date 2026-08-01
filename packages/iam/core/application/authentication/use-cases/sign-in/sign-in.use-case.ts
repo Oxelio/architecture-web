@@ -5,12 +5,14 @@ import type { OutboxWriter } from "@architecture/messaging/application";
 
 import { SessionEntity } from "#entities/session.entity";
 import { toIamIntegrationEvent } from "#events/iam-integration-event";
+import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import type { PasswordHasher } from "#services/password-hasher.service";
 import type { SecondFactorGate } from "#services/second-factor-gate.service";
-import { EmailValueObject } from "#value-objects/email.value-object";
+import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
 import { SignInErrorCodes } from "./sign-in.codes.js";
@@ -26,6 +28,8 @@ export const MAX_ACTIVE_SESSIONS_PER_USER = 10;
 export class SignInUseCase implements SignIn {
   constructor(
     private readonly user: UserRepository,
+    private readonly loginIdentities: LoginIdentityRepository,
+    private readonly passwordAuthenticators: PasswordAuthenticatorRepository,
     private readonly password: PasswordHasher,
     private readonly session: SessionRepository,
     private readonly policyProvider: IamPolicyProvider,
@@ -34,8 +38,19 @@ export class SignInUseCase implements SignIn {
   ) {}
 
   async execute(payload: SignInInput): Promise<SignInOutput> {
-    const email = EmailValueObject.create(payload.email);
-    if (!email.success) {
+    const allowedLoginIdentifiers: readonly ("username" | "email")[] = (
+      await this.policyProvider.getAccountIdentityPolicy?.()
+    )?.allowedLoginIdentifiers ?? ["email"];
+    if (!allowedLoginIdentifiers.includes(payload.login.kind)) {
+      await this.password.fakeVerify();
+      return Result.failure(SignInErrorCodes.invalidCredentials);
+    }
+
+    const login = LoginIdentifierValueObject.create(
+      payload.login.kind,
+      payload.login.value,
+    );
+    if (!login.success) {
       return Result.failure(SignInErrorCodes.invalidCredentials);
     }
 
@@ -44,20 +59,32 @@ export class SignInUseCase implements SignIn {
       return Result.failure(SignInErrorCodes.invalidCredentials);
     }
 
-    const user = await this.user.findByEmail(email.value);
-    if (!user) {
+    const identity = await this.loginIdentities.findByLogin(login.value);
+    if (!identity || !identity.isUsable) {
       await this.password.fakeVerify(); // Timing attack prevention
 
       return Result.failure(SignInErrorCodes.invalidCredentials);
     }
 
+    const user = await this.user.findById(identity.userId);
+    const authenticator = user
+      ? await this.passwordAuthenticators.findForUser(user.identifier)
+      : null;
+    if (!user || !authenticator || authenticator.isRevoked) {
+      await this.password.fakeVerify();
+      return Result.failure(SignInErrorCodes.invalidCredentials);
+    }
+
     const passwordVerified = await this.password.verify(
       password.value,
-      user.password,
+      authenticator.passwordHash,
     );
     if (!passwordVerified) {
       return Result.failure(SignInErrorCodes.invalidCredentials);
     }
+
+    authenticator.recordSuccessfulUse();
+    await this.passwordAuthenticators.save(authenticator);
 
     if (!user.status.isActive()) {
       return Result.failure(SignInErrorCodes.userSuspended);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
+import { LoginIdentityIdentifierValueObject } from "#value-objects/login-identity-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { EmailVerificationEntity } from "./email-verification.entity.js";
@@ -14,6 +15,7 @@ describe("EmailVerificationEntity", () => {
   it("creates, consumes, invalidates, and evaluates usability", () => {
     const entity = EmailVerificationEntity.create({
       userId: UserIdentifierValueObject.generate(),
+      loginIdentityId: LoginIdentityIdentifierValueObject.generate(),
       tokenHash: tokenHash.value,
       expiresAt: new Date(Date.now() + 1_000),
     });
@@ -34,6 +36,7 @@ describe("EmailVerificationEntity", () => {
   it("rehydrates persisted state", () => {
     const entity = EmailVerificationEntity.rehydrate({
       userId: UserIdentifierValueObject.generate(),
+      loginIdentityId: LoginIdentityIdentifierValueObject.generate(),
       tokenHash: tokenHash.value,
       expiresAt: new Date(),
       used: true,

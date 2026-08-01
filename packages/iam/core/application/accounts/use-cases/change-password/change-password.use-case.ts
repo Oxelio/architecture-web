@@ -2,6 +2,8 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
@@ -20,6 +22,8 @@ import type {
 export class ChangePasswordUseCase implements ChangePassword {
   constructor(
     private readonly userPort: UserRepository,
+    private readonly loginIdentities: LoginIdentityRepository,
+    private readonly passwordAuthenticators: PasswordAuthenticatorRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly sessionPort: SessionRepository,
     private readonly passwordPolicy: PasswordPolicyValidator,
@@ -38,12 +42,22 @@ export class ChangePasswordUseCase implements ChangePassword {
       return Result.failure(ChangePasswordErrorsCodes.notFound);
     }
 
+    const authenticator = await this.passwordAuthenticators.findForUser(
+      user.identifier,
+    );
+    if (!authenticator || authenticator.isRevoked) {
+      return Result.failure(ChangePasswordErrorsCodes.currentPasswordInvalid);
+    }
+
     const currentPassword = PasswordPlainValueObject.create(
       payload.currentPassword,
     );
     if (
       !currentPassword.success ||
-      !(await this.passwordHasher.verify(currentPassword.value, user.password))
+      !(await this.passwordHasher.verify(
+        currentPassword.value,
+        authenticator.passwordHash,
+      ))
     ) {
       return Result.failure(ChangePasswordErrorsCodes.currentPasswordInvalid);
     }
@@ -51,10 +65,16 @@ export class ChangePasswordUseCase implements ChangePassword {
     const activePolicy = user.role.isAdmin()
       ? this.privilegedPasswordPolicy
       : this.passwordPolicy;
+    const emailIdentity = await this.loginIdentities.findForUser(
+      user.identifier,
+      "email",
+    );
     const validation = await activePolicy.validate({
       password: payload.password,
       confirmation: payload.passwordConfirmation,
-      context: { email: user.email.value },
+      ...(emailIdentity
+        ? { context: { email: emailIdentity.login.value } }
+        : {}),
     });
     const firstValidationError = validation.errors[0];
     if (firstValidationError) {
@@ -69,18 +89,28 @@ export class ChangePasswordUseCase implements ChangePassword {
     const publicPolicy = await activePolicy.getPublicPolicy();
     if (
       publicPolicy.rejectCurrentPassword &&
-      (await this.passwordHasher.verify(password.value, user.password))
+      (await this.passwordHasher.verify(
+        password.value,
+        authenticator.passwordHash,
+      ))
     ) {
       return Result.failure(ChangePasswordErrorsCodes.reused);
     }
 
     const hashed = await this.passwordHasher.hash(password.value);
 
-    user.changePassword(hashed);
+    authenticator.changePassword(hashed);
+    user.invalidateSessions();
 
     if (this.unitOfWork) {
-      await this.unitOfWork.execute(({ users }) => users.save(user));
+      await this.unitOfWork.execute(
+        async ({ passwordAuthenticators, users }) => {
+          await passwordAuthenticators.save(authenticator);
+          await users.save(user);
+        },
+      );
     } else {
+      await this.passwordAuthenticators.save(authenticator);
       await this.userPort.save(user);
     }
     await this.sessionPort.deleteAllForUser(user.identifier);

@@ -1,4 +1,5 @@
 import type { UserRepository } from "#repositories/user.repository";
+import type { UserQueryRepository } from "#repositories/user-query.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 
 import type {
@@ -10,7 +11,10 @@ import type {
 export class GetUserAdministrationOverviewUseCase implements GetUserAdministrationOverview {
   private readonly authorizer: AdministratorAuthorizer;
 
-  constructor(private readonly users: UserRepository) {
+  constructor(
+    users: UserRepository,
+    private readonly userQuery: UserQueryRepository,
+  ) {
     this.authorizer = new AdministratorAuthorizer(users);
   }
 
@@ -24,7 +28,7 @@ export class GetUserAdministrationOverviewUseCase implements GetUserAdministrati
 
     return {
       success: true,
-      value: await this.users.getAdministrationOverview(),
+      value: await this.userQuery.getAdministrationOverview(),
     };
   }
 }

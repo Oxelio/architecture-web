@@ -16,7 +16,11 @@ const ListUsersQuerySchema = Type.Object({
     Type.Union([Type.Literal("user"), Type.Literal("admin")]),
   ),
   status: Type.Optional(
-    Type.Union([Type.Literal("active"), Type.Literal("suspended")]),
+    Type.Union([
+      Type.Literal("active"),
+      Type.Literal("suspended"),
+      Type.Literal("pending_deletion"),
+    ]),
   ),
   emailVerified: Type.Optional(Type.Boolean()),
   page: Type.Optional(Type.Integer({ minimum: 1, default: 1 })),
@@ -27,9 +31,24 @@ const ListUsersQuerySchema = Type.Object({
 
 const AdminUserSchema = Type.Object({
   userId: Type.String(),
-  email: Type.String({ format: "email" }),
+  loginIdentifiers: Type.Array(
+    Type.Object({
+      kind: Type.Union([Type.Literal("username"), Type.Literal("email")]),
+      value: Type.String(),
+      verificationStatus: Type.Union([
+        Type.Literal("not_required"),
+        Type.Literal("pending"),
+        Type.Literal("verified"),
+      ]),
+    }),
+  ),
+  email: Type.Union([Type.String({ format: "email" }), Type.Null()]),
   role: Type.Union([Type.Literal("user"), Type.Literal("admin")]),
-  status: Type.Union([Type.Literal("active"), Type.Literal("suspended")]),
+  status: Type.Union([
+    Type.Literal("active"),
+    Type.Literal("suspended"),
+    Type.Literal("pending_deletion"),
+  ]),
   isEmailVerified: Type.Boolean(),
   createdAt: Type.String({ format: "date-time" }),
   updatedAt: Type.String({ format: "date-time" }),

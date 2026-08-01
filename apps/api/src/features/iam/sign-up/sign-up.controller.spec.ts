@@ -15,7 +15,7 @@ describe("sign-up controller password contract", () => {
     await controller(
       {
         body: {
-          email: "user@example.test",
+          login: { kind: "email", value: "user@example.test" },
           password: "first secret phrase",
           passwordConfirmation: "second secret phrase",
         },
@@ -27,7 +27,7 @@ describe("sign-up controller password contract", () => {
     );
 
     expect(execute).toHaveBeenCalledWith({
-      email: "user@example.test",
+      login: { kind: "email", value: "user@example.test" },
       password: "first secret phrase",
       passwordConfirmation: "second secret phrase",
     });

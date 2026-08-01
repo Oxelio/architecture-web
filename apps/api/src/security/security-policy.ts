@@ -8,6 +8,10 @@ export const SecurityPolicySchema = z
   .object({
     accounts: z.object({
       publicRegistration: booleanField,
+      allowedLoginIdentifiers: z
+        .array(z.enum(["username", "email"]))
+        .min(1)
+        .default(["email"]),
       emailVerification: booleanField,
       emailChange: booleanField,
       export: booleanField,
@@ -98,6 +102,7 @@ export type SecurityPolicy = z.infer<typeof SecurityPolicySchema>;
 export const DEFAULT_SECURITY_POLICY: SecurityPolicy = {
   accounts: {
     publicRegistration: true,
+    allowedLoginIdentifiers: ["username", "email"],
     emailVerification: true,
     emailChange: true,
     export: true,
@@ -181,6 +186,15 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
     type: "boolean",
     impact: "medium",
     recommendedValue: true,
+  }),
+  entry({
+    key: "accounts.allowedLoginIdentifiers",
+    category: "accounts",
+    control: "multi-select",
+    type: "set",
+    impact: "high",
+    constraints: { choices: ["username", "email"] },
+    recommendedValue: ["username", "email"],
   }),
   entry({
     key: "accounts.emailVerification",

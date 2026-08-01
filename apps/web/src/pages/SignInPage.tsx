@@ -1,18 +1,23 @@
 // @file apps/web/src/pages/SignInPage.tsx
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
-import { signIn, verifyMfaChallenge } from "#services/api";
+import {
+  getPublicCapabilities,
+  signIn,
+  verifyMfaChallenge,
+} from "#services/api";
 
 interface SignInFormValues {
-  email: string;
+  loginKind: "username" | "email";
+  loginValue: string;
   password: string;
 }
 
@@ -21,12 +26,18 @@ export function SignInPage() {
   const signInSchema = useMemo(
     () =>
       z.object({
-        email: z.email({ message: t("auth.invalidEmail") }),
+        loginKind: z.enum(["username", "email"]),
+        loginValue: z.string().min(1),
         password: z.string().min(8, { message: t("auth.passwordMin") }),
       }),
     [t],
   );
   const [serverError, setServerError] = useState<string | null>(null);
+  const capabilitiesQuery = useQuery({
+    queryKey: ["public-capabilities"],
+    queryFn: getPublicCapabilities,
+    staleTime: 60_000,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
@@ -35,17 +46,30 @@ export function SignInPage() {
   const {
     register,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
+    defaultValues: { loginKind: "email" },
   });
+
+  useEffect(() => {
+    const allowed = capabilitiesQuery.data?.allowedLoginIdentifiers;
+    if (allowed?.length && !allowed.includes(getValues("loginKind"))) {
+      setValue("loginKind", allowed[0], { shouldValidate: true });
+    }
+  }, [capabilitiesQuery.data, getValues, setValue]);
 
   const onSubmit = async (values: SignInFormValues) => {
     setServerError(null);
     setIsSubmitting(true);
 
     try {
-      const result = await signIn(values);
+      const result = await signIn({
+        login: { kind: values.loginKind, value: values.loginValue },
+        password: values.password,
+      });
       if (result?.mfaRequired) {
         setChallengeId(result.challengeId);
         return;
@@ -127,16 +151,31 @@ export function SignInPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-6">
           <div className="space-y-4">
             <label className="block text-sm font-medium text-slate-200">
-              {t("common.email")}
+              Identifiant de connexion
+              {(capabilitiesQuery.data?.allowedLoginIdentifiers.length ?? 0) >
+              1 ? (
+                <select
+                  className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white"
+                  {...register("loginKind")}
+                >
+                  {capabilitiesQuery.data?.allowedLoginIdentifiers.map(
+                    (kind) => (
+                      <option key={kind} value={kind}>
+                        {kind === "email" ? t("common.email") : "Pseudonyme"}
+                      </option>
+                    ),
+                  )}
+                </select>
+              ) : null}
               <input
-                type="email"
-                autoComplete="email"
+                type="text"
+                autoComplete="username"
                 className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
-                {...register("email")}
+                {...register("loginValue")}
               />
-              {errors.email && (
+              {errors.loginValue && (
                 <p className="mt-2 text-sm text-rose-400">
-                  {errors.email.message}
+                  {errors.loginValue.message}
                 </p>
               )}
             </label>

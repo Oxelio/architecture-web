@@ -102,7 +102,7 @@ issued until `POST /mfa/challenge/verify` succeeds.
 
 | Parameter       | Values                         | Default | Rule                        |
 | --------------- | ------------------------------ | ------- | --------------------------- |
-| `search`        | string, at most 200 characters | absent  | email or identifier         |
+| `search`        | string, at most 200 characters | absent  | account or login identifier |
 | `role`          | `user`, `admin`                | absent  | equality                    |
 | `status`        | `active`, `suspended`          | absent  | equality                    |
 | `emailVerified` | boolean                        | absent  | equality                    |
@@ -130,7 +130,11 @@ An account keeps at most 10 active sessions. A new sign-in above this limit
 first revokes the oldest active session, keeping session lists bounded without
 pagination.
 
-`POST /signup` requires `email`, `password`, and `passwordConfirmation`.
+`POST /signup` requires
+`login: { kind: "username" | "email", value: string }`, `password`, and
+`passwordConfirmation`. `POST /signin` uses the same `login` object and
+`password`. Allowed kinds come from `GET /capabilities` and the published
+policy; email is not mandatory for a pseudonymous account.
 `PATCH /me/password` requires `currentPassword`, `password`, and
 `passwordConfirmation`. Confirmations are compared exactly and then discarded;
 they never reach persistence.

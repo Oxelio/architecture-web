@@ -27,6 +27,9 @@ export default defineConfig({
       "#access-administration": fileURLToPath(
         new URL("./application/access-administration", import.meta.url),
       ),
+      "#testing": fileURLToPath(
+        new URL("./application/testing", import.meta.url),
+      ),
     },
   },
   test: {

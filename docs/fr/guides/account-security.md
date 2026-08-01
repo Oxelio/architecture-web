@@ -48,9 +48,10 @@ ajoute :
 | `iam_account_exports`           | état et archive ZIP temporaire                            |
 | `iam_account_deletions`         | période de grâce, annulation et conservation éventuelle   |
 
-Le trigger `iam_users_invalidate_recoveries` invalide les jetons de
-récupération après changement d’adresse, changement de mot de passe ou passage
-en attente de suppression.
+Des triggers sur `iam_users`, `iam_login_identities` et
+`iam_password_authenticators` invalident les jetons de récupération après
+changement d’adresse, changement ou révocation du mot de passe, ou passage en
+attente de suppression.
 
 Les jetons exploitables ne sont pas persistés. Les secrets TOTP sont chiffrés
 avec AES-256-GCM à partir de `SECURITY_ENCRYPTION_KEY`. Une rotation de cette

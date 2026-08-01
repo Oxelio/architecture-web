@@ -46,8 +46,9 @@ adds:
 | `iam_account_exports`           | temporary ZIP archive and lifecycle state          |
 | `iam_account_deletions`         | grace period, cancellation, and possible retention |
 
-Trigger `iam_users_invalidate_recoveries` invalidates recovery tokens after an
-email change, password change, or transition to pending deletion.
+Triggers on `iam_users`, `iam_login_identities`, and
+`iam_password_authenticators` invalidate recovery tokens after an email
+change, password change or revocation, or transition to pending deletion.
 
 Usable tokens are never persisted. TOTP secrets use AES-256-GCM encryption
 derived from `SECURITY_ENCRYPTION_KEY`. Key rotation **MUST** include a

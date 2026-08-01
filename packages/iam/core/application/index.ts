@@ -63,6 +63,7 @@ export type {
   ChangePasswordOutput,
 } from "./accounts/use-cases/change-password/change-password.contracts.js";
 export type {
+  AccountLoginIdentifier,
   CurrentAccount,
   GetCurrentAccount,
   GetCurrentAccountError,
@@ -139,12 +140,16 @@ export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 
 // Ports
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
+export { LoginIdentityRepository } from "./repositories/login-identity.repository.js";
+export { PasswordAuthenticatorRepository } from "./repositories/password-authenticator.repository.js";
 export { SessionRepository } from "./repositories/session.repository.js";
+export { UserRepository } from "./repositories/user.repository.js";
 export {
-  UserRepository,
+  type UserAccountView,
+  UserQueryRepository,
   type UserSearchCriteria,
   type UserSearchResult,
-} from "./repositories/user.repository.js";
+} from "./repositories/user-query.repository.js";
 export {
   type AdministratorAuthorizationError,
   AdministratorAuthorizationErrorCodes,
@@ -154,6 +159,7 @@ export { EmailSender } from "./services/email-sender.service.js";
 export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
 export { EmailVerificationTokenHasher } from "./services/email-verification-token-hasher.service.js";
 export type {
+  IamAccountIdentityPolicy,
   IamActorRole,
   IamCapability,
   IamPolicyProvider,

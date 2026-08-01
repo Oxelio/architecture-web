@@ -1,8 +1,12 @@
 import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
+import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import type { UserRepository } from "#repositories/user.repository";
 
 export interface IamTransactionalRepositories {
   readonly emailVerifications: EmailVerificationRepository;
+  readonly loginIdentities: LoginIdentityRepository;
+  readonly passwordAuthenticators: PasswordAuthenticatorRepository;
   readonly users: UserRepository;
 }
 

@@ -4,6 +4,7 @@ import type { EmailVerificationRepository } from "@architecture/iam/application"
 import {
   EmailVerificationEntity,
   EmailVerificationTokenHashValueObject,
+  LoginIdentityIdentifierValueObject,
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
 import type { Kysely } from "kysely";
@@ -17,6 +18,7 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationReposito
     const row: IamEmailVerificationRow = {
       token_hash: verification.tokenHash.value,
       user_id: verification.userId.value,
+      login_identity_id: verification.loginIdentityId.value,
       expires_at: verification.expiresAt,
       used: verification.isUsed,
       invalidated: verification.isInvalidated,
@@ -50,10 +52,17 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationReposito
     if (!persistedTokenHash.success) {
       return null;
     }
+    const loginIdentityId = LoginIdentityIdentifierValueObject.create(
+      row.login_identity_id,
+    );
+    if (!loginIdentityId.success) {
+      return null;
+    }
 
     return EmailVerificationEntity.rehydrate({
       tokenHash: persistedTokenHash.value,
       userId: userIdResult.value,
+      loginIdentityId: loginIdentityId.value,
       expiresAt: row.expires_at,
       used: row.used,
       invalidated: row.invalidated,
@@ -77,14 +86,14 @@ export class KyselyEmailVerificationAdapter implements EmailVerificationReposito
   }
 
   async invalidatePreviousFor(
-    userId: UserIdentifierValueObject,
+    loginIdentityId: LoginIdentityIdentifierValueObject,
   ): Promise<void> {
     await this.db
       .updateTable("iam_email_verifications")
       .set({
         invalidated: true,
       })
-      .where("user_id", "=", userId.value)
+      .where("login_identity_id", "=", loginIdentityId.value)
       .where("invalidated", "=", false)
       .execute();
   }

@@ -2,7 +2,8 @@
 
 export interface CurrentUser {
   userId: string;
-  email: string;
+  loginIdentifiers: LoginIdentityView[];
+  email: string | null;
   isEmailVerified: boolean;
   role: "user" | "admin";
   createdAt: string;
@@ -42,12 +43,32 @@ export type AdministeredUserSession = SessionDetails;
 
 export interface AdminUser {
   userId: string;
-  email: string;
+  loginIdentifiers: LoginIdentityView[];
+  email: string | null;
   isEmailVerified: boolean;
   role: "user" | "admin";
-  status: "active" | "suspended";
+  status: "active" | "suspended" | "pending_deletion";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LoginIdentityView {
+  kind: "username" | "email";
+  value: string;
+  verificationStatus: "not_required" | "pending" | "verified";
+}
+
+export function accountDisplayIdentifier(account: {
+  userId: string;
+  loginIdentifiers: LoginIdentityView[];
+}): string {
+  return (
+    account.loginIdentifiers.find((identity) => identity.kind === "username")
+      ?.value ??
+    account.loginIdentifiers.find((identity) => identity.kind === "email")
+      ?.value ??
+    account.userId
+  );
 }
 
 export interface ListUsersCriteria {
@@ -79,14 +100,19 @@ export interface UserAdministrationOverview {
 }
 
 export interface SignInPayload {
-  email: string;
+  login: LoginIdentifierPayload;
   password: string;
 }
 
 export interface SignUpPayload {
-  email: string;
+  login: LoginIdentifierPayload;
   password: string;
   passwordConfirmation: string;
+}
+
+export interface LoginIdentifierPayload {
+  kind: "username" | "email";
+  value: string;
 }
 
 export interface ChangeEmailPayload {
@@ -144,6 +170,7 @@ export interface PasswordEvaluation {
 
 export interface PublicCapabilities {
   publicRegistration: boolean;
+  allowedLoginIdentifiers: LoginIdentifierPayload["kind"][];
   emailVerification: boolean;
   emailChange: boolean;
   sessionManagement: boolean;

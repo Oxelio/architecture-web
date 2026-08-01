@@ -3,6 +3,7 @@
 import { auditMigrations } from "@architecture/audit";
 import {
   iamAggregateConsistencyMigrations,
+  iamAuthenticationMigrations,
   iamEmailVerificationMigrations,
   iamSecurityMigrations,
   iamUserMigrations,
@@ -17,6 +18,7 @@ export const getAllMigrations = (): Record<string, Migration> => {
     ...iamEmailVerificationMigrations,
     ...iamSecurityMigrations,
     ...iamAggregateConsistencyMigrations,
+    ...iamAuthenticationMigrations,
     ...messagingMigrations,
     ...auditMigrations,
     ...notificationMigrations,

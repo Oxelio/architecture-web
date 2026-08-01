@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 
 import { SecurityCenter } from "#components/SecurityCenter";
 import { SessionSummary } from "#components/SessionSummary";
-import type { CurrentUser } from "#services/api";
+import { accountDisplayIdentifier, type CurrentUser } from "#services/api";
 import {
   changeEmail,
   changePassword,
@@ -51,7 +51,7 @@ const fieldClassName =
 export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const [email, setEmail] = useState(user.email);
+  const [email, setEmail] = useState(user.email ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -175,8 +175,9 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     [...password].length >= 28,
     new Set(password).size >= 10,
   ].filter(Boolean).length;
-  const completedSteps = user.isEmailVerified ? 3 : 2;
-  const profileInitial = user.email.charAt(0).toUpperCase();
+  const completedSteps = user.email === null ? 2 : user.isEmailVerified ? 3 : 2;
+  const profileLabel = accountDisplayIdentifier(user);
+  const profileInitial = profileLabel.charAt(0).toUpperCase();
 
   const copyIdentifier = async () => {
     try {
@@ -237,7 +238,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                 </span>
               </div>
               <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                {user.email}
+                {profileLabel}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
                 {t("profile.description")}
@@ -263,7 +264,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
         </div>
       </section>
 
-      {!user.isEmailVerified ? (
+      {user.email !== null && !user.isEmailVerified ? (
         <section className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-400/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
@@ -468,7 +469,8 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                   type="submit"
                   disabled={
                     emailMutation.isPending ||
-                    email.trim().toLowerCase() === user.email.toLowerCase()
+                    email.trim().toLowerCase() ===
+                      (user.email?.toLowerCase() ?? "")
                   }
                   className="inline-flex h-[50px] items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-semibold text-slate-950 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-40"
                 >

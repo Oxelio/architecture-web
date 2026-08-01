@@ -2,7 +2,7 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { UserRepository } from "#repositories/user.repository";
+import type { UserQueryRepository } from "#repositories/user-query.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { GetCurrentAccountErrorCodes } from "./get-current-account.codes.js";
@@ -14,7 +14,7 @@ import type {
 } from "./get-current-account.contracts.js";
 
 export class GetCurrentAccountUseCase implements GetCurrentAccount {
-  constructor(private readonly user: UserRepository) {}
+  constructor(private readonly user: UserQueryRepository) {}
 
   public async execute(
     payload: GetCurrentAccountInput,
@@ -26,16 +26,21 @@ export class GetCurrentAccountUseCase implements GetCurrentAccount {
       return Result.failure(GetCurrentAccountErrorCodes.invalidId);
     }
 
-    const user = await this.user.findById(userIdentifier.value);
+    const user = await this.user.findAccountById(userIdentifier.value.value);
     if (!user) {
       return Result.failure(GetCurrentAccountErrorCodes.notFound);
     }
 
     const data: CurrentAccount = {
-      userId: user.identifier.value,
-      email: user.email.value,
-      isEmailVerified: user.isEmailVerified,
-      role: user.role.value,
+      userId: user.userId,
+      loginIdentifiers: user.identifiers,
+      email:
+        user.identifiers.find((identifier) => identifier.kind === "email")
+          ?.value ?? null,
+      isEmailVerified:
+        user.identifiers.find((identifier) => identifier.kind === "email")
+          ?.verificationStatus === "verified",
+      role: user.role,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };

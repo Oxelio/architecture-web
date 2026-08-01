@@ -6,6 +6,9 @@ describe("createIam", () => {
   it("wires every iam use case", () => {
     const iam = createIam({
       userRepository: {} as never,
+      userQueryRepository: {} as never,
+      loginIdentityRepository: {} as never,
+      passwordAuthenticatorRepository: {} as never,
       sessionRepository: {} as never,
       passwordHasher: {} as never,
       policyProvider: {} as never,

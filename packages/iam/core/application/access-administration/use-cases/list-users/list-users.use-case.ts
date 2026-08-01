@@ -1,6 +1,7 @@
 import { Result } from "@architecture/foundation";
 
 import type { UserRepository } from "#repositories/user.repository";
+import type { UserQueryRepository } from "#repositories/user-query.repository";
 import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 
 import {
@@ -17,7 +18,10 @@ import {
 export class ListUsersUseCase implements ListUsers {
   private readonly authorizer: AdministratorAuthorizer;
 
-  constructor(private readonly users: UserRepository) {
+  constructor(
+    users: UserRepository,
+    private readonly userQuery: UserQueryRepository,
+  ) {
     this.authorizer = new AdministratorAuthorizer(users);
   }
 
@@ -41,7 +45,7 @@ export class ListUsersUseCase implements ListUsers {
     }
 
     const normalizedSearch = input.search?.trim();
-    const result = await this.users.search({
+    const result = await this.userQuery.search({
       page,
       pageSize,
       ...(normalizedSearch ? { search: normalizedSearch } : {}),
@@ -54,11 +58,16 @@ export class ListUsersUseCase implements ListUsers {
 
     return Result.success({
       users: result.users.map((user): AdminUser => ({
-        userId: user.identifier.value,
-        email: user.email.value,
-        role: user.role.value,
-        status: user.status.value,
-        isEmailVerified: user.isEmailVerified,
+        userId: user.userId,
+        loginIdentifiers: user.identifiers,
+        email:
+          user.identifiers.find((identifier) => identifier.kind === "email")
+            ?.value ?? null,
+        role: user.role,
+        status: user.status,
+        isEmailVerified:
+          user.identifiers.find((identifier) => identifier.kind === "email")
+            ?.verificationStatus === "verified",
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       })),

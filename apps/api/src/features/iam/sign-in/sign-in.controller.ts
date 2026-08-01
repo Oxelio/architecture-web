@@ -24,7 +24,7 @@ export function createSignInController(
   return async (request: SignInHTTPRequest, reply: FastifyReply) => {
     const metadata = sessionMetadataFromRequest(request);
     const command: SignInInput = {
-      email: request.body.email,
+      login: request.body.login,
       password: request.body.password,
       client: metadata.client,
       ...(metadata.network ? { network: metadata.network } : {}),

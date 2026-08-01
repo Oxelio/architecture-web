@@ -1,6 +1,7 @@
 import {
   EmailVerificationEntity,
   EmailVerificationTokenHashValueObject,
+  LoginIdentityIdentifierValueObject,
   UserIdentifierValueObject,
 } from "@architecture/iam/domain";
 import { describe, expect, it, vi } from "vitest";
@@ -12,12 +13,14 @@ const userId = {
   value: UserIdentifierValueObject.generate(),
 };
 const token = EmailVerificationTokenHashValueObject.create("a".repeat(64));
+const loginIdentityId = LoginIdentityIdentifierValueObject.generate();
 if (!userId.success || !token.success) {
   throw new Error("invalid fixture");
 }
 const row = {
   token_hash: token.value.value,
   user_id: userId.value.value,
+  login_identity_id: loginIdentityId.value,
   expires_at: new Date(Date.now() + 60_000),
   used: false,
   invalidated: false,
@@ -54,13 +57,14 @@ describe("KyselyEmailVerificationAdapter", () => {
     await adapter.save(
       EmailVerificationEntity.create({
         userId: userId.value,
+        loginIdentityId,
         tokenHash: token.value,
         expiresAt: row.expires_at,
       }),
     );
     expect(db.insertInto).toHaveBeenCalledWith("iam_email_verifications");
     await expect(adapter.consume(token.value, new Date())).resolves.toBe(true);
-    await adapter.invalidatePreviousFor(userId.value);
+    await adapter.invalidatePreviousFor(loginIdentityId);
     expect(db.updateTable).toHaveBeenCalledTimes(2);
   });
 

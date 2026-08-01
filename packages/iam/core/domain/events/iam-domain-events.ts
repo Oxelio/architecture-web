@@ -16,15 +16,15 @@ export class UserRegistered extends DomainEvent<
   }
 }
 
-export class UserEmailChanged extends DomainEvent<
+export class LoginIdentityChanged extends DomainEvent<
   "iam.user-email-changed",
-  { userId: string }
+  { userId: string; kind: string }
 > {
-  constructor(userId: UserIdentifierValueObject) {
+  constructor(userId: UserIdentifierValueObject, kind: string) {
     super({
       type: "iam.user-email-changed",
       aggregateId: userId.value,
-      payload: { userId: userId.value },
+      payload: { userId: userId.value, kind },
     });
   }
 }
@@ -101,15 +101,15 @@ export class UserActivated extends DomainEvent<
   }
 }
 
-export class UserEmailVerified extends DomainEvent<
+export class LoginIdentityVerified extends DomainEvent<
   "iam.user-email-verified",
-  { userId: string }
+  { userId: string; kind: string }
 > {
-  constructor(userId: UserIdentifierValueObject) {
+  constructor(userId: UserIdentifierValueObject, kind: string) {
     super({
       type: "iam.user-email-verified",
       aggregateId: userId.value,
-      payload: { userId: userId.value },
+      payload: { userId: userId.value, kind },
     });
   }
 }

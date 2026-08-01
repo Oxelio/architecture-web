@@ -45,8 +45,11 @@ import { SignInUseCase } from "#authentication/use-cases/sign-in/sign-in.use-cas
 import type { SignOut } from "#authentication/use-cases/sign-out/sign-out.contracts";
 import { SignOutUseCase } from "#authentication/use-cases/sign-out/sign-out.use-case";
 import { EmailVerificationRepository } from "#repositories/email-verification.repository";
+import { LoginIdentityRepository } from "#repositories/login-identity.repository";
+import { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import { SessionRepository } from "#repositories/session.repository";
 import { UserRepository } from "#repositories/user.repository";
+import { UserQueryRepository } from "#repositories/user-query.repository";
 import { EmailSender } from "#services/email-sender.service";
 import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
 import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
@@ -63,6 +66,9 @@ import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 
 export interface IamDependencies {
   userRepository: UserRepository;
+  userQueryRepository: UserQueryRepository;
+  loginIdentityRepository: LoginIdentityRepository;
+  passwordAuthenticatorRepository: PasswordAuthenticatorRepository;
   sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
   policyProvider: IamPolicyProvider;
@@ -128,6 +134,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     changeEmail: new ChangeEmailUseCase(
       dependencies.userRepository,
+      dependencies.loginIdentityRepository,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
       dependencies.unitOfWork,
@@ -135,6 +142,8 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     changePassword: new ChangePasswordUseCase(
       dependencies.userRepository,
+      dependencies.loginIdentityRepository,
+      dependencies.passwordAuthenticatorRepository,
       dependencies.passwordHasher,
       dependencies.sessionRepository,
       passwordPolicy,
@@ -142,12 +151,16 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.unitOfWork,
     ),
     getCurrentAccount: new GetCurrentAccountUseCase(
-      dependencies.userRepository,
+      dependencies.userQueryRepository,
     ),
     getUserAdministrationOverview: new GetUserAdministrationOverviewUseCase(
       dependencies.userRepository,
+      dependencies.userQueryRepository,
     ),
-    listUsers: new ListUsersUseCase(dependencies.userRepository),
+    listUsers: new ListUsersUseCase(
+      dependencies.userRepository,
+      dependencies.userQueryRepository,
+    ),
     listCurrentUserSessions: new ListCurrentUserSessionsUseCase(
       dependencies.userRepository,
       dependencies.sessionRepository,
@@ -161,6 +174,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     evaluatePassword: new EvaluatePasswordUseCase(passwordPolicy),
     resendEmailVerification: new ResendEmailVerificationUseCase(
       dependencies.userRepository,
+      dependencies.loginIdentityRepository,
       dependencies.emailSender,
       dependencies.rateLimiter,
       dependencies.emailVerificationTokenHasher,
@@ -180,6 +194,8 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     signIn: new SignInUseCase(
       dependencies.userRepository,
+      dependencies.loginIdentityRepository,
+      dependencies.passwordAuthenticatorRepository,
       dependencies.passwordHasher,
       dependencies.sessionRepository,
       dependencies.policyProvider,
@@ -188,7 +204,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     signOut: new SignOutUseCase(dependencies.sessionRepository),
     signUp: new SignUpUseCase(
-      dependencies.userRepository,
+      dependencies.loginIdentityRepository,
       dependencies.passwordHasher,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
@@ -202,7 +218,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.unitOfWork,
     ),
     verifyEmail: new VerifyEmailUseCase(
-      dependencies.userRepository,
+      dependencies.loginIdentityRepository,
       dependencies.emailVerificationRepository,
       dependencies.emailVerificationTokenHasher,
       dependencies.unitOfWork,

@@ -59,6 +59,10 @@
     "#transactions/*": {
       "types": "./application/transactions/*.ts",
       "default": "./dist/application/transactions/*.js"
+    },
+    "#testing/*": {
+      "types": "./application/testing/*.ts",
+      "default": "./dist/application/testing/*.js"
     }
   },
   "exports": {

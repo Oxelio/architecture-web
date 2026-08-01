@@ -30,7 +30,10 @@ describe("IAM API client", () => {
     vi.stubGlobal("fetch", fetch);
 
     await expect(
-      signIn({ email: "alice@example.com", password: "correct horse battery" }),
+      signIn({
+        login: { kind: "email", value: "alice@example.com" },
+        password: "correct horse battery",
+      }),
     ).resolves.toBeUndefined();
   });
 
@@ -77,7 +80,7 @@ describe("IAM API client", () => {
 
     await expect(
       signUp({
-        email: "alice@example.com",
+        login: { kind: "email", value: "alice@example.com" },
         password: "correct horse battery",
         passwordConfirmation: "correct horse battery",
       }),

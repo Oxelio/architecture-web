@@ -78,46 +78,46 @@ export class SessionEntity extends AggregateRoot<SessionProperties> {
     return session;
   }
 
-  public static rehydrate(props: SessionProperties) {
+  public static rehydrate(properties: SessionProperties) {
     if (
-      !Number.isSafeInteger(props.userSessionVersion) ||
-      props.userSessionVersion < 1
+      !Number.isSafeInteger(properties.userSessionVersion) ||
+      properties.userSessionVersion < 1
     ) {
       throw new Error("User session version must be a positive integer");
     }
-    return new SessionEntity(props);
+    return new SessionEntity(properties);
   }
 
   public get userId(): UserIdentifierValueObject {
-    return this.props.userId;
+    return this.properties.userId;
   }
 
   public get userSessionVersion(): number {
-    return this.props.userSessionVersion;
+    return this.properties.userSessionVersion;
   }
 
   public get expiresAt(): Date {
-    return this.props.expiresAt;
+    return this.properties.expiresAt;
   }
 
   public get createdAt(): Date {
-    return this.props.createdAt;
+    return this.properties.createdAt;
   }
 
   public get lastActivityAt(): Date {
-    return this.props.lastActivityAt;
+    return this.properties.lastActivityAt;
   }
 
   public get client(): SessionClient | undefined {
-    return this.props.client;
+    return this.properties.client;
   }
 
   public get network(): SessionNetwork | undefined {
-    return this.props.network;
+    return this.properties.network;
   }
 
   public isExpired(): boolean {
-    return this.props.expiresAt.getTime() <= Date.now();
+    return this.properties.expiresAt.getTime() <= Date.now();
   }
 
   public isValid(): boolean {

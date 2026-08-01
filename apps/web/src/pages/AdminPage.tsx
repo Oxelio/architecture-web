@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { AdminSecurityCenter } from "#components/AdminSecurityCenter";
 import { SessionSummary } from "#components/SessionSummary";
 import {
+  accountDisplayIdentifier,
   activateUser,
   type AdminUser,
   assignUserRole,
@@ -227,6 +228,7 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
                 options={[
                   ["active", t("admin.statusValue.active")],
                   ["suspended", t("admin.statusValue.suspended")],
+                  ["pending_deletion", t("admin.statusValue.pending_deletion")],
                 ]}
                 allLabel={t("admin.filter.allStatuses")}
               />
@@ -281,7 +283,7 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
                       </span>
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-white">
-                          {user.email}
+                          {accountDisplayIdentifier(user)}
                           {user.userId === currentUserId ? (
                             <span className="ml-2 text-xs text-sky-400">
                               {t("admin.you")}
@@ -488,7 +490,7 @@ function UserPanel({
             {t("admin.userDetails")}
           </p>
           <h3 className="mt-2 truncate text-2xl font-semibold text-white">
-            {user.email}
+            {accountDisplayIdentifier(user)}
           </h3>
           <p className="mt-1 break-all font-mono text-xs text-slate-500">
             {user.userId}
@@ -531,7 +533,9 @@ function UserPanel({
             {t("admin.role")}
             <select
               value={user.role}
-              disabled={isSelf || isMutating}
+              disabled={
+                isSelf || isMutating || user.status === "pending_deletion"
+              }
               onChange={(event) =>
                 onRoleChange(event.target.value as AdminUser["role"])
               }
@@ -543,7 +547,9 @@ function UserPanel({
           </label>
           <button
             type="button"
-            disabled={isSelf || isMutating}
+            disabled={
+              isSelf || isMutating || user.status === "pending_deletion"
+            }
             onClick={onStatusChange}
             className={`mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-40 ${user.status === "active" ? "bg-rose-500/90 hover:bg-rose-500" : "bg-emerald-500/90 hover:bg-emerald-500"}`}
           >

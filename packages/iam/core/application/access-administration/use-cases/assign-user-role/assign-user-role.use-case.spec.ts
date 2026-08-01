@@ -3,19 +3,11 @@ import { describe, expect, it } from "vitest";
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { UserEntity } from "#entities/user.entity";
 import type { UserRepository } from "#repositories/user.repository";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { AssignUserRoleUseCase } from "./assign-user-role.use-case.js";
 
 class FakeUserRepository implements UserRepository {
-  async search(): Promise<never> {
-    throw new Error("Not used by this fixture");
-  }
-  async getAdministrationOverview(): Promise<never> {
-    throw new Error("Not used by this fixture");
-  }
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {
@@ -25,27 +17,14 @@ class FakeUserRepository implements UserRepository {
   async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
     return this.users.get(id.value) ?? null;
   }
-
-  async findByEmail(): Promise<UserEntity | null> {
-    return null;
-  }
 }
 
 describe("AssignUserRoleUseCase", () => {
   it("assigns the admin role to an existing user", async () => {
-    const email = EmailValueObject.create("user@example.com");
-    const password = PasswordHashValueObject.create("password-hash");
-    if (!email.success || !password.success) {
-      throw new Error("Invalid fixture");
-    }
-
     const users = new FakeUserRepository();
     const administrator = createAdministrator();
     await users.save(administrator);
-    const user = UserEntity.create({
-      email: email.value,
-      password: password.value,
-    });
+    const user = UserEntity.create();
     await users.save(user);
 
     const result = await new AssignUserRoleUseCase(users).execute({

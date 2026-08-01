@@ -2,7 +2,7 @@
 
 import type { EmailVerificationEntity } from "#entities/email-verification.entity";
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
-import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+import type { LoginIdentityIdentifierValueObject } from "#value-objects/login-identity-identifier.value-object";
 
 export abstract class EmailVerificationRepository {
   abstract save(verification: EmailVerificationEntity): Promise<void>;
@@ -17,6 +17,6 @@ export abstract class EmailVerificationRepository {
   ): Promise<boolean>;
 
   abstract invalidatePreviousFor(
-    userId: UserIdentifierValueObject,
+    loginIdentityId: LoginIdentityIdentifierValueObject,
   ): Promise<void>;
 }

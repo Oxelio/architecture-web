@@ -6,8 +6,6 @@ import { createAdministrator } from "#access-administration/administrator.fixtur
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { SuspendUserUseCase } from "./suspend-user.use-case.js";
@@ -15,17 +13,7 @@ import { SuspendUserUseCase } from "./suspend-user.use-case.js";
 /* ---------------- FAKE USER PORT ---------------- */
 
 class FakeUserPort implements UserRepository {
-  async search(): Promise<never> {
-    throw new Error("Not used by this fixture");
-  }
-  async getAdministrationOverview(): Promise<never> {
-    throw new Error("Not used by this fixture");
-  }
   private readonly users = new Map<string, UserEntity>();
-
-  async findByEmail(_email: EmailValueObject): Promise<UserEntity | null> {
-    return null;
-  }
 
   async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
     return this.users.get(id.value) ?? null;
@@ -117,17 +105,7 @@ describe("SuspendUserUseCase", () => {
   /* -------------------------------------------------- */
 
   it("should suspend user when user exists", async () => {
-    const email = EmailValueObject.create("test@test.com");
-    const password = PasswordHashValueObject.create("hashed-password");
-
-    if (!email.success || !password.success) {
-      throw new Error("Invalid email or password");
-    }
-
-    const user = UserEntity.create({
-      email: email.value,
-      password: password.value,
-    });
+    const user = UserEntity.create();
 
     await userPort.save(user);
 
@@ -153,17 +131,7 @@ describe("SuspendUserUseCase", () => {
   /* -------------------------------------------------- */
 
   it("should not fail when user is already suspended", async () => {
-    const email = EmailValueObject.create("test@test.com");
-    const password = PasswordHashValueObject.create("hashed-password");
-
-    if (!email.success || !password.success) {
-      throw new Error("Invalid email or password");
-    }
-
-    const user = UserEntity.create({
-      email: email.value,
-      password: password.value,
-    });
+    const user = UserEntity.create();
 
     user.suspend();
 
@@ -182,17 +150,7 @@ describe("SuspendUserUseCase", () => {
   /* -------------------------------------------------- */
 
   it("should suspend active user", async () => {
-    const email = EmailValueObject.create("test@test.com");
-    const password = PasswordHashValueObject.create("hashed-password");
-
-    if (!email.success || !password.success) {
-      throw new Error("Invalid email or password");
-    }
-
-    const user = UserEntity.create({
-      email: email.value,
-      password: password.value,
-    });
+    const user = UserEntity.create();
 
     user.activate();
 
@@ -215,17 +173,7 @@ describe("SuspendUserUseCase", () => {
   /* -------------------------------------------------- */
 
   it("should call save on user port", async () => {
-    const email = EmailValueObject.create("test@test.com");
-    const password = PasswordHashValueObject.create("hashed-password");
-
-    if (!email.success || !password.success) {
-      throw new Error("Invalid email or password");
-    }
-
-    const user = UserEntity.create({
-      email: email.value,
-      password: password.value,
-    });
+    const user = UserEntity.create();
 
     await userPort.save(user);
 

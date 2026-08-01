@@ -2,19 +2,25 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { PasswordValidationError } from "#services/password-policy-validator.service";
-import type { EmailError } from "#value-objects/email.value-object";
+import type {
+  LoginIdentifierError,
+  LoginIdentifierKind,
+} from "#value-objects/login-identifier.value-object";
 import type { PlainPasswordError } from "#value-objects/password-plain.value-object";
 
 import type { SignUpErrorCodes } from "./sign-up.codes.js";
 
 export type SignUpError =
-  | EmailError
+  | LoginIdentifierError
   | PlainPasswordError
   | PasswordValidationError
   | ValueOf<typeof SignUpErrorCodes>;
 
 export interface SignUpInput {
-  email: string;
+  login: {
+    kind: LoginIdentifierKind;
+    value: string;
+  };
   password: string;
   passwordConfirmation: string;
 }

@@ -83,7 +83,7 @@ const resources = {
           "Explore comment un front React bien structuré peut exploiter ton API d’authentification, tout en gardant une UI élégante et accessible.",
         statusLabel: "Statut",
         statusChecking: "Vérification en cours",
-        statusConnected: "Connecté en tant que {{email}}",
+        statusConnected: "Connecté en tant que {{identifier}}",
         statusDisconnected: "Non connecté",
         apiLabel: "Clé API",
         apiHelp:
@@ -256,6 +256,7 @@ const resources = {
         statusValue: {
           active: "Actif",
           suspended: "Suspendu",
+          pending_deletion: "Suppression programmée",
         },
         you: "vous",
         empty: "Aucun utilisateur ne correspond à cette recherche.",
@@ -359,7 +360,7 @@ const resources = {
           "Explore how a well-structured React front end can leverage your authentication API while keeping the UI elegant and accessible.",
         statusLabel: "Status",
         statusChecking: "Checking session",
-        statusConnected: "Connected as {{email}}",
+        statusConnected: "Connected as {{identifier}}",
         statusDisconnected: "Not connected",
         apiLabel: "API key",
         apiHelp: "Use the GET /iam/me API to retrieve the user profile.",
@@ -527,6 +528,7 @@ const resources = {
         statusValue: {
           active: "Active",
           suspended: "Suspended",
+          pending_deletion: "Pending deletion",
         },
         you: "you",
         empty: "No users match this search.",

@@ -3,13 +3,17 @@ import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { SessionClient, SessionNetwork } from "#entities/session.entity";
 import type { SecondFactorChallenge } from "#services/second-factor-gate.service";
+import type { LoginIdentifierKind } from "#value-objects/login-identifier.value-object";
 
 import type { SignInErrorCodes } from "./sign-in.codes.js";
 
 export type SignInError = ValueOf<typeof SignInErrorCodes>;
 
 export interface SignInInput {
-  email: string;
+  login: {
+    kind: LoginIdentifierKind;
+    value: string;
+  };
   password: string;
   client?: SessionClient;
   network?: SessionNetwork;

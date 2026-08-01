@@ -13,6 +13,8 @@ import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
 import {
   KyselyEmailVerificationAdapter,
   KyselyIamUnitOfWorkAdapter,
+  KyselyLoginIdentityAdapter,
+  KyselyPasswordAuthenticatorAdapter,
   KyselyUserAdapter,
 } from "@architecture/iam-persistence-kysely";
 import {
@@ -49,6 +51,11 @@ function buildIamDependencies(
       new Sha256EmailVerificationTokenHasherAdapter(),
 
     userRepository: new KyselyUserAdapter(db as never),
+    userQueryRepository: new KyselyUserAdapter(db as never),
+    loginIdentityRepository: new KyselyLoginIdentityAdapter(db as never),
+    passwordAuthenticatorRepository: new KyselyPasswordAuthenticatorAdapter(
+      db as never,
+    ),
 
     emailVerificationRepository: new KyselyEmailVerificationAdapter(
       db as never,

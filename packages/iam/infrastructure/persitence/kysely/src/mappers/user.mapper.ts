@@ -1,8 +1,6 @@
 // @file infrastructure/iam/persitence/kysely/src/mappers/user.mapper.ts
 
 import {
-  EmailValueObject,
-  PasswordHashValueObject,
   StatusValueObject,
   UserEntity,
   UserIdentifierValueObject,
@@ -16,20 +14,6 @@ type UserRow = IamDatabase["iam_users"];
 
 export const UserMapper = {
   toDomain(row: UserRow): UserEntity {
-    const email = EmailValueObject.create(row.email);
-    if (!email.success) {
-      throw new InvalidPersistenceDataError("User", "email", row.email);
-    }
-
-    const password = PasswordHashValueObject.create(row.password_hash);
-    if (!password.success) {
-      throw new InvalidPersistenceDataError(
-        "User",
-        "password_hash",
-        row.password_hash,
-      );
-    }
-
     const identifier = UserIdentifierValueObject.create(row.id);
     if (!identifier.success) {
       throw new InvalidPersistenceDataError("User", "id", row.id);
@@ -55,11 +39,8 @@ export const UserMapper = {
 
     return UserEntity.rehydrate({
       identifier: identifier.value,
-      email: email.value,
-      password: password.value,
       role: role.value,
       status: status.value,
-      isEmailVerified: row.is_email_verified,
       sessionVersion: row.session_version,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
@@ -69,11 +50,8 @@ export const UserMapper = {
   toPersistence(user: UserEntity): UserRow {
     return {
       id: user.identifier.value,
-      email: user.email.value,
-      password_hash: user.password.value,
       role: user.role.value,
       status: user.status.value,
-      is_email_verified: user.isEmailVerified,
       session_version: user.sessionVersion,
       created_at: user.createdAt,
       updated_at: user.updatedAt,

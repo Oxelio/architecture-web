@@ -26,12 +26,15 @@ d’e-mail ou un adaptateur.
 
 Exemples :
 
-- `UserEntity` change l’e-mail, le mot de passe, le rôle et le statut ;
+- `UserEntity` change le rôle, le statut et la version de session du compte ;
+- `LoginIdentityEntity` porte un pseudonyme ou un e-mail normalisé ;
+- `PasswordAuthenticatorEntity` porte le dérivé de mot de passe ;
 - `SessionEntity` définit sa durée de vie et expose sa validité ;
 - `EmailValueObject.create` retourne un `Result` de validation.
 
-`UserEntity`, `SessionEntity` et `EmailVerificationEntity` sont les trois
-racines d’agrégat actuelles. Un repository **DOIT** charger ou sauvegarder une
+`UserEntity`, `LoginIdentityEntity`, `PasswordAuthenticatorEntity`,
+`SessionEntity` et `EmailVerificationEntity` sont les racines d’agrégat IAM
+actuelles. Un repository **DOIT** charger ou sauvegarder une
 racine, jamais permettre la modification directe d’un objet interne à
 l’agrégat. Les références entre agrégats **DOIVENT** utiliser leurs
 identifiants.
@@ -52,20 +55,22 @@ Argon2, Nodemailer, Postmark ou Fastify.
 
 Les repositories et services abstraits sont des ports secondaires :
 
-- repositories pour utilisateurs, vérifications et sessions ;
-- services pour hachage, e-mail et limitation de débit.
+- repositories de commande pour utilisateurs, identités de connexion,
+  authentificateurs, vérifications et sessions ;
+- `UserQueryRepository` pour les projections réunissant plusieurs racines ;
+- services pour hachage, e-mail et limitation de débit ;
 - `IamUnitOfWork` pour une transaction couvrant les repositories PostgreSQL
-  d’utilisateurs et de vérifications.
+  d’utilisateurs, identités, authentificateurs et vérifications.
 
 `SecondFactorGate` est un port particulier appelé par `SignInUseCase`. Son
 implémentation composée est `SecurityService`, située dans l’API plutôt que
 dans un package d’infrastructure.
 
-Les opérations cohérentes utilisant la même implémentation sont regroupées :
-`UserRepository` porte les écritures, recherches de compte, consultation
-administrative bornée et indicateurs ; `SessionRepository` porte le cycle de
-vie et la consultation des sessions. Un nom de port ne constitue pas un
-mécanisme d’autorisation : celle-ci reste dans les cas d’utilisation.
+`UserRepository` porte uniquement les écritures de `UserEntity` et sa recherche
+par identifiant ; `UserQueryRepository` porte les lectures de compte et
+d’administration ; `SessionRepository` porte le cycle de vie et la consultation
+des sessions. Un nom de port ne constitue pas un mécanisme d’autorisation :
+celle-ci reste dans les cas d’utilisation.
 
 `createIam` est la factory applicative. Elle reçoit
 `IamDependencies` et retourne l’ensemble `IamApplication` des cas

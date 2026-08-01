@@ -16,10 +16,7 @@ describe("ListCurrentUserSessionsUseCase", () => {
     if (!email.success || !password.success) {
       throw new Error("Invalid fixture");
     }
-    const actor = UserEntity.create({
-      email: email.value,
-      password: password.value,
-    });
+    const actor = UserEntity.create();
     const session = SessionEntity.createForUser({
       userId: actor.identifier,
       userSessionVersion: actor.sessionVersion,

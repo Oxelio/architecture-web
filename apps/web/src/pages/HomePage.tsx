@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
-import type { CurrentUser } from "#services/api";
+import { accountDisplayIdentifier, type CurrentUser } from "#services/api";
 
 interface HomePageProps {
   user: CurrentUser | null | undefined;
@@ -27,7 +27,9 @@ export function HomePage({ user, loading }: Readonly<HomePageProps>) {
   if (loading) {
     statusText = t("home.statusChecking");
   } else if (user) {
-    statusText = t("home.statusConnected", { email: user.email });
+    statusText = t("home.statusConnected", {
+      identifier: accountDisplayIdentifier(user),
+    });
   } else {
     statusText = t("home.statusDisconnected");
   }

@@ -6,8 +6,6 @@ import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -19,12 +17,6 @@ import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
 /* -------------------------------------------------------------------------- */
 
 class FakeUserPort implements UserRepository {
-  async search(): Promise<never> {
-    throw new Error("Not used by this fixture");
-  }
-  async getAdministrationOverview(): Promise<never> {
-    throw new Error("Not used by this fixture");
-  }
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {
@@ -33,10 +25,6 @@ class FakeUserPort implements UserRepository {
 
   async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
     return this.users.get(id.value) ?? null;
-  }
-
-  async findByEmail(): Promise<UserEntity | null> {
-    return null;
   }
 }
 
@@ -184,22 +172,13 @@ describe("ResolveSessionUseCase", () => {
   });
 
   it("revokes a session created before the latest password change", async () => {
-    const email = EmailValueObject.create("versioned@example.com");
-    const firstPassword = PasswordHashValueObject.create("first-hash");
-    const secondPassword = PasswordHashValueObject.create("second-hash");
-    if (!email.success || !firstPassword.success || !secondPassword.success) {
-      throw new Error("Invalid fixture values");
-    }
-    const user = UserEntity.create({
-      email: email.value,
-      password: firstPassword.value,
-    });
+    const user = UserEntity.create();
     const session = SessionEntity.createForUser({
       userId: user.identifier,
       userSessionVersion: user.sessionVersion,
       expiresAt: new Date(Date.now() + 60_000),
     });
-    user.changePassword(secondPassword.value);
+    user.invalidateSessions();
     await userPort.save(user);
     await sessionPort.save(session);
 
@@ -229,22 +208,9 @@ describe("ResolveSessionUseCase", () => {
 
     await sessionPort.save(session);
 
-    const email = EmailValueObject.create("john@doe.com");
-    if (!email.success) {
-      throw new Error("Invalid email");
-    }
-
-    const password = PasswordHashValueObject.create("hashed-password");
-    if (!password.success) {
-      throw new Error("Invalid password");
-    }
-
     const user = UserEntity.rehydrate({
       identifier: userId,
-      email: email.value,
-      password: password.value,
       status: StatusValueObject.active(),
-      isEmailVerified: true,
       sessionVersion: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -272,22 +238,9 @@ describe("ResolveSessionUseCase", () => {
   it("should resolve a valid session", async () => {
     const userId = UserIdentifierValueObject.generate();
 
-    const email = EmailValueObject.create("john@doe.com");
-    if (!email.success) {
-      throw new Error("Invalid email");
-    }
-
-    const password = PasswordHashValueObject.create("hashed-password");
-    if (!password.success) {
-      throw new Error("Invalid password");
-    }
-
     const user = UserEntity.rehydrate({
       identifier: userId,
-      email: email.value,
-      password: password.value,
       status: StatusValueObject.active(),
-      isEmailVerified: true,
       sessionVersion: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -321,18 +274,10 @@ describe("ResolveSessionUseCase", () => {
 
   it("should update stale activity", async () => {
     const userId = UserIdentifierValueObject.generate();
-    const email = EmailValueObject.create("activity@session.test");
-    const password = PasswordHashValueObject.create("hashed-password");
-    if (!email.success || !password.success) {
-      throw new Error("Invalid fixture");
-    }
     await userPort.save(
       UserEntity.rehydrate({
         identifier: userId,
-        email: email.value,
-        password: password.value,
         status: StatusValueObject.active(),
-        isEmailVerified: true,
         sessionVersion: 1,
         createdAt: new Date(),
         updatedAt: new Date(),

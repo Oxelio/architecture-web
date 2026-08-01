@@ -9,7 +9,12 @@ export const USER_LIST_MAX_PAGE_SIZE = 100;
 
 export interface AdminUser {
   readonly userId: string;
-  readonly email: string;
+  readonly loginIdentifiers: readonly {
+    readonly kind: "username" | "email";
+    readonly value: string;
+    readonly verificationStatus: "not_required" | "pending" | "verified";
+  }[];
+  readonly email: string | null;
   readonly role: UserRole;
   readonly status: "active" | "suspended" | "pending_deletion";
   readonly isEmailVerified: boolean;

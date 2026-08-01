@@ -4,6 +4,8 @@ import type { Insertable, Selectable } from "kysely";
 
 export interface IamDatabase {
   iam_users: IamUserTable;
+  iam_login_identities: IamLoginIdentityTable;
+  iam_password_authenticators: IamPasswordAuthenticatorTable;
   iam_email_verifications: IamEmailVerificationTable;
   iam_password_recoveries: IamPasswordRecoveryTable;
   iam_mfa_settings: IamMfaSettingTable;
@@ -16,11 +18,8 @@ export interface IamDatabase {
 
 export interface IamUserTable {
   id: string;
-  email: string;
-  password_hash: string;
   role: string;
   status: string;
-  is_email_verified: boolean;
   session_version: number;
   created_at: Date;
   updated_at: Date;
@@ -29,9 +28,36 @@ export interface IamUserTable {
 export type IamUserRow = Selectable<IamUserTable>;
 export type NewIamUserRow = Insertable<IamUserTable>;
 
+export interface IamLoginIdentityTable {
+  id: string;
+  user_id: string;
+  kind: string;
+  normalized_value: string;
+  verification_status: string;
+  verified_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export type IamLoginIdentityRow = Selectable<IamLoginIdentityTable>;
+
+export interface IamPasswordAuthenticatorTable {
+  id: string;
+  user_id: string;
+  password_hash: string;
+  created_at: Date;
+  updated_at: Date;
+  last_used_at: Date | null;
+  revoked_at: Date | null;
+}
+
+export type IamPasswordAuthenticatorRow =
+  Selectable<IamPasswordAuthenticatorTable>;
+
 export interface IamEmailVerificationTable {
   token_hash: string;
   user_id: string;
+  login_identity_id: string;
   expires_at: Date;
   used: boolean;
   invalidated: boolean;

@@ -643,6 +643,10 @@ function categoryLabel(category: string, language: string): string {
 function fieldLabel(key: string, language: string): string {
   const labels: Record<string, [string, string]> = {
     "accounts.publicRegistration": ["Inscription publique", "Public sign-up"],
+    "accounts.allowedLoginIdentifiers": [
+      "Identifiants de connexion autorisés",
+      "Allowed login identifiers",
+    ],
     "accounts.emailVerification": [
       "Vérification de l’adresse email",
       "Email verification",
@@ -742,6 +746,8 @@ function fieldDescription(key: string, language: string): string {
 
 function choiceLabel(choice: string, language: string): string {
   const values: Record<string, [string, string]> = {
+    username: ["Pseudonyme", "Username"],
+    email: ["Adresse email", "Email address"],
     user: ["Utilisateurs", "Users"],
     admin: ["Administrateurs", "Administrators"],
     standard: ["Standard", "Standard"],

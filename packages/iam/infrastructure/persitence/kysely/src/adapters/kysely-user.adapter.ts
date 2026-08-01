@@ -1,23 +1,22 @@
 // @file infrastructure/iam/persitence/kysely/src/adapters/kysely-user.adapter.ts
 
 import type {
+  UserAccountView,
+  UserQueryRepository,
   UserRepository,
   UserSearchCriteria,
   UserSearchResult,
 } from "@architecture/iam/application";
 import { toIamIntegrationEvent as mapDomainEvent } from "@architecture/iam/application";
 import type { UserEntity } from "@architecture/iam/domain";
-import {
-  EmailValueObject,
-  UserIdentifierValueObject,
-} from "@architecture/iam/domain";
+import { UserIdentifierValueObject } from "@architecture/iam/domain";
 import type { OutboxWriter } from "@architecture/messaging/application";
 import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import { UserMapper } from "#mappers/user.mapper";
 import type { IamDatabase } from "#persistence/schema";
 
-export class KyselyUserAdapter implements UserRepository {
+export class KyselyUserAdapter implements UserRepository, UserQueryRepository {
   constructor(
     private readonly db: Kysely<IamDatabase>,
     private readonly outbox?: OutboxWriter,
@@ -31,11 +30,8 @@ export class KyselyUserAdapter implements UserRepository {
       .values(row)
       .onConflict((oc) =>
         oc.column("id").doUpdateSet({
-          email: row.email,
-          password_hash: row.password_hash,
           role: row.role,
           status: row.status,
-          is_email_verified: row.is_email_verified,
           session_version: row.session_version,
           updated_at: row.updated_at,
         }),
@@ -45,20 +41,6 @@ export class KyselyUserAdapter implements UserRepository {
     if (this.outbox) {
       await this.outbox.append(user.pullDomainEvents().map(mapDomainEvent));
     }
-  }
-
-  async findByEmail(email: EmailValueObject): Promise<UserEntity | null> {
-    const user = await this.db
-      .selectFrom("iam_users")
-      .selectAll()
-      .where("email", "=", email.value)
-      .executeTakeFirst();
-
-    if (!user) {
-      return null;
-    }
-
-    return UserMapper.toDomain(user);
   }
 
   async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
@@ -75,6 +57,24 @@ export class KyselyUserAdapter implements UserRepository {
     return UserMapper.toDomain(user);
   }
 
+  async findAccountById(userId: string): Promise<UserAccountView | null> {
+    const user = await this.db
+      .selectFrom("iam_users")
+      .selectAll()
+      .where("id", "=", userId)
+      .executeTakeFirst();
+    if (!user) {
+      return null;
+    }
+    const identifiers = await this.db
+      .selectFrom("iam_login_identities")
+      .select(["kind", "normalized_value", "verification_status"])
+      .where("user_id", "=", userId)
+      .orderBy("created_at", "asc")
+      .execute();
+    return this.toAccountView(user, identifiers);
+  }
+
   async search(criteria: UserSearchCriteria): Promise<UserSearchResult> {
     const applyCriteria = (
       query: SelectQueryBuilder<IamDatabase, "iam_users", object>,
@@ -82,8 +82,15 @@ export class KyselyUserAdapter implements UserRepository {
       let filtered = query;
       if (criteria.search !== undefined) {
         const pattern = `%${criteria.search}%`;
-        filtered = filtered.where(({ eb, or }) =>
-          or([eb("email", "ilike", pattern), eb("id", "like", pattern)]),
+        filtered = filtered.where(
+          sql<boolean>`(
+            iam_users.id::text ilike ${pattern}
+            or exists (
+              select 1 from iam_login_identities identity
+              where identity.user_id = iam_users.id
+              and identity.normalized_value ilike ${pattern}
+            )
+          )`,
         );
       }
       if (criteria.role !== undefined) {
@@ -94,9 +101,19 @@ export class KyselyUserAdapter implements UserRepository {
       }
       if (criteria.isEmailVerified !== undefined) {
         filtered = filtered.where(
-          "is_email_verified",
-          "=",
-          criteria.isEmailVerified,
+          criteria.isEmailVerified
+            ? sql<boolean>`exists (
+                select 1 from iam_login_identities identity
+                where identity.user_id = iam_users.id
+                and identity.kind = 'email'
+                and identity.verification_status = 'verified'
+              )`
+            : sql<boolean>`not exists (
+                select 1 from iam_login_identities identity
+                where identity.user_id = iam_users.id
+                and identity.kind = 'email'
+                and identity.verification_status = 'verified'
+              )`,
         );
       }
       return filtered;
@@ -113,8 +130,29 @@ export class KyselyUserAdapter implements UserRepository {
       .offset((criteria.page - 1) * criteria.pageSize)
       .execute();
 
+    const userIds = users.map((user) => user.id);
+    const identifiers =
+      userIds.length === 0
+        ? []
+        : await this.db
+            .selectFrom("iam_login_identities")
+            .select([
+              "user_id",
+              "kind",
+              "normalized_value",
+              "verification_status",
+            ])
+            .where("user_id", "in", userIds)
+            .orderBy("created_at", "asc")
+            .execute();
+
     return {
-      users: users.map(UserMapper.toDomain),
+      users: users.map((user) =>
+        this.toAccountView(
+          user,
+          identifiers.filter((identity) => identity.user_id === user.id),
+        ),
+      ),
       total: Number(countRow.total),
     };
   }
@@ -139,6 +177,29 @@ export class KyselyUserAdapter implements UserRepository {
       active: Number(row.active),
       suspended: Number(row.suspended),
       administrators: Number(row.administrators),
+    };
+  }
+
+  private toAccountView(
+    user: IamDatabase["iam_users"],
+    identifiers: readonly {
+      readonly kind: string;
+      readonly normalized_value: string;
+      readonly verification_status: string;
+    }[],
+  ): UserAccountView {
+    return {
+      userId: user.id,
+      role: user.role as UserAccountView["role"],
+      status: user.status as UserAccountView["status"],
+      identifiers: identifiers.map((identity) => ({
+        kind: identity.kind as "username" | "email",
+        value: identity.normalized_value,
+        verificationStatus: identity.verification_status as
+          "not_required" | "pending" | "verified",
+      })),
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
     };
   }
 }

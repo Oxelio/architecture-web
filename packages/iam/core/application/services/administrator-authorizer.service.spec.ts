@@ -2,20 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { UserEntity } from "#entities/user.entity";
 import type { UserRepository } from "#repositories/user.repository";
-import { EmailValueObject } from "#value-objects/email.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 import { AdministratorAuthorizer } from "./administrator-authorizer.service.js";
 
 function createUser(): UserEntity {
-  const email = EmailValueObject.create("actor@example.com");
-  const password = PasswordHashValueObject.create("actor-hash");
-  if (!email.success || !password.success) {
-    throw new Error("Invalid fixture");
-  }
-  return UserEntity.create({ email: email.value, password: password.value });
+  return UserEntity.create();
 }
 
 function repositoryFor(user: UserEntity | null): UserRepository {

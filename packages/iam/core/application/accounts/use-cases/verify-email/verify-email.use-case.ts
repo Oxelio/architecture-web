@@ -3,7 +3,7 @@
 import { Result } from "@architecture/foundation";
 
 import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
@@ -16,7 +16,7 @@ import type {
 
 export class VerifyEmailUseCase {
   constructor(
-    private readonly userPort: UserRepository,
+    private readonly loginIdentities: LoginIdentityRepository,
     private readonly emailVerification: EmailVerificationRepository,
     private readonly tokenHasher: EmailVerificationTokenHasher,
     private readonly unitOfWork: IamUnitOfWork,
@@ -39,19 +39,21 @@ export class VerifyEmailUseCase {
       return Result.failure(VerifyEmailErrorCodes.tokenExpired);
     }
 
-    const user = await this.userPort.findById(verification.userId);
-    if (!user) {
+    const identity = await this.loginIdentities.findById(
+      verification.loginIdentityId,
+    );
+    if (!identity) {
       return Result.failure(VerifyEmailErrorCodes.userNotFound);
     }
 
-    user.verifyEmail();
+    identity.verify();
     const consumed = await this.unitOfWork.execute(
-      async ({ emailVerifications, users }) => {
+      async ({ emailVerifications, loginIdentities }) => {
         const tokenConsumed = await emailVerifications.consume(tokenHash, now);
         if (!tokenConsumed) {
           return false;
         }
-        await users.save(user);
+        await loginIdentities.save(identity);
         return true;
       },
     );

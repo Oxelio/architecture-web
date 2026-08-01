@@ -13,11 +13,18 @@ export interface GetCurrentAccountInput {
 
 export interface CurrentAccount {
   userId: string;
-  email: string;
+  loginIdentifiers: readonly AccountLoginIdentifier[];
+  email: string | null;
   isEmailVerified: boolean;
   role: "user" | "admin";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AccountLoginIdentifier {
+  readonly kind: "username" | "email";
+  readonly value: string;
+  readonly verificationStatus: "not_required" | "pending" | "verified";
 }
 
 export type GetCurrentAccountOutput = Result<

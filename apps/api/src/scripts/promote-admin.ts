@@ -20,7 +20,13 @@ try {
   const result = await database
     .updateTable("iam_users")
     .set({ role: "admin", updated_at: new Date() })
-    .where("email", "=", email.value.value)
+    .where("id", "in", (query) =>
+      query
+        .selectFrom("iam_login_identities")
+        .select("user_id")
+        .where("kind", "=", "email")
+        .where("normalized_value", "=", email.value.value),
+    )
     .executeTakeFirst();
 
   if (result.numUpdatedRows === 0n) {

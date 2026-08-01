@@ -21,11 +21,13 @@ read, deletion sequence, and Redis write.
 
 Foundation defines `AggregateRoot` as a stateless specialization of `Entity`.
 IAM declares `UserEntity`, `SessionEntity`, and `EmailVerificationEntity` as
-distinct aggregate roots. They reference one another by identifier only.
+distinct aggregate roots. [ADR-0006](0006-iam-account-identities-and-authenticators.md)
+adds `LoginIdentityEntity` and `PasswordAuthenticatorEntity` to these
+boundaries. They reference one another by identifier only.
 
-`IamUnitOfWork` wraps PostgreSQL commands that write user and verification
-aggregates in one Kysely transaction. Repositories received by its callback are
-bound to that transaction.
+`IamUnitOfWork` wraps PostgreSQL commands that write user, identity,
+authenticator, and verification aggregates in one Kysely transaction.
+Repositories received by its callback are bound to that transaction.
 
 `RedisSessionAdapter.saveEnforcingMaximum` saves a session and enforces the
 per-user limit in one atomic Redis script. A session version held by the user

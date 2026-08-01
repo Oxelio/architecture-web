@@ -22,10 +22,13 @@ Redis séparées.
 
 Foundation définit `AggregateRoot` comme spécialisation sans état d’`Entity`.
 IAM déclare `UserEntity`, `SessionEntity` et `EmailVerificationEntity` comme
-racines d’agrégat distinctes. Elles se référencent uniquement par identifiant.
+racines d’agrégat distinctes. L’[ADR-0006](0006-iam-account-identities-and-authenticators.md)
+ajoute `LoginIdentityEntity` et `PasswordAuthenticatorEntity` à ces frontières.
+Elles se référencent uniquement par identifiant.
 
 `IamUnitOfWork` encadre dans une transaction Kysely les commandes PostgreSQL
-qui écrivent les agrégats utilisateur et vérification. Les repositories reçus
+qui écrivent les agrégats utilisateur, identité, authentificateur et
+vérification. Les repositories reçus
 dans son callback sont liés à la transaction.
 
 `RedisSessionAdapter.saveEnforcingMaximum` sauvegarde une session et applique

@@ -5,12 +5,23 @@ import { KyselyIamNotificationRecipientDirectoryAdapter } from "./kysely-iam-not
 describe("KyselyIamNotificationRecipientDirectoryAdapter", () => {
   it("maps an IAM user without exposing IAM domain internals", async () => {
     const query = {
+      leftJoin: vi.fn(),
       select: vi.fn(),
       where: vi.fn(),
       executeTakeFirst: vi
         .fn()
         .mockResolvedValue({ id: "user-1", email: "user@example.test" }),
     };
+    query.leftJoin.mockImplementation((_table, callback) => {
+      const join = {
+        onRef: vi.fn(),
+        on: vi.fn(),
+      };
+      join.onRef.mockReturnValue(join);
+      join.on.mockReturnValue(join);
+      callback(join);
+      return query;
+    });
     query.select.mockReturnValue(query);
     query.where.mockReturnValue(query);
     const db = { selectFrom: vi.fn().mockReturnValue(query) };

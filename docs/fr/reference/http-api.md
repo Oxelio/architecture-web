@@ -100,14 +100,14 @@ n’est émis avant la réussite de `POST /mfa/challenge/verify`.
 
 ### Consultation administrative
 
-| Paramètre       | Valeurs                                  | Défaut | Règle                    |
-| --------------- | ---------------------------------------- | ------ | ------------------------ |
-| `search`        | chaîne, 200 caractères au maximum        | absent | e-mail ou identifiant    |
-| `role`          | `user`, `admin`                          | absent | égalité                  |
-| `status`        | `active`, `suspended`                    | absent | égalité                  |
-| `emailVerified` | booléen                                  | absent | égalité                  |
-| `page`          | entier strictement positif               | `1`    | page vide autorisée      |
-| `pageSize`      | entier compris entre `1` et `100` inclus | `25`   | aucune valeur supérieure |
+| Paramètre       | Valeurs                                  | Défaut | Règle                                 |
+| --------------- | ---------------------------------------- | ------ | ------------------------------------- |
+| `search`        | chaîne, 200 caractères au maximum        | absent | identifiant de compte ou de connexion |
+| `role`          | `user`, `admin`                          | absent | égalité                               |
+| `status`        | `active`, `suspended`                    | absent | égalité                               |
+| `emailVerified` | booléen                                  | absent | égalité                               |
+| `page`          | entier strictement positif               | `1`    | page vide autorisée                   |
+| `pageSize`      | entier compris entre `1` et `100` inclus | `25`   | aucune valeur supérieure              |
 
 Les critères présents se combinent avec `ET`. Le total de
 `meta.pagination.total` est calculé après application de ces critères.
@@ -132,7 +132,11 @@ Un compte conserve au maximum 10 sessions actives. Une nouvelle connexion
 au-delà de cette borne révoque d’abord la session active la plus ancienne ; les
 listes de sessions restent ainsi bornées sans pagination.
 
-`POST /signup` exige `email`, `password` et `passwordConfirmation`.
+`POST /signup` exige `login: { kind: "username" | "email", value: string }`,
+`password` et `passwordConfirmation`. `POST /signin` utilise le même objet
+`login` et `password`. Les types autorisés viennent de
+`GET /capabilities` et de la politique publiée ; un e-mail n’est pas
+obligatoire pour un compte pseudonyme.
 `PATCH /me/password` exige `currentPassword`, `password` et
 `passwordConfirmation`. Les confirmations sont comparées exactement puis
 abandonnées ; elles ne sont jamais transmises à la persistance.

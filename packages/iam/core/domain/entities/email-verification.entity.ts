@@ -1,6 +1,7 @@
 import { AggregateRoot, Identifier } from "@architecture/foundation";
 
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
+import type { LoginIdentityIdentifierValueObject } from "#value-objects/login-identity-identifier.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 class EmailVerificationIdentifier extends Identifier {
@@ -12,6 +13,7 @@ class EmailVerificationIdentifier extends Identifier {
 interface EmailVerificationProperties {
   readonly identifier: Identifier;
   readonly userId: UserIdentifierValueObject;
+  readonly loginIdentityId: LoginIdentityIdentifierValueObject;
   readonly tokenHash: EmailVerificationTokenHashValueObject;
   readonly expiresAt: Date;
   used: boolean;
@@ -20,6 +22,7 @@ interface EmailVerificationProperties {
 
 interface CreateEmailVerificationProperties {
   readonly userId: UserIdentifierValueObject;
+  readonly loginIdentityId: LoginIdentityIdentifierValueObject;
   readonly tokenHash: EmailVerificationTokenHashValueObject;
   readonly expiresAt: Date;
 }
@@ -30,6 +33,7 @@ export class EmailVerificationEntity extends AggregateRoot<EmailVerificationProp
   ): EmailVerificationEntity {
     return new EmailVerificationEntity({
       userId: properties.userId,
+      loginIdentityId: properties.loginIdentityId,
       identifier: EmailVerificationIdentifier.fromTokenHash(
         properties.tokenHash.value,
       ),
@@ -52,27 +56,31 @@ export class EmailVerificationEntity extends AggregateRoot<EmailVerificationProp
   }
 
   public get userId(): UserIdentifierValueObject {
-    return this.props.userId;
+    return this.properties.userId;
   }
 
   public get tokenHash(): EmailVerificationTokenHashValueObject {
-    return this.props.tokenHash;
+    return this.properties.tokenHash;
+  }
+
+  public get loginIdentityId(): LoginIdentityIdentifierValueObject {
+    return this.properties.loginIdentityId;
   }
 
   public get expiresAt(): Date {
-    return this.props.expiresAt;
+    return this.properties.expiresAt;
   }
 
   public get isUsed(): boolean {
-    return this.props.used;
+    return this.properties.used;
   }
 
   public get isInvalidated(): boolean {
-    return this.props.invalidated;
+    return this.properties.invalidated;
   }
 
   public isExpiredAt(now: Date): boolean {
-    return this.props.expiresAt.getTime() < now.getTime();
+    return this.properties.expiresAt.getTime() < now.getTime();
   }
 
   public isUsableAt(now: Date): boolean {
@@ -83,13 +91,13 @@ export class EmailVerificationEntity extends AggregateRoot<EmailVerificationProp
     if (this.isUsed) {
       return;
     }
-    this.props.used = true;
+    this.properties.used = true;
   }
 
   public invalidate(): void {
     if (this.isInvalidated) {
       return;
     }
-    this.props.invalidated = true;
+    this.properties.invalidated = true;
   }
 }

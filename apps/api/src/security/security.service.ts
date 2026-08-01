@@ -152,6 +152,14 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
     );
   }
 
+  async getAccountIdentityPolicy() {
+    const { accounts } = await this.policy();
+    return {
+      allowedLoginIdentifiers: accounts.allowedLoginIdentifiers,
+      requireEmailVerification: accounts.emailVerification,
+    };
+  }
+
   async getSessionDurationMinutes(): Promise<number> {
     return (await this.policy()).sessions.durationMinutes;
   }
@@ -176,6 +184,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
     const policy = await this.policy();
     return {
       publicRegistration: policy.accounts.publicRegistration,
+      allowedLoginIdentifiers: policy.accounts.allowedLoginIdentifiers,
       emailVerification: policy.accounts.emailVerification,
       emailChange: policy.accounts.emailChange,
       sessionManagement: policy.sessions.userManagement,
@@ -375,13 +384,20 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
         )
       : 0;
     const user = await this.options.db
-      .selectFrom("iam_users")
-      .select(["id", "email", "status", "is_email_verified"])
-      .where("email", "=", normalized)
+      .selectFrom("iam_login_identities as identity")
+      .innerJoin("iam_users as user", "user.id", "identity.user_id")
+      .select([
+        "user.id",
+        "user.status",
+        "identity.normalized_value as email",
+        "identity.verification_status",
+      ])
+      .where("identity.kind", "=", "email")
+      .where("identity.normalized_value", "=", normalized)
       .executeTakeFirst();
     const eligible =
       policy.recovery.enabled &&
-      user?.is_email_verified === true &&
+      user?.verification_status === "verified" &&
       originRequests < policy.recovery.requestsPerHour * 4;
 
     if (eligible && user) {
@@ -491,8 +507,17 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
           return false;
         }
         await transaction
-          .updateTable("iam_users")
+          .updateTable("iam_password_authenticators")
           .set({ password_hash: hash.value, updated_at: consumedAt })
+          .where("user_id", "=", recovery.user_id)
+          .where("revoked_at", "is", null)
+          .execute();
+        await transaction
+          .updateTable("iam_users")
+          .set((expression) => ({
+            session_version: expression("session_version", "+", 1),
+            updated_at: consumedAt,
+          }))
           .where("id", "=", recovery.user_id)
           .execute();
         await transaction
@@ -549,7 +574,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
         }),
       )
       .execute();
-    const uri = `otpauth://totp/${encodeURIComponent("Architecture")}:${encodeURIComponent(user.email)}?secret=${secret}&issuer=${encodeURIComponent("Architecture")}&algorithm=SHA1&digits=6&period=30`;
+    const uri = `otpauth://totp/${encodeURIComponent("Architecture")}:${encodeURIComponent(user.email ?? user.id)}?secret=${secret}&issuer=${encodeURIComponent("Architecture")}&algorithm=SHA1&digits=6&period=30`;
     return {
       secret,
       otpauthUri: uri,
@@ -1051,12 +1076,14 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
         .execute();
     });
     await this.revokeSessions(userId);
-    await this.sendLink(
-      user.email,
-      "Cancel account deletion",
-      this.options.deletionCancellationUrl,
-      token,
-    );
+    if (user.email) {
+      await this.sendLink(
+        user.email,
+        "Cancel account deletion",
+        this.options.deletionCancellationUrl,
+        token,
+      );
+    }
     await this.audit(
       "account.deletion.requested",
       "success",
@@ -1247,9 +1274,22 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
 
   private async generateExport(exportId: string, userId: string) {
     try {
-      const [account, sessions, auditEvents, exports, deletions] =
+      const [account, identities, sessions, auditEvents, exports, deletions] =
         await Promise.all([
           this.user(userId),
+          this.options.db
+            .selectFrom("iam_login_identities")
+            .select([
+              "kind",
+              "normalized_value",
+              "verification_status",
+              "verified_at",
+              "created_at",
+              "updated_at",
+            ])
+            .where("user_id", "=", userId)
+            .orderBy("created_at", "asc")
+            .execute(),
           this.activeSessions(userId),
           this.exportableAuditEvents(userId),
           this.options.db
@@ -1277,7 +1317,7 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
         ]);
       const manifest = {
         format: "architecture-account-export",
-        version: 1,
+        version: 2,
         generatedAt: new Date().toISOString(),
         files: [
           "account.json",
@@ -1291,10 +1331,16 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
         "account.json": JSON.stringify(
           {
             id: account.id,
-            email: account.email,
+            loginIdentities: identities.map((identity) => ({
+              kind: identity.kind,
+              value: identity.normalized_value,
+              verificationStatus: identity.verification_status,
+              verifiedAt: identity.verified_at,
+              createdAt: identity.created_at,
+              updatedAt: identity.updated_at,
+            })),
             role: account.role,
             status: account.status,
-            isEmailVerified: account.is_email_verified,
             createdAt: account.created_at,
             updatedAt: account.updated_at,
           },
@@ -1431,9 +1477,10 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
 
   private async verifyPassword(userId: string, password: string) {
     const user = await this.options.db
-      .selectFrom("iam_users")
+      .selectFrom("iam_password_authenticators")
       .select("password_hash")
-      .where("id", "=", userId)
+      .where("user_id", "=", userId)
+      .where("revoked_at", "is", null)
       .executeTakeFirst();
     const plain = PasswordPlainValueObject.create(password);
     if (!user || !plain.success) {
@@ -1528,9 +1575,18 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
 
   private async user(userId: string) {
     const user = await this.options.db
-      .selectFrom("iam_users")
-      .selectAll()
-      .where("id", "=", userId)
+      .selectFrom("iam_users as user")
+      .leftJoin("iam_login_identities as email_identity", (join) =>
+        join
+          .onRef("email_identity.user_id", "=", "user.id")
+          .on("email_identity.kind", "=", "email"),
+      )
+      .selectAll("user")
+      .select([
+        "email_identity.normalized_value as email",
+        "email_identity.verification_status as email_verification_status",
+      ])
+      .where("user.id", "=", userId)
       .executeTakeFirst();
     if (!user) {
       throw new SecurityError("USER_NOT_FOUND", 404);
