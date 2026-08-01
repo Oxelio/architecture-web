@@ -5,8 +5,8 @@ import equal from "fast-deep-equal";
 export abstract class ValueObject<T extends object> {
   protected readonly properties: Readonly<T>;
 
-  protected constructor(props: T) {
-    this.properties = { ...props };
+  protected constructor(properties: T) {
+    this.properties = { ...properties };
   }
 
   equals(valueObject: ValueObject<T>): boolean {

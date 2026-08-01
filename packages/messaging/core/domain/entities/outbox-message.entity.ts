@@ -78,59 +78,59 @@ export class OutboxMessageEntity extends Entity<OutboxMessageProperties> {
   }
 
   get event(): IntegrationEvent {
-    return this.props.event;
+    return this.properties.event;
   }
 
   get status(): OutboxStatus {
-    return this.props.status.value;
+    return this.properties.status.value;
   }
 
   get attempts(): number {
-    return this.props.attempts;
+    return this.properties.attempts;
   }
 
   get availableAt(): Date {
-    return this.props.availableAt;
+    return this.properties.availableAt;
   }
 
   get claimedAt(): Date | null {
-    return this.props.claimedAt;
+    return this.properties.claimedAt;
   }
 
   get publishedAt(): Date | null {
-    return this.props.publishedAt;
+    return this.properties.publishedAt;
   }
 
   get lastError(): string | null {
-    return this.props.lastError;
+    return this.properties.lastError;
   }
 
   markPublished(now = new Date()): void {
     if (this.status !== "processing") {
       throw new Error("Only a processing outbox message can be published");
     }
-    this.props.status = OutboxStatusValueObject.published();
-    this.props.publishedAt = now;
-    this.props.claimedAt = null;
-    this.props.lastError = null;
+    this.properties.status = OutboxStatusValueObject.published();
+    this.properties.publishedAt = now;
+    this.properties.claimedAt = null;
+    this.properties.lastError = null;
   }
 
   markFailed(error: unknown, now = new Date()): void {
     if (this.status !== "processing") {
       throw new Error("Only a processing outbox message can fail");
     }
-    this.props.attempts += 1;
-    this.props.status =
-      this.props.attempts >= 10
+    this.properties.attempts += 1;
+    this.properties.status =
+      this.properties.attempts >= 10
         ? OutboxStatusValueObject.deadLetter()
         : OutboxStatusValueObject.failed();
     const delay = Math.min(
       60_000,
-      2 ** Math.min(this.props.attempts, 10) * 1_000,
+      2 ** Math.min(this.properties.attempts, 10) * 1_000,
     );
-    this.props.availableAt = new Date(now.getTime() + delay);
-    this.props.claimedAt = null;
-    this.props.lastError = String(error).slice(0, 2_000);
+    this.properties.availableAt = new Date(now.getTime() + delay);
+    this.properties.claimedAt = null;
+    this.properties.lastError = String(error).slice(0, 2_000);
   }
 }
 

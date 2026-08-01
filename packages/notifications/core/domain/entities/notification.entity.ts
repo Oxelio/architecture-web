@@ -98,58 +98,58 @@ export class NotificationEntity extends AggregateRoot<RehydratedNotificationProp
   }
 
   get recipientId(): string {
-    return this.props.recipientId;
+    return this.properties.recipientId;
   }
 
   get sourceEventId(): string {
-    return this.props.sourceEventId;
+    return this.properties.sourceEventId;
   }
 
   get type(): string {
-    return this.props.type;
+    return this.properties.type;
   }
 
   get severity(): NotificationSeverityValueObject {
-    return this.props.severity;
+    return this.properties.severity;
   }
 
   get title(): string {
-    return this.props.title;
+    return this.properties.title;
   }
 
   get message(): string {
-    return this.props.message;
+    return this.properties.message;
   }
 
   get actionUrl(): string | null {
-    return this.props.actionUrl;
+    return this.properties.actionUrl;
   }
 
   get createdAt(): Date {
-    return this.props.createdAt;
+    return this.properties.createdAt;
   }
 
   get readAt(): Date | null {
-    return this.props.readAt;
+    return this.properties.readAt;
   }
 
   get archivedAt(): Date | null {
-    return this.props.archivedAt;
+    return this.properties.archivedAt;
   }
 
   get deliveries(): readonly NotificationDeliveryEntity[] {
-    return this.props.deliveries;
+    return this.properties.deliveries;
   }
 
   markRead(now = new Date()): boolean {
-    if (this.props.readAt) {
+    if (this.properties.readAt) {
       return false;
     }
-    this.props.readAt = now;
+    this.properties.readAt = now;
     return true;
   }
 
   archive(now = new Date()): void {
-    this.props.archivedAt = now;
+    this.properties.archivedAt = now;
   }
 }

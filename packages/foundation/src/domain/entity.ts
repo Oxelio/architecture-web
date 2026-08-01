@@ -3,14 +3,14 @@
 import { Identifier } from "./identifier.js";
 
 export abstract class Entity<TProperties extends { identifier: Identifier }> {
-  protected props: TProperties;
+  protected properties: TProperties;
 
-  protected constructor(props: TProperties) {
-    this.props = props;
+  protected constructor(properties: TProperties) {
+    this.properties = properties;
   }
 
   get identifier(): TProperties["identifier"] {
-    return this.props.identifier;
+    return this.properties.identifier;
   }
 
   equals(object: Entity<TProperties>): boolean {

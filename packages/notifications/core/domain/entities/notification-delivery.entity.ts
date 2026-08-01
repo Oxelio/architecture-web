@@ -53,74 +53,77 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
   }
 
   get channel(): NotificationChannelValueObject {
-    return this.props.channel;
+    return this.properties.channel;
   }
 
   get destination(): string {
-    return this.props.destination;
+    return this.properties.destination;
   }
 
   get status(): NotificationDeliveryStatus {
-    return this.props.status;
+    return this.properties.status;
   }
 
   get attempts(): number {
-    return this.props.attempts;
+    return this.properties.attempts;
   }
 
   get availableAt(): Date {
-    return this.props.availableAt;
+    return this.properties.availableAt;
   }
 
   get claimedAt(): Date | null {
-    return this.props.claimedAt;
+    return this.properties.claimedAt;
   }
 
   get sentAt(): Date | null {
-    return this.props.sentAt;
+    return this.properties.sentAt;
   }
 
   get lastError(): string | null {
-    return this.props.lastError;
+    return this.properties.lastError;
   }
 
   claim(now = new Date()): boolean {
     if (
-      !["pending", "failed"].includes(this.props.status) ||
-      this.props.availableAt.getTime() > now.getTime()
+      !["pending", "failed"].includes(this.properties.status) ||
+      this.properties.availableAt.getTime() > now.getTime()
     ) {
       return false;
     }
-    this.props.status = "processing";
-    this.props.claimedAt = now;
+    this.properties.status = "processing";
+    this.properties.claimedAt = now;
     return true;
   }
 
   markSent(now = new Date()): void {
-    if (this.props.status !== "processing") {
+    if (this.properties.status !== "processing") {
       throw new Error("Only a claimed notification delivery can be sent");
     }
-    this.props.status = "sent";
-    this.props.sentAt = now;
-    this.props.claimedAt = null;
-    this.props.lastError = null;
+    this.properties.status = "sent";
+    this.properties.sentAt = now;
+    this.properties.claimedAt = null;
+    this.properties.lastError = null;
   }
 
   markFailed(error: unknown, now = new Date()): void {
-    if (this.props.status !== "processing") {
+    if (this.properties.status !== "processing") {
       throw new Error("Only a claimed notification delivery can fail");
     }
-    this.props.attempts += 1;
-    this.props.status =
-      this.props.attempts >= MAX_DELIVERY_ATTEMPTS ? "dead_letter" : "failed";
-    this.props.availableAt = new Date(
+    this.properties.attempts += 1;
+    this.properties.status =
+      this.properties.attempts >= MAX_DELIVERY_ATTEMPTS
+        ? "dead_letter"
+        : "failed";
+    this.properties.availableAt = new Date(
       now.getTime() +
         Math.min(
           MAX_RETRY_DELAY_MS,
-          2 ** Math.min(this.props.attempts, MAX_DELIVERY_ATTEMPTS) * 1_000,
+          2 ** Math.min(this.properties.attempts, MAX_DELIVERY_ATTEMPTS) *
+            1_000,
         ),
     );
-    this.props.claimedAt = null;
-    this.props.lastError = String(error).slice(0, 2_000);
+    this.properties.claimedAt = null;
+    this.properties.lastError = String(error).slice(0, 2_000);
   }
 }

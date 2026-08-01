@@ -53,27 +53,27 @@ export class NotificationPreferenceEntity extends AggregateRoot<NotificationPref
   }
 
   get recipientId(): string {
-    return this.props.recipientId;
+    return this.properties.recipientId;
   }
 
   get channel(): NotificationChannelValueObject {
-    return this.props.channel;
+    return this.properties.channel;
   }
 
   get enabled(): boolean {
-    return this.props.enabled;
+    return this.properties.enabled;
   }
 
   get updatedAt(): Date {
-    return this.props.updatedAt;
+    return this.properties.updatedAt;
   }
 
   update(enabled: boolean, now = new Date()): boolean {
-    if (this.props.enabled === enabled) {
+    if (this.properties.enabled === enabled) {
       return false;
     }
-    this.props.enabled = enabled;
-    this.props.updatedAt = now;
+    this.properties.enabled = enabled;
+    this.properties.updatedAt = now;
     return true;
   }
 }

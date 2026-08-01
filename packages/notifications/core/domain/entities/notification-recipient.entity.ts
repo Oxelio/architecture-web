@@ -28,10 +28,10 @@ export class NotificationRecipientEntity extends Entity<NotificationRecipientPro
 
   destinationFor(channel: NotificationChannelType): string | null {
     if (channel === "email") {
-      return this.props.email;
+      return this.properties.email;
     }
     if (channel === "sms") {
-      return this.props.phoneNumber;
+      return this.properties.phoneNumber;
     }
     return null;
   }
