@@ -1,6 +1,6 @@
 // @file apps/api/src/composition-root/database.module.ts
 
-import type { AuditDatabase } from "@architecture/audit";
+import type { AuditDatabase } from "@architecture/audit-persistence-kysely";
 import type { IamDatabase } from "@architecture/iam-persistence-kysely";
 import type { MessagingDatabase } from "@architecture/messaging-persistence-kysely";
 import type { NotificationDatabase } from "@architecture/notifications-persistence-kysely";

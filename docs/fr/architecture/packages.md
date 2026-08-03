@@ -9,6 +9,7 @@ flowchart LR
     messaging["@architecture/messaging"]
     messagingKysely["@architecture/messaging-persistence-kysely"]
     audit["@architecture/audit"]
+    auditKysely["@architecture/audit-persistence-kysely"]
     notifications["@architecture/notifications"]
     notificationsInfra["infrastructures Notifications"]
     adapters["adaptateurs IAM"]
@@ -19,12 +20,15 @@ flowchart LR
     iam --> foundation
     iam --> messaging
     audit --> messaging
+    auditKysely --> audit
     notifications --> messaging
     messagingKysely --> messaging
     notificationsInfra --> notifications
     adapters --> iam
     api --> iam
     api --> adapters
+    api --> audit
+    api --> auditKysely
     api --> messagingKysely
     api --> notificationsInfra
     web -. HTTP .-> api
@@ -41,7 +45,8 @@ flowchart LR
 | `@architecture/iam`                                  | domaine et application IAM           | `./domain`, `./application`                       |
 | `@architecture/messaging`                            | domaine et application Messaging     | `./domain`, `./application`                       |
 | `@architecture/messaging-persistence-kysely`         | outbox et migration PostgreSQL       | export racine                                     |
-| `@architecture/audit`                                | bounded context Audit                | export racine                                     |
+| `@architecture/audit`                                | domaine et application Audit         | `./domain`, `./application`                       |
+| `@architecture/audit-persistence-kysely`             | persistance PostgreSQL Audit         | export racine                                     |
 | `@architecture/notifications`                        | domaine et application Notifications | `./domain`, `./application`                       |
 | `@architecture/notifications-persistence-kysely`     | persistance PostgreSQL Notifications | export racine                                     |
 | `@architecture/notifications-delivery-nodemailer`    | livraison de notifications SMTP      | export racine                                     |
@@ -77,7 +82,7 @@ composition root actuel, qui utilise Argon2 et Nodemailer.
 | `SecondFactorGate`               | `SecurityService` dans `apps/api`                |
 | `OutboxWriter`                   | `KyselyOutboxWriterAdapter`                      |
 | `OutboxRepository`               | `KyselyOutboxRepositoryAdapter`                  |
-| `AuditRepository`                | `KyselyAuditRepository`                          |
+| `AuditRepository`                | `KyselyAuditRepositoryAdapter`                   |
 | `NotificationRepository`         | `KyselyNotificationRepositoryAdapter`            |
 | `NotificationRecipientDirectory` | `KyselyIamNotificationRecipientDirectoryAdapter` |
 | `NotificationDelivery` (email)   | `NodemailerNotificationDeliveryAdapter`          |
@@ -101,9 +106,8 @@ MFA, codes de secours, challenges, audits, notifications, livraisons, outbox,
 révisions de configuration, exports et demandes de suppression. Les migrations
 IAM restent dans
 `packages/iam/infrastructure/persitence/kysely/src/persistence/migrations` ;
-les migrations Messaging et Notifications résident dans leurs packages
-`infrastructure/persistence/kysely`, tandis qu’Audit exporte encore la sienne
-depuis son package.
+les migrations Messaging, Audit et Notifications résident dans leurs packages
+`infrastructure/persistence/kysely` respectifs.
 Redis conserve les sessions avec expiration et un ensemble trié par
 utilisateur, ainsi que la limitation des renvois de vérification.
 

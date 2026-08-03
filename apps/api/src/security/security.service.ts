@@ -10,10 +10,9 @@ import {
 
 import {
   AuditApplication,
-  type AuditContext,
   type AuditEntry,
-  type AuditResult,
-} from "@architecture/audit";
+} from "@architecture/audit/application";
+import type { AuditContext, AuditResult } from "@architecture/audit/domain";
 import type {
   IamActorRole,
   IamCapability,

@@ -1,57 +1,17 @@
-import type { Kysely, SelectQueryBuilder } from "kysely";
-
 import {
-  type AuditEntry,
-  type AuditEntryInput,
   type AuditQuery,
   AuditRepository,
-  redact,
-} from "./audit.js";
+} from "@architecture/audit/application";
+import {
+  type AuditEntryInput,
+  redactAuditMetadata,
+} from "@architecture/audit/domain";
+import type { Kysely, SelectQueryBuilder } from "kysely";
 
-export interface AuditEventTable {
-  id: string;
-  type: string;
-  occurred_at: Date;
-  result: string;
-  actor_type: string;
-  actor_id: string | null;
-  subject_id: string | null;
-  correlation_id: string | null;
-  network_fingerprint: string | null;
-  client: string | null;
-  metadata: string;
-  expires_at: Date;
-  legal_hold: boolean;
-}
+import { toAuditEntry } from "./audit-entry.mapper.js";
+import type { AuditDatabase, AuditEventTable } from "./schema.js";
 
-export interface AuditDatabase {
-  audit_events: AuditEventTable;
-}
-
-function metadata(value: unknown): Record<string, unknown> {
-  const parsed =
-    typeof value === "string"
-      ? (JSON.parse(value) as Record<string, unknown>)
-      : ((value ?? {}) as Record<string, unknown>);
-  return redact(parsed) as Record<string, unknown>;
-}
-
-function toEntry(row: AuditEventTable): AuditEntry {
-  return {
-    id: row.id,
-    type: row.type,
-    occurredAt: row.occurred_at,
-    result: row.result,
-    actorType: row.actor_type,
-    actorId: row.actor_id,
-    subjectId: row.subject_id,
-    correlationId: row.correlation_id,
-    client: row.client,
-    metadata: metadata(row.metadata),
-  };
-}
-
-export class KyselyAuditRepository extends AuditRepository {
+export class KyselyAuditRepositoryAdapter extends AuditRepository {
   constructor(private readonly db: Kysely<AuditDatabase>) {
     super();
   }
@@ -81,7 +41,7 @@ export class KyselyAuditRepository extends AuditRepository {
           ? Buffer.from(fingerprint).toString("hex")
           : null,
         client: entry.context.client?.slice(0, 256) ?? null,
-        metadata: JSON.stringify(redact(entry.metadata ?? {})),
+        metadata: JSON.stringify(redactAuditMetadata(entry.metadata ?? {})),
         expires_at: new Date(now.getTime() + entry.retentionDays * 86_400_000),
         legal_hold: false,
       } as never)
@@ -105,7 +65,7 @@ export class KyselyAuditRepository extends AuditRepository {
       .limit(size)
       .offset((Math.max(1, page) - 1) * size)
       .execute();
-    return (rows as AuditEventTable[]).map(toEntry);
+    return (rows as AuditEventTable[]).map(toAuditEntry);
   }
 
   async query(filters: AuditQuery) {
@@ -118,7 +78,7 @@ export class KyselyAuditRepository extends AuditRepository {
       .limit(size)
       .offset((Math.max(1, filters.page) - 1) * size)
       .execute();
-    return (rows as AuditEventTable[]).map(toEntry);
+    return (rows as AuditEventTable[]).map(toAuditEntry);
   }
 
   async exportForSubject(userId: string) {
@@ -135,7 +95,7 @@ export class KyselyAuditRepository extends AuditRepository {
       .orderBy("id", "desc")
       .limit(10_000)
       .execute();
-    return (rows as AuditEventTable[]).map(toEntry);
+    return (rows as AuditEventTable[]).map(toAuditEntry);
   }
 
   async pseudonymizeSubject(userId: string, reference: string): Promise<void> {

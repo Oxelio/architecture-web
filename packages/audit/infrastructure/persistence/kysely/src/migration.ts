@@ -1,6 +1,6 @@
 import { type Kysely, sql } from "kysely";
 
-import type { AuditDatabase } from "./kysely-audit.repository.js";
+import type { AuditDatabase } from "./schema.js";
 
 async function up(db: Kysely<AuditDatabase>): Promise<void> {
   await db.schema

@@ -98,9 +98,11 @@ router, and the worker without depending on a database. The PostgreSQL
 implementation and migration belong to
 `packages/messaging/infrastructure/persistence/kysely`.
 
-`packages/audit` is an append-only bounded context. It consumes integration
-events and application or security attempts, applies redaction, and exposes
-search, export, retention, and pseudonymization operations.
+`packages/audit/core` is an append-only bounded context. Its domain defines
+entries and the redaction policy; its application consumes integration events
+and application or security attempts, then exposes search, export, retention,
+and pseudonymization operations. The PostgreSQL schema, migration, and adapter
+belong to `packages/audit/infrastructure/persistence/kysely`.
 
 `packages/notifications/core` is a separate bounded context. Its domain owns
 `NotificationEntity`, `NotificationDeliveryEntity`,

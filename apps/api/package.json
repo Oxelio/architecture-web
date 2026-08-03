@@ -45,6 +45,7 @@
   "type": "module",
   "dependencies": {
     "@architecture/audit": "workspace:*",
+    "@architecture/audit-persistence-kysely": "workspace:*",
     "@architecture/iam": "workspace:*",
     "@architecture/iam-email-nodemailer": "workspace:*",
     "@architecture/iam-email-verification-sha256": "workspace:*",

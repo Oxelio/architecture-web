@@ -3,8 +3,8 @@
 import {
   AuditApplication,
   AuditIntegrationEventHandler,
-  KyselyAuditRepository,
-} from "@architecture/audit";
+} from "@architecture/audit/application";
+import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import type { IamApplication } from "@architecture/iam/application";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
 import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
@@ -63,7 +63,9 @@ export function buildApplicationModule(): ApplicationModule {
     config.smtp.from,
     config.smtp.verifyUrl,
   );
-  const audit = new AuditApplication(new KyselyAuditRepository(db as never));
+  const audit = new AuditApplication(
+    new KyselyAuditRepositoryAdapter(db as never),
+  );
   const deliveries: NotificationDelivery[] = [
     new NodemailerNotificationDeliveryAdapter(
       config.smtp.host,

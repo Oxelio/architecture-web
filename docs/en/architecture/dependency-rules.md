@@ -14,37 +14,42 @@ flowchart TD
     App --> MessagingApp[messaging/application]
     MessagingApp --> MessagingDomain[messaging/domain]
     MessagingDomain --> Foundation
-    Audit[audit] --> MessagingApp
+    AuditApp[audit/application] --> AuditDomain[audit/domain]
+    AuditApp --> MessagingApp
     NotificationsApp[notifications/application] --> NotificationsDomain[notifications/domain]
     NotificationsApp --> MessagingApp
     NotificationsDomain --> Foundation
     Infra[iam/infrastructure] --> App
     Infra --> Domain
     MessagingInfra[messaging/infrastructure] --> MessagingApp
+    AuditInfra[audit/infrastructure] --> AuditApp
     NotificationsInfra[notifications/infrastructure] --> NotificationsApp
     Composition[apps/api/composition-root] --> Infra
     Composition --> App
+    Composition --> AuditInfra
+    Composition --> AuditApp
 ```
 
 An arrow means “may depend on”; it does not require the dependency.
 
 ## Matrix
 
-| From                                   | May import                                     | Must not import                             |
-| -------------------------------------- | ---------------------------------------------- | ------------------------------------------- |
-| Foundation                             | required generic libraries                     | IAM, apps, infrastructure                   |
-| IAM domain                             | Foundation, IAM domain                         | application, infrastructure, Fastify, React |
-| IAM application                        | IAM domain, Foundation, Messaging, local ports | adapters, database, cache, HTTP, UI         |
-| Messaging domain                       | Foundation, Messaging model                    | application, Kysely, HTTP, UI               |
-| Messaging application                  | Messaging domain, local ports                  | Kysely, HTTP, UI                            |
-| Audit                                  | Messaging, its ports and model                 | internal IAM entities, HTTP, UI             |
-| Notifications domain                   | Foundation, Notifications domain               | application, Messaging, Kysely, HTTP, UI    |
-| Notifications application              | Notifications domain, Messaging, local ports   | adapters, Kysely, HTTP, UI                  |
-| IAM infrastructure                     | public IAM exports, targeted technology        | private core internals, apps                |
-| Messaging/Notifications infrastructure | public core exports, targeted technology       | private internals, apps                     |
-| API outside composition                | application contracts, Fastify, API helpers    | domain internals, concrete adapters         |
-| API composition root                   | application and concrete adapters              | —                                           |
-| Web                                    | UI code and HTTP contract                      | business and infrastructure packages        |
+| From                                         | May import                                     | Must not import                             |
+| -------------------------------------------- | ---------------------------------------------- | ------------------------------------------- |
+| Foundation                                   | required generic libraries                     | IAM, apps, infrastructure                   |
+| IAM domain                                   | Foundation, IAM domain                         | application, infrastructure, Fastify, React |
+| IAM application                              | IAM domain, Foundation, Messaging, local ports | adapters, database, cache, HTTP, UI         |
+| Messaging domain                             | Foundation, Messaging model                    | application, Kysely, HTTP, UI               |
+| Messaging application                        | Messaging domain, local ports                  | Kysely, HTTP, UI                            |
+| Audit domain                                 | Audit domain                                   | application, Messaging, Kysely, HTTP, UI    |
+| Audit application                            | Audit domain, Messaging, local ports           | adapters, Kysely, HTTP, UI                  |
+| Notifications domain                         | Foundation, Notifications domain               | application, Messaging, Kysely, HTTP, UI    |
+| Notifications application                    | Notifications domain, Messaging, local ports   | adapters, Kysely, HTTP, UI                  |
+| IAM infrastructure                           | public IAM exports, targeted technology        | private core internals, apps                |
+| Messaging/Audit/Notifications infrastructure | public core exports, targeted technology       | private internals, apps                     |
+| API outside composition                      | application contracts, Fastify, API helpers    | domain internals, concrete adapters         |
+| API composition root                         | application and concrete adapters              | —                                           |
+| Web                                          | UI code and HTTP contract                      | business and infrastructure packages        |
 
 `apps/api/src/security/security.service.ts` is a current exception to the
 “API outside composition” row: it imports Kysely, domain objects, and adapter

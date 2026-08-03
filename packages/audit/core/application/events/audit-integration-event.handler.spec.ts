@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  AuditApplication,
-  AuditIntegrationEventHandler,
-  type AuditRepository,
-} from "./audit.js";
+import type { AuditRepository } from "#repositories/audit.repository";
+import { AuditApplication } from "#services/audit.application";
+
+import { AuditIntegrationEventHandler } from "./audit-integration-event.handler.js";
 
 describe("AuditIntegrationEventHandler", () => {
   it("turns an IAM integration event into an idempotent audit entry", async () => {

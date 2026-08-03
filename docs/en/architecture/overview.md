@@ -32,7 +32,10 @@ apps/
 ├── api/                         HTTP interface and composition
 └── web/                         React interface
 packages/
-├── audit/                       Audit bounded context
+├── audit/
+│   ├── core/                    Audit domain + application
+│   └── infrastructure/
+│       └── persistence/kysely/  Audit PostgreSQL persistence
 ├── foundation/                  modelling primitives
 ├── eslint-config/               shared ESLint rules
 ├── messaging/                   outbox and event delivery

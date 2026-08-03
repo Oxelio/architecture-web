@@ -1,6 +1,6 @@
 // @file apps/api/src/scripts/migrations.provider.ts
 
-import { auditMigrations } from "@architecture/audit";
+import { auditMigrations } from "@architecture/audit-persistence-kysely";
 import {
   iamAggregateConsistencyMigrations,
   iamAuthenticationMigrations,
