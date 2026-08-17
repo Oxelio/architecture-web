@@ -1,33 +1,39 @@
 # Template — Technical Design
 
-Create a Technical Design after the corresponding functional behavior is
-approved and only when architecture work is needed.
+Create a Technical Design when the method trigger applies. For product behavior,
+start from an Approved Functional Specification. This template adds
+Architecture Web-specific DDD/Clean/Hexagonal concerns to the generic artifact
+semantics.
 
 ```markdown
-# Technical Design — <feature>
+# Technical Design — <work>
 
-**Lifecycle:** Technical Design
+**Artifact status:** Proposed
 **Content status:** Proposed
 **Document type:** Technical Design
 **Domain:** <bounded context / technical area>
 
-## Position in the pipeline
+## Work context
 
-**Functional source:** <link to Approved Functional Specification>
+**Work Type:** <...>
 
-**To move to Ready:** validate the architecture, dependencies, acceptance
-criteria, migration/compatibility needs, and test strategy; then create
-verifiable implementation tasks.
+**Workflow Depth:** <Standard | Complex>
 
-## 1. Functional constraints to preserve
+**Authorized functional source:** <Approved Functional Specification when applicable>
+
+**Architecture owners:**
+
+- <relevant project architecture sources>
+
+## 1. Authorized behavior / constraints to preserve
+
+Reference owners; do not copy a second normative specification.
+
+## 2. Bounded-context / responsibility ownership
 
 ...
 
-## 2. Bounded-context ownership
-
-...
-
-## 3. Domain responsibilities and invariants
+## 3. Domain responsibilities and consistency boundaries
 
 ...
 
@@ -47,7 +53,7 @@ verifiable implementation tasks.
 
 ...
 
-## 8. Flows and interfaces
+## 8. Flows, interfaces and contracts
 
 ...
 
@@ -71,11 +77,11 @@ verifiable implementation tasks.
 
 ...
 
-## 14. Error handling
+## 14. Error and failure handling
 
 ...
 
-## 15. Test strategy
+## 15. Validation strategy
 
 ...
 
@@ -83,21 +89,20 @@ verifiable implementation tasks.
 
 ...
 
-## 17. ADRs created or referenced
+## 17. ADR candidates / referenced ADRs
 
 ...
 
-## 18. Risks and open technical decisions
+## 18. Risks and unresolved technical decisions
 
 ...
 
-## 19. Definition of Ready checklist
+## 19. Task-planning inputs
 
-- [ ] Functional Specification is Approved
-- [ ] Architecture is sufficiently decided
-- [ ] Dependencies are known
-- [ ] Acceptance criteria are available
-- [ ] Test strategy is defined
-- [ ] Migration/compatibility is understood when applicable
-- [ ] Tasks are small and verifiable
+Dependencies, sequencing constraints, implementation boundaries, and other
+information needed for focused Tasks.
 ```
+
+Task Planning and formal Readiness Review occur after the required design is
+sufficiently resolved. Do not embed a second Readiness checklist in every
+Technical Design; use the method's [Readiness Review](../../method/readiness-review.md).

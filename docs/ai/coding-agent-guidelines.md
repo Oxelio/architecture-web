@@ -1,7 +1,8 @@
-# Coding-agent task guidance
+# Architecture Web — Coding-agent task guidance
 
-A coding agent should receive a focused implementation objective and links to
-canonical context, not an alternative architecture hidden inside the prompt.
+Generic Developer/Planner role boundaries are defined by the
+[Software Engineering Method](../method/roles.md). This guide adds Architecture
+Web-specific implementation context.
 
 ## Recommended task shape
 
@@ -10,37 +11,53 @@ Objective
 <small, observable implementation outcome>
 
 Sources of truth
-- Functional Specification: <path>
-- Technical Design: <path, if applicable>
-- ADRs: <paths, if applicable>
+- Functional Specification: <path, when applicable>
+- Technical Design: <path, when applicable>
+- ADRs: <paths, when applicable>
+- Project architecture constraints: docs/project/architecture-principles.md
 
 Context
-<only local context needed for this task>
-
-Architectural constraints
-- preserve bounded-context ownership;
-- preserve Clean/Hexagonal dependency direction;
-- domain/application must not depend on infrastructure;
-- use existing public contracts and patterns where appropriate;
-- do not add speculative abstractions.
+<only local context needed for this Task>
 
 Acceptance criteria
 - ...
 
-Expected tests
+Expected tests / validation
 - ...
 
 Non-goals
 - ...
-
-Inspect the repository before implementation. If the current architecture
-prevents a clean implementation, surface the conflict rather than introducing
-an undocumented workaround.
 ```
 
-## Agent output should be reviewed against three dimensions
+The agent should resolve operational rules from root [`AGENTS.md`](../../AGENTS.md)
+and inspect the repository before choosing local details.
 
-1. **Code quality** — readability, maintainability, complexity, tests, errors;
-2. **Architecture compliance** — boundaries, dependencies, ports/adapters,
-   aggregates, ADRs;
-3. **Functional compliance** — specification rules and acceptance criteria.
+## Architecture Web constraints
+
+When relevant, preserve:
+
+- bounded-context ownership;
+- Clean/Hexagonal inward dependency direction;
+- domain/application independence from concrete infrastructure;
+- explicit application contracts;
+- deliberate package public APIs;
+- applicable aggregate/transaction boundaries;
+- relevant ADRs.
+
+Do not add speculative abstractions or treat a historical exception as a new
+pattern.
+
+## Blockers
+
+If implementation requires a new product decision, structural architecture
+decision, or unresolved Task/design decision, surface the blocker and return it
+to the appropriate owner/role. Do not hide the decision inside code.
+
+## Review expectations
+
+Review applicable implementation independently for:
+
+1. Code quality;
+2. Architecture compliance;
+3. Functional compliance;
+4. specialist risks activated by the Work characteristics.

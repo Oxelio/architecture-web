@@ -1,17 +1,17 @@
 # Template — Validation Report
 
-Use a report for significant changes where durable evidence is useful. Small
-changes can rely directly on automated test and pull-request evidence.
+Use a report for significant work where durable validation evidence is useful.
+Small changes may rely directly on automated test and pull-request evidence.
 
 ```markdown
-# Validation — <feature / change>
+# Validation — <work>
 
-**Lifecycle:** Validation
+**Artifact status:** Complete | Failed
 **Content status:** Historical Record
 **Document type:** Validation Report
-**Domain:** <bounded context / project area>
+**Domain:** <project area>
 
-## Subject
+## Subject and scope
 
 ...
 
@@ -21,19 +21,19 @@ changes can rely directly on automated test and pull-request evidence.
 
 ## Evidence
 
-### Unit / domain / application tests
+### Unit / domain / application
 
 ...
 
-### Adapter / integration / contract tests
+### Adapter / integration / contract
 
 ...
 
-### End-to-end / acceptance tests
+### End-to-end / acceptance
 
 ...
 
-### Security / migration / performance checks
+### Security / migration / compatibility / performance
 
 ...
 
@@ -45,11 +45,15 @@ changes can rely directly on automated test and pull-request evidence.
 
 ...
 
+## Required return path
+
+<Implementing | Preparing | Designing | none>
+
 ## Conclusion
 
-<Done | Return to Implementation | Return to Technical Design | Return to Design>
+<Sufficient for Done | Insufficient>
 
-## Documents to synchronize
+## Owner synchronization required before Done
 
 ...
 ```

@@ -1,23 +1,25 @@
 # Template — Exploration
 
-Use this artifact to understand what must be decided and why. It is not a
-source of approved behavior.
+Use this working artifact to understand uncertainty and what must be decided. It
+is not a source of approved behavior or current architecture truth.
 
 ```markdown
 # Exploration — <subject>
 
-**Lifecycle:** Exploration
-**Content status:** Proposed
+**Artifact status:** Working
+**Content status:** Hypothesis
 **Document type:** Exploration
-**Domain:** <bounded context / project area>
+**Domain:** <project area>
 
-## Position in the pipeline
+## Work context
 
-**Why this is in Exploration:** ...
+**Work Type:** <...>
 
-**To move to Design:** the problem must be understood, important alternatives
-compared, major dependencies and risks identified, and the proposed behavior
-coherent enough to be specified.
+**Workflow Depth:** <Quick | Standard | Complex>
+
+**Current Work State:** Exploring
+
+**Why Exploration is needed:** ...
 
 ## 1. Problem / need
 
@@ -31,7 +33,7 @@ coherent enough to be specified.
 
 ...
 
-## 4. Known rules and constraints
+## 4. Known authoritative rules and constraints
 
 ...
 
@@ -51,11 +53,12 @@ coherent enough to be specified.
 
 ...
 
-## 9. Open questions
+## 9. Open questions / decisions needed
 
 ...
 
-## 10. Conclusions to integrate into owner documents
+## 10. Conclusions and target owners
 
-...
+- conclusion: ...
+  target owner / next activity: ...
 ```

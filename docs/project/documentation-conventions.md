@@ -1,87 +1,68 @@
 # Architecture Web — Documentation conventions
 
-> **Lifecycle:** Approved
->
 > **Content status:** Canonical
 >
 > **Document type:** Project Governance
 >
 > **Domain:** Documentation Governance
 
+Architecture Web adopts the generic [artifact ownership](../method/artifact-ownership.md)
+and [truth model](../method/core-model.md). This document owns only project-specific
+documentation policy and metadata conventions.
+
 ## 1. Canonical language
 
-Repository documentation is maintained in English.
+Repository documentation is maintained in **English**.
 
 French or another language may be used during conversation, brainstorming, or
-exploration, but accepted knowledge is integrated once into the canonical
-English document. Parallel hand-maintained translations are not a source of
-truth and must not be required for a change to be complete.
+Exploration, but accepted knowledge is integrated once into the canonical
+English owner. Parallel hand-maintained translations are not a source of truth.
 
-User-facing product localization is different: UI translation files may exist
-for every supported locale because they are product assets, not duplicate
-architecture documentation.
+User-facing localization is different: localization files are product assets,
+not duplicate architecture documentation.
 
-## 2. Git is the only documentation history
+## 2. Git history
 
-Keep one current file per subject. Do not create ordinary `old`, `backup`,
-`v2`, dated, or translated copies to preserve history. Use commits and tags to
-retrieve previous states.
+Architecture Web follows the method rule that Git is documentation history. Do
+not keep ordinary `old`, `backup`, `v2`, dated, or translated copies to preserve
+previous documentation states.
 
-## 3. Lifecycle and content status
+## 3. Metadata
 
-Process artifacts may use these metadata fields:
+Existing process artifacts may use these fields:
 
 ```markdown
-**Lifecycle:** <state>
+**Lifecycle:** <artifact/work-scope maturity>
 **Content status:** <Canonical | Proposed | Hypothesis | Historical Record>
 **Document type:** <type>
 **Domain:** <domain>
 ```
 
-`Lifecycle` describes maturity or execution state. `Content status` describes
-the authority of the written information. They are not synonyms.
+`Lifecycle` in existing documents predates the generic Work State model. It
+MUST NOT be interpreted as a requirement that the artifact name or maturity
+value is itself a Work State.
 
-Canonical governance and architecture references do not need to move through
-every feature lifecycle state.
+For new method-oriented working artifacts, prefer explicit fields such as
+`Work State`, `Activity`, `Artifact status`, or `Content status` when they avoid
+ambiguity.
 
-## 4. Ownership
+## 4. Project owner bindings
 
-Every durable fact should have one identifiable owner:
+Architecture Web's semantic owner bindings are listed once in the
+[Project Method Profile](project-method-profile.md). Dependent documents should
+link to their owner rather than reproduce the same normative rule.
 
-- Project Vision owns top-level project intent;
-- Architecture Principles own durable design constraints;
-- Scope owns what the project is currently trying to cover;
-- a Functional Specification owns approved behavior for its feature;
-- a Technical Design owns the architecture for one approved feature;
-- an ADR owns the rationale and consequences of one durable architecture
-  decision;
-- code and executable tests provide evidence of current implementation;
-- reference documents describe interfaces or operational facts without
-  redefining business behavior.
+## 5. Exploration and working artifacts
 
-A dependent document may summarize a fact, but it should link to its owner and
-must not create a competing normative variant.
+Exploration, Context Manifests, Working Decision Logs, handoffs, and Readiness
+records are working context unless another document type explicitly owns the
+accepted durable conclusion.
 
-## 5. Exploration is not specification
+Do not simply rename an Exploration into a Functional Specification and leave
+hypotheses/rejected options looking normative.
 
-An Exploration may contain hypotheses, discarded options, unresolved questions,
-trade-offs, spikes, and contradictory ideas. Its accepted conclusions are
-integrated into the owner document. Do not simply rename an exploration into a
-Functional Specification and leave exploratory material looking normative.
+## 6. Documentation effort
 
-## 6. Current truth and historical rationale
-
-A current owner document answers **what is true now**. An ADR answers **why a
-structural architecture decision was made**. Git answers **what used to be
-written**. Do not use ADRs as a changelog or duplicate current specifications
-inside them.
-
-## 7. Documentation is proportional to risk
-
-Not every change needs every artifact. A small bug can move directly from Task
-to Implementation and Review. A cross-cutting architecture decision may move
-from Exploration to ADR and architecture documentation without a Functional
-Specification.
-
-Use an artifact only when it improves understanding, decision quality,
-traceability, or verification.
+Use documentation proportionally. A small established defect or documentation
+repair does not need the same durable artifact set as a new behavior, structural
+architecture decision, migration, or other Complex work.

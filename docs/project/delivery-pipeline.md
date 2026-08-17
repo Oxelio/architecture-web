@@ -1,7 +1,5 @@
-# Architecture Web — Delivery pipeline and artifacts
+# Architecture Web — Delivery profile
 
-> **Lifecycle:** Approved
->
 > **Content status:** Canonical
 >
 > **Document type:** Project Governance
@@ -10,246 +8,129 @@
 
 ## 1. Purpose
 
-This document defines how a product or architecture topic progresses from an
-idea to validated software, and which artifacts own information at each stage.
+Architecture Web adopts the generic [Software Engineering Method](../method/README.md).
+The method owns Work Types, Workflow Depth, Work States, Activities, artifact
+triggers, gates, AI roles, Context Manifest semantics, Readiness Review,
+Working Decision Log, Review, and Validation.
 
-The pipeline is intentionally not a mandatory checklist for every change.
-Artifact creation is proportional to uncertainty, impact, and architectural
-risk.
+This document owns only Architecture Web's **project-specific adoption and
+extensions**. Do not duplicate generic method rules here.
 
-## 2. Delivery flow
+See also the [Project Method Profile](project-method-profile.md).
 
-The conceptual feature flow is:
+## 2. Architecture Web delivery expectations
 
-> **Idea → Exploration → Functional Specification (Design) → Approved → Technical Design → Ready → Tasks → Implementation → Review → Validation → Done**
+For meaningful Architecture Web work:
 
-The normalized lifecycle states are:
+- resolve the relevant canonical project owners through the Project Method
+  Profile;
+- classify the Work and select proportional Workflow Depth;
+- preserve the separation between product behavior and technical design;
+- obtain Human Functional Approval before new/changed product behavior becomes
+  `Approved`;
+- evaluate project architecture constraints during Technical Design and
+  Architecture Review when applicable;
+- create ADRs only when the generic ADR trigger applies;
+- create focused Tasks before formal Readiness Review for Standard/Complex
+  implementation work;
+- do not enter `Ready` while an unresolved decision exceeds Developer authority;
+- perform applicable Code, Architecture, and Functional Compliance Review;
+- validate at the smallest sufficient evidence boundaries defined by the
+  project testing policy;
+- synchronize current architecture/documentation owners only when the truth they
+  describe becomes effective.
 
-> **Idea → Exploration → Design → Approved → Technical Design → Ready → Implementation → Review → Validation → Done**
+## 3. Architecture Web architecture criteria
 
-`Functional Specification`, `Technical Design`, `Task`, `Review`, and
-`Validation Report` are artifact types. They are not all lifecycle states.
+When architecture is affected, use these canonical project owners:
 
-An **ADR (Architecture Decision Record)** is transversal. It is created when a
-durable structural architecture decision deserves explicit rationale; it is
-not a mandatory stage between Functional Specification and Technical Design.
+- [Architecture principles](architecture-principles.md);
+- [Architecture overview](../architecture/overview.md);
+- [Dependency rules](../architecture/dependency-rules.md);
+- [Packages and public APIs](../architecture/packages.md);
+- [ADRs](../architecture/decisions/README.md).
 
-## 3. Idea
+Do not infer a preferred pattern from a historical implementation exception.
+Implementation evidence may reveal drift but does not silently replace canonical
+architecture constraints.
 
-Capture a possible need, problem, improvement, or architecture question with no
-commitment that it is compatible, desirable, or in scope.
+## 4. Validation bindings
 
-An idea may remain an issue, note, or conversation until further exploration is
-valuable.
+Architecture Web's concrete validation strategy and commands are owned by
+[Testing and verification](../development/testing.md). Work should use only the
+checks necessary for its type, depth, characteristics, and affected boundaries.
 
-## 4. Exploration
+## 5. Common Architecture Web routes
 
-Exploration answers **what needs to be decided and why**.
+These examples apply the generic method; they are not separate lifecycles.
 
-Depending on the topic, examine:
-
-- problem or need;
-- actors and desired outcome;
-- business rules or invariants already known;
-- scope and non-goals;
-- reasonable options;
-- interactions and dependencies;
-- risks, trade-offs, security concerns, and failure modes;
-- unknowns and open decisions;
-- whether a spike, proof of concept, or case study is useful.
-
-An Exploration can be long and detailed without becoming a specification.
-When the problem and chosen behavior become coherent, integrate the accepted
-conclusions into a Functional Specification or another owning document.
-
-## 5. Design — Functional Specification
-
-For a feature, `Design` is carried by a Functional Specification. It answers
-**what behavior the system must provide**, independently of infrastructure.
-
-A Functional Specification normally covers:
-
-- objective and business context;
-- actors and authorization expectations;
-- scope and non-goals;
-- functional rules and invariants;
-- states and significant transitions;
-- user-visible or externally observable behavior;
-- errors and edge cases;
-- functional dependencies;
-- acceptance criteria;
-- remaining non-blocking decisions.
-
-It should not prescribe Fastify, React, Kysely, Redis, tables, controllers,
-concrete adapters, or other implementation choices unless such a technology is
-itself an explicit product constraint.
-
-## 6. Approved
-
-`Approved` means the functional behavior has been explicitly accepted for an
-identified scope and may drive technical design.
-
-Before approval, verify at least:
-
-- the objective and actors are clear;
-- important functional rules and invariants are explicit;
-- scope and non-goals are understood;
-- significant edge cases and failures are identified;
-- dependencies are visible;
-- blocking product decisions are resolved;
-- acceptance criteria are testable;
-- the decision to implement the behavior is explicit.
-
-Approval does not freeze every secondary parameter forever.
-
-## 7. Technical Design
-
-Technical Design answers **how the approved behavior will fit the architecture**.
-It must preserve the Functional Specification rather than silently rewrite it.
-
-Depending on the feature, cover:
-
-- bounded-context ownership;
-- domain responsibilities and consistency boundaries;
-- application use cases and orchestration;
-- ports and external capabilities;
-- adapter and composition responsibilities;
-- data and state representation;
-- interfaces and data flow;
-- transactions, idempotency, concurrency, messaging, and consistency;
-- security and privacy;
-- migrations and backward compatibility;
-- performance and operational limits;
-- error handling;
-- test strategy;
-- technical risks and open decisions.
-
-A local technical choice may remain in the Technical Design. A durable,
-cross-cutting, or hard-to-reconstruct architecture choice may trigger an ADR.
-
-## 8. ADR — Architecture Decision Record
-
-An ADR records **why a durable structural architecture decision was made**.
-Create one when several reasonable alternatives exist and the decision is
-important enough that future maintainers would otherwise need to rediscover the
-context.
-
-Good ADR candidates include package boundaries, communication between bounded
-contexts, transaction/integration strategies, contract ownership, persistence
-strategy with broad consequences, or an intentional architecture exception.
-
-Do not create an ADR for routine naming, formatting, or obvious local
-implementation choices.
-
-An ADR typically contains context, problem, decision drivers, options,
-decision, consequences, status, and documents that must reflect the decision.
-The current architecture document remains the owner of current rules; the ADR
-owns their historical rationale.
-
-## 9. Ready
-
-A feature is `Ready` when implementation can begin without unresolved
-architecture work that would invalidate task planning.
-
-Definition of Ready:
-
-- Functional Specification is `Approved`;
-- Technical Design is sufficiently validated when one is needed;
-- dependencies and prerequisites are identified;
-- acceptance criteria are available;
-- test strategy is known;
-- migration or compatibility requirements are known when applicable;
-- implementation tasks are small enough to be independently understandable
-  and verifiable.
-
-## 10. Tasks
-
-Tasks are execution units, not new sources of truth. They reference the
-Functional Specification, Technical Design, and relevant ADRs instead of
-copying them.
-
-A good task defines:
-
-- objective;
-- local context;
-- source documents;
-- architectural constraints relevant to the task;
-- acceptance criteria;
-- expected tests;
-- non-goals when they prevent accidental scope growth.
-
-A coding agent or developer should inspect the repository before choosing local
-implementation details. Tasks should not prescribe unnecessary file-by-file
-implementation when the architecture already provides the constraint.
-
-## 11. Implementation
-
-The change is being built. Any necessary divergence from approved behavior or
-architecture must be surfaced and resolved in the owning document or an ADR;
-it must not become the new rule merely because code was written first.
-
-## 12. Review
-
-Review has three distinct questions:
-
-1. **Code review** — is the implementation readable, maintainable, tested, and
-   free from unnecessary complexity or duplication?
-2. **Architecture review** — does it respect bounded-context boundaries,
-   dependency direction, ports/adapters, domain/application separation, and
-   applicable ADRs?
-3. **Functional compliance review** — does the implementation actually satisfy
-   the Functional Specification and acceptance criteria?
-
-Security, performance, data migration, or operational review may be added when
-risk requires them.
-
-## 13. Validation
-
-Validation is the software equivalent of a playtest: it provides evidence that
-the resulting behavior works at the required boundaries.
-
-Use only the levels needed for the feature:
-
-- unit tests;
-- domain/application behavior tests;
-- adapter/integration tests;
-- contract tests;
-- end-to-end tests;
-- acceptance tests;
-- security checks;
-- migration verification;
-- performance checks;
-- manual validation where automated evidence is not sufficient.
-
-A Validation Report is useful for significant changes, releases, migrations,
-or risks; it is not mandatory for every small change.
-
-## 14. Done
-
-A change is `Done` when the agreed scope is implemented, reviewed, validated,
-and the owner documentation reflects the behavior and architecture that
-actually remain in the repository.
-
-## 15. Alternative paths
-
-The full pipeline is for meaningful feature work, not bureaucracy.
-
-Examples:
+### Small established defect
 
 ```text
-Small bug
-Task → Implementation → Review → Validation as needed → Done
-
-Cross-cutting architecture decision
-Idea/Exploration → ADR → architecture documentation → implementation/review
-
-Research question
-Exploration → Spike/POC → conclusion integrated into owner → Done
-
-Feature
-Exploration → Functional Specification → Approved → Technical Design
-→ Ready/Tasks → Implementation → Review → Validation → Done
+Defect Correction / Quick
+-> focused Task or work item
+-> lightweight readiness check
+-> Implementation
+-> Code Review + Functional Compliance when applicable
+-> targeted Validation
+-> Done
 ```
 
-A subject may move backward when review or validation discovers a wrong
-functional assumption or architecture decision.
+### Product behavior change
+
+```text
+Product Behavior Change / Standard or Complex
+-> Exploration when required
+-> Functional Specification
+-> Human Functional Approval
+-> Technical Design when triggered
+-> Task Planning
+-> Readiness Review
+-> Implementation
+-> applicable Reviews
+-> Validation
+-> Done
+```
+
+### Cross-cutting architecture change
+
+```text
+Architecture Change / usually Complex
+-> Exploration
+-> Architecture design / decision analysis
+-> human structural decision when required
+-> ADR when triggered
+-> implementation-oriented design + Tasks
+-> Readiness Review
+-> Implementation
+-> Architecture Review
+-> Validation
+-> Done
+```
+
+No Functional Specification is manufactured for a pure architecture change with
+no intended product behavior change.
+
+### Research / POC
+
+```text
+Research / Discovery
+-> Exploration / spike / POC
+-> evidence and conclusion
+-> integrate accepted conclusion into the appropriate owner if needed
+-> Done
+```
+
+POC code is not production architecture merely because it exists.
+
+## 6. Legacy artifact metadata
+
+Existing process documents use a `Lifecycle` metadata field created before Work
+State and artifact maturity were explicitly separated. For those documents,
+values such as `Design`, `Approved`, `Implementation`, `Review`, or `Validation`
+should be interpreted as **artifact/work-scope maturity metadata**, not as a
+claim that these words are generic Work States in the new method.
+
+New workflow reasoning should use the Work States defined by the generic
+[Lifecycle](../method/lifecycle.md). A separate migration of legacy metadata may
+be performed later when it provides enough value to justify repository churn.

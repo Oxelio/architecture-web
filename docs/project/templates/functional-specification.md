@@ -1,30 +1,28 @@
 # Template — Functional Specification
 
-A Functional Specification describes **what** an approved candidate feature
-must do. Keep infrastructure choices out of this document unless they are an
-explicit product constraint.
+A Functional Specification owns proposed/approved **product behavior**. Keep
+implementation choices out unless they are genuine product constraints.
 
 ```markdown
 # <Feature name>
 
 > **Identifier:** SF-<DOMAIN>-<NNN>
 >
-> **Lifecycle:** Design
+> **Artifact status:** Proposed
 >
 > **Content status:** Proposed
 >
 > **Document type:** Functional Specification
 >
-> **Domain:** <bounded context>
+> **Domain:** <product/domain area>
 
-## Position in the pipeline
+## Work / authority context
 
-**Why this is in Design:** the behavior is coherent enough to review as a
-solution, but it has not yet been approved for implementation.
+**Work Type:** Product Behavior Change
 
-**To move to Approved:** resolve blocking functional decisions, verify the
-acceptance criteria, and explicitly approve the behavior for an identified
-scope.
+**Approval:** Pending Human Functional Approval
+
+**Source Exploration:** <link when applicable>
 
 ## 1. Business context / problem
 
@@ -66,11 +64,11 @@ scope.
 
 ...
 
-## 11. Alternatives considered
+## 11. Functional alternatives considered
 
 ...
 
-## 12. Open decisions
+## 12. Open functional decisions
 
 ...
 
@@ -78,9 +76,15 @@ scope.
 
 - [ ] ...
 
-## 14. Approval decision
+## 14. Human approval
 
-**Decision:** <Pending | Approved>
+**Decision:** Pending | Approved | Rejected
 
-**Scope:** ...
+**Approved scope:** ...
+
+**Authority / record:** ...
 ```
+
+After explicit approval, update the artifact status/content authority according
+to project conventions. Technical Design may then rely on the approved behavior
+but may not redefine it silently.

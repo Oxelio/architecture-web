@@ -2,83 +2,82 @@
 
 ## Project boundary
 
-Use one ChatGPT Project named `Architecture Web` for this product rather than a
-separate Project for every package, repository, or bounded context.
+Use the ChatGPT Project `Architecture Web` as the evolving project workspace.
+The repository remains canonical; ChatGPT conversations are reasoning and
+working context.
 
-The ChatGPT Project boundary follows the long-lived product/context boundary.
-Create another ChatGPT Project only when the work has a genuinely different
-product context, vocabulary, goals, and source material.
+A future generic method-aware Custom GPT may own the reusable method behavior,
+while this ChatGPT Project continues to provide Architecture Web-specific
+context. Do not put Architecture Web product/architecture truth into the generic
+method layer.
 
 ## Conversation boundary
 
-Prefer one conversation per focused problem. Example titles:
+Prefer one focused conversation per meaningful problem or workflow slice rather
+than one indefinitely growing chat.
+
+Example titles:
 
 ```text
 [Identity][EXPLORE] Configurable user registration
 [Identity][SPEC] User registration
-[Identity][TECH] Registration policy architecture
+[Identity][TECH] Registration policy design
+[Identity][READY] Registration readiness
 [Identity][TASK] Registration implementation
 [Identity][REVIEW] Registration implementation
-[Global][ADR] Bounded-context communication
+[Global][ARCH] Bounded-context communication
 ```
 
-Avoid a single indefinitely growing chat that mixes unrelated architecture,
-release, feature, and review questions.
+## Kickoff
 
-## Context model
-
-The repository is the source of truth. ChatGPT is a reasoning and drafting
-workspace, not the canonical project memory.
-
-A useful flow is:
+For meaningful work, start from the generic method:
 
 ```text
-Git documentation / code
-        ↓
-focused ChatGPT conversation
-        ↓
-exploration / decision / review
-        ↓
-canonical repository update
-        ↓
-implementation task
-        ↓
-coding agent / developer
-        ↓
-review and validation
-        ↓
-Git
-```
-
-## Conversation kickoff
-
-Provide only the local context that is not already captured by project
-instructions or canonical documentation:
-
-```text
-Bounded context: <name>
-Subject: <problem or feature>
-Current lifecycle: <Idea | Exploration | Design | ...>
-Relevant canonical documents:
-- <link>
-- <link>
-
-Goal for this conversation:
-<what must be decided or produced>
-
-Known requirements / constraints:
+Project: Architecture Web
+Subject: <work>
+Known Work Type: <if known>
+Known current state/activity: <if known>
+Goal: <what must be decided or produced>
+Relevant sources already known:
 - ...
-
-Do not invent missing business requirements. Separate functional decisions
-from technical implementation and identify assumptions explicitly.
 ```
 
-## Role separation
+Then resolve rather than assume:
 
-Use conversational ChatGPT primarily for discovery, modeling, architecture
-reasoning, specification, ADR discussion, task preparation, and review.
+1. Work Type;
+2. Change Characteristics;
+3. Workflow Depth;
+4. applicable route / Activity;
+5. Role;
+6. Project Method Profile bindings;
+7. Context Manifest;
+8. gates/blockers.
 
-Use a coding agent when the work requires repository inspection,
-implementation, refactoring, running commands, and tests. Give the agent a
-small task that references canonical documents rather than pasting a second
-copy of the entire design.
+## Context
+
+Load context progressively. Prefer authoritative narrow sources and directly
+relevant implementation evidence. Do not automatically load unrelated bounded
+contexts, obsolete explorations, rejected designs, or all repository files.
+
+When the role/activity changes materially, re-resolve context instead of simply
+accumulating every prior source.
+
+## Handoffs
+
+Handoffs are temporary workflow context. They should identify:
+
+- Work and current state/activity;
+- source and destination roles;
+- authoritative outputs by reference;
+- active blockers/risks;
+- unresolved Working Decisions;
+- next allowed activity.
+
+Do not copy entire Functional Specifications or Technical Designs into handoffs.
+
+## Coding-agent handoff
+
+Use a coding agent after the relevant work is Ready (or after the lightweight
+Quick readiness check). Give it focused Tasks/work items and canonical source
+references. Root [`AGENTS.md`](../../AGENTS.md) contains the repository-level
+operational instructions.

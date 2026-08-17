@@ -64,6 +64,6 @@ implemented. The following require a concrete need before becoming scope:
 ## Scope changes
 
 A new feature enters delivery through the pipeline in
-[Delivery pipeline and artifacts](delivery-pipeline.md). A structural change to
+[Architecture Web delivery profile](delivery-pipeline.md). A structural change to
 the architecture may additionally require an ADR. Mentioning an idea in this
 scope does not make a future implementation implicitly approved.

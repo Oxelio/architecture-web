@@ -1,79 +1,77 @@
-# Adding a feature
+# Adding a feature in Architecture Web
 
-This guide applies the project delivery pipeline to feature implementation. It
-starts from business intent and ends with review and validation.
+This guide applies the generic [Software Engineering Method](../method/README.md)
+to Architecture Web's concrete DDD/Clean/Hexagonal implementation.
 
-Not every change needs every artifact. Use the full path for meaningful feature
-work; keep small bugs and local maintenance proportional to their risk.
+For Work Type, Workflow Depth, lifecycle, roles, Context Manifest, Readiness,
+Working Decision Log, Review, and Validation semantics, use the generic method.
+Resolve project owners through the
+[Project Method Profile](../project/project-method-profile.md).
 
-See [Delivery pipeline and artifacts](../project/delivery-pipeline.md).
+## 1. Classify and resolve context before implementation
 
-## 1. Explore the problem when needed
+A new product behavior normally uses `Product Behavior Change`; an established
+bug uses `Defect Correction`. Security, migration, compatibility, concurrency,
+and similar concerns are Change Characteristics that may increase Workflow
+Depth and required review/validation.
 
-Before designing code, establish the problem, actors, desired outcome, known
-business rules, scope, alternatives, dependencies, and major risks.
+For meaningful work, build a focused Context Manifest before making normative
+decisions. Do not load unrelated bounded contexts or use nearby historical code
+as an architectural owner.
 
-Use an [Exploration](../project/templates/exploration.md) when uncertainty or
-trade-offs are significant. Do not treat exploratory hypotheses as approved
-behavior.
+## 2. Functional behavior belongs in a Functional Specification
 
-## 2. Define the Functional Specification
+When new or changed product behavior must become authoritative, use the
+[Functional Specification template](../project/templates/functional-specification.md).
+Keep HTTP routes, database schemas, React components, Redis, concrete adapters,
+and framework APIs out of the functional owner unless they are genuine product
+constraints.
 
-For a feature, the Functional Specification is the source of truth for expected
-behavior. It describes the **what**, not the infrastructure.
+Human Functional Approval is required before proposed behavior becomes
+`Approved`. AI may prepare or assess the specification but may not cross that
+gate automatically.
 
-Identify at least:
+A defect restoring already-established behavior does not need a new Functional
+Specification merely to re-approve the same rule.
 
-- actor and authorization expectations;
-- business input and output;
-- domain rules and invariants;
-- states and significant transitions;
-- expected errors and edge cases;
-- functional dependencies;
-- externally observable behavior;
-- acceptance criteria;
-- non-goals.
+## 3. Apply Architecture Web Technical Design when triggered
 
-Do not start from a Fastify route, database table, React component, or adapter.
-The same application behavior should remain meaningful from another interface.
+When the work needs non-trivial design before coding, use the
+[Technical Design template](../project/templates/technical-design.md) after the
+relevant product behavior is approved.
 
-Use the
-[Functional Specification template](../project/templates/functional-specification.md)
-for new substantial specifications.
+Architecture Web Technical Design should evaluate, as relevant:
 
-## 3. Approve behavior before architecture
+- bounded-context ownership;
+- aggregates and consistency boundaries;
+- application use cases and orchestration;
+- application-owned ports and external capabilities;
+- adapter and composition responsibilities;
+- state/persistence and data flow;
+- transactions, concurrency, idempotency, and messaging;
+- security/privacy;
+- migration/compatibility;
+- performance/operations;
+- technical error semantics;
+- validation strategy.
 
-A feature enters `Approved` only after blocking functional questions are
-resolved and the behavior is explicitly accepted for an identified scope.
+Create an [ADR](../architecture/decisions/README.md) only when the generic ADR
+trigger applies: a durable structural decision has meaningful alternatives and
+its rationale is worth preserving.
 
-A Functional Specification being detailed does not make it approved.
+## 4. Plan Tasks before formal Readiness Review
 
-## 4. Produce Technical Design when architecture work is needed
+Tasks reference their Functional Specification, Technical Design, and relevant
+ADRs instead of copying them. Use the
+[Task template](../project/templates/task.md) for work that benefits from
+explicit delegation/sequencing.
 
-The Technical Design translates approved behavior into the current
-architecture. It may define bounded-context ownership, aggregates, application
-use cases, ports, adapters, data flows, transactions, messaging, security,
-migrations, performance constraints, and test strategy.
+For Standard/Complex implementation, perform Task Planning before the formal
+[Readiness Review](../method/readiness-review.md). Do not enter `Ready` while a
+Task requires the Developer to decide unresolved product or structural
+architecture questions.
 
-Use the [Technical Design template](../project/templates/technical-design.md).
-
-If this work requires a durable structural decision with several reasonable
-alternatives, create an [ADR](../architecture/decisions/README.md). Do not create
-an ADR for routine local choices.
-
-## 5. Reach Ready and create focused tasks
-
-Before implementation starts, verify the Definition of Ready in the
-[delivery pipeline](../project/delivery-pipeline.md).
-
-Tasks are small execution units. They reference the Functional Specification,
-Technical Design, and ADRs instead of duplicating them. Each task should define
-an objective, relevant constraints, acceptance criteria, expected tests, and
-non-goals when useful.
-
-See the [Task template](../project/templates/task.md).
-
-## 6. Extend the domain only when the feature needs it
+## 5. Extend the domain only when the feature needs it
 
 A new value object follows existing factories:
 
@@ -98,7 +96,7 @@ that public contract. Add colocated tests for validation and meaningful limits.
 Aggregate boundaries follow business consistency, not database or endpoint
 shape.
 
-## 7. Define or extend the application contract
+## 6. Define or extend the application contract
 
 In the historical IAM core, choose the appropriate capability (`accounts`,
 `authentication`, or `access-administration`) and create the use-case contract
@@ -111,7 +109,7 @@ boundary.
 Expected business outcomes use typed result/error contracts. Infrastructure
 failures must not be disguised as business errors without an explicit policy.
 
-## 8. Add or extend a port only at a real boundary
+## 7. Add or extend a port only at a real boundary
 
 Repositories belong with application-owned persistence capabilities; external
 services belong with the application capability that needs them. Keep ports
@@ -128,7 +126,7 @@ transaction capability (`IamUnitOfWork` in the current IAM architecture). An
 operation spanning PostgreSQL and Redis must define idempotency and recovery
 semantics rather than pretending to provide a distributed transaction.
 
-## 9. Implement infrastructure
+## 8. Implement infrastructure
 
 Choose or create a specialized adapter only when the approved design requires
 it. An adapter implements the application-owned port and contains technical
@@ -137,7 +135,7 @@ mapping and provider behavior.
 Persistence schema, migrations, and mappers change together. Rehydration must
 not silently normalize invalid persisted state.
 
-## 10. Compose the feature
+## 9. Compose the feature
 
 Wire concrete adapters at the composition boundary. In the current API this
 means the composition root, not controllers or application use cases.
@@ -145,7 +143,7 @@ means the composition root, not controllers or application use cases.
 The existing `apps/api/src/security` vertical is a documented historical
 exception and **MUST NOT** become an implicit template for new capabilities.
 
-## 11. Expose HTTP and UI
+## 10. Expose HTTP and UI
 
 Create or update transport contracts, controllers/presenters, route schemas,
 and UI clients without leaking domain entities across the boundary.
@@ -157,39 +155,45 @@ context rather than accepting an arbitrary owner from the client.
 For React Query, parameterized queries must include every criterion in the key,
 and mutations must invalidate all affected resources.
 
-Update product localization resources for every supported UI locale when user-
-facing text changes. This localization requirement is independent from the
+Update product localization resources for every supported UI locale when
+user-facing text changes. This localization requirement is independent from the
 single-language repository documentation policy.
 
-## 12. Review
+## 11. Review using independent perspectives
 
-Review the implementation from three independent perspectives:
+Use the generic [Review and validation](../method/review-validation.md) model.
+Architecture Web adds these Architecture Review concerns when applicable:
 
-1. **Code quality** — readability, maintainability, complexity, duplication,
-   error handling, and tests;
-2. **Architecture compliance** — bounded-context ownership, dependency
-   direction, domain/application/infrastructure separation, ports/adapters,
-   aggregate boundaries, and ADRs;
-3. **Functional compliance** — behavior and acceptance criteria from the
-   Functional Specification.
+- bounded-context ownership;
+- dependency direction;
+- domain/application/infrastructure separation;
+- ports/adapters;
+- aggregate and transaction boundaries;
+- public package/contracts;
+- applicable ADRs.
 
-Use a durable [Review](../project/templates/review.md) document only when the
-risk or significance justifies keeping one beyond normal pull-request history.
+Use a durable [Review template](../project/templates/review.md) only when the
+risk or significance justifies keeping a record beyond pull-request history.
 
-## 13. Validate
+## 12. Validate proportionally
 
-Run the smallest set of evidence that proves the required behavior at the right
-boundaries: domain/application tests, adapter tests, integration/contract tests,
-end-to-end or acceptance tests, and security/migration/performance checks when
-needed.
+Follow [Testing and verification](testing.md) and the method's evidence model.
+Use the smallest sufficient set of domain/application, adapter, integration,
+contract, E2E/acceptance, security, migration, compatibility, or performance
+evidence for the changed boundaries.
 
-See [Testing and verification](testing.md) and the optional
-[Validation Report template](../project/templates/validation-report.md).
+Use a [Validation Report](../project/templates/validation-report.md) when durable
+validation evidence adds value.
 
-## 14. Finish by synchronizing owners
+## 13. Finish by synchronizing owners
 
-Before `Done`, ensure the Functional Specification, Technical Design, ADRs,
-architecture references, HTTP reference, and guides that own changed facts
-reflect the behavior that actually remains in the repository.
+Before `Done`:
+
+- resolve all Working Decisions for the completed scope;
+- ensure approved-target owners contain accepted target behavior/design;
+- ensure current-state architecture/reference documents describe what is
+  actually effective, not merely what was decided for the future;
+- ensure implementation and validation evidence no longer conflicts silently
+  with canonical owners.
 
 Do not preserve obsolete documentation as `old` files; Git is the history.

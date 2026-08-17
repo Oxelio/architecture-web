@@ -1,17 +1,16 @@
 # Active explorations
 
-Explorations capture unresolved product or architecture questions before they
-become approved behavior or durable architecture decisions.
+Generic Exploration semantics are defined by the
+[Software Engineering Method](../method/work-classification.md). Explorations are
+working artifacts: they may contain hypotheses, alternatives, evidence, and
+open questions, but are not normative merely because they are documented.
 
-They may contain hypotheses, alternatives, and open questions. They are not
-normative merely because they are documented.
-
-Current explorations:
+Current Architecture Web explorations:
 
 - [Configurable user registration](identity/configurable-user-registration.md)
 
-When an exploration reaches a decision, integrate the accepted behavior into a
-Functional Specification or the relevant owner document. Preserve important
-structural architecture rationale in an ADR when warranted. The exploration
-may then remain as a Historical Record or be removed when Git history is
-sufficient.
+When an Exploration reaches a conclusion, integrate accepted durable knowledge
+into the appropriate owner. Functional behavior goes through the Functional
+Specification and human approval path; durable structural architecture
+decisions are evaluated against ADR policy. The Exploration may be removed when
+Git history is sufficient.

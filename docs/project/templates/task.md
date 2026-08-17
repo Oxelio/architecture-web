@@ -1,12 +1,12 @@
 # Template — Implementation Task
 
-A task is a small, verifiable execution unit. It references source documents
-instead of becoming a competing specification.
+A Task is a small, verifiable execution unit. It references authoritative
+sources instead of becoming a competing specification or hidden Technical Design.
 
 ```markdown
 # Task — <short objective>
 
-**Lifecycle:** Ready
+**Artifact status:** Planned
 **Document type:** Implementation Task
 **Domain:** <bounded context / technical area>
 
@@ -16,15 +16,12 @@ instead of becoming a competing specification.
 
 ## Sources of truth
 
-- Functional Specification: <link>
+- Functional Specification: <link when applicable>
 - Technical Design: <link when applicable>
 - ADRs: <links when applicable>
+- Architecture constraints: <links when relevant>
 
-## Context
-
-...
-
-## Relevant architectural constraints
+## Local context
 
 ...
 
@@ -36,13 +33,17 @@ instead of becoming a competing specification.
 
 ...
 
+## Dependencies / sequencing
+
+...
+
 ## Non-goals
 
 ...
 
-## Notes for implementation
+## Implementation authority
 
-Inspect the existing repository before choosing local implementation details.
-Do not introduce a new architectural pattern or silently diverge from the
-source documents to make this task easier.
+Inspect the repository before choosing local implementation details. If this
+Task requires a new functional, structural architecture, or other upstream
+decision, surface the blocker instead of deciding it silently in code.
 ```

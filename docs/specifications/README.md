@@ -1,34 +1,30 @@
 # Functional specifications
 
-Functional Specifications are the canonical owners of feature behavior from a
-business and user perspective. They define the need, actors, rules, edge cases,
-and acceptance criteria without becoming technical architecture documents.
+Functional Specifications are the canonical owners of approved product behavior
+for an identified scope. Their generic ownership and approval semantics are
+defined by the [Software Engineering Method](../method/artifact-ownership.md).
+Architecture Web-specific delivery bindings are in the
+[Project Method Profile](../project/project-method-profile.md).
 
-See the [delivery pipeline](../project/delivery-pipeline.md) and
-[Functional Specification template](../project/templates/functional-specification.md).
+Use the [Functional Specification template](../project/templates/functional-specification.md)
+for new substantial behavior.
 
-## Lifecycle
+## Artifact maturity and legacy metadata
 
-For feature work, the normalized lifecycle is:
+Existing specifications predate the method's explicit separation between Work
+State and artifact maturity. Their `Lifecycle` field is retained for compatibility
+and should be read as **specification/work-scope maturity**, not as the generic
+Work State.
 
-> **Idea → Exploration → Design → Approved → Technical Design → Ready → Implementation → Review → Validation → Done**
+Conservative legacy mappings already applied in this repository are:
 
-A Functional Specification normally appears in `Design` and remains the owner
-of behavior after `Approved`. Technical choices belong to a Technical Design or
-ADR and are linked rather than duplicated.
-
-### Legacy status migration
-
-These specifications existed before the current delivery pipeline was
-formalized. Their previous statuses are mapped conservatively:
-
-- previous `Accepted` → `Approved`;
-- previous `Implemented` → `Implementation`.
+- previous `Accepted` -> `Approved`;
+- previous `Implemented` -> `Implementation`.
 
 `Implementation` deliberately does **not** assert that the feature completed a
-formal architecture review and validation under the new pipeline. A legacy
-feature may move to `Done` after current implementation, specification,
-architecture, and validation evidence are reviewed together.
+formal Architecture Review and Validation under the current method. A legacy
+feature may move to `Done` only after implementation, owners, architecture, and
+validation evidence are reviewed together.
 
 ## Catalog
 
@@ -47,8 +43,8 @@ architecture, and validation evidence are reviewed together.
 ## Observed implementation coverage
 
 Several approved security specifications have executable foundations but do
-not yet have enough evidence for every acceptance criterion to enter or finish
-formal implementation/validation under the current pipeline.
+not yet have enough evidence for every acceptance criterion to finish formal
+implementation/validation under the current method.
 
 `SF-NOTIFICATIONS-001` has an executable foundation: Domain Events, an outbox,
 Audit and Notifications bounded contexts, a Web center, preferences, and email,

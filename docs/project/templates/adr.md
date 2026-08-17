@@ -1,7 +1,8 @@
 # Template — Architecture Decision Record
 
-Use an ADR for a durable structural decision with meaningful alternatives. It
-is a transversal record, not a mandatory feature-pipeline stage.
+Use an ADR when the generic method's ADR trigger applies: a durable structural
+architecture decision has meaningful alternatives and its rationale is worth
+preserving. It is transversal, not a mandatory pipeline stage.
 
 ```markdown
 # ADR-<NNNN> — <decision title>
@@ -53,7 +54,11 @@ is a transversal record, not a mandatory feature-pipeline stage.
 
 ...
 
-## Documents and implementation to synchronize
+## Target and synchronization
 
-...
+**Approved target affected:** ...
+
+**Current-state owners to synchronize when the decision becomes effective:** ...
+
+**Implementation / migration implications:** ...
 ```

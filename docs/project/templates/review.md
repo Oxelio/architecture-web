@@ -1,15 +1,16 @@
 # Template — Review
 
-Use this template when a change benefits from a durable review record. Normal
-pull-request comments may be sufficient for small changes.
+Use this record when the change benefits from durable review evidence. Small
+changes may rely on pull-request history. Review semantics are owned by the
+[Software Engineering Method](../../method/review-validation.md).
 
 ```markdown
-# Review — <feature / change>
+# Review — <work>
 
-**Lifecycle:** Review
+**Artifact status:** Complete | Changes Required
 **Content status:** Historical Record
 **Document type:** Review
-**Domain:** <bounded context / project area>
+**Domain:** <project area>
 
 ## Reviewed change
 
@@ -22,45 +23,43 @@ pull-request comments may be sufficient for small changes.
 - ADRs: ...
 - Tasks / pull request: ...
 
-## 1. Code review
+## 1. Code Review
 
-- readability and naming;
-- duplication and complexity;
-- error handling;
-- test quality;
-- maintainability.
+**Applicable:** yes/no
 
 **Findings:** ...
 
-## 2. Architecture review
+## 2. Architecture Review
 
-- bounded-context ownership;
-- dependency direction;
-- domain/application/infrastructure separation;
-- ports and adapters;
-- aggregate and transaction boundaries;
-- applicable ADRs.
+**Applicable:** yes/no
 
-**Findings:** ...
-
-## 3. Functional compliance review
-
-Compare the implementation with functional rules and acceptance criteria.
+Architecture Web criteria include bounded-context ownership, dependency
+direction, domain/application/infrastructure separation, ports/adapters,
+aggregate/transaction boundaries, package/public contracts, and applicable ADRs.
 
 **Findings:** ...
 
-## 4. Additional risk review
+## 3. Functional Compliance Review
 
-Security, privacy, migration, performance, or operational concerns when
-applicable.
+**Applicable:** yes/no
+
+Compare implementation with the Approved Functional Specification and
+acceptance criteria.
 
 **Findings:** ...
 
-## 5. Required changes
+## 4. Specialist review
 
-...
+Security, privacy, migration, compatibility, performance, operational, or other
+Change Characteristics when applicable.
+
+**Findings:** ...
+
+## 5. Required return path
+
+<Implementing | Preparing / Technical Design | Designing / Functional work | none>
 
 ## 6. Conclusion
 
-<Approved for validation | Return to implementation | Return to Technical Design | Return to Design>
+<Accepted for validation | Changes Required>
 ```

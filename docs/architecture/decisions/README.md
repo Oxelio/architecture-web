@@ -1,21 +1,18 @@
 # Architecture Decision Records
 
-ADR means **Architecture Decision Record**. An ADR preserves the context,
-alternatives, rationale, and consequences of a durable structural architecture
-decision.
+Architecture Web ADRs implement the generic decision and ownership policy in
+[Artifact ownership](../../method/artifact-ownership.md) and the ADR trigger in
+[Work classification](../../method/work-classification.md).
 
-ADRs are transversal artifacts: they are **not** a mandatory stage after every
-Functional Specification or Technical Design. Create one when several
-reasonable alternatives exist and future maintainers would otherwise have to
-rediscover why an important architectural choice was made.
-
-Routine naming, formatting, or obvious local implementation choices do not
-need ADRs.
+An ADR owns the context, alternatives, rationale, and consequences of a durable
+structural architecture decision. It is transversal, not a mandatory feature
+stage. Routine naming, formatting, or obvious local implementation choices do
+not need ADRs.
 
 New records **SHOULD** use `NNNN-short-title.md` and the
-[ADR template](../../project/templates/adr.md). Accepted decisions must be
-reflected in the current owner documentation; the ADR owns the rationale, not a
-second copy of current architecture truth.
+[ADR template](../../project/templates/adr.md). An accepted target decision does
+not make the target architecture effective immediately: synchronize current
+architecture documentation when the decision becomes effective in the system.
 
 ## Register
 

@@ -1,15 +1,14 @@
-# Documentation templates
+# Architecture Web documentation templates
 
-> **Lifecycle:** Approved
->
 > **Content status:** Canonical
 >
 > **Document type:** Template Index
 >
 > **Domain:** Documentation Governance
 
-Use templates only when the corresponding artifact adds value. Remove sections
-that are not relevant rather than filling them mechanically.
+These templates adapt the generic [Software Engineering Method](../../method/README.md)
+to Architecture Web. Use an artifact only when its trigger and risk justify it;
+remove irrelevant sections rather than filling them mechanically.
 
 - [Exploration](exploration.md)
 - [Functional Specification](functional-specification.md)
@@ -19,5 +18,9 @@ that are not relevant rather than filling them mechanically.
 - [Review](review.md)
 - [Validation Report](validation-report.md)
 
-The pipeline and artifact responsibilities are defined in
-[Delivery pipeline and artifacts](../delivery-pipeline.md).
+Working Context Manifest, Readiness Review, and Working Decision Log shapes are
+defined directly by the method:
+
+- [Context Manifest](../../method/context-manifest.md)
+- [Readiness Review](../../method/readiness-review.md)
+- [Working Decision Log](../../method/working-decision-log.md)

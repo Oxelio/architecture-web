@@ -83,19 +83,14 @@ return {
 
 ## Documentation and delivery
 
-- Repository documentation is canonical in English.
-- User-facing localization remains multilingual where the product supports it.
-- Git is the documentation history; do not maintain ordinary `old`, versioned,
-  backup, or parallel-language documentation copies.
-- A Functional Specification owns approved feature behavior.
-- A Technical Design owns the architecture of an approved feature.
-- Durable structural decisions **SHOULD** be recorded as ADRs when their
-  rationale would otherwise be difficult to reconstruct.
-- Tasks reference their source documents rather than copying them.
-- Significant implementation must be reviewed for code quality, architecture
-  compliance, and functional compliance before `Done`.
+Repository documentation is canonical in English; user-facing localization may
+remain multilingual. Generic ownership, lifecycle, role, readiness, review, and
+validation rules are owned by the
+[Software Engineering Method](../method/README.md). Architecture Web binds them
+through the [Project Method Profile](../project/project-method-profile.md).
 
-See [Delivery pipeline](../project/delivery-pipeline.md).
+Do not duplicate upstream Functional Specification, Technical Design, ADR, or
+method rules in implementation notes merely for convenience.
 
 ## Commits and versions
 

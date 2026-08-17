@@ -1,28 +1,32 @@
-# Project governance
+# Architecture Web project governance
 
-> **Lifecycle:** Approved
->
 > **Content status:** Canonical
 >
 > **Document type:** Project Governance
 >
 > **Domain:** Project
 
-This directory defines the durable rules used to reason about, document, build,
-and validate Architecture Web.
+Architecture Web uses the generic [Software Engineering Method](../method/README.md)
+for work governance. This directory owns Architecture Web-specific direction,
+method adoption, documentation policy, and architecture constraints.
 
 ## Direction
 
 - [Vision](vision.md)
-- [Architecture principles](architecture-principles.md)
 - [Scope](scope.md)
+- [Architecture principles](architecture-principles.md)
 
-## Governance
+## Method adoption and governance
 
+- [Project Method Profile](project-method-profile.md)
+- [Architecture Web delivery profile](delivery-pipeline.md)
 - [Documentation conventions](documentation-conventions.md)
-- [Delivery pipeline and artifacts](delivery-pipeline.md)
-- [Templates](templates/README.md)
+- [Project templates](templates/README.md)
 
-These documents govern future work. They do not retroactively claim that every
-historical implementation followed the pipeline; existing exceptions remain
-explicit technical debt until changed.
+Generic Work Types, Workflow Depth, lifecycle semantics, role contracts,
+Context Manifest, Readiness Review, Working Decision Log, review, and validation
+are owned by [`docs/method`](../method/README.md).
+
+Project governance does not retroactively claim that historical implementation
+followed the current method. Existing implementation/documentation conflicts
+remain evidence or technical debt until explicitly resolved.
