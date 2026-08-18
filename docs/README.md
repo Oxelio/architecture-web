@@ -2,7 +2,7 @@
 
 This directory contains the canonical project-owned documentation for Architecture
 Web. The generic Software Engineering Method adopted by the project is owned by
-the separate [software-engineering-method repository](https://github.com/Oxelio/software-engineering-method).
+the separate [software-engineering-method repository](../external/software-engineering-method/README.md).
 Git is the history; current project files describe current project owners and
 accepted targets.
 
@@ -15,7 +15,7 @@ knowledge is integrated once into its canonical owner.
 ### Generic method
 
 The canonical method is maintained externally in
-[Oxelio/software-engineering-method](https://github.com/Oxelio/software-engineering-method).
+[Oxelio/software-engineering-method](../external/software-engineering-method/README.md).
 Architecture Web does not maintain a normative copy under `docs/`.
 
 ### Architecture Web
@@ -67,7 +67,7 @@ Architecture Web does not maintain a normative copy under `docs/`.
 ## Sources of truth
 
 The generic ownership rules are defined by the canonical
-[Software Engineering Method](https://github.com/Oxelio/software-engineering-method).
+[Software Engineering Method](../external/software-engineering-method/README.md).
 Architecture Web binds those semantic owners to concrete project files in the
 [Project Method Profile](project/project-method-profile.md).
 
