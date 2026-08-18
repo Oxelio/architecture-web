@@ -8,7 +8,7 @@
 
 ## 1. Purpose
 
-Architecture Web adopts the generic [Software Engineering Method](../method/README.md).
+Architecture Web adopts the generic [Software Engineering Method](../../external/software-engineering-method/README.md).
 The method owns Work Types, Workflow Depth, Work States, Activities, artifact
 triggers, gates, AI roles, Context Manifest semantics, Readiness Review,
 Working Decision Log, Review, Validation, and the distinction between lifecycle
@@ -207,7 +207,7 @@ Sub-issues progress
 
 The activated Project field `Work Type` is the unique operational owner of the
 Work's current classification. Its values are the Method Work Types defined in
-[Work classification](../method/work-classification.md).
+[Work classification](../../external/software-engineering-method/work-classification.md).
 
 ### Workflow Depth
 
@@ -417,7 +417,7 @@ State list casually.
 ## 10. AI operational permission policy
 
 Tool Capability, Operational Permission, Role Authority, and Gate requirements
-are evaluated independently. An allowed tool mutation never creates the semantic
+are enaluated independently. An allowed tool mutation never creates the semantic
 authority needed to decide the value being recorded.
 
 The Method `Workflow Coordinator` owns narrow method-level classification and
@@ -466,8 +466,8 @@ Role activity rather than a tool permission. The matrix governs the mutation
 used to record review output; the corresponding review Role governs the semantic
 review decision.
 
-Orchestration is coordination across these permissions and Roles, not a new
-authority super-role. A material change of Activity or Role SHOULD be made
+Orchestration is coordination across these permissions and Roles, not a
+new authority super-role. A material change of Activity or Role SHOULD be made
 explicit and SHOULD trigger focused context re-resolution.
 
 ## 11. GitHub automation constraints
@@ -605,5 +605,5 @@ should be interpreted as **artifact/work-scope maturity metadata**, not as a
 claim that these words are generic Work States in the new method.
 
 New workflow reasoning should use the Work States defined by the generic
-[Lifecycle](../method/lifecycle.md). A separate migration of legacy metadata may
+[Lifecycle](../../external/software-engineering-method/lifecycle.md). A separate migration of legacy metadata may
 be performed later when it provides enough value to justify repository churn.
