@@ -2,7 +2,7 @@
 
 This directory provides **Architecture Web-specific** orientation for ChatGPT,
 Codex, Cline, and other agents. Generic AI workflow semantics are owned by the
-[Software Engineering Method](../method/README.md); project bindings are owned
+[Software Engineering Method](../../external/software-engineering-method/README.md); project bindings are owned
 by the [Project Method Profile](../project/project-method-profile.md).
 
 This directory is not an independent source of product or architecture truth.
