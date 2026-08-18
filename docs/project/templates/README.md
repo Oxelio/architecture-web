@@ -6,7 +6,7 @@
 >
 > **Domain:** Documentation Governance
 
-These templates adapt the generic [Software Engineering Method](../../method/README.md)
+These templates adapt the generic [Software Engineering Method](../../../external/software-engineering-method/README.md)
 to Architecture Web. Use an artifact only when its trigger and risk justify it;
 remove irrelevant sections rather than filling them mechanically.
 
@@ -19,8 +19,8 @@ remove irrelevant sections rather than filling them mechanically.
 - [Validation Report](validation-report.md)
 
 Working Context Manifest, Readiness Review, and Working Decision Log shapes are
-defined directly by the method:
+defined directly by the adopted method revision:
 
-- [Context Manifest](../../method/context-manifest.md)
-- [Readiness Review](../../method/readiness-review.md)
-- [Working Decision Log](../../method/working-decision-log.md)
+- [Context Manifest](../../../external/software-engineering-method/context-manifest.md)
+- [Readiness Review](../../../external/software-engineering-method/readiness-review.md)
+- [Working Decision Log](../../../external/software-engineering-method/working-decision-log.md)
