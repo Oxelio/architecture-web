@@ -20,6 +20,8 @@ semantics to Architecture Web's canonical project sources.
 | `project.scope`             | [Project scope](scope.md)                                 |
 | `governance.documentation`  | [Documentation conventions](documentation-conventions.md) |
 | `governance.delivery`       | [Architecture Web delivery profile](delivery-pipeline.md) |
+| `governance.work_tracking`  | [Architecture Web delivery profile](delivery-pipeline.md) |
+| `governance.ai_operations`  | [Architecture Web delivery profile](delivery-pipeline.md) |
 | `architecture.principles`   | [Architecture principles](architecture-principles.md)     |
 | `architecture.current`      | [Architecture overview](../architecture/overview.md)      |
 | `architecture.dependencies` | [Dependency rules](../architecture/dependency-rules.md)   |
@@ -35,6 +37,10 @@ Functional behavior owners are discovered through the
 non-normative Exploration artifacts are indexed in
 [Active explorations](../explorations/README.md).
 
+GitHub Issues and the Architecture Web GitHub Project are external operational
+owners only for the subjects assigned by `governance.delivery`; they do not
+replace repository-owned product, architecture, governance, or validation truth.
+
 ## 3. Project-specific method extensions
 
 Architecture Web adds the following project constraints to the generic method:
@@ -46,7 +52,9 @@ Architecture Web adds the following project constraints to the generic method:
 - deliberate package/public API boundaries;
 - repository documentation in English;
 - project-specific TypeScript, HTTP, React, persistence, and testing conventions;
-- architecture review criteria defined by the project architecture documents.
+- architecture review criteria defined by the project architecture documents;
+- GitHub-based operational Work/Task tracking and Continuous Flow delivery as
+  defined by the delivery profile.
 
 These are **Architecture Web rules**, not generic Software Engineering Method
 invariants.
@@ -63,6 +71,10 @@ not claim that a proposed structural decision was human-approved when it was not
 A separate human Readiness approval is not required by default. Readiness may be
 assessed by the responsible human/AI workflow unless a specific Work or risk
 policy explicitly requires additional approval.
+
+Operational access to GitHub does not grant additional decision authority. AI
+mutations must comply with the active Role and the operational permission matrix
+owned by `governance.delivery`.
 
 ## 5. Documentation policy value
 
