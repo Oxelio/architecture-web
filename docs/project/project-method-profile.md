@@ -8,9 +8,14 @@
 
 ## 1. Method adoption
 
-Architecture Web adopts the repository's [Software Engineering Method](../method/README.md).
-The method owns generic work-governance semantics; this profile binds those
-semantics to Architecture Web's canonical project sources.
+Architecture Web adopts the canonical [Software Engineering Method](https://github.com/Oxelio/software-engineering-method).
+The method repository owns generic work-governance semantics; this profile binds
+those semantics to Architecture Web's canonical project sources and owns
+Architecture Web-specific extensions, deviations, and bindings.
+
+Architecture Web MUST NOT maintain a competing normative copy of the adopted
+method. Method changes are proposed in the method repository; project adoption
+changes remain owned by this profile.
 
 ## 2. Canonical project bindings
 
