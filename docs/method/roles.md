@@ -12,7 +12,10 @@ An AI Role is a capability and authority contract, not a persona and not a
 separate physical agent. One AI may change roles between activities, but the
 role transition SHOULD be explicit and SHOULD trigger context re-resolution.
 
-Understanding a subject does not imply authority to change it.
+Understanding a subject does not imply authority to change it. Technical access
+to a repository, issue tracker, project-management system, CI system, or other
+tool also does not imply authority to perform every mutation exposed by that
+tool.
 
 Each role contract defines:
 
@@ -22,6 +25,16 @@ Each role contract defines:
 - what it must not decide or modify;
 - escalation conditions;
 - allowed/recommended lifecycle transitions and handoffs.
+
+Projects MAY additionally define operational permissions that map role/activity
+contracts to concrete tool mutations. Those permissions MUST preserve method
+authority gates and MUST NOT create a super-role that silently absorbs upstream
+decision authority.
+
+An orchestrating AI MAY coordinate the workflow by selecting the appropriate
+Role, resolving context, invoking permitted operational actions, and handing off
+between activities. When the activity or Role changes materially, the AI SHOULD
+make that transition explicit and refresh the relevant context.
 
 ## 2. Analyst
 
@@ -139,7 +152,7 @@ crossed a human-only gate.
 
 ## 10. Project extensions
 
-Projects MAY add role-specific constraints. For example, Architecture Web adds
-DDD/Clean/Hexagonal review criteria to the Software Architect and project
-coding conventions to the Developer. Such project rules remain project-owned
-rather than becoming generic method rules.
+Projects MAY add role-specific constraints and concrete operational permissions.
+For example, Architecture Web adds DDD/Clean/Hexagonal review criteria to the
+Software Architect and project coding conventions to the Developer. Such
+project rules remain project-owned rather than becoming generic method rules.
