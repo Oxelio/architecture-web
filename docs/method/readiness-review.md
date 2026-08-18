@@ -17,18 +17,23 @@ decisions.
 
 ## 2. Position
 
-For meaningful work, Task Planning occurs before formal Readiness Review:
+When Task Planning is triggered, it occurs before formal Readiness Review:
 
 ```text
 Technical/authorized design
--> Task Planning
+-> Task Planning when triggered
 -> Readiness Review
 -> Ready
 -> Implementation
 ```
 
-This does not require exhaustive micromanagement. Tasks should constrain what
-must be preserved while leaving the Developer authority over local details.
+When Task Planning is not triggered, Readiness Review verifies that the Work
+itself is a sufficiently bounded execution unit and that no artificial Task
+decomposition is required.
+
+This does not require exhaustive micromanagement. When Tasks exist, they should
+constrain what must be preserved while leaving the Developer authority over
+local details.
 
 Quick work may use an implicit lightweight readiness check rather than a durable
 review record.
@@ -68,12 +73,14 @@ Profile.
 
 ### Execution Readiness
 
-Verify dependencies/prerequisites, task boundaries, sequencing, component
-ownership, and that no Task contains an unresolved decision outside
-implementation authority.
+Verify dependencies/prerequisites and, when Tasks exist, their boundaries,
+sequencing, component ownership, and absence of unresolved decisions outside
+implementation authority. When no Tasks are required, verify that the Work
+itself is sufficiently bounded for authorized implementation.
 
-A useful test is: **could a competent Developer execute each Task by inspecting
-the repository and making only authorized local implementation decisions?**
+A useful test is: **could a competent Developer execute the Work and any Tasks by
+inspecting the repository and making only authorized local implementation
+decisions?**
 
 ### Validation Readiness
 

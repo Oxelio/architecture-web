@@ -44,8 +44,8 @@ recommend but may not execute a human-only gate.
 ### Preparing
 
 Accepted scope is being made executable. Typical activities include Technical
-Design, ADR work, Task Planning, migration/compatibility planning, validation
-planning, and Readiness Review.
+Design, ADR work, Task Planning when triggered, migration/compatibility planning,
+validation planning, and Readiness Review.
 
 ### Ready
 
@@ -153,7 +153,7 @@ Idea
 -> Exploring                 (when uncertainty warrants it)
 -> Designing                 (Functional Specification)
 -> Awaiting Approval         (Human Functional Approval)
--> Preparing                 (Technical Design if triggered, Tasks, Readiness)
+-> Preparing                 (Technical Design if triggered, Tasks if triggered, Readiness)
 -> Ready
 -> Implementing
 -> Reviewing
@@ -168,7 +168,7 @@ Idea
 -> Exploring
 -> Designing                 (architecture alternatives / decision)
 -> Awaiting Approval         (when project policy requires structural approval)
--> Preparing                 (ADR if triggered, implementation design, Tasks, Readiness)
+-> Preparing                 (ADR if triggered, implementation design, Tasks if triggered, Readiness)
 -> Ready
 -> Implementing
 -> Reviewing                 (Architecture Review required)

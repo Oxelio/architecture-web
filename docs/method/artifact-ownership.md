@@ -50,12 +50,29 @@ documentation and is not a changelog.
 ### Project policy / governance document
 
 Owns the project-specific policy assigned to it, such as canonical
-documentation language, validation commands, or architecture constraints.
+documentation language, validation commands, architecture constraints, or
+delivery policy.
 
-### Task
+### Work operational owner
 
-Owns an implementation unit, not upstream product or architecture truth. Tasks
-reference their sources instead of copying them as a second specification.
+A project MAY designate a repository artifact, external service, issue tracker,
+project-management system, or other canonical operational record as the owner
+of a Work's execution identity and operational metadata.
+
+That owner MAY hold facts such as Work identity, assignee, delivery ordering,
+dependencies, and current Work State when project policy explicitly assigns
+those responsibilities to it. It MUST reference upstream product, architecture,
+and governance owners instead of becoming a second specification.
+
+The storage medium does not determine authority. A mutable external system is
+canonical only for the subjects explicitly assigned to it by project policy.
+
+### Task operational owner
+
+A Task owns an implementation unit, not upstream product or architecture truth.
+A project MAY represent the Task as a repository artifact or in an external
+operational system. Tasks reference their sources instead of copying them as a
+second specification.
 
 ## 3. Working artifacts
 
@@ -105,7 +122,16 @@ architecture owner.
 Before `Done`, ensure all affected durable owners accurately represent the
 truth they own.
 
-## 6. Documentation history
+## 6. Operational synchronization
+
+When project policy assigns Work or Task state to an external operational owner,
+repository documents, handoffs, comments, and AI context MAY summarize that
+state for local reasoning but MUST NOT establish a competing lifecycle value.
+
+If the operational owner cannot be read or updated, expose the synchronization
+problem. Do not silently infer or persist a replacement Work State elsewhere.
+
+## 7. Documentation history
 
 Git is the history. Do not preserve ordinary old versions by maintaining
 parallel `old`, `backup`, `v2`, dated, or translated copies. Preserve durable
