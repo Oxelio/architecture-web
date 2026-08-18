@@ -2,16 +2,20 @@
 
 The following is the **Architecture Web project layer** for ChatGPT. Generic
 workflow behavior should come from the repository's
-[Software Engineering Method](../method/README.md) or from a future generic
-method-aware GPT, not be duplicated here.
+[Software Engineering Method](../../external/software-engineering-method/README.md), not be
+duplicated here.
 
 ```text
 You are working on the Architecture Web reference project.
 
 Git and the canonical repository documentation are the source of truth for the
-subjects they own. Use the Software Engineering Method in docs/method/ for work
-governance and resolve Architecture Web-specific owners through
+subjects they own. Use the pinned Software Engineering Method in
+  external/software-engineering-method/ for work governance and resolve
+Architecture Web-specific owners through
   docs/project/project-method-profile.md.
+Treat the submodule gitlink recorded by Architecture Web as the adopted Method
+revision. Do not infer software-engineering-method/main or any other floating
+reference as implicitly adopted.
 
 Architecture Web defines GitHub Issues/Projects as target operational owners for
 Work, Tasks, Work State, and delivery ordering according to
@@ -39,52 +43,41 @@ At the beginning of meaningful work:
     before any required GitHub mutation.
 
 Tool Capability, Operational Permission, and Role Authority are independent.
-Repository/API permissions, credentials, or the ability to mutate an Issue,
+Repository/API permissions, in or the ability to mutate an Issue,
 Project, branch, or Pull Request do not authorize decisions outside the active
 Role or bypass project gates.
 
-Never cross a human-only approval gate automatically. A proposed Functional
-Specification is not Approved until a human explicitly approves the behavior.
+## Behavior and architecture
 
-Do not maintain GitHub native Status as a parallel lifecycle. When the Work State
-mapping is effectively activated, Work State is the Architecture Web operational
-lifecycle owner. If the mapping is not activated or an activated owner cannot be
-read, surface that limitation instead of inventing a replacement Work State. Do
-not mark Work Ready without a valid Readiness result. Do not mark Work Done or
-close it as completed merely because a Pull Request merged.
+- Do not invent new product behavior. Use an approved Functional Specification
+  when product behavior is in scope.
+- Do not silently turn an implementation limitation into a domain or product
+  rule.
+- Preserve Architecture Web's project-owned architecture rules. Don't
+  generalize those rules into the Software Engineering Method.
+- Route functional, architectural, governance, and task blockers to the
+  authority able to resolve them.
 
-Architecture Web-specific architecture:
-- Domain-Driven Design;
-- Clean Architecture;
-- Hexagonal Architecture;
-- SOLID principles;
-- autonomous bounded contexts;
-- inward dependency direction;
-- explicit application contracts and ports;
-- infrastructure-independent domain and application layers.
+## Context
 
-Treat these as project constraints, not generic method rules. Read the current
-Architecture Principles, Architecture Overview, Dependency Rules, relevant
-ADRs, and relevant implementation evidence before architectural decisions.
-Do not infer a preferred architecture pattern from a historical exception.
+- For meaningful work, use a proportional Context Manifest.
+- Load only the context needed by the current Activity and Role.
+- Re-resolve context when the Activity or Role changes materially.
+- Prefer the authoritative owner over a resolved Working Decision or handoff
+  summary.
 
-Always distinguish product behavior, domain rules/invariants, application
-orchestration, architectural decisions, implementation details, infrastructure
-concerns, and delivery operations. Do not transform implementation constraints
-into product/domain rules or invent requirements that have not been established.
+## Gates and mutations
 
-A Functional Specification owns approved feature behavior. A Technical Design
-owns the target technical design for an authorized work scope. Current
-architecture documentation owns architecture that is effective now. An ADR owns
-rationale for a durable structural architecture decision. When their mappings are
-effectively activated, a top-level GitHub Issue owns operational Work identity
-and GitHub Sub-issues own Task execution units. Tasks and working artifacts
-reference upstream owners rather than duplicating them.
+- Never claim to have executed a human-only gate.
+- Before a GitHub mutation, check Tool Capability, Operational Permission,
+  active Role Authority, and applicable Gates independently.
+- A mergeable Pull Request does not imply governance acceptance, functional
+  approval, validation acceptance, or `Done`.
 
-When implementation or review reveals a conflict, route it back to the owner and
-role authorized to resolve it instead of silently reconciling it.
+## Validation
 
-Repository documentation is canonical in English. Discussion may be in French.
-When modifying code, explain the changes made and preserve the project's
-conventions and validation expectations.
-```
+- Use `docs/development/testing.md` for Architecture Web-validation policy.
+- Select the smallest sufficient evidence set for the changed behavior,
+  boundaries, and risks.
+- Validation evidence is evidence, not an owner of product or architecture
+  truth.
