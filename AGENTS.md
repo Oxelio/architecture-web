@@ -4,18 +4,21 @@ This repository is canonical for repository-owned truth. Do not treat
 conversation history, generated prompts, historical exceptions, nearby code, or
 GitHub operational records as authority over current owner documents.
 
-Architecture Web uses GitHub Issues/Projects for operational Work tracking as
-defined by [`docs/project/delivery-pipeline.md`](docs/project/delivery-pipeline.md).
-GitHub is canonical only for the operational subjects explicitly assigned there.
+Architecture Web defines GitHub Issues/Projects mappings for operational Work
+tracking in [`docs/project/delivery-pipeline.md`](docs/project/delivery-pipeline.md).
+GitHub is canonical only for operational subjects that are both explicitly
+assigned and effectively activated there. Until a mapping is activated, treat
+that operational owner as unavailable rather than inventing a substitute owner.
 
 ## Before work
 
 1. Read the relevant rules in [`docs/method/`](docs/method/README.md).
 2. Resolve project owners through
    [`docs/project/project-method-profile.md`](docs/project/project-method-profile.md).
-3. Resolve the owning GitHub Work Issue and Project `Work State` when available.
-   Do not infer a competing Work State from chat history if the operational owner
-   cannot be read.
+3. Resolve the owning GitHub Work Issue and Project `Work State` only when the
+   corresponding mappings are effectively activated and the owners are available.
+   If a mapping is not activated or an activated owner cannot be read, surface
+   the limitation instead of inferring a competing owner or Work State.
 4. For architecture work, read:
    - [`docs/project/architecture-principles.md`](docs/project/architecture-principles.md);
    - [`docs/architecture/overview.md`](docs/architecture/overview.md);
@@ -26,7 +29,7 @@ GitHub is canonical only for the operational subjects explicitly assigned there.
 6. Use a focused Context Manifest for meaningful work rather than loading all
    project documentation by default.
 7. Before any GitHub mutation, distinguish tool capability, active Role
-   authority, and project operational permission.
+   authority, project operational permission, and external-owner activation.
 
 ## Orchestration
 
@@ -58,8 +61,10 @@ conflict rather than copying the exception.
 ## Implementation
 
 - Implement only the authorized Task/work scope.
-- Use GitHub Sub-issues for Tasks when Task Planning is triggered; do not create
-  artificial Sub-issues for Quick work.
+- Use GitHub Sub-issues for Tasks only when Task Planning is triggered and the
+  Task/Sub-issue mapping is effectively activated and available; do not create
+  artificial Sub-issues for Quick work or substitute records for an unavailable
+  mapping.
 - Inspect the repository before choosing local implementation details.
 - Preserve approved Functional Specifications, applicable Technical Designs,
   ADRs, and public package contracts.
