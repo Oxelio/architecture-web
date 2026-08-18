@@ -6,14 +6,14 @@ Domain-Driven Design, Clean Architecture, Hexagonal Architecture, explicit
 application ports, and replaceable infrastructure adapters.
 
 The project adopts the external, architecture-neutral
-[Software Engineering Method](https://github.com/Oxelio/software-engineering-method)
+[Software Engineering Method](external/software-engineering-method/README.md)
 for proportional delivery, AI role orchestration, context engineering,
 readiness, review, and validation. Architecture Web binds that method to its own
 canonical project sources through its
 [Project Method Profile](docs/project/project-method-profile.md).
 
 - [Project documentation](docs/README.md)
-- [Software Engineering Method](https://github.com/Oxelio/software-engineering-method)
+- [Software Engineering Method](external/software-engineering-method/README.md)
 - [Project vision](docs/project/vision.md)
 - [Architecture principles](docs/project/architecture-principles.md)
 - [Architecture Web delivery profile](docs/project/delivery-pipeline.md)
