@@ -6,7 +6,7 @@
 >
 > **Domain:** Project
 
-Architecture Web uses the generic [Software Engineering Method](../method/README.md)
+Architecture Web uses the canonical [Software Engineering Method](https://github.com/Oxelio/software-engineering-method)
 for work governance. This directory owns Architecture Web-specific direction,
 method adoption, documentation policy, and architecture constraints.
 
@@ -25,7 +25,9 @@ method adoption, documentation policy, and architecture constraints.
 
 Generic Work Types, Workflow Depth, lifecycle semantics, role contracts,
 Context Manifest, Readiness Review, Working Decision Log, review, and validation
-are owned by [`docs/method`](../method/README.md).
+are owned by the external
+[`Oxelio/software-engineering-method`](https://github.com/Oxelio/software-engineering-method)
+repository.
 
 Project governance does not retroactively claim that historical implementation
 followed the current method. Existing implementation/documentation conflicts
