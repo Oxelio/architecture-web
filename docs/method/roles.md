@@ -8,9 +8,10 @@
 
 ## 1. Role model
 
-An AI Role is a capability and authority contract, not a persona and not a
-separate physical agent. One AI may change roles between activities, but the
-role transition SHOULD be explicit and SHOULD trigger context re-resolution.
+An AI Role is an activity-scoped responsibility and decision-authority contract,
+not a persona and not a separate physical agent. One AI may change roles between
+activities, but the role transition SHOULD be explicit and SHOULD trigger
+context re-resolution.
 
 Understanding a subject does not imply authority to change it. Technical access
 to a repository, issue tracker, project-management system, CI system, or other
@@ -26,15 +27,17 @@ Each role contract defines:
 - escalation conditions;
 - allowed/recommended lifecycle transitions and handoffs.
 
-Projects MAY additionally define operational permissions that map role/activity
-contracts to concrete tool mutations. Those permissions MUST preserve method
-authority gates and MUST NOT create a super-role that silently absorbs upstream
-decision authority.
+Projects MAY define operational permissions for concrete tool mutations. Those
+permissions are evaluated independently from Role Authority, MUST preserve
+method authority gates, and MUST NOT create a super-role that silently absorbs
+upstream decision authority.
 
 An orchestrating AI MAY coordinate the workflow by selecting the appropriate
 Role, resolving context, invoking permitted operational actions, and handing off
-between activities. When the activity or Role changes materially, the AI SHOULD
-make that transition explicit and refresh the relevant context.
+between activities. A permitted operational action still requires the active
+Role to hold the decision authority needed for its semantic effect and all
+applicable gates to be satisfied. When the activity or Role changes materially,
+the AI SHOULD make that transition explicit and refresh the relevant context.
 
 ## 2. Analyst
 

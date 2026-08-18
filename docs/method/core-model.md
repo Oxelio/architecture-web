@@ -86,17 +86,26 @@ evidence gates have different responsibilities and must not be conflated.
 
 ### Role
 
-A **Role** is a capability and authority contract for the current activity. A
-role is not a persona and does not require a separate physical AI agent.
+A **Role** is an activity-scoped responsibility and decision-authority contract.
+It defines what the role may decide, propose, or commit and is independent from
+technical Tool Capabilities. A role is not a persona and does not require a
+separate physical AI agent.
 
 ### Tool Capability and Operational Permission
 
 A **Tool Capability** describes an operation an integration or external system
-can technically perform. An **Operational Permission** describes whether the
-active Role and project policy authorize that operation for the current scope.
+can technically perform.
+
+An **Operational Permission** describes whether project policy permits a
+concrete tool operation for the current operational scope.
+
+Operational Permission is distinct from Role Authority. A permitted operation
+does not authorize the active Role to make a decision outside its authority.
+Conversely, Role Authority does not imply that project policy permits every
+available tool mutation.
 
 Tool access, credentials, repository permissions, or API capabilities do not by
-themselves grant decision authority.
+themselves grant Operational Permission or decision authority.
 
 ## 3. Truth model
 
@@ -152,9 +161,9 @@ When relevant sources conflict:
 6. An AI MUST NOT execute a human-only authority gate.
 7. A role MUST escalate decisions outside its authority instead of hiding them
    in code, tasks, reviews, or temporary decisions.
-8. Tool capability or external-system permission MUST NOT be interpreted as
-   decision authority; every mutation MUST remain within the active Role and
-   applicable project policy.
+8. A concrete mutation MUST satisfy all applicable Tool Capability, Operational
+   Permission, Role Authority, and Gate requirements independently. The presence
+   of one MUST NOT be interpreted as satisfying another.
 9. Delivery Planning MUST NOT bypass lifecycle transitions, authority gates,
    readiness gates, quality gates, or evidence gates.
 10. Context MUST be sufficient for the current decision, not maximal by default.
