@@ -70,13 +70,32 @@ Durable structural ADR decisions require explicit project acceptance before an
 ADR becomes `Accepted`. AI may prepare and recommend an ADR decision but must
 not claim that a proposed structural decision was human-approved when it was not.
 
+Material Governance Changes to Architecture Web project policy or to the adopted
+Software Engineering Method require explicit acceptance by a human Architecture
+Web maintainer acting as governance authority before the proposed governance is
+considered accepted.
+
+AI may analyze, draft, review, and recommend Governance Changes, but MUST NOT
+treat a rule as accepted merely because it exists on a branch, appears in a Pull
+Request, passes an AI review, or is technically mergeable. Technical capability
+to merge does not grant governance authority.
+
+Governance acceptance MUST be explicit, attributable to the human authority, and
+identify the accepted scope. It MAY be recorded in the owning Work, Pull Request
+review/conversation, or another project-owned approval record that can be linked
+to the change.
+
+For repository-owned governance, merge makes an already-accepted target effective
+when the merged canonical document is the owner of that policy. Merge by itself
+MUST NOT be interpreted as creating the missing governance acceptance.
+
 A separate human Readiness approval is not required by default. Readiness may be
 assessed by the responsible human/AI workflow unless a specific Work or risk
 policy explicitly requires additional approval.
 
 Operational access to GitHub does not grant additional decision authority. AI
-mutations must comply with the active Role and the operational permission matrix
-owned by `governance.delivery`.
+mutations must independently satisfy the active Role authority, applicable gates,
+and the operational permission matrix owned by `governance.delivery`.
 
 ## 5. Documentation policy value
 
