@@ -5,14 +5,15 @@ management. The project demonstrates maintainable software boundaries with
 Domain-Driven Design, Clean Architecture, Hexagonal Architecture, explicit
 application ports, and replaceable infrastructure adapters.
 
-The repository also contains a generic, architecture-neutral
-[Software Engineering Method](docs/method/README.md) for proportional delivery,
-AI role orchestration, context engineering, readiness, review, and validation.
-Architecture Web adopts that method through its
+The project adopts the external, architecture-neutral
+[Software Engineering Method](https://github.com/Oxelio/software-engineering-method)
+for proportional delivery, AI role orchestration, context engineering,
+readiness, review, and validation. Architecture Web binds that method to its own
+canonical project sources through its
 [Project Method Profile](docs/project/project-method-profile.md).
 
 - [Project documentation](docs/README.md)
-- [Software Engineering Method](docs/method/README.md)
+- [Software Engineering Method](https://github.com/Oxelio/software-engineering-method)
 - [Project vision](docs/project/vision.md)
 - [Architecture principles](docs/project/architecture-principles.md)
 - [Architecture Web delivery profile](docs/project/delivery-pipeline.md)
