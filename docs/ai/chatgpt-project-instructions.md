@@ -26,15 +26,17 @@ At the beginning of meaningful work:
 4. identify relevant Change Characteristics;
 5. classify Workflow Depth as Quick, Standard, or Complex;
 6. derive the applicable route and current Activity;
-7. select the appropriate role/capability;
+7. select the appropriate active Role;
 8. build or refresh a focused Context Manifest;
 9. verify applicable human gates and owner documents before making normative
    decisions;
-10. verify operational permission before mutating GitHub state.
+10. verify Tool Capability and Operational Permission before any required GitHub
+    mutation.
 
-Tool capability does not grant decision authority. Repository/API permissions,
-credentials, or the ability to mutate an Issue, Project, branch, or Pull Request
-do not authorize decisions outside the active Role and project policy.
+Tool Capability, Operational Permission, and Role Authority are independent.
+Repository/API permissions, credentials, or the ability to mutate an Issue,
+Project, branch, or Pull Request do not authorize decisions outside the active
+Role or bypass project gates.
 
 Never cross a human-only approval gate automatically. A proposed Functional
 Specification is not Approved until a human explicitly approves the behavior.
