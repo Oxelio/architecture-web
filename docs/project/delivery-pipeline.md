@@ -22,15 +22,36 @@ See also the [Project Method Profile](project-method-profile.md).
 
 ## 2. Delivery platform and ownership
 
-Architecture Web uses GitHub as its operational delivery platform:
+Architecture Web uses GitHub as its operational delivery platform. Operational
+ownership is assigned per subject:
 
 ```text
-Work execution identity        -> top-level GitHub Issue
-Task execution unit            -> GitHub Sub-issue
-Operational Work State         -> GitHub Project field: Work State
-Delivery ordering              -> GitHub Project
-Implementation/review vehicle  -> Pull Request
+Work identity                    -> top-level GitHub Issue
+Work objective/context           -> top-level GitHub Issue
+Work State                       -> GitHub Project field: Work State
+Work Type                        -> GitHub Project field: Work Type
+Workflow Depth                   -> GitHub Project field: Workflow Depth
+Priority                         -> GitHub Project field: Priority
+Change Characteristics           -> GitHub Issue labels: char:*
+Execution assignee               -> GitHub native assignees
+Work dependency/blocker relation -> GitHub native relationship when represented;
+                                   otherwise Work Issue operational context
+Work closure disposition         -> GitHub Issue state / state reason
+Task identity                    -> GitHub Sub-issue
+Task parent relationship         -> GitHub native Sub-issue relationship
+Task execution context           -> Task Sub-issue
+Task completion                  -> GitHub Sub-issue open/closed state
+Delivery ordering                -> GitHub Project
+Implementation/review vehicle    -> Pull Request
 ```
+
+When a dependency or blocker becomes represented by a native GitHub relationship,
+that relationship becomes the operational owner for that relation and any Issue
+body wording becomes contextual only.
+
+Derived displays such as linked pull requests and Sub-issue progress MAY be shown
+in the Project, but they do not become competing owners of their underlying
+relationships.
 
 These operational owners reference, rather than replace, durable owners:
 
@@ -51,8 +72,8 @@ by this document.
 ### Work Issue
 
 A top-level GitHub Issue is the operational owner of one Method **Work**. It
-owns only the information needed to identify, classify, coordinate, and close
-that Work.
+owns only the information needed to identify, contextualize, coordinate, and
+close that Work.
 
 The Issue body SHOULD remain lightweight:
 
@@ -76,10 +97,16 @@ Done evidence
 Do not copy complete Functional Specifications, Technical Designs, ADRs, or
 other normative documents into the Issue body.
 
+The Issue body MAY summarize classification or delivery values for readability,
+but those summaries are non-authoritative when the ownership table above assigns
+the subject to a Project field, label, native relationship, or other GitHub
+property.
+
 ### Task Sub-issue
 
 A GitHub Sub-issue represents a Method **Task** when Task Planning is triggered.
-It is not a second Work and does not own a separate Work State.
+It is not a second Work and does not own a separate Work State, Work Type,
+Workflow Depth, or Priority.
 
 For `Quick` work, the top-level Issue MAY be a sufficient execution unit and no
 artificial Sub-issue is required.
@@ -87,6 +114,15 @@ artificial Sub-issue is required.
 For `Standard` or `Complex` work, create Sub-issues only when implementation
 requires delegation, sequencing, or independently verifiable units. Use the
 [Task template](templates/task.md) as body guidance.
+
+Task Sub-issues SHOULD NOT be added to the Architecture Web Project as independent
+Work items by default. Their native parent relationship and open/closed state own
+Task structure and completion, while the parent Work may expose derived
+Sub-issue progress in Project views.
+
+If a future project policy intentionally adds Task Sub-issues as Project items,
+it MUST define dedicated Task field semantics and MUST NOT apply Work State,
+Work Type, Workflow Depth, or Priority as though each Task were a separate Work.
 
 ## 4. Work State
 
@@ -137,10 +173,14 @@ Sub-issues progress
 
 ### Work Type
 
-Use the Method Work Types defined in
+The Project field `Work Type` is the unique operational owner of the Work's
+current classification. Its values are the Method Work Types defined in
 [Work classification](../method/work-classification.md).
 
 ### Workflow Depth
+
+The Project field `Workflow Depth` is the unique operational owner of the Work's
+current depth classification.
 
 Single-select:
 
@@ -154,6 +194,9 @@ Workflow Depth represents decision/change risk, not estimated duration, story
 points, or diff size.
 
 ### Priority
+
+The Project field `Priority` is the unique operational owner of delivery
+priority.
 
 Single-select:
 
@@ -174,7 +217,8 @@ AI recommends the change instead of applying it.
 
 ### Change Characteristics
 
-Represent applicable multi-valued Change Characteristics using labels:
+GitHub Issue labels with the `char:*` prefix are the unique operational owner of
+which Method Change Characteristics are currently assigned to the Work:
 
 ```text
 char:security
@@ -189,26 +233,33 @@ char:operational
 char:compliance
 ```
 
-Labels are classification aids, not substitutes for the canonical Work Type or
-Workflow Depth fields.
+Labels classify characteristics only; they do not replace Work Type or Workflow
+Depth.
 
 ## 6. Planning model
 
-Architecture Web uses **Continuous Flow** by default:
+Architecture Web uses **Continuous Flow** by default. Delivery planning and
+lifecycle execution remain distinct:
 
 ```text
+Delivery planning
+
 Backlog
-   ↓
+   |
+   | Work State becomes Ready
+   v
 Ready Queue
-   ↓
-Implementing
-   ↓
-Reviewing
-   ↓
-Validating
-   ↓
-Done
+   |
+   | execution capacity pulls Work
+   v
+
+Lifecycle execution
+
+Implementing -> Reviewing -> Validating -> Done
 ```
+
+`Backlog` and `Ready Queue` are delivery-planning concepts, not additional Work
+States.
 
 The model is pull-based and does not require sprints, iterations, estimates,
 story points, or deadlines.
@@ -223,10 +274,12 @@ Delivery selection policy:
    `P1`, etc.).
 5. At equivalent dependency and Priority conditions, explicit manual ordering
    or age MAY break ties.
-6. Initial project WIP limit: at most **1 Work in `Implementing`** unless a
-   human explicitly accepts a temporary exception.
+6. Initial **implementation WIP limit**: at most **1 Work in `Implementing`**
+   unless a human explicitly accepts a temporary exception.
 
-WIP is an Architecture Web policy, not a generic Method invariant.
+The implementation WIP limit is an Architecture Web policy, not a generic Method
+invariant. Work in `Reviewing` or `Validating` is not counted by this initial
+limit unless a future project policy explicitly broadens it.
 
 ## 7. Recommended Project views
 
@@ -329,33 +382,49 @@ State list casually.
 
 ## 10. AI operational permission policy
 
-Tool capability, Role authority, and operational permission are separate.
+Tool Capability, Operational Permission, Role Authority, and Gate requirements
+are evaluated independently. An allowed tool mutation never creates the semantic
+authority needed to decide the value being recorded.
+
+For lifecycle fields in particular, the Role or authority responsible for the
+underlying activity establishes the transition result; an operational mutation
+may only record that already-authorized result after applicable gates are
+satisfied.
 
 The default Architecture Web policy is:
 
-| Operation | Default AI policy |
-| --- | --- |
-| Read repository / Issue / PR / Project | Allowed when relevant to current work |
-| Classify Work Type / characteristics / depth | Allowed within Method rules; surface uncertainty |
-| Recommend Priority | Allowed |
-| Mutate Priority | Only with explicit delivery-coordination permission |
-| Create a Work Issue | Allowed when an identified Work needs an operational owner and scope is sufficiently established |
-| Update Issue operational context | Allowed within active Role authority; do not rewrite upstream truth |
-| Create Task Sub-issues | Allowed after Task Planning triggers and task boundaries are authorized |
-| Move to `Designing` / `Preparing` | Allowed when the Method transition conditions are satisfied and no human-only gate is being crossed |
-| Move `Preparing -> Ready` | Allowed only after a valid Readiness result permits it |
-| Execute Human Functional Approval | Forbidden |
-| Cross any project-defined human-only gate | Forbidden |
-| Create branch | Allowed for authorized implementation/governance scope |
-| Modify repository code/docs | Allowed only within the active Role's authority |
-| Create or update PR | Allowed for authorized scope |
-| Perform Code / Architecture / Functional Review | Allowed only under the corresponding review Role and with refreshed context |
-| Move to `Done` / close completed Work | Allowed only after explicitly verifying Done invariants and project authority |
-| Merge PR | Not granted by this policy |
+| Tool operation | Operational Permission | Required Role / authority | Gate / precondition |
+| --- | --- | --- | --- |
+| Read repository / Issue / PR / Project | Allowed when relevant to current Work | Any active Role requiring the context | Context scope remains relevant |
+| Create a Work Issue | Allowed when an identified Work needs an operational owner | Active Role may record operational identity/context only within its authority | Scope is sufficiently established; no upstream truth is invented |
+| Update Work Issue operational context | Allowed | Active Role may update only operational content within its authority | Must not rewrite repository-owned product, architecture, governance, or validation truth |
+| Mutate `Work Type`, `Workflow Depth`, or `char:*` classification | Allowed | Role performing Classification with sufficient context | Classification result is established under Method rules; uncertainty is surfaced |
+| Recommend Priority | No mutation required | Any Role with sufficient delivery context | Recommendation is non-authoritative until accepted/applied by delivery authority |
+| Mutate `Priority` | Only with explicit delivery-coordination permission | Human or Role explicitly delegated delivery-ordering authority | Dependency and priority policy respected |
+| Create Task Sub-issues | Allowed | Technical Planner or other explicitly authorized Task Planning authority | Task Planning is triggered and task boundaries are authorized |
+| Mutate `Work State` to `Designing` or `Preparing` | Allowed | Role/activity authorized to establish the target transition | Method transition conditions satisfied; no human-only gate crossed |
+| Mutate `Work State` from `Preparing` to `Ready` | Allowed | Authority permitted to record the Readiness result | Valid `READY` or `READY WITH RISKS` result exists |
+| Create branch | Allowed for authorized implementation/governance scope | Active Role authorized to modify that scope | Applicable upstream authority/gates satisfied |
+| Modify repository code/docs | Allowed only for authorized scope | Active Role owns the relevant implementation/design/governance activity | Must preserve upstream owners and applicable gates |
+| Create or update PR | Allowed for authorized scope | Active Role coordinating the proposed repository change | PR must not be treated as approval or merge authority |
+| Write Code / Architecture / Functional review output | Allowed | Corresponding review Role with refreshed context | Applicable review context resolved |
+| Mutate `Work State` to `Done` / close completed Work | Allowed only to record an established completion result | Role coordinating closure may record but MUST NOT manufacture missing review/validation acceptance | Done invariants, applicable Quality Gate, and Evidence Gate satisfied |
+| Close Work as `not planned` / `duplicate` | Not granted to AI by default | Human or explicitly delegated delivery-disposition authority | Must preserve last valid Work State; disposition is not `Done` |
+| Merge PR | Not granted by this policy | Separate project/repository merge authority required | Applicable project/repository merge requirements satisfied |
 
-Orchestration is coordination across these permissions, not a new authority
-super-role. A material change of Activity or Role SHOULD be made explicit and
-SHOULD trigger focused context re-resolution.
+Human-only approvals are **Authority Gates**, not tool operations. No Operational
+Permission can authorize an AI to execute Human Functional Approval or any other
+project-defined human-only gate. When project policy permits, AI may record the
+result of a human decision only after that decision actually exists.
+
+Likewise, performing Code, Architecture, or Functional Compliance Review is a
+Role activity rather than a tool permission. The matrix governs the mutation
+used to record review output; the corresponding review Role governs the semantic
+review decision.
+
+Orchestration is coordination across these permissions and Roles, not a new
+authority super-role. A material change of Activity or Role SHOULD be made
+explicit and SHOULD trigger focused context re-resolution.
 
 ## 11. GitHub automation constraints
 

@@ -20,8 +20,6 @@ semantics to Architecture Web's canonical project sources.
 | `project.scope`             | [Project scope](scope.md)                                 |
 | `governance.documentation`  | [Documentation conventions](documentation-conventions.md) |
 | `governance.delivery`       | [Architecture Web delivery profile](delivery-pipeline.md) |
-| `governance.work_tracking`  | [Architecture Web delivery profile](delivery-pipeline.md) |
-| `governance.ai_operations`  | [Architecture Web delivery profile](delivery-pipeline.md) |
 | `architecture.principles`   | [Architecture principles](architecture-principles.md)     |
 | `architecture.current`      | [Architecture overview](../architecture/overview.md)      |
 | `architecture.dependencies` | [Dependency rules](../architecture/dependency-rules.md)   |
@@ -31,6 +29,10 @@ semantics to Architecture Web's canonical project sources.
 | `validation.policy`         | [Testing and verification](../development/testing.md)     |
 | `agents.operations`         | [`AGENTS.md`](../../AGENTS.md)                            |
 | `agents.project_context`    | [AI project context](../ai/project-context.md)            |
+
+The `governance.delivery` binding also resolves Architecture Web's concrete
+operational Work tracking and AI tool-mutation policy. Separate bindings are not
+used while the delivery profile intentionally owns these subjects together.
 
 Functional behavior owners are discovered through the
 [Functional Specification catalog](../specifications/README.md). Active
