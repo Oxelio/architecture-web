@@ -40,8 +40,9 @@ non-normative Exploration artifacts are indexed in
 [Active explorations](../explorations/README.md).
 
 GitHub Issues and the Architecture Web GitHub Project are external operational
-owners only for the subjects assigned by `governance.delivery`; they do not
-replace repository-owned product, architecture, governance, or validation truth.
+owners only for the subjects assigned and effectively activated by
+`governance.delivery`; they do not replace repository-owned product,
+architecture, governance, or validation truth.
 
 ## 3. Project-specific method extensions
 
@@ -84,6 +85,22 @@ Governance acceptance MUST be explicit, attributable to the human authority, and
 identify the accepted scope. It MAY be recorded in the owning Work, Pull Request
 review/conversation, or another project-owned approval record that can be linked
 to the change.
+
+### Initial governance-authority bootstrap
+
+The first change that introduces this governance-acceptance rule cannot derive
+its own legitimacy from the rule being introduced. Initial adoption therefore
+requires an explicit statement from a human exercising pre-existing project or
+repository ownership/maintainership authority, independently of this proposed
+rule.
+
+That statement MUST identify the governance target being adopted and be recorded
+in an attributable project record, such as the Pull Request conversation or
+review. Until such an initial adoption statement exists, the proposed governance
+remains a Proposed Target even if the branch is technically mergeable.
+
+After the initial rule is validly adopted and becomes effective, subsequent
+material Governance Changes follow the governance-acceptance policy above.
 
 For repository-owned governance, merge makes an already-accepted target effective
 when the merged canonical document is the owner of that policy. Merge by itself
