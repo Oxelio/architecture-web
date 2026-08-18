@@ -27,7 +27,8 @@ ownership is assigned per subject:
 
 ```text
 Work identity                    -> top-level GitHub Issue
-Work objective/context           -> top-level GitHub Issue
+Work operational objective /     -> top-level GitHub Issue
+execution scope
 Work State                       -> GitHub Project field: Work State
 Work Type                        -> GitHub Project field: Work Type
 Workflow Depth                   -> GitHub Project field: Workflow Depth
@@ -44,6 +45,32 @@ Task completion                  -> GitHub Sub-issue open/closed state
 Delivery ordering                -> GitHub Project
 Implementation/review vehicle    -> Pull Request
 ```
+
+The Work Issue owns only the operational objective and execution scope needed to
+coordinate the Method Work. It MUST NOT become the owner of product behavior,
+functional scope, architecture decisions, governance policy, or validation truth
+that is assigned to another canonical owner.
+
+### External-owner activation
+
+An external ownership assignment in this profile is effective Current Truth only
+when the backing GitHub primitive exists, is usable for the assigned subject, and
+has been verified against this policy. Merging this document does not by itself
+make a missing or unverified external owner operational.
+
+Until an assignment is activated, this profile owns the accepted/project target
+mapping for that subject, while the effective operational owner MUST be treated
+as unavailable rather than inferred or replaced by chat history, PR text, or a
+parallel ad hoc field.
+
+Initial activation of the Project-backed fields, labels, views, and relationships
+therefore requires a separate delivery/governance implementation and verification
+step. That step MUST verify at least the configured field names and values,
+applicable labels/relationships, native `Status` treatment, and the intended
+Project views before the external owner is treated as effective.
+
+If an activated external owner later becomes unreadable or unusable, surface a
+synchronization/availability problem. Do not silently create a competing owner.
 
 When a dependency or blocker becomes represented by a native GitHub relationship,
 that relationship becomes the operational owner for that relation and any Issue
@@ -64,22 +91,22 @@ Implementation                 -> code
 Validation evidence            -> tests / CI / reports / other evidence
 ```
 
-GitHub is canonical only for the operational subjects explicitly assigned to it
-by this document.
+GitHub is canonical only for operational subjects whose assignment is explicit
+here and effectively activated according to the rule above.
 
 ## 3. Work and Task representation
 
 ### Work Issue
 
-A top-level GitHub Issue is the operational owner of one Method **Work**. It
-owns only the information needed to identify, contextualize, coordinate, and
-close that Work.
+A top-level GitHub Issue is the operational owner of one Method **Work** when
+that assignment is effectively activated. It owns only the information needed to
+identify, contextualize, coordinate, and close that Work.
 
 The Issue body SHOULD remain lightweight:
 
 ```text
-Objective
-<what outcome this Work is trying to achieve>
+Operational objective / execution scope
+<what operational outcome this Work is coordinating>
 
 Canonical owners
 - <Functional Specification when applicable>
@@ -104,9 +131,9 @@ property.
 
 ### Task Sub-issue
 
-A GitHub Sub-issue represents a Method **Task** when Task Planning is triggered.
-It is not a second Work and does not own a separate Work State, Work Type,
-Workflow Depth, or Priority.
+A GitHub Sub-issue represents a Method **Task** when Task Planning is triggered
+and that operational mapping is available. It is not a second Work and does not
+own a separate Work State, Work Type, Workflow Depth, or Priority.
 
 For `Quick` work, the top-level Issue MAY be a sufficient execution unit and no
 artificial Sub-issue is required.
@@ -126,8 +153,8 @@ Work Type, Workflow Depth, or Priority as though each Task were a separate Work.
 
 ## 4. Work State
 
-The GitHub Project field `Work State` is Architecture Web's unique operational
-owner of the Method Work State.
+Once effectively activated, the GitHub Project field `Work State` is Architecture
+Web's unique operational owner of the Method Work State.
 
 Allowed values are exactly:
 
@@ -148,6 +175,11 @@ A Work State mutation is permitted only when the Method transition rule and all
 applicable gates are satisfied. Project tooling MUST NOT move Work merely
 because an API operation is available.
 
+The policy applies to both forward transitions and Method-valid returns to an
+upstream state. Returning upstream after a later finding is normal lifecycle
+behavior and MUST be recorded when the responsible Role/activity has established
+that return.
+
 ### Native GitHub `Status`
 
 GitHub's native `Status` field is **not** a lifecycle owner for Architecture Web.
@@ -158,7 +190,7 @@ Automations MUST NOT infer or mutate `Work State` from native `Status`.
 
 ## 5. Classification and delivery fields
 
-The Project SHOULD expose:
+Once their assignments are effectively activated, the Project SHOULD expose:
 
 ```text
 Title
@@ -173,14 +205,14 @@ Sub-issues progress
 
 ### Work Type
 
-The Project field `Work Type` is the unique operational owner of the Work's
-current classification. Its values are the Method Work Types defined in
+The activated Project field `Work Type` is the unique operational owner of the
+Work's current classification. Its values are the Method Work Types defined in
 [Work classification](../method/work-classification.md).
 
 ### Workflow Depth
 
-The Project field `Workflow Depth` is the unique operational owner of the Work's
-current depth classification.
+The activated Project field `Workflow Depth` is the unique operational owner of
+the Work's current depth classification.
 
 Single-select:
 
@@ -195,8 +227,8 @@ points, or diff size.
 
 ### Priority
 
-The Project field `Priority` is the unique operational owner of delivery
-priority.
+The activated Project field `Priority` is the unique operational owner of
+delivery priority.
 
 Single-select:
 
@@ -210,15 +242,16 @@ P3 — Low
 Priority affects delivery ordering only. It does not bypass authority,
 readiness, review, or validation gates.
 
-Priority MAY be proposed by any role with sufficient context. Changing the
+Priority MAY be proposed by any Role with sufficient context. Changing the
 operational Priority requires delivery-coordination permission from project
 policy or explicit human delegation. When that permission is not established,
 AI recommends the change instead of applying it.
 
 ### Change Characteristics
 
-GitHub Issue labels with the `char:*` prefix are the unique operational owner of
-which Method Change Characteristics are currently assigned to the Work:
+When the label mapping is effectively activated, GitHub Issue labels with the
+`char:*` prefix are the unique operational owner of which Method Change
+Characteristics are currently assigned to the Work:
 
 ```text
 char:security
@@ -341,7 +374,8 @@ Work State = Done
 ## 8. Pull Requests
 
 A Pull Request is the implementation/review vehicle for repository changes. It
-MUST reference the owning Work Issue when applicable.
+MUST reference the owning Work Issue when applicable and when that operational
+mapping is available.
 
 A merged PR does not by itself imply `Done`. After merge, the Work may still
 require review resolution, validation acceptance, migration/operational work,
@@ -386,36 +420,46 @@ Tool Capability, Operational Permission, Role Authority, and Gate requirements
 are evaluated independently. An allowed tool mutation never creates the semantic
 authority needed to decide the value being recorded.
 
+The Method `Workflow Coordinator` owns narrow method-level classification and
+workflow-recording authority. It may record results established by another
+Role/activity, but it does not inherit the upstream authority that created those
+results.
+
 For lifecycle fields in particular, the Role or authority responsible for the
-underlying activity establishes the transition result; an operational mutation
-may only record that already-authorized result after applicable gates are
-satisfied.
+underlying activity establishes the semantic result; the Workflow Coordinator
+may only record that result after applicable gates are satisfied.
 
 The default Architecture Web policy is:
 
 | Tool operation | Operational Permission | Required Role / authority | Gate / precondition |
 | --- | --- | --- | --- |
 | Read repository / Issue / PR / Project | Allowed when relevant to current Work | Any active Role requiring the context | Context scope remains relevant |
-| Create a Work Issue | Allowed when an identified Work needs an operational owner | Active Role may record operational identity/context only within its authority | Scope is sufficiently established; no upstream truth is invented |
-| Update Work Issue operational context | Allowed | Active Role may update only operational content within its authority | Must not rewrite repository-owned product, architecture, governance, or validation truth |
-| Mutate `Work Type`, `Workflow Depth`, or `char:*` classification | Allowed | Role performing Classification with sufficient context | Classification result is established under Method rules; uncertainty is surfaced |
+| Create a Work Issue | Allowed when an identified Work needs an operational owner | Workflow Coordinator, or another Role explicitly permitted to create only the operational record | Scope is sufficiently established; no upstream truth is invented |
+| Update Work Issue operational context | Allowed | Workflow Coordinator, or active Role updating only operational content within its authority | Must not rewrite repository-owned product, architecture, governance, or validation truth |
+| Mutate `Work Type`, `Workflow Depth`, or `char:*` classification | Allowed when the backing owner is activated | Workflow Coordinator | Classification result is established under Method rules; uncertainty and reclassification triggers are surfaced |
 | Recommend Priority | No mutation required | Any Role with sufficient delivery context | Recommendation is non-authoritative until accepted/applied by delivery authority |
-| Mutate `Priority` | Only with explicit delivery-coordination permission | Human or Role explicitly delegated delivery-ordering authority | Dependency and priority policy respected |
-| Create Task Sub-issues | Allowed | Technical Planner or other explicitly authorized Task Planning authority | Task Planning is triggered and task boundaries are authorized |
-| Mutate `Work State` to `Designing` or `Preparing` | Allowed | Role/activity authorized to establish the target transition | Method transition conditions satisfied; no human-only gate crossed |
-| Mutate `Work State` from `Preparing` to `Ready` | Allowed | Authority permitted to record the Readiness result | Valid `READY` or `READY WITH RISKS` result exists |
+| Mutate `Priority` | Only with explicit delivery-coordination permission and activated field | Human or Workflow Coordinator explicitly delegated delivery-ordering authority | Dependency and priority policy respected |
+| Create Task Sub-issues | Allowed when the mapping is available | Technical Planner establishes Task boundaries; Workflow Coordinator may record/create the authorized Task units | Task Planning is triggered and task boundaries are authorized |
+| Initialize or mutate `Work State` for any Method-valid transition or upstream return other than `Ready` or `Done` | Allowed when the `Work State` owner is activated | Workflow Coordinator records the result; the subject-matter Role/activity retains authority for the underlying semantic decision | Method route/transition conditions satisfied; any applicable human, quality, or evidence gate already satisfied. Covers `Idea`, `Exploring`, `Designing`, `Awaiting Approval`, `Preparing`, `Implementing`, `Reviewing`, `Validating`, and Method-valid returns upstream |
+| Mutate `Work State` from `Preparing` to `Ready` | Allowed when the `Work State` owner is activated | Workflow Coordinator records the established Readiness result | Valid `READY` or `READY WITH RISKS` result exists; prior authority gates satisfied |
 | Create branch | Allowed for authorized implementation/governance scope | Active Role authorized to modify that scope | Applicable upstream authority/gates satisfied |
 | Modify repository code/docs | Allowed only for authorized scope | Active Role owns the relevant implementation/design/governance activity | Must preserve upstream owners and applicable gates |
-| Create or update PR | Allowed for authorized scope | Active Role coordinating the proposed repository change | PR must not be treated as approval or merge authority |
+| Create or update PR | Allowed for authorized scope | Active Role proposing the repository change; Workflow Coordinator may maintain operational PR metadata | PR must not be treated as approval or merge authority |
 | Write Code / Architecture / Functional review output | Allowed | Corresponding review Role with refreshed context | Applicable review context resolved |
-| Mutate `Work State` to `Done` / close completed Work | Allowed only to record an established completion result | Role coordinating closure may record but MUST NOT manufacture missing review/validation acceptance | Done invariants, applicable Quality Gate, and Evidence Gate satisfied |
-| Close Work as `not planned` / `duplicate` | Not granted to AI by default | Human or explicitly delegated delivery-disposition authority | Must preserve last valid Work State; disposition is not `Done` |
+| Mutate `Work State` to `Done` / close completed Work | Allowed only to record an established completion result and when the backing owners are activated | Workflow Coordinator records closure; it MUST NOT manufacture missing review/validation acceptance | Done invariants, applicable Quality Gate, and Evidence Gate satisfied |
+| Close Work as `not planned` / `duplicate` | Not granted to AI by default | Human or Workflow Coordinator explicitly delegated delivery-disposition authority | Must preserve last valid Work State; disposition is not `Done` |
 | Merge PR | Not granted by this policy | Separate project/repository merge authority required | Applicable project/repository merge requirements satisfied |
+
+Entering `Awaiting Approval` records that an external authority decision is
+pending; it does not execute that authority gate. Leaving `Awaiting Approval`
+may be recorded only after the required decision actually exists and the Method
+permits the resulting transition.
 
 Human-only approvals are **Authority Gates**, not tool operations. No Operational
 Permission can authorize an AI to execute Human Functional Approval or any other
-project-defined human-only gate. When project policy permits, AI may record the
-result of a human decision only after that decision actually exists.
+project-defined human-only gate. When project policy permits, the Workflow
+Coordinator may record the result of a human decision only after that decision
+actually exists.
 
 Likewise, performing Code, Architecture, or Functional Compliance Review is a
 Role activity rather than a tool permission. The matrix governs the mutation
@@ -466,7 +510,9 @@ For meaningful Architecture Web work:
 - validate at the smallest sufficient evidence boundaries defined by the
   project testing policy;
 - synchronize current architecture/documentation owners only when the truth they
-  describe becomes effective.
+  describe becomes effective;
+- do not treat an external operational owner as effective before its activation
+  requirements have been verified.
 
 ## 13. Architecture Web architecture criteria
 
