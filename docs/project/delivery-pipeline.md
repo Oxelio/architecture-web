@@ -417,7 +417,7 @@ State list casually.
 ## 10. AI operational permission policy
 
 Tool Capability, Operational Permission, Role Authority, and Gate requirements
-are enaluated independently. An allowed tool mutation never creates the semantic
+are evaluated independently. An allowed tool mutation never creates the semantic
 authority needed to decide the value being recorded.
 
 The Method `Workflow Coordinator` owns narrow method-level classification and
