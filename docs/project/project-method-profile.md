@@ -8,9 +8,25 @@
 
 ## 1. Method adoption
 
-Architecture Web adopts the repository's [Software Engineering Method](../method/README.md).
-The method owns generic work-governance semantics; this profile binds those
-semantics to Architecture Web's canonical project sources.
+Architecture Web adopts the canonical
+[Software Engineering Method](../../external/software-engineering-method/README.md)
+at the revision recorded by the `external/software-engineering-method` submodule
+gitlink in this repository.
+
+The method repository owns generic work-governance semantics. This profile owns
+which Method revision Architecture Web adopts, binds that adopted revision to
+Architecture Web's canonical project sources, and owns Architecture Web-specific
+extensions, deviations, and bindings.
+
+The submodule gitlink is the authoritative project record of the adopted Method
+revision. `software-engineering-method/main`, tags, releases, or other floating
+references are not implicitly adopted. Updating the gitlink changes the Method
+revision adopted by Architecture Web and is a material Governance Change subject
+to the human governance-acceptance policy in this profile.
+
+Architecture Web MUST NOT maintain a competing normative copy of the adopted
+method. Method changes are proposed in the method repository; project adoption
+changes remain owned by this profile.
 
 ## 2. Canonical project bindings
 

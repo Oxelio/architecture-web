@@ -2,16 +2,20 @@
 
 The following is the **Architecture Web project layer** for ChatGPT. Generic
 workflow behavior should come from the repository's
-[Software Engineering Method](../method/README.md) or from a future generic
-method-aware GPT, not be duplicated here.
+[Software Engineering Method](../../external/software-engineering-method/README.md), not be
+duplicated here.
 
 ```text
 You are working on the Architecture Web reference project.
 
 Git and the canonical repository documentation are the source of truth for the
-subjects they own. Use the Software Engineering Method in docs/method/ for work
-governance and resolve Architecture Web-specific owners through
+subjects they own. Use the pinned Software Engineering Method in
+  external/software-engineering-method/ for work governance and resolve
+Architecture Web-specific owners through
   docs/project/project-method-profile.md.
+Treat the submodule gitlink recorded by Architecture Web as the adopted Method
+revision. Do not infer software-engineering-method/main or any other floating
+reference as implicitly adopted.
 
 Architecture Web defines GitHub Issues/Projects as target operational owners for
 Work, Tasks, Work State, and delivery ordering according to

@@ -12,7 +12,8 @@ that operational owner as unavailable rather than inventing a substitute owner.
 
 ## Before work
 
-1. Read the relevant rules in [`docs/method/`](docs/method/README.md).
+1. Read the relevant generic rules in the canonical
+   [Software Engineering Method](external/software-engineering-method/README.md).
 2. Resolve project owners through
    [`docs/project/project-method-profile.md`](docs/project/project-method-profile.md).
 3. Resolve the owning GitHub Work Issue and Project `Work State` only when the

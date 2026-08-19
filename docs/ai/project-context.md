@@ -8,8 +8,9 @@ product, or architecture truth.
 
 ## Method
 
-Architecture Web adopts the [Software Engineering Method](../method/README.md).
-Resolve project-specific owners through the
+Architecture Web adopts the [Software Engineering Method](../../external/software-engineering-method/README.md).
+The repository submodule gitlink selects the exact Method revision adopted by
+Architecture Web. Resolve project-specific owners and adoption policy through the
 [Project Method Profile](../project/project-method-profile.md).
 
 ## Architecture direction

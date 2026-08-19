@@ -1,7 +1,7 @@
 # Architecture Web — Coding-agent task guidance
 
 Generic Developer/Planner role boundaries are defined by the
-[Software Engineering Method](../method/roles.md). This guide adds Architecture
+[Software Engineering Method](../../external/software-engineering-method/roles.md). This guide adds Architecture
 Web-specific implementation context.
 
 Architecture Web represents Tasks as GitHub Sub-issues only when Task Planning is

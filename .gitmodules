@@ -1,0 +1,3 @@
+[submodule "external/software-engineering-method"]
+	path = external/software-engineering-method
+	url = https://github.com/Oxelio/software-engineering-method
