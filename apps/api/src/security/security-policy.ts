@@ -164,15 +164,19 @@ export interface SecurityConfigCatalogEntry {
   };
 }
 
+type SecurityConfigCatalogEntryInput = Omit<
+  SecurityConfigCatalogEntry,
+  "category" | "labelKey" | "descriptionKey" | "availability"
+> & {
+  readonly key: `${keyof SecurityPolicy}.${string}`;
+  readonly availability?: SecurityConfigCatalogEntry["availability"];
+};
+
 const entry = (
-  value: Omit<
-    SecurityConfigCatalogEntry,
-    "labelKey" | "descriptionKey" | "availability"
-  > & {
-    availability?: SecurityConfigCatalogEntry["availability"];
-  },
+  value: SecurityConfigCatalogEntryInput,
 ): SecurityConfigCatalogEntry => ({
   ...value,
+  category: value.key.slice(0, value.key.indexOf(".")) as keyof SecurityPolicy,
   labelKey: `securityConfig.fields.${value.key}.label`,
   descriptionKey: `securityConfig.fields.${value.key}.description`,
   availability: value.availability ?? { available: true, readOnly: false },
@@ -181,7 +185,6 @@ const entry = (
 export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   entry({
     key: "accounts.publicRegistration",
-    category: "accounts",
     control: "switch",
     type: "boolean",
     impact: "medium",
@@ -189,7 +192,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "accounts.allowedLoginIdentifiers",
-    category: "accounts",
     control: "multi-select",
     type: "set",
     impact: "high",
@@ -198,7 +200,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "accounts.emailVerification",
-    category: "accounts",
     control: "switch",
     type: "boolean",
     impact: "high",
@@ -211,7 +212,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "accounts.emailChange",
-    category: "accounts",
     control: "switch",
     type: "boolean",
     impact: "high",
@@ -219,7 +219,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "accounts.export",
-    category: "accounts",
     control: "switch",
     type: "boolean",
     impact: "medium",
@@ -227,7 +226,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "accounts.deletion",
-    category: "accounts",
     control: "switch",
     type: "boolean",
     impact: "critical",
@@ -235,7 +233,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "accounts.deletionGraceDays",
-    category: "accounts",
     control: "slider-number",
     type: "duration",
     impact: "critical",
@@ -244,7 +241,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "authentication.mfaAvailable",
-    category: "authentication",
     control: "switch",
     type: "boolean",
     impact: "high",
@@ -252,7 +248,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "authentication.mfaRequiredRoles",
-    category: "authentication",
     control: "multi-select",
     type: "set",
     impact: "critical",
@@ -261,7 +256,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "authentication.mfaChallengeMinutes",
-    category: "authentication",
     control: "slider-number",
     type: "duration",
     impact: "high",
@@ -270,7 +264,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "authentication.mfaMaxAttempts",
-    category: "authentication",
     control: "slider-number",
     type: "integer",
     impact: "high",
@@ -279,7 +272,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "authentication.recentAuthenticationMinutes",
-    category: "authentication",
     control: "slider-number",
     type: "duration",
     impact: "high",
@@ -288,7 +280,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.standardLevel",
-    category: "passwords",
     control: "select",
     type: "choice",
     impact: "high",
@@ -299,7 +290,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.privilegedLevel",
-    category: "passwords",
     control: "select",
     type: "choice",
     impact: "critical",
@@ -310,7 +300,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.standardMinLength",
-    category: "passwords",
     control: "slider-number",
     type: "integer",
     impact: "high",
@@ -319,7 +308,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.privilegedMinLength",
-    category: "passwords",
     control: "slider-number",
     type: "integer",
     impact: "critical",
@@ -328,7 +316,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.maxLength",
-    category: "passwords",
     control: "number",
     type: "integer",
     impact: "high",
@@ -337,7 +324,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.standardMinimumStrength",
-    category: "passwords",
     control: "select",
     type: "choice",
     impact: "high",
@@ -348,7 +334,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "passwords.privilegedMinimumStrength",
-    category: "passwords",
     control: "select",
     type: "choice",
     impact: "critical",
@@ -369,7 +354,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   ].map((name) =>
     entry({
       key: `passwords.${name}`,
-      category: "passwords",
       control: "switch",
       type: "boolean",
       impact: "high",
@@ -378,7 +362,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   ),
   entry({
     key: "sessions.userManagement",
-    category: "sessions",
     control: "switch",
     type: "boolean",
     impact: "medium",
@@ -386,7 +369,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "sessions.durationMinutes",
-    category: "sessions",
     control: "number",
     type: "duration",
     impact: "high",
@@ -395,7 +377,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "recovery.enabled",
-    category: "recovery",
     control: "switch",
     type: "boolean",
     impact: "high",
@@ -403,7 +384,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "recovery.tokenMinutes",
-    category: "recovery",
     control: "slider-number",
     type: "duration",
     impact: "high",
@@ -412,7 +392,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "recovery.requestsPerHour",
-    category: "recovery",
     control: "slider-number",
     type: "integer",
     impact: "high",
@@ -421,7 +400,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "audit.consultation",
-    category: "audit",
     control: "switch",
     type: "boolean",
     impact: "medium",
@@ -429,7 +407,6 @@ export const SECURITY_CONFIG_CATALOG: readonly SecurityConfigCatalogEntry[] = [
   }),
   entry({
     key: "audit.retentionDays",
-    category: "audit",
     control: "number",
     type: "duration",
     impact: "critical",
