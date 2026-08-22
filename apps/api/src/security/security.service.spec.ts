@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { securityInternals } from "./security.service.js";
-import { DEFAULT_SECURITY_POLICY } from "./security-policy.js";
+import {
+  DEFAULT_SECURITY_POLICY,
+  SECURITY_CONFIG_CATALOG,
+} from "./security-policy.js";
 
 describe("security policy", () => {
   it("accepts the safe default policy", () => {
@@ -42,6 +45,12 @@ describe("security policy", () => {
         },
       }),
     ).toThrow("CONFIG_INVALID");
+  });
+
+  it("derives each catalog category from its policy key", () => {
+    for (const option of SECURITY_CONFIG_CATALOG) {
+      expect(option.key.startsWith(`${option.category}.`)).toBe(true);
+    }
   });
 });
 
