@@ -1,93 +1,88 @@
 # Architecture Web — Agent-Aware Delivery Governance Review
 
 > **Content status:** Working review  
-> **Authority:** Non-canonical. This review does not approve governance.  
-> **Reviewed scope:** agent-aware GitHub delivery governance  
+> **Authority:** Non-canonical review evidence. This review does not approve governance.  
+> **Reviewed target:** `governance-proposal.md` blob `c28d487bd0f6d074406fe614fea03bdddd9c56a2`  
 > **Work Type:** Governance Change  
 > **Workflow Depth:** Complex  
 > **Work State:** Designing  
-> **Activity:** Governance Review / blocker disposition  
-> **Current review result:** CHANGES REQUIRED
+> **Activity:** Governance Review  
+> **Review result:** PASS
 
 ## 1. Independent review result
 
-An independent review of proposal blob `97a92896ec722e6a305e12eb7185493ca2eee522` returned:
+An independent Governance Review of the amended target returned:
 
 ```text
-Governance Review: CHANGES REQUIRED
-Readiness Review:  NOT READY
+Governance Review: PASS
 ```
 
-The review was accepted as valid. Its central test failed because a Developer canonizing the policy would still have needed to establish two governance decisions outside Developer authority.
+The review concluded that the amended target can be presented to renewed Human Governance
+Approval and found no required correction before that gate.
 
-## 2. Accepted blockers
+The review used the repository-pinned Software Engineering Method and preserved the distinction
+between Current Truth, Proposed/Approved Target, human authority, review, validation, and external
+activation.
 
-| ID | Severity | Subject | Finding | Required owner |
-| --- | --- | --- | --- | --- |
-| F-01 | BLOCKER | Human Release Authority | Human Release Approval existed as a gate, but the project had not defined which human holds the semantic release authority. | Governance Design / `governance.delivery` |
-| F-02 | BLOCKER | Human/agent Task concurrency | V1 serialized coordinator-managed automation only and did not define whether human and automated Tasks could execute concurrently within one Work. | Governance Design / `governance.delivery` |
+## 2. F-01 — Human Release Authority
 
-The prior `READY` result is superseded. The Work returned to `Designing`.
+**RESOLVED at governance-design level.**
 
-## 3. Amendment prepared for F-01
+The amended target now establishes that V1 Human Release Authority is held by a human
+Architecture Web maintainer explicitly acting as Human Release Authority for the identified
+candidate. Repository maintainer status defines eligibility because project governance chooses it;
+GitHub write, merge, review, environment, or deployment capability does not itself constitute the
+semantic approval.
 
-The amended proposal defines:
+Human Release Authority remains scoped and distinct from governance, functional, architecture,
+merge, deployment, and administration authority. Delegating a technical merge/deploy act does not
+silently delegate release authority.
 
-> V1 Human Release Authority is held by a human Architecture Web maintainer explicitly acting in the release-authority role for the identified candidate.
+## 3. F-02 — Human/automated Task concurrency
 
-Important boundaries:
+**RESOLVED at governance-design level.**
 
-- maintainer status defines eligibility to exercise the authority;
-- GitHub merge/review/environment/deployment capability alone is not the approval;
-- Human Release Approval remains explicit, attributable, and candidate-specific;
-- delegating merge/deployment does not silently delegate semantic release authority.
+V1 now permits at most one active implementation Task execution per Work regardless of whether
+the executor is human or automated. The active Task execution claim is required before execution
+begins.
 
-This is a **new governance rule** and therefore requires renewed Human Governance Approval.
+The governance target establishes fail-closed behavior for mixed human/automated dispatch when
+human activity cannot be reliably excluded. Exact lock, lease, heartbeat, timeout, recovery, GitHub
+field, or workflow mechanics remain downstream Technical Design / activation concerns.
 
-## 4. Amendment prepared for F-02
+## 4. Regression assessment
 
-The amended proposal defines:
+The independent review reported no governance regression in the remaining target. In particular,
+it accepted the continued separation of:
 
-> V1 permits at most one active implementation Task execution per Work, regardless of human or automated routing.
+- `agent:*` execution route from human assignee, Method Role, runtime/model, and authority;
+- Ready Queue eligibility from executor-specific dispatch;
+- Work-level WIP from Task-level execution serialization;
+- Work Merge Gate from review/validation/authority results and merge authority;
+- Work Merge Gate from Release Promotion Gate;
+- Human Release Approval from platform enforcement;
+- branches from deployment environments;
+- Release Work operational coordination from product/architecture/validation truth;
+- accepted governance from canonical Current Truth and external operational activation.
 
-All Task execution must hold an active Task execution claim.
+## 5. Working Decision assessment
 
-The exact GitHub field/lease/lock/status representation remains downstream Technical Design / activation.
+WD-034 and WD-035 were judged coherent but remained `Provisional` at review time because review
+does not execute Human Governance Approval.
 
-Until the claim mechanism is implemented and verified, automated dispatch cannot assume a mixed human/automated Work is idle when human activity cannot be reliably observed.
+WD-023 remains downstream Technical Design scope and MUST NOT be promoted into durable governance.
 
-This resolves the policy-level concurrency ambiguity without selecting a concrete runtime mechanism.
+## 6. Review verdict and route
 
-This is also a **new governance rule** and requires renewed Human Governance Approval.
+No Governance Review blocker remains for the amended target.
 
-## 5. Additional review corrections
-
-The amended proposal also clarifies that an `agent:*` token represents a contractual execution-route/provider identifier and does not freeze a model version or runtime framework.
-
-The prior readiness record must separate:
-
-- Governance Review / compliance review of the canonical patch;
-- documentation Validation evidence such as link/path checks, formatting, and `git diff --check`.
-
-## 6. Authority status
-
-The Human Governance Approval recorded in `approval.md` remains valid only for the exact prior proposal blob it identifies.
-
-It must not be silently extended to the amended target.
-
-## 7. Required next route
+The review recommended:
 
 ```text
 Designing
-  -> review amended proposal
-Awaiting Approval
-  -> renewed Human Governance Approval for exact amended target
-Preparing
-  -> re-resolve Context Manifest
-  -> Task Planning
-  -> Readiness Review
-Ready
-  -> only if no blocker remains
+-> Awaiting Approval
 ```
 
-No canonical owner may be modified before the amended target is reviewed, approved, and passes the subsequent Readiness Review.
+for Human Governance Approval of the exact reviewed blob.
+
+The review itself did not execute that authority gate.
