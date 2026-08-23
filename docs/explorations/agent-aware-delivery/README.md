@@ -1,92 +1,87 @@
 # Agent-aware GitHub delivery
 
-> **Content status:** Proposed / Working artifact  
-> **Authority:** Non-canonical. This exploration does not override project governance.  
+> **Content status:** Approved Target / Working artifacts  
+> **Authority:** The durable target is human-approved but not yet Current Truth.  
 > **Current Work:** Establish agent-aware GitHub delivery governance  
 > **Work Type:** Governance Change  
 > **Workflow Depth:** Complex  
-> **Working Work State:** Awaiting Approval  
-> **Activity:** Human Governance Approval pending  
+> **Working Work State:** Ready  
+> **Current Activity:** Implementation handoff after Readiness Review  
 > **Operational note:** this working state is not claimed to be an activated GitHub Project `Work State` owner.
 
 ## Purpose
 
-This exploration formalizes the proposed delivery model for human and AI execution in Architecture Web while preserving the Software Engineering Method's authority, lifecycle, review, validation, and ownership semantics.
+This directory preserves the working context for the approved agent-aware
+delivery governance target until its durable conclusions are implemented into
+the canonical delivery owner.
 
-The preceding Research / Discovery phase is concluded for this scope. Governance Design and two Governance Review passes have produced an approval candidate.
+The preceding Research / Discovery, Governance Design, two Governance Review
+passes, and Human Governance Approval are complete for this scope.
 
 ## Current artifacts
 
-- [Governance proposal](governance-proposal.md) — corrected Proposed Target recommended for Human Governance Approval.
-- [Governance review](governance-review.md) — second review; no unresolved review blocker remains.
-- [Working decisions](working-decisions.md) — temporary decision memory pending governance acceptance/integration.
+- [Governance proposal](governance-proposal.md) — exact reviewed target that was
+  approved. Its original pre-approval status metadata is retained as part of the
+  reviewed snapshot; the approval record below establishes the later authority
+  result.
+- [Governance review](governance-review.md) — second review; no unresolved
+  governance-design blocker remained.
+- [Human Governance Approval](approval.md) — attributable approval record for
+  the reviewed target.
+- [Preparing record](preparing.md) — Context Manifest, Task Plan, and Readiness
+  Review.
+- [Working decisions](working-decisions.md) — temporary decision memory to be
+  resolved as accepted conclusions are integrated into durable owners.
 
-## Proposed direction
+## Authority result
 
-```text
-Execution route/provider -> agent:* label
-Human identity assignment -> GitHub native assignees
-Method Role               -> Activity + Context Manifest
+Human Governance Approval accepted the reviewed target on 2026-08-23.
 
-Ready Queue
-    -> lifecycle/dependency/WIP eligibility
-    -> executor-compatible agent:* filter
-    -> existing Priority/tie-break policy
+That result creates an **Approved Target**. It does not make the proposal
+Current Truth by itself.
 
-Work/Task execution
-    -> deterministic coordinator
-    -> explicit dependencies
-    -> serialized coordinator-managed Task dispatch in V1
-    -> Work Integration Branch / PR
-    -> Work Merge Gate in Validating
-
-Branches / environments
-    development -> alpha
-    release/*   -> beta
-    main        -> production
-
-Release Work
-    -> candidate + beta evidence
-    -> Human Release Approval
-    -> Release Promotion Gate
-    -> main / production
-    -> synchronize main back into development
-
-Agent runtime
-    -> durable governance remains runtime-neutral
-    -> downstream technical preference remains gh-aw + Codex
-```
-
-## Authority boundary
-
-Nothing in this directory is Current Truth merely because it exists on this branch.
-
-The current Governance Review recommends the Work transition:
+The canonical project owner remains:
 
 ```text
-Designing
--> Awaiting Approval
+docs/project/delivery-pipeline.md
 ```
 
-This transition records that a human governance decision is pending. It does not execute that decision.
+until the approved rules are implemented there and merged through the
+repository's authorized process.
 
-Material Governance Changes require explicit Human Governance Approval under the Project Method Profile.
+External GitHub mappings/enforcement remain separately inactive until verified.
 
-## Pending human decision
+## Readiness result
 
-The approval candidate proposes the entire agent-aware delivery governance scope, including:
+The preparation record concludes:
 
-> V1 defines Human Release Approval as a project-specific human-only Authority Gate for an identified beta-validated release candidate.
+```text
+READY
+```
 
-If Human Governance Approval accepts the proposal, the accepted target must then be integrated into the canonical delivery owner before it becomes effective repository-owned policy.
+for canonical governance integration.
 
-## After approval
+The next lifecycle transition is:
 
-Acceptance and effect remain distinct:
+```text
+Ready
+-> Implementing
+```
 
-1. integrate accepted durable rules into `docs/project/delivery-pipeline.md`;
-2. make only minimal dependent updates to `AGENTS.md` / coding-agent guidance where needed;
-3. resolve/integrate the Working Decision Log rather than keeping it as a competing owner;
-4. separately implement and verify external GitHub mappings/enforcement;
-5. perform downstream Technical Design, Task Planning, and Readiness Review for implementation Works;
-6. remove this exploration from the active index once its durable conclusions have been integrated and Git history is sufficient.
+The implementation scope is bounded to synchronizing the approved target into
+the canonical delivery owner and only the minimal dependent agent guidance
+needed to avoid contradictions.
+
+Runtime implementation, GitHub operational-owner activation, Merge Gate
+enforcement, release environments, privileged publisher credentials, and the
+first concrete agent adapter remain separately scoped downstream Works.
+
+## Cleanup rule
+
+After canonical integration and validation:
+
+1. resolve the Working Decision Log into its durable owners or downstream scope;
+2. remove this exploration from `docs/explorations/README.md`;
+3. do not retain these working artifacts as competing normative governance;
+4. rely on Git history for the completed design/review/approval record when
+   repository history is sufficient.
