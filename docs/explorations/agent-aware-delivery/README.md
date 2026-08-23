@@ -5,70 +5,88 @@
 > **Current Work:** Establish agent-aware GitHub delivery governance  
 > **Work Type:** Governance Change  
 > **Workflow Depth:** Complex  
-> **Work State:** Designing  
-> **Activity:** Governance Review
+> **Working Work State:** Awaiting Approval  
+> **Activity:** Human Governance Approval pending  
+> **Operational note:** this working state is not claimed to be an activated GitHub Project `Work State` owner.
 
 ## Purpose
 
-This exploration formalizes the target delivery model for human and AI execution in Architecture Web while preserving the Software Engineering Method's authority, lifecycle, review, validation, and ownership semantics.
+This exploration formalizes the proposed delivery model for human and AI execution in Architecture Web while preserving the Software Engineering Method's authority, lifecycle, review, validation, and ownership semantics.
 
-The preceding Research / Discovery phase is considered sufficiently concluded for Governance Design. Its findings have been transferred into the proposed governance target in this directory.
+The preceding Research / Discovery phase is concluded for this scope. Governance Design and two Governance Review passes have produced an approval candidate.
 
 ## Current artifacts
 
-- [Governance proposal](governance-proposal.md) — proposed target to review before any human governance approval.
-- [Governance review](governance-review.md) — review findings against the Method and current Architecture Web delivery policy.
-- [Working decisions](working-decisions.md) — temporary decision memory for the current Work.
+- [Governance proposal](governance-proposal.md) — corrected Proposed Target recommended for Human Governance Approval.
+- [Governance review](governance-review.md) — second review; no unresolved review blocker remains.
+- [Working decisions](working-decisions.md) — temporary decision memory pending governance acceptance/integration.
 
-## Current proposed direction
-
-The current proposal establishes the following target concepts:
+## Proposed direction
 
 ```text
 Execution route/provider -> agent:* label
 Human identity assignment -> GitHub native assignees
 Method Role               -> Activity + Context Manifest
 
+Ready Queue
+    -> lifecycle/dependency/WIP eligibility
+    -> executor-compatible agent:* filter
+    -> existing Priority/tie-break policy
+
 Work/Task execution
     -> deterministic coordinator
     -> explicit dependencies
+    -> serialized coordinator-managed Task dispatch in V1
     -> Work Integration Branch / PR
     -> Work Merge Gate in Validating
 
-Branches
+Branches / environments
     development -> alpha
     release/*   -> beta
     main        -> production
 
-Release
-    -> Release Work
-    -> beta evidence
+Release Work
+    -> candidate + beta evidence
     -> Human Release Approval
     -> Release Promotion Gate
     -> main / production
+    -> synchronize main back into development
 
 Agent runtime
-    -> governance remains runtime-neutral
-    -> current downstream technical preference: gh-aw + Codex
+    -> durable governance remains runtime-neutral
+    -> downstream technical preference remains gh-aw + Codex
 ```
 
-## Important authority boundary
+## Authority boundary
 
 Nothing in this directory is Current Truth merely because it exists on this branch.
 
-If the governance target is accepted:
+The current Governance Review recommends the Work transition:
 
-1. accepted durable rules must be integrated into `docs/project/delivery-pipeline.md` and any minimal dependent guidance that must reference them;
-2. working/proposal artifacts must not remain as competing normative owners;
-3. external GitHub mappings and enforcement must still be activated and verified separately;
-4. downstream implementation Works must still pass their own planning, Readiness, review, and validation requirements.
+```text
+Designing
+-> Awaiting Approval
+```
 
-## Current review status
+This transition records that a human governance decision is pending. It does not execute that decision.
 
-The first governance review found changes required in the original proposal. The current `governance-proposal.md` is the corrected Review Draft V2.
+Material Governance Changes require explicit Human Governance Approval under the Project Method Profile.
 
-The principal human authority decision still proposed for acceptance is:
+## Pending human decision
 
-> V1 uses Human Release Approval as a project-defined human-only Authority Gate for an identified beta-validated release candidate.
+The approval candidate proposes the entire agent-aware delivery governance scope, including:
 
-Until that governance decision is explicitly accepted, it remains a Proposed Target.
+> V1 defines Human Release Approval as a project-specific human-only Authority Gate for an identified beta-validated release candidate.
+
+If Human Governance Approval accepts the proposal, the accepted target must then be integrated into the canonical delivery owner before it becomes effective repository-owned policy.
+
+## After approval
+
+Acceptance and effect remain distinct:
+
+1. integrate accepted durable rules into `docs/project/delivery-pipeline.md`;
+2. make only minimal dependent updates to `AGENTS.md` / coding-agent guidance where needed;
+3. resolve/integrate the Working Decision Log rather than keeping it as a competing owner;
+4. separately implement and verify external GitHub mappings/enforcement;
+5. perform downstream Technical Design, Task Planning, and Readiness Review for implementation Works;
+6. remove this exploration from the active index once its durable conclusions have been integrated and Git history is sufficient.
