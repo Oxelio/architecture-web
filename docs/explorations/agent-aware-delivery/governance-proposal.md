@@ -1,4 +1,4 @@
-# Architecture Web — Agent-Aware GitHub Delivery Governance Proposal — Review Draft V2
+# Architecture Web — Agent-Aware GitHub Delivery Governance Proposal
 
 > **Content status:** Proposed Target  
 > **Document type:** Governance proposal / working artifact  
@@ -125,6 +125,16 @@ A non-semantic tie-break MAY be implementation-defined but MUST be deterministic
 
 Task closure alone MUST NOT be interpreted as successful completion when its closure disposition does not satisfy the authorized Task plan.
 
+### 4.1 V1 Task dispatch concurrency
+
+V1 automated orchestration MUST serialize coordinator-managed Task execution within one Work.
+
+The coordinator MUST NOT start a second dispatched Task for the same Work while another coordinator-managed Task execution for that Work is active, unless a human explicitly authorizes a bounded exception under project delivery authority.
+
+This rule constrains automated dispatch only. It does not redefine the Method Work State model or create a Task-level Work State.
+
+Future policy MAY broaden Task concurrency after branch-isolation, conflict, validation, and recovery behavior are deliberately designed and accepted.
+
 ## 5. Deterministic control plane
 
 The delivery control plane MUST deterministically apply established project policy for:
@@ -141,6 +151,21 @@ The delivery control plane MUST deterministically apply established project poli
 The control plane MAY record or act on semantic results established by the Role or Authority responsible for the underlying Activity.
 
 It MUST NOT manufacture review acceptance, functional approval, architecture authority, validation sufficiency, Priority, release approval, or another semantic result merely from agent confidence, prose, or tool capability.
+
+### 5.1 Ready Queue and executor-specific dispatch
+
+Membership in the Ready Queue remains owned by the existing lifecycle and delivery-selection policy. `agent:*` MUST NOT redefine whether a Work is `Ready`.
+
+For an automated executor, dispatch selection is a second-stage filter over otherwise eligible Ready Work:
+
+1. start from Work whose `Work State = Ready`;
+2. remove Work blocked by dependencies or WIP policy;
+3. retain only Work whose activated `agent:*` route matches the available executor;
+4. apply the existing Priority and deterministic tie-break policy within that executor-compatible candidate set.
+
+A Work routed to another executor remains valid Ready Work but is not a candidate for the current executor.
+
+The same separation applies to Task dispatch inside an eligible `Implementing` Work: Task dependency and routing eligibility constrain the executor-compatible candidate set; non-semantic tie-breaks remain deterministic.
 
 ## 6. Work integration branches and pull requests
 
@@ -198,6 +223,10 @@ A passing Work Merge Gate:
 - does not imply `Done`.
 
 After merge, the Work remains subject to the normal Done invariants and any applicable post-merge synchronization or validation evidence.
+
+The Work Merge Gate applies to Work Integration PRs, including ordinary Work integrated into `development` and release-candidate correction Work integrated into an authorized `release/*` branch.
+
+It does **not** govern the Release Work's promotion PR from `release/*` to `main`. Stable release promotion is governed by the distinct Release Promotion Gate in section 13.
 
 ## 8. Agent execution security boundary
 
@@ -287,6 +316,28 @@ Release corrections that must survive the release MUST be reconciled into `devel
 
 After promotion to `main`, `main` MUST be synchronized back into `development` before ordinary integration continues when necessary to restore the project's shared-ancestry invariant.
 
+### 11.1 V1 Release Work route
+
+The representative V1 route for a staged Release Work is:
+
+```text
+Idea
+-> Preparing            release scope/candidate plan, Tasks when needed, Readiness
+-> Ready
+-> Implementing         create candidate, build artifact, deploy beta
+-> Validating           collect/evaluate beta evidence
+-> Awaiting Approval    Human Release Approval
+-> Implementing         promote approved candidate to main/production and synchronize
+-> Validating           production/promotion/synchronization evidence
+-> Done
+```
+
+This is a project-specific route, not a new generic lifecycle.
+
+If beta validation fails or the candidate changes materially, the Work returns to the activity/state authorized to correct the candidate, then repeats applicable validation and Human Release Approval.
+
+The transition after Human Release Approval may return directly to `Implementing` because the promotion execution scope was prepared before initial Readiness. If the approval or discovered change introduces new scope, design, risk, or execution decisions, normal Method return/readiness rules apply instead.
+
 ## 12. Candidate identity and artifact promotion
 
 The release process SHOULD preserve the identity of the candidate that received beta validation and Human Release Approval.
@@ -317,7 +368,17 @@ AI MAY prepare evidence, assess readiness, recommend approval, and record an alr
 
 AI MUST NOT execute Human Release Approval.
 
-The Release Promotion Gate protects the normal `release/* -> main` promotion and may pass only when:
+The approval record MUST:
+- be attributable to a human holding the project-defined release authority;
+- identify the Release Work;
+- identify the approved candidate source/ref;
+- identify the candidate artifact when artifact identity is part of the release guarantee.
+
+A generic or stale approval that cannot be tied to the current candidate MUST NOT satisfy Human Release Approval.
+
+The exact GitHub mechanism used to record or enforce this decision belongs to activation/Technical Design and does not change its semantic owner.
+
+The Release Promotion Gate is distinct from the Work Merge Gate. It protects the normal `release/* -> main` promotion and may pass only when:
 - the Release Work and candidate are identifiable;
 - required beta evidence is sufficient;
 - Human Release Approval exists for the current candidate;
@@ -325,6 +386,10 @@ The Release Promotion Gate protects the normal `release/* -> main` promotion and
 - no release blocker or unresolved out-of-authority Working Decision remains.
 
 A GitHub PR review, environment approval, deployment status, or platform protection MAY record or enforce parts of this contract, but platform capability does not itself become semantic release authority.
+
+The `release/* -> main` promotion PR MUST reference its Release Work and is governed by the Release Promotion Gate rather than the Work Merge Gate.
+
+A passing Release Promotion Gate does not by itself grant automatic merge authority unless a separate accepted project policy explicitly grants that authority.
 
 ## 14. Runtime neutrality
 
@@ -345,7 +410,8 @@ Even after governance acceptance, the following external mechanisms become effec
 - Release Work operational mapping;
 - `alpha`, `beta`, and `production` environment configuration;
 - Release Promotion Gate enforcement;
-- privileged publisher/project credentials.
+- privileged publisher/project credentials;
+- routing visibility/filtering in the Project views used for automated or human dispatch.
 
 Until each mapping is verified, project tooling MUST treat that external owner/enforcement as unavailable rather than inventing a parallel substitute.
 
