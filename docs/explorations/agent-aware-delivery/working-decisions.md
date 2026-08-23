@@ -158,8 +158,8 @@ Prefer promotion of the same immutable beta-validated artifact to production. If
 
 ### WD-029 — Human Release Approval
 
-**Status:** Provisional — pending Human Governance Approval  
-V1 proposes Human Release Approval as a project-defined human-only Authority Gate for one identified beta-validated candidate. It authorizes stable promotion but does not itself merge or deploy. Material candidate change invalidates the approval.
+**Status:** Provisional — concept approved in the prior target; amended authority contract requires renewed Human Governance Approval  
+V1 uses Human Release Approval as a project-defined human-only Authority Gate for one identified beta-validated candidate. It authorizes stable promotion but does not itself merge or deploy. Material candidate change invalidates the approval.
 
 ### WD-030 — Candidate-specific approval record
 
@@ -195,11 +195,31 @@ The first `Implementing` phase creates/deploys the candidate; the first `Validat
 **Status:** Provisional  
 After promotion to `main`, synchronize `main` back into `development` as necessary before ordinary integration continues so the current shared-ancestry invariant remains satisfied.
 
+### WD-034 — V1 Human Release Authority holder
+
+**Status:** Provisional — requires renewed Human Governance Approval  
+For V1, Human Release Authority is held by a human Architecture Web maintainer explicitly acting in the release-authority role for the identified candidate. Repository maintainer status defines eligibility to hold the authority; GitHub merge/review/deployment capability alone does not constitute candidate-specific Human Release Approval.
+
+**Target Owner:** `docs/project/delivery-pipeline.md`
+
+**Resolution Trigger:** Human Governance Approval of the amended governance target.
+
+### WD-035 — V1 mixed human/automated Task serialization
+
+**Status:** Provisional — requires renewed Human Governance Approval  
+V1 permits at most one active implementation Task execution per Work, regardless of `agent:human` or automated routing. Every executor must establish an active Task execution claim before beginning. Automated dispatch is blocked while any Task for the Work has an active claim. The concrete claim/lease representation belongs to downstream activation/Technical Design.
+
+If the claim mechanism is not implemented and verified, automated dispatch must not assume that a mixed human/automated Work is idle when human activity cannot be reliably observed.
+
+**Target Owner:** `docs/project/delivery-pipeline.md`
+
+**Resolution Trigger:** Human Governance Approval of the amended governance target.
+
 ## Resolution target
 
-If Human Governance Approval accepts the proposal:
+If Human Governance Approval accepts the amended proposal:
 
-- WD-001 through WD-022 and WD-024 through WD-033 target `docs/project/delivery-pipeline.md` or the minimal dependent guidance that references it;
+- WD-001 through WD-022 and WD-024 through WD-035 target `docs/project/delivery-pipeline.md` or the minimal dependent guidance that references it;
 - WD-023 moves to downstream Technical Design and must not be copied into durable delivery governance;
 - accepted Working Decisions should be resolved/integrated rather than retained as a competing normative source;
 - external GitHub mappings/enforcement still require separate activation and verification before becoming Current Truth.
