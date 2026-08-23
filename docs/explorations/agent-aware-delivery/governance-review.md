@@ -6,172 +6,167 @@
 > **Work:** Establish agent-aware GitHub delivery governance  
 > **Work Type:** Governance Change  
 > **Workflow Depth:** Complex  
-> **Work State:** Designing  
+> **Work State:** Designing -> Awaiting Approval recommended  
 > **Activity:** Governance Review  
-> **Review result:** CHANGES REQUIRED before Human Governance Approval
+> **Review result:** RECOMMEND HUMAN GOVERNANCE APPROVAL
 
 ## 1. Review basis
 
-The review checks the proposal against:
-- the Software Engineering Method lifecycle, authority, ownership, Working Decision, review, validation, and readiness semantics;
-- the current Architecture Web delivery policy on `development`;
-- current GitHub platform constraints relevant to Actions, branch protection, environments, Projects v2, and GitHub Agentic Workflows.
+This second governance review checks the corrected proposal against:
 
-The proposal remains a Proposed Target. It is not Current Truth.
+- the adopted Software Engineering Method lifecycle, ownership, Role, Working Decision, Review, Validation, and Readiness semantics;
+- the current Architecture Web Project Method Profile;
+- the current canonical `docs/project/delivery-pipeline.md`;
+- root `AGENTS.md`;
+- `docs/ai/coding-agent-guidelines.md`;
+- the findings recorded by the first governance review.
 
-## 2. Findings
+The proposal remains a Proposed Target until explicit Human Governance Approval and later integration into the canonical owner.
 
-| ID | Severity | Subject | Finding | Required disposition |
+## 2. First-review closure
+
+The corrected proposal closes GR-01 through GR-18 from the first review.
+
+In particular, it now:
+
+- separates `agent:*` execution routing from GitHub human assignees;
+- keeps routing/automation eligibility separate from lifecycle/Readiness eligibility;
+- defines routing mutation authority and forbids agent self-routing;
+- keeps Method Role resolution independent from the physical execution agent;
+- supports one primary Work Integration Branch while allowing Task branches;
+- defines the Work Merge Gate as composite enforcement over already-established semantic results;
+- evaluates the V1 Work Merge Gate in `Validating`;
+- requires acceptable Task terminal disposition rather than treating arbitrary closure as success;
+- makes privileged credential separation mandatory;
+- requires deterministic target-ref validation;
+- explicitly introduces short-lived `release/*` promotion instead of silently retaining the old direct `development -> main` normal path;
+- restores the `development`-descends-from-`main` invariant after stable promotion;
+- introduces a Release Work as release-candidate coordination owner;
+- proposes Human Release Approval as a human-only release authority gate;
+- preserves candidate/artifact identity;
+- keeps durable governance runtime-neutral;
+- preserves external-owner activation/effect rules;
+- uses the project's established `MUST` / `SHOULD` / `MAY` normative vocabulary.
+
+No first-review blocker remains unresolved in the reviewed candidate.
+
+## 3. Second-review findings and resolution
+
+| ID | Severity | Finding | Resolution in reviewed candidate | Status |
 | --- | --- | --- | --- | --- |
-| GR-01 | BLOCKER | `agent:*` ownership | `agent:*` overlaps the existing `Execution assignee -> GitHub native assignees` mapping unless the two subjects are separated. | Define `agent:*` as execution route/provider and GitHub assignees as human identity assignment/accountability. Update the delivery ownership table. |
-| GR-02 | BLOCKER | Lifecycle vs automation | The proposal can be read as making `agent:*` a lifecycle/readiness prerequisite. | State explicitly that `agent:*` affects dispatch only. A Work can be `Ready` without an automated agent route. |
-| GR-03 | BLOCKER | Agent mutation authority | The proposal defines labels but not who may assign/change them. | Define mutation authority. V1: human assignment or Workflow Coordinator recording an explicitly established/delegated route; no agent self-routing. |
-| GR-04 | MAJOR | Method Role separation | Physical agent/provider routing is separate from the Method Role active for an activity. | Require Role/context re-resolution independently from `agent:*`. |
-| GR-05 | MAJOR | Work/Task branch model | “One Work Branch” is useful but too rigid if interpreted as forbidding Task branches or multi-repository delivery. | Define one primary Work Integration Branch/PR per repository integration target; Task branches may integrate into it. |
-| GR-06 | BLOCKER | Merge Gate authority | The Merge Gate wording risks making the coordinator the semantic owner of review/validation acceptance. | Define the Work Merge Gate as composite enforcement over results established by authorized Roles/Gates; do not let it manufacture those results. |
-| GR-07 | MAJOR | Merge lifecycle position | “Lifecycle state permits merge evaluation” is too vague. | V1: Work integration merge is evaluated only while the owning Work is `Validating`. |
-| GR-08 | MAJOR | Task completion | “Tasks are concluded” must not mean “any closed issue counts as successful completion.” | Require acceptable terminal disposition for all required in-scope Tasks; rejected/not-planned Tasks require authorized scope disposition. |
-| GR-09 | BLOCKER | Credential boundary | `SHOULD NOT receive privileged credentials` is too weak for a security-sensitive governance invariant. | Use MUST for separation of ordinary agent execution from privileged GitHub/Project mutation credentials. |
-| GR-10 | MAJOR | Target ref authority | The target ref must not be selected from untrusted agent output. | Require deterministic control-plane selection/validation of the authorized target ref. |
-| GR-11 | BLOCKER | Existing branch policy | The proposed `release/* -> main` path changes the current `development -> main` promotion rule but does not explicitly replace/qualify it. | Amend branch policy explicitly: normal stable promotion uses short-lived `release/*`; direct `development -> main` is not the normal beta/stable path. |
-| GR-12 | MAJOR | Shared ancestry | Promoting a release branch to `main` can temporarily make `development` not descend from the new `main`. | Require synchronization of `main` back into `development` after release promotion before ordinary integration continues. |
-| GR-13 | BLOCKER | Release owner | No operational owner records candidate identity, included scope, beta evidence, and release approval. | Introduce a Release Work as the operational owner for a release candidate/promotion. |
-| GR-14 | BLOCKER | Release authority | The V1 release authority is left open. | Proposed resolution: Human Release Approval for an identified candidate after sufficient beta evidence; any candidate change invalidates the approval. |
-| GR-15 | MAJOR | Artifact promotion | “Same artifact where technically practical” is directionally correct but underspecified. | Prefer exact immutable artifact promotion; if rebuild is required, Technical Design must establish an explicit equivalence/reproducibility guarantee and validation. No silent rebuild substitution. |
-| GR-16 | MAJOR | Runtime ownership | `gh-aw + Codex` is correctly marked non-normative but should not appear in the final durable governance owner as an implementation target. | Keep runtime-neutral governance; move `gh-aw + Codex` to downstream Technical Design / Working Decision scope. |
-| GR-17 | MAJOR | Activation/effect | New labels, checks, environments, and relationships are external owners/enforcement and are not effective merely because the policy is merged. | Apply the existing activation rule separately to `agent:*`, Merge Gate enforcement, release environments, and Release Work mappings. |
-| GR-18 | MINOR | Normative language | The proposal uses `SHALL`; the existing project delivery policy uses `MUST`, `SHOULD`, `MAY`. | Align with existing normative vocabulary. |
+| GR2-01 | BLOCKER | Human Release Approval was defined without a Release Work lifecycle route, leaving the coordinator to invent how beta validation, approval, promotion, and final validation relate. | Added an explicit V1 Release Work route: `Preparing -> Ready -> Implementing -> Validating -> Awaiting Approval -> Implementing -> Validating -> Done`, with normal upstream returns when candidate or scope changes. | RESOLVED |
+| GR2-02 | BLOCKER | Work Merge Gate and Release Promotion Gate could otherwise overlap on `release/* -> main`, creating incompatible state/gate requirements. | Work Merge Gate now governs Work Integration PRs, including release-fix Work into `release/*`; the Release Work promotion PR `release/* -> main` is governed by the distinct Release Promotion Gate. | RESOLVED |
+| GR2-03 | MAJOR | The existing Continuous Flow Ready Queue policy needed an explicit relationship with executor-specific `agent:*` routing to avoid routing becoming a competing Priority/lifecycle owner. | Added two-stage dispatch: lifecycle/dependency/WIP eligibility first, then executor-route filtering, then existing Priority/tie-break policy inside the executor-compatible candidate set. | RESOLVED |
+| GR2-04 | MAJOR | V1 did not explicitly constrain coordinator-managed Task concurrency inside one Work, despite concurrency being a material risk for shared Work branches. | V1 now serializes coordinator-managed Task execution per Work unless a human explicitly authorizes a bounded delivery exception. | RESOLVED |
+| GR2-05 | MAJOR | Human Release Approval needed a candidate-specific attributable record contract rather than a generic platform approval. | Approval record must identify the human authority, Release Work, candidate source/ref, and candidate artifact when applicable. Stale/generic approval is insufficient. | RESOLVED |
 
-## 3. Recommended V1 governance shape
+## 4. Method consistency assessment
 
-### Execution routing
+### Authority
 
-```text
-Execution route/provider -> agent:* label on executable Work/Task
-Human identity assignment -> GitHub native assignees
-Method Role               -> resolved from Activity/context, not from agent:*
-```
+The proposal does not grant AI any human-only authority.
 
-Dispatch semantics:
+It explicitly preserves:
+- Human Functional Approval;
+- Human Governance Approval;
+- the proposed Human Release Approval;
+- separate repository merge authority.
 
-```text
-0 agent:*          -> unassigned; lifecycle may still be valid; no automated dispatch
-agent:human        -> human route; no automated dispatch
-1 automated agent -> automated dispatch only if its adapter is activated
->1 agent:*         -> conflicting routing; no execution
-unsupported route -> assigned but unavailable; surface operational blocker
-```
+The Workflow Coordinator records or enforces established results but does not manufacture the semantic decision that created them.
 
-The automated agent MUST NOT assign or change its own `agent:*` route.
+### Lifecycle
 
-### Work integration
+The proposal does not add new generic Work States.
+
+The Work Merge Gate is evaluated within `Validating`.
+
+The Release Work uses a project-specific route built from existing Method states and normal return semantics.
+
+The proposed transition to `Awaiting Approval` for the current Governance Change is valid because design/review is complete enough for an external human governance decision and AI is not executing that decision.
+
+### Ownership
+
+The proposal preserves single-owner semantics:
 
 ```text
-development
-    |
-    v
-work/<work-id>-<slug>       # primary Work Integration Branch
-    ^
-    |
-task/<task-id>-<slug>       # optional Task branch
+Delivery governance                  -> docs/project/delivery-pipeline.md
+Execution route/provider             -> agent:* once activated
+Human identity assignment            -> GitHub native assignees
+Method Role                          -> Method Activity/Context resolution
+Release candidate coordination       -> Release Work once activated
+Review acceptance                    -> responsible Review Role/result
+Validation sufficiency               -> responsible validation/evidence result
+Human Release Approval               -> human release authority
+Implementation                       -> code
+Validation evidence                  -> tests / CI / reports / other evidence
 ```
 
-Task branches may merge into the Work Integration Branch.
+The Release Work references release scope and evidence; it does not duplicate product, architecture, or validation truth.
 
-Only the Work-level integration PR normally merges the Work into `development`.
+### Review and validation
 
-The Work Merge Gate is evaluated in `Validating`.
+The Work Merge Gate and Release Promotion Gate are enforcement/composition mechanisms only.
 
-### Work Merge Gate
+They do not replace:
+- Code Review;
+- Architecture Review;
+- Functional Compliance Review;
+- specialist review;
+- Evidence Gate evaluation.
 
-The Work Merge Gate is a project-specific composite enforcement mechanism. It does not replace Authority, Quality, or Evidence Gates.
+This preserves the Method distinction between review acceptance and validation evidence.
 
-It may pass only when:
-- the owning Work is identifiable;
-- `Work State = Validating`;
-- all required in-scope Tasks have acceptable terminal disposition;
-- required dependency blockers are resolved;
-- applicable review results are already accepted by their responsible Roles;
-- required validation evidence is already sufficient for pre-merge scope;
-- applicable prior human authority gates are satisfied;
-- no unresolved Working Decision invalidates integration or exceeds delegated implementation authority;
-- repository-required checks and mergeability requirements pass.
+### Readiness
 
-A passing Work Merge Gate does not grant merge authority and does not imply `Done`.
+`agent:*` is not a Readiness prerequisite.
 
-### Release model
+A Work may be validly `Ready` while unassigned or routed to `agent:human`.
+
+Runtime availability affects dispatchability, not the semantic validity of the Work's Ready state.
+
+## 5. Canonical integration impact if approved
+
+If Human Governance Approval accepts the proposal, the accepted durable rules should be integrated primarily into:
+
+- `docs/project/delivery-pipeline.md`
+
+Minimal dependent changes may then be required in:
+
+- `AGENTS.md` — only where an operational agent instruction must point to the new canonical delivery rules;
+- `docs/ai/coding-agent-guidelines.md` — only where execution routing / Work Integration Branch behavior materially changes coding-agent instructions;
+- `docs/explorations/README.md` — remove the active exploration entry once durable conclusions are integrated and working memory is no longer needed.
+
+The canonical patch must not preserve this proposal/review as a competing governance owner after integration.
+
+## 6. External activation remains separate
+
+Governance acceptance will not by itself activate:
+
+- `agent:*` labels as operational routing owners;
+- Task dependency mappings not already activated;
+- Project routing visibility/filtering;
+- Work Merge Gate required checks/rulesets;
+- Release Work operational mapping;
+- `alpha`, `beta`, and `production` environments;
+- Release Promotion Gate enforcement;
+- privileged publisher / Project credentials;
+- any selected agent runtime.
+
+Those mechanisms require downstream implementation and verification before becoming effective Current Truth.
+
+## 7. Review verdict
+
+**No unresolved Governance Review blocker remains in the corrected proposal.**
+
+The reviewer recommends transition of the Governance Change from:
 
 ```text
-development -> alpha
-release/*   -> beta
-main        -> production
+Designing
+-> Awaiting Approval
 ```
 
-Normal release flow:
+The pending authority decision is **Human Governance Approval** of the proposed governance scope.
 
-```text
-Release Work
-    |
-    +-- identifies candidate ref/commit
-    +-- identifies candidate artifact when applicable
-    +-- references included Work/release scope
-    +-- collects beta evidence
-    +-- records Human Release Approval result
-    |
-    v
-release/<version> -> main
-    |
-    v
-production
-    |
-    v
-synchronize main -> development
-```
+That approval would, among the other proposed rules, accept **Human Release Approval** as a project-defined human-only Authority Gate for a candidate-specific stable release.
 
-The Release Work is a normal Method Work whose primary intent is operational promotion. Its Work Type is selected by the normal classification rule; for a pure promotion preserving already-authorized behavior, `Technical Change` with `char:operational` is the expected classification. Depth remains risk-based rather than fixed.
-
-### Human Release Approval
-
-V1 proposed authority contract:
-
-- Human Release Approval is a project-defined human-only Authority Gate.
-- It applies to one identified release candidate.
-- Sufficient beta Evidence Gate results are a prerequisite.
-- Approval authorizes promotion of that candidate toward `main` / production; it does not perform the merge or deployment itself.
-- A material change to candidate source or artifact identity invalidates the prior approval and requires renewed beta evidence as applicable and a new approval.
-- GitHub PR reviews or environment approvals may record/enforce the decision but do not become its semantic owner merely through platform capability.
-
-### Runtime boundary
-
-Durable governance remains runtime-neutral.
-
-Downstream Technical Design may currently prefer:
-
-```text
-GitHub Agentic Workflows (gh-aw)
-    +
-Codex engine
-```
-
-with a direct `openai/codex-action` path retained as a fallback option.
-
-This preference is not part of the durable governance rule.
-
-## 4. Platform feasibility notes
-
-Current GitHub capabilities support the intended enforcement model:
-- scheduled workflows execute from the default branch, so target refs must remain explicit;
-- protected branches/rulesets can require status checks and successful deployments before merge;
-- Agentic Workflows are currently public preview, with read-only defaults, safe outputs, isolated secrets, and multiple supported coding-agent engines;
-- Agentic Workflow Project updates require a separate write-capable PAT or GitHub App token because the default `GITHUB_TOKEN` lacks Projects v2 access;
-- some environment protection features for private repositories depend on the GitHub plan.
-
-These are implementation constraints/evidence, not governance owners.
-
-## 5. Review disposition
-
-The original proposal is not ready for Human Governance Approval.
-
-A revised proposal incorporating GR-01 through GR-18 is suitable for a second governance review.
-
-The largest remaining human authority decision is whether to accept the proposed V1 Human Release Approval contract.
+This review recommends approval but does not execute it.
