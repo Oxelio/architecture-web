@@ -1,8 +1,8 @@
 # Architecture Web — Agent-Aware GitHub Delivery Governance Proposal
 
-> **Content status:** Proposed Target  
+> **Content status:** Proposed Target — amended after independent review  
 > **Document type:** Governance proposal / working artifact  
-> **Authority:** Not approved. Not Current Truth.  
+> **Authority:** Not approved in its amended form. Not Current Truth. The previous Human Governance Approval applies only to blob `97a92896ec722e6a305e12eb7185493ca2eee522`.  
 > **Intended durable owner:** `docs/project/delivery-pipeline.md` and only minimal related project-owned guidance that references it.
 
 ## 1. Purpose
@@ -61,6 +61,11 @@ agent:codex
 agent:claude-code
 agent:gemini
 ```
+
+Each token represents a **contractual execution route/provider identifier**. A token such as
+`agent:codex` names the project routing contract for Codex-capable execution; it does not
+freeze a concrete model version, runtime framework, workflow implementation, or credential
+mechanism.
 
 Only labels whose project mapping has been explicitly activated are operational owners.
 
@@ -125,15 +130,37 @@ A non-semantic tie-break MAY be implementation-defined but MUST be deterministic
 
 Task closure alone MUST NOT be interpreted as successful completion when its closure disposition does not satisfy the authorized Task plan.
 
-### 4.1 V1 Task dispatch concurrency
+### 4.1 V1 Task execution concurrency
 
-V1 automated orchestration MUST serialize coordinator-managed Task execution within one Work.
+V1 MUST serialize **all active Task execution within one Work**, regardless of whether the
+Task is routed to a human or an automated agent.
 
-The coordinator MUST NOT start a second dispatched Task for the same Work while another coordinator-managed Task execution for that Work is active, unless a human explicitly authorizes a bounded exception under project delivery authority.
+At most one implementation Task for a Work may hold the Work's active Task execution claim
+at a time.
 
-This rule constrains automated dispatch only. It does not redefine the Method Work State model or create a Task-level Work State.
+A human or automated executor MUST establish the active Task execution claim before beginning
+Task execution and MUST release or resolve that claim when execution ends, is handed off, or
+reaches an accepted terminal disposition.
 
-Future policy MAY broaden Task concurrency after branch-isolation, conflict, validation, and recovery behavior are deliberately designed and accepted.
+The Workflow Coordinator MUST NOT dispatch an automated Task for a Work while another Task
+for that Work has an active execution claim, including a human-executed Task.
+
+A human MUST NOT begin a second Task for the same Work while another Task has an active
+execution claim, unless a human holding project delivery/governance authority explicitly
+authorizes a bounded exception.
+
+The exact GitHub field, relationship, lease, lock, status, or other mechanism used to record
+the active Task execution claim belongs to downstream activation/Technical Design.
+
+Until that claim mechanism is implemented and verified, automated dispatch MUST treat a Work
+with mixed human/automated executable Tasks as unavailable for automated Task dispatch when
+the coordinator cannot reliably establish that no human Task is active.
+
+This rule does not create a Task-level Method Work State. It is a project delivery concurrency
+constraint.
+
+Future policy MAY broaden Task concurrency after branch isolation, conflict, validation,
+claim/recovery, and failure behavior are deliberately designed and accepted.
 
 ## 5. Deterministic control plane
 
@@ -357,6 +384,19 @@ A material change to candidate source or artifact identity after approval invali
 
 V1 introduces **Human Release Approval** as a project-defined human-only Authority Gate for stable release promotion.
 
+### 13.1 Human Release Authority
+
+For V1, **Human Release Authority is held by a human Architecture Web maintainer explicitly
+acting in the release-authority role for the identified candidate**.
+
+Repository maintainer status is the project eligibility basis for holding this authority, but
+GitHub write, merge, review, environment, or deployment capability does not by itself prove that
+the human exercised Human Release Approval for a candidate.
+
+The approval decision MUST be explicit and candidate-specific. Delegating the technical act of
+merge or deployment does not delegate Human Release Authority unless a later accepted governance
+rule explicitly defines such delegation.
+
 Human Release Approval:
 - applies to one identified release candidate;
 - requires sufficient beta validation evidence;
@@ -369,7 +409,7 @@ AI MAY prepare evidence, assess readiness, recommend approval, and record an alr
 AI MUST NOT execute Human Release Approval.
 
 The approval record MUST:
-- be attributable to a human holding the project-defined release authority;
+- be attributable to a human Architecture Web maintainer explicitly acting as Human Release Authority;
 - identify the Release Work;
 - identify the approved candidate source/ref;
 - identify the candidate artifact when artifact identity is part of the release guarantee.
@@ -406,6 +446,7 @@ This proposal is not Current Truth until accepted and integrated into the approp
 Even after governance acceptance, the following external mechanisms become effective operational owners/enforcement only after separate implementation and verification:
 - `agent:*` label inventory and routing mapping;
 - Task dependency mapping where newly extended;
+- active Task execution-claim mapping/enforcement for mixed human/automated Work;
 - Work Merge Gate status check/ruleset enforcement;
 - Release Work operational mapping;
 - `alpha`, `beta`, and `production` environment configuration;
