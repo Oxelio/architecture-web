@@ -42,38 +42,45 @@ No whitespace error was reported.
 
 ### Formatter / `format:check`
 
-**NOT YET ESTABLISHED**
+**PASS**
 
-The execution environment used for this validation does not contain the repository's `pnpm` workspace or an installed Prettier binary. An isolated `npx` attempt could not retrieve Prettier within the available execution environment.
-
-The repository declares `prettier ^3.9.6` and `pnpm format:check`, but this evidence has not been executed against the branch checkout here.
-
-This missing evidence is not silently treated as a pass.
-
-### Repository CI/status evidence
-
-**NONE AVAILABLE**
-
-No commit status/check was attached to canonical integration commit `e8479bf4f04caab2937d42b4a73cb1eb197b3250` when inspected.
-
-## 3. Validation result
-
-```text
-VALIDATION INCOMPLETE
-```
-
-The governance implementation has passed Governance Compliance Review, relative-link impact review, and `git diff --check`, but the project-declared formatter evidence remains outstanding.
-
-The Work therefore remains in `Validating` and MUST NOT enter `Done` on the basis of this record.
-
-## 4. Required completion evidence
-
-Before final validation acceptance, execute the repository formatter check against an actual branch checkout, normally:
+The repository formatter check was executed from a branch checkout using the repository's declared workspace command:
 
 ```text
 pnpm format:check
 ```
 
-or an equivalent Prettier check using the repository-selected formatter version/configuration.
+The command ran the workspace `format:check` scripts across 22 of 23 workspace projects. Every reported Prettier check completed with:
 
-If the formatter changes the canonical patch, re-run Governance Compliance Review as needed when the resulting semantic diff is not purely formatting.
+```text
+All matched files use Prettier code style!
+```
+
+No formatter failure was reported.
+
+This evidence was supplied directly by the human operator from the repository checkout.
+
+### Repository CI/status evidence
+
+**NONE REQUIRED FOR THIS DOCUMENTATION-ONLY VALIDATION**
+
+No commit status/check was attached to canonical integration commit `e8479bf4f04caab2937d42b4a73cb1eb197b3250` when inspected. The project validation policy does not require application build/test CI for a documentation-only governance patch when proportional documentation evidence is sufficient.
+
+## 3. Validation result
+
+```text
+VALIDATION: PASS
+```
+
+Evidence established:
+
+- Governance Compliance Review: **PASS**;
+- relative-link impact review: **PASS**;
+- `git diff --check`: **PASS**;
+- repository `pnpm format:check`: **PASS**.
+
+No validation blocker remains for the documentation/governance implementation.
+
+## 4. Scope boundary
+
+This result validates only the canonical governance documentation change. It does not validate or activate the downstream GitHub operational mechanisms described by that policy. Those mechanisms require separately scoped Works with their own Readiness, Review, and Validation.
