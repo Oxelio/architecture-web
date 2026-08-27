@@ -6,7 +6,7 @@
 > **Work Type:** Governance Change  
 > **Workflow Depth:** Complex  
 > **Working Work State:** Validating  
-> **Current Activity:** Integration PR preparation after successful review and validation  
+> **Current Activity:** Repository integration review / merge handoff  
 > **Operational note:** this working state is not claimed to be an activated GitHub Project `Work State` owner.
 
 ## Purpose
@@ -89,16 +89,19 @@ The durable governance remains runtime-neutral. `gh-aw + Codex` remains downstre
 
 External GitHub mappings/enforcement remain unavailable until separately implemented and verified, including labels, Project mappings, Task execution-claim mechanics, merge/release gates, environments, credentials, publisher boundaries, and runtime adapters.
 
-## Current handoff
+## Integration Pull Request
 
-The implementation is reviewed and validated. The next repository action is an integration Pull Request from:
+Repository integration is proposed through:
 
 ```text
+PR #7
 governance/agent-aware-delivery
 -> development
 ```
 
-Opening or merging that PR does not itself activate the downstream GitHub mechanisms described by the policy. Merge authority remains separate.
+The Pull Request is open, non-draft, and currently mergeable. No auto-merge is enabled or authorized by this Work.
+
+The repository merge decision remains separate from Human Governance Approval, Governance Compliance Review, and documentation Validation.
 
 ## Cleanup rule
 
