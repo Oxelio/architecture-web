@@ -8,6 +8,7 @@ open questions, but are not normative merely because they are documented.
 Current Architecture Web explorations:
 
 - [Configurable user registration](identity/configurable-user-registration.md)
+- [Agent-aware GitHub delivery](agent-aware-delivery/README.md)
 
 When an Exploration reaches a conclusion, integrate accepted durable knowledge
 into the appropriate owner. Functional behavior goes through the Functional
