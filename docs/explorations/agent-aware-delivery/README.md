@@ -6,14 +6,12 @@
 > **Work Type:** Governance Change  
 > **Workflow Depth:** Complex  
 > **Working Work State:** Validating  
-> **Current Activity:** Documentation Validation after Governance Compliance Review  
+> **Current Activity:** Integration PR preparation after successful review and validation  
 > **Operational note:** this working state is not claimed to be an activated GitHub Project `Work State` owner.
 
 ## Purpose
 
-This directory preserves the working context for the agent-aware delivery governance Work until
-its accepted durable conclusions are integrated into the canonical delivery owner, reviewed,
-validated, and completed through the authorized repository process.
+This directory preserves the working context for the agent-aware delivery governance Work until its accepted durable conclusions are integrated into the canonical delivery owner and accepted through the authorized repository process.
 
 The durable owner is:
 
@@ -21,13 +19,11 @@ The durable owner is:
 docs/project/delivery-pipeline.md
 ```
 
-The approved target has now been implemented into that owner on branch
-`governance/agent-aware-delivery`. The change is not yet effective Current Truth on `development`.
+The approved target has been implemented into that owner on branch `governance/agent-aware-delivery`. The change is not yet effective Current Truth on `development`.
 
 ## Approved target
 
-The amended proposal passed an independent Governance Review and received renewed Human
-Governance Approval on 2026-08-23.
+The amended proposal passed an independent Governance Review and received renewed Human Governance Approval on 2026-08-23.
 
 Exact approved target:
 
@@ -47,13 +43,9 @@ docs/project/delivery-pipeline.md
 blob a38ec79465307cad8c9030571e9b68678ff8c61e
 ```
 
-The implementation includes the approved execution-routing, Task-concurrency, Work Integration
-Branch, Work Merge Gate, privileged-publication, deterministic control-plane, staged-release,
-Human Release Approval, Release Promotion Gate, runtime-neutrality, and activation rules.
+The implementation includes the approved execution-routing, Task-concurrency, Work Integration Branch, Work Merge Gate, privileged-publication, deterministic control-plane, staged-release, Human Release Approval, Release Promotion Gate, runtime-neutrality, and activation rules.
 
-`AGENTS.md` and `docs/ai/coding-agent-guidelines.md` were reviewed and require no dependent change:
-they already reference the canonical delivery profile and do not establish contradictory routing,
-branch, merge, concurrency, or release-authority policy.
+`AGENTS.md` and `docs/ai/coding-agent-guidelines.md` were reviewed and require no dependent change: they already reference the canonical delivery profile and do not establish contradictory routing, branch, merge, concurrency, or release-authority policy.
 
 ## Review result
 
@@ -63,55 +55,55 @@ branch, merge, concurrency, or release-authority policy.
 PASS
 ```
 
-The canonical patch preserves the approved governance semantics without adding runtime-specific
-choices or unrelated product/architecture policy.
+The canonical patch preserves the approved governance semantics without adding runtime-specific choices or unrelated product/architecture policy.
 
-## Validation status
+## Validation result
 
-[Documentation Validation](validation.md) currently concludes:
+[Documentation Validation](validation.md) concludes:
 
 ```text
-VALIDATION INCOMPLETE
+PASS
 ```
 
 Established evidence:
 
-- relative Markdown link target set unchanged: PASS;
+- relative Markdown link impact review: PASS;
 - `git diff --check`: PASS;
+- repository `pnpm format:check`: PASS;
 - Governance Compliance Review: PASS.
 
-Outstanding evidence:
+No documentation-validation blocker remains.
 
-- repository formatter / `pnpm format:check` has not been executed in an actual branch checkout;
-- no CI/status check was attached to the canonical integration commit when inspected.
+## Working Decision resolution
 
-The Work therefore remains in `Validating` and is not `Done`.
+[Working decisions](working-decisions.md) is closed for this governance scope:
 
-## Current artifacts
-
-- [Governance proposal](governance-proposal.md) — exact human-approved target.
-- [Governance review](governance-review.md) — independent target review evidence; result `PASS`.
-- [Human Governance Approval](approval.md) — renewed attributable approval for the exact amended blob.
-- [Preparing record](preparing.md) — refreshed Context Manifest, Task Plan, and Readiness Review (`READY`).
-- [Governance Compliance Review](implementation-review.md) — canonical implementation review (`PASS`).
-- [Documentation Validation](validation.md) — current validation evidence (`VALIDATION INCOMPLETE`).
-- [Working decisions](working-decisions.md) — temporary memory pending final resolution/downstream transfer.
+- governance decisions are `Resolved — Integrated` into `docs/project/delivery-pipeline.md`;
+- WD-010 is superseded by the broader V1 Task-concurrency rule;
+- WD-023 (`gh-aw + Codex`) is moved to explicit downstream Technical Design scope;
+- no unresolved Working Decision remains for this governance implementation.
 
 ## Runtime and external activation
 
-The durable governance remains runtime-neutral. `gh-aw + Codex` remains downstream Technical
-Design scope, not durable governance.
+The durable governance remains runtime-neutral. `gh-aw + Codex` remains downstream Technical Design scope, not durable governance.
 
-External GitHub mappings/enforcement remain unavailable until separately implemented and verified,
-including labels, Project mappings, Task execution-claim mechanics, merge/release gates,
-environments, credentials, publisher boundaries, and runtime adapters.
+External GitHub mappings/enforcement remain unavailable until separately implemented and verified, including labels, Project mappings, Task execution-claim mechanics, merge/release gates, environments, credentials, publisher boundaries, and runtime adapters.
+
+## Current handoff
+
+The implementation is reviewed and validated. The next repository action is an integration Pull Request from:
+
+```text
+governance/agent-aware-delivery
+-> development
+```
+
+Opening or merging that PR does not itself activate the downstream GitHub mechanisms described by the policy. Merge authority remains separate.
 
 ## Cleanup rule
 
-After validation is sufficient and canonical integration is accepted through the repository process:
+After the canonical integration is accepted through the repository process:
 
-1. resolve/integrate the Working Decision Log or move entries to explicit downstream Work;
-2. remove this exploration from `docs/explorations/README.md`;
-3. remove working proposal/review/readiness/validation artifacts rather than retaining competing
-   normative governance;
-4. rely on Git history for the completed working-context history.
+1. remove this exploration from `docs/explorations/README.md`;
+2. remove working proposal/review/readiness/validation artifacts rather than retaining competing normative governance;
+3. rely on Git history for the completed working-context history.
