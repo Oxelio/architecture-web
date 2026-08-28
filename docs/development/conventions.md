@@ -86,7 +86,7 @@ return {
 Repository documentation is canonical in English; user-facing localization may
 remain multilingual. Generic ownership, lifecycle, role, readiness, review, and
 validation rules are owned by the
-[Software Engineering Method](../method/README.md). Architecture Web binds them
+[Software Engineering Method](../../external/software-engineering-method/README.md). Architecture Web binds them
 through the [Project Method Profile](../project/project-method-profile.md).
 
 Do not duplicate upstream Functional Specification, Technical Design, ADR, or
