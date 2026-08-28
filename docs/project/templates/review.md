@@ -2,7 +2,7 @@
 
 Use this record when the change benefits from durable review evidence. Small
 changes may rely on pull-request history. Review semantics are owned by the
-[Software Engineering Method](../../method/review-validation.md).
+[Software Engineering Method](../../../external/software-engineering-method/review-validation.md).
 
 ```markdown
 # Review — <work>
