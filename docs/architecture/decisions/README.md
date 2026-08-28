@@ -1,8 +1,8 @@
 # Architecture Decision Records
 
 Architecture Web ADRs implement the generic decision and ownership policy in
-[Artifact ownership](../../method/artifact-ownership.md) and the ADR trigger in
-[Work classification](../../method/work-classification.md).
+[Artifact ownership](../../../external/software-engineering-method/artifact-ownership.md) and the ADR trigger in
+[Work classification](../../../external/software-engineering-method/work-classification.md).
 
 An ADR owns the context, alternatives, rationale, and consequences of a durable
 structural architecture decision. It is transversal, not a mandatory feature
