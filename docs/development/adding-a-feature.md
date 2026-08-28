@@ -1,6 +1,6 @@
 # Adding a feature in Architecture Web
 
-This guide applies the generic [Software Engineering Method](../method/README.md)
+This guide applies the generic [Software Engineering Method](../../external/software-engineering-method/README.md)
 to Architecture Web's concrete DDD/Clean/Hexagonal implementation.
 
 For Work Type, Workflow Depth, lifecycle, roles, Context Manifest, Readiness,
@@ -67,7 +67,7 @@ ADRs instead of copying them. Use the
 explicit delegation/sequencing.
 
 For Standard/Complex implementation, perform Task Planning before the formal
-[Readiness Review](../method/readiness-review.md). Do not enter `Ready` while a
+[Readiness Review](../../external/software-engineering-method/readiness-review.md). Do not enter `Ready` while a
 Task requires the Developer to decide unresolved product or structural
 architecture questions.
 
@@ -161,7 +161,7 @@ single-language repository documentation policy.
 
 ## 11. Review using independent perspectives
 
-Use the generic [Review and validation](../method/review-validation.md) model.
+Use the generic [Review and validation](../../external/software-engineering-method/review-validation.md) model.
 Architecture Web adds these Architecture Review concerns when applicable:
 
 - bounded-context ownership;

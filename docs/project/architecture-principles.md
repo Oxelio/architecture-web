@@ -8,7 +8,7 @@
 
 These are **Architecture Web project constraints**. Generic delivery, artifact
 ownership, context, readiness, review, and validation rules are owned by the
-[Software Engineering Method](../method/README.md).
+[Software Engineering Method](../../external/software-engineering-method/README.md).
 
 ## 1. Bounded contexts are autonomous
 

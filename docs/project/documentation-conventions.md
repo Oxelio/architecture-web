@@ -6,8 +6,8 @@
 >
 > **Domain:** Documentation Governance
 
-Architecture Web adopts the generic [artifact ownership](../method/artifact-ownership.md)
-and [truth model](../method/core-model.md). This document owns only project-specific
+Architecture Web adopts the generic [artifact ownership](../../external/software-engineering-method/artifact-ownership.md)
+and [truth model](../../external/software-engineering-method/core-model.md). This document owns only project-specific
 documentation policy and metadata conventions.
 
 ## 1. Canonical language

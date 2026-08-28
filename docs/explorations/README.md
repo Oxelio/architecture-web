@@ -1,7 +1,7 @@
 # Active explorations
 
 Generic Exploration semantics are defined by the
-[Software Engineering Method](../method/work-classification.md). Explorations are
+[Software Engineering Method](../../external/software-engineering-method/work-classification.md). Explorations are
 working artifacts: they may contain hypotheses, alternatives, evidence, and
 open questions, but are not normative merely because they are documented.
 
