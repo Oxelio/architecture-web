@@ -2,7 +2,7 @@
 
 Functional Specifications are the canonical owners of approved product behavior
 for an identified scope. Their generic ownership and approval semantics are
-defined by the [Software Engineering Method](../method/artifact-ownership.md).
+defined by the [Software Engineering Method](../../external/software-engineering-method/artifact-ownership.md).
 Architecture Web-specific delivery bindings are in the
 [Project Method Profile](../project/project-method-profile.md).
 
