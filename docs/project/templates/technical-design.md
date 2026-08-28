@@ -105,4 +105,4 @@ information needed for focused Tasks.
 
 Task Planning and formal Readiness Review occur after the required design is
 sufficiently resolved. Do not embed a second Readiness checklist in every
-Technical Design; use the method's [Readiness Review](../../method/readiness-review.md).
+Technical Design; use the method's [Readiness Review](../../../external/software-engineering-method/readiness-review.md).
