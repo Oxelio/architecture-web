@@ -1,0 +1,162 @@
+name: Delivery Automation Validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/delivery-automation.json"
+      - ".github/workflows/**"
+      - "docs/architecture/agent-aware-delivery-activation.md"
+      - "packages/tooling/delivery-automation/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate repository and delivery tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.15.1
+          run_install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Typecheck tests
+        run: pnpm typecheck:test
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          job_summary="${GITHUB_STEP_SUMMARY}"
+          rows="${RUNNER_TEMP}/vitest-workspace-rows.md"
+          : > "${rows}"
+
+          overall_status=0
+          workspace_runs=0
+          total_files=0
+          total_tests=0
+
+          while IFS= read -r manifest; do
+            if ! node -e 'const p = require(process.argv[1]); process.exit(p.scripts?.test ? 0 : 1)' "./${manifest}"; then
+              continue
+            fi
+
+            workspace_runs=$((workspace_runs + 1))
+            package_name="$(node -p "require('./${manifest}').name")"
+            package_dir="$(dirname "${manifest}")"
+            package_summary="${RUNNER_TEMP}/vitest-workspace-${workspace_runs}.md"
+            : > "${package_summary}"
+
+            set +e
+            (
+              cd "${package_dir}"
+              GITHUB_STEP_SUMMARY="${package_summary}" NO_COLOR=1 pnpm test
+            )
+            package_status=$?
+            set -e
+
+            read -r test_files test_results < <(
+              awk '
+                /\*\*Test Files\*\*:/ {
+                  if (match($0, /[0-9]+ total/)) {
+                    value = substr($0, RSTART, RLENGTH)
+                    sub(/ total/, "", value)
+                    files += value
+                  }
+                }
+                /\*\*Test Results\*\*:/ {
+                  if (match($0, /[0-9]+ total/)) {
+                    value = substr($0, RSTART, RLENGTH)
+                    sub(/ total/, "", value)
+                    tests += value
+                  }
+                }
+                END {
+                  printf "%d %d\n", files, tests
+                }
+              ' "${package_summary}"
+            )
+
+            total_files=$((total_files + test_files))
+            total_tests=$((total_tests + test_results))
+
+            if [[ "${package_status}" -eq 0 ]]; then
+              result="✅ PASS"
+            else
+              result="❌ FAIL"
+              overall_status=1
+            fi
+
+            printf '| `%s` | `%s` | %d | %d | %s |\n' \
+              "${package_name}" \
+              "${package_dir}" \
+              "${test_files}" \
+              "${test_results}" \
+              "${result}" >> "${rows}"
+          done < <(
+            find apps packages \
+              -name package.json \
+              -not -path '*/node_modules/*' \
+              -print | sort
+          )
+
+          if [[ "${overall_status}" -eq 0 ]]; then
+            overall_result="✅ PASS"
+          else
+            overall_result="❌ FAIL"
+          fi
+
+          {
+            echo "## Repository test validation"
+            echo
+            echo "**Overall result:** ${overall_result}"
+            echo
+            echo "| Workspace | Path | Test files | Tests | Result |"
+            echo "| --- | --- | ---: | ---: | --- |"
+            cat "${rows}"
+            echo "| **Total (${workspace_runs} workspaces)** | | **${total_files}** | **${total_tests}** | **${overall_result}** |"
+            echo
+            if [[ "${overall_status}" -eq 0 ]]; then
+              echo "> All workspace test commands completed successfully. Vitest failure annotations remain enabled for future failing runs."
+            else
+              echo "> One or more workspace test commands failed. See GitHub annotations and the Test step log for the failing workspace and test."
+            fi
+          } >> "${job_summary}"
+
+          exit "${overall_status}"
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Check whitespace errors
+        run: git diff --check

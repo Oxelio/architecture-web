@@ -1,0 +1,100 @@
+name: Delivery Task Claim Publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Claim mutation to apply.
+        required: true
+        type: choice
+        options:
+          - acquire
+          - release
+      work_number:
+        description: Owning Work issue number.
+        required: true
+        type: string
+      task_number:
+        description: Task/Sub-issue number.
+        required: true
+        type: string
+      claimant:
+        description: Claimant identity. Required for acquire.
+        required: false
+        type: string
+      generation:
+        description: Opaque claim generation. Required for acquire and release.
+        required: true
+        type: string
+      run_id:
+        description: Associated execution workflow run id. Optional for recovery/manual claims.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delivery-task-claim-${{ inputs.work_number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish serialized task claim
+    if: github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.15.1
+          run_install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish claim mutation
+        shell: bash
+        env:
+          CLAIM_ACTION: ${{ inputs.action }}
+          WORK_NUMBER: ${{ inputs.work_number }}
+          TASK_NUMBER: ${{ inputs.task_number }}
+          CLAIMANT: ${{ inputs.claimant }}
+          CLAIM_GENERATION: ${{ inputs.generation }}
+          EXECUTION_RUN_ID: ${{ inputs.run_id }}
+          ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ARCHITECTURE_WEB_PROJECTS_TOKEN}" ]]; then
+            echo "ARCHITECTURE_WEB_PROJECTS_TOKEN is required" >&2
+            exit 1
+          fi
+
+          args=(
+            "${CLAIM_ACTION}"
+            --work "${WORK_NUMBER}"
+            --task "${TASK_NUMBER}"
+            --generation "${CLAIM_GENERATION}"
+          )
+
+          if [[ "${CLAIM_ACTION}" == "acquire" ]]; then
+            if [[ -z "${CLAIMANT}" ]]; then
+              echo "claimant is required for acquire" >&2
+              exit 1
+            fi
+            args+=(--claimant "${CLAIMANT}")
+            if [[ -n "${EXECUTION_RUN_ID}" ]]; then
+              args+=(--run "${EXECUTION_RUN_ID}")
+            fi
+          fi
+
+          pnpm --filter @architecture/delivery-automation claim -- "${args[@]}"

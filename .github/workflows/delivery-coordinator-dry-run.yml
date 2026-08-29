@@ -1,0 +1,98 @@
+name: Delivery Coordinator Dry Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Coordinator observation mode.
+        required: true
+        type: choice
+        default: ready-queue
+        options:
+          - ready-queue
+          - task-dispatch
+      work_number:
+        description: Owning Work number for task-dispatch mode.
+        required: false
+        type: string
+      task_number:
+        description: Task/Sub-issue number for task-dispatch mode.
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - ".github/delivery-automation.json"
+      - ".github/workflows/delivery-coordinator-dry-run.yml"
+      - "packages/tooling/delivery-automation/**"
+      - "pnpm-lock.yaml"
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: delivery-coordinator-dry-run
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    name: Observe deterministic delivery state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.15.1
+          run_install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Observe coordinator decision
+        shell: bash
+        env:
+          ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main'))) && secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN || '' }}
+          COORDINATOR_MODE: ${{ inputs.mode || 'ready-queue' }}
+          WORK_NUMBER: ${{ inputs.work_number || '' }}
+          TASK_NUMBER: ${{ inputs.task_number || '' }}
+          EXECUTOR_ROUTE: agent:codex
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          (
+            cd packages/tooling/delivery-automation
+            pnpm exec tsx src/cli/coordinator-dry-run.ts
+          ) | tee coordinator-result.json
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [[ "${status}" -eq 2 ]]; then
+            echo "### Coordinator observation: blocked (fail-closed)" >> "${GITHUB_STEP_SUMMARY}"
+            echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+            cat coordinator-result.json >> "${GITHUB_STEP_SUMMARY}"
+            echo '```' >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          if [[ "${status}" -ne 0 ]]; then
+            exit "${status}"
+          fi
+
+          echo "### Coordinator observation" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+          cat coordinator-result.json >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
