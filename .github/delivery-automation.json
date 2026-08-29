@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "policyOwner": "docs/project/delivery-pipeline.md",
+  "project": null,
+  "mappings": {
+    "workState": { "status": "inactive" },
+    "priority": { "status": "inactive" },
+    "routes": { "status": "inactive" },
+    "dependencies": { "status": "inactive" },
+    "taskParent": { "status": "inactive" },
+    "taskClaim": { "status": "inactive" },
+    "workIntegrationPr": { "status": "inactive" }
+  }
+}
