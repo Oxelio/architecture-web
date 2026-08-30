@@ -81,7 +81,9 @@ async function verifySameRepositoryCrossReference(input: {
   readonly repositoryToken: string;
   readonly fetchImpl: FetchLike;
 }): Promise<"verified" | "missing" | "unavailable"> {
-  const expectedRepositoryUrl = normalizeUrl(repositoryApiUrl(input.repository));
+  const expectedRepositoryUrl = normalizeUrl(
+    repositoryApiUrl(input.repository),
+  );
 
   for (let page = 1; page <= 20; page += 1) {
     const response = await input.fetchImpl(
@@ -92,7 +94,8 @@ async function verifySameRepositoryCrossReference(input: {
       return "unavailable";
     }
 
-    const events = (await response.json()) as readonly CrossReferenceTimelineEvent[];
+    const events =
+      (await response.json()) as readonly CrossReferenceTimelineEvent[];
     const matched = events.some((event) => {
       const sourceIssue =
         event.event === "cross-referenced" ? event.source?.issue : undefined;

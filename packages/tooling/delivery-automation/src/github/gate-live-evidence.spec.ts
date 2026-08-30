@@ -234,7 +234,9 @@ describe("readReleasePromotionTarget", () => {
         ]);
       }
       if (url.endsWith("/pulls/30")) {
-        throw new Error("cross-repository PR number must not be resolved locally");
+        throw new Error(
+          "cross-repository PR number must not be resolved locally",
+        );
       }
       throw new Error(`Unexpected URL ${url}`);
     });

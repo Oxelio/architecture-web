@@ -66,7 +66,9 @@ export async function publishGateCheck(input: {
     typeof payload.html_url !== "string" ||
     payload.html_url.length === 0
   ) {
-    throw new Error("GitHub gate check publication returned an invalid response");
+    throw new Error(
+      "GitHub gate check publication returned an invalid response",
+    );
   }
 
   return { id: payload.id, url: payload.html_url };

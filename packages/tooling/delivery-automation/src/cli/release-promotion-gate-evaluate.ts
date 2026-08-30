@@ -14,7 +14,10 @@ const checkName = "Architecture Web / Release Promotion Gate";
 
 function evidenceLine(
   label: string,
-  assertion: { readonly satisfied: boolean; readonly evidenceRef: string | null },
+  assertion: {
+    readonly satisfied: boolean;
+    readonly evidenceRef: string | null;
+  },
 ): string {
   return `| ${label} | ${assertion.satisfied ? "PASS" : "FAIL"} | ${markdownValue(assertion.evidenceRef)} |`;
 }
@@ -122,6 +125,8 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`Release Promotion Gate evaluation failed: ${message}\n`);
+  process.stderr.write(
+    `Release Promotion Gate evaluation failed: ${message}\n`,
+  );
   process.exitCode = 1;
 });

@@ -15,7 +15,10 @@ const checkName = "Architecture Web / Work Merge Gate";
 
 function evidenceLine(
   label: string,
-  assertion: { readonly satisfied: boolean; readonly evidenceRef: string | null },
+  assertion: {
+    readonly satisfied: boolean;
+    readonly evidenceRef: string | null;
+  },
 ): string {
   return `| ${label} | ${assertion.satisfied ? "PASS" : "FAIL"} | ${markdownValue(assertion.evidenceRef)} |`;
 }
@@ -77,7 +80,9 @@ async function main(): Promise<void> {
     activation: activation.activation,
   });
   if (live.status === "blocked") {
-    throw new Error(`Work Merge Gate live evidence unavailable: ${live.reason}`);
+    throw new Error(
+      `Work Merge Gate live evidence unavailable: ${live.reason}`,
+    );
   }
 
   const result = evaluateWorkMergeGate({

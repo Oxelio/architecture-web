@@ -200,7 +200,9 @@ export function resolveActivationContext(input: {
 
   if (input.manifest.mappings.routes.status === "verified") {
     blockers.push(
-      ...verifyRequiredLabels(input.inventory.labels, "routes", ["agent:human"]),
+      ...verifyRequiredLabels(input.inventory.labels, "routes", [
+        "agent:human",
+      ]),
     );
   }
 

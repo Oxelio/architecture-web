@@ -24,7 +24,9 @@ const checkNameByGate = {
 function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   let value: unknown;
   try {
-    value = JSON.parse(Buffer.from(encoded, "base64").toString("utf8")) as unknown;
+    value = JSON.parse(
+      Buffer.from(encoded, "base64").toString("utf8"),
+    ) as unknown;
   } catch {
     throw new Error("GATE_RESULT_B64 is not valid base64-encoded JSON");
   }

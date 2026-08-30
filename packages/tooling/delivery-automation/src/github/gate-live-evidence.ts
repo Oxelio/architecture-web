@@ -257,7 +257,10 @@ export async function readReleasePromotionTarget(input: {
 }): Promise<
   | { readonly status: "selected"; readonly target: ReleasePromotionTarget }
   | { readonly status: "unavailable" }
-  | { readonly status: "ambiguous"; readonly pullRequestNumbers: readonly number[] }
+  | {
+      readonly status: "ambiguous";
+      readonly pullRequestNumbers: readonly number[];
+    }
 > {
   const fetchImpl = input.fetchImpl ?? fetch;
   const workResponse = await fetchImpl(
@@ -277,7 +280,9 @@ export async function readReleasePromotionTarget(input: {
   }
 
   const referencedNumbers = new Set<number>();
-  const expectedRepositoryUrl = normalizeUrl(repositoryApiUrl(input.repository));
+  const expectedRepositoryUrl = normalizeUrl(
+    repositoryApiUrl(input.repository),
+  );
 
   for (let page = 1; page <= 20; page += 1) {
     const response = await fetchImpl(
@@ -350,7 +355,9 @@ export async function readReleasePromotionTarget(input: {
   if (sorted.length > 1) {
     return {
       status: "ambiguous",
-      pullRequestNumbers: sorted.map((candidate) => candidate.pullRequestNumber),
+      pullRequestNumbers: sorted.map(
+        (candidate) => candidate.pullRequestNumber,
+      ),
     };
   }
 

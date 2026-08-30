@@ -186,7 +186,9 @@ export async function readHumanReleaseApproval(input: {
     }
   }
 
-  const latest = markedComments.toSorted((left, right) => left.id - right.id).at(-1);
+  const latest = markedComments
+    .toSorted((left, right) => left.id - right.id)
+    .at(-1);
   if (!latest) {
     return {
       status: "resolved",

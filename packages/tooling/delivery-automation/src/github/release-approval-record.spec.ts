@@ -100,7 +100,10 @@ describe("readHumanReleaseApproval", () => {
   });
 
   it("treats a latest revocation as no approval", async () => {
-    const revoked = approvalBody.replace("Decision: APPROVED", "Decision: REVOKED");
+    const revoked = approvalBody.replace(
+      "Decision: APPROVED",
+      "Decision: REVOKED",
+    );
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/comments?")) {

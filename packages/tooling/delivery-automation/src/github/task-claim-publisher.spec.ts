@@ -226,10 +226,7 @@ describe("releaseTaskClaim", () => {
       }),
     ).resolves.toEqual({ status: "released" });
 
-    expect(api.mutationOrder).toEqual([
-      "clear:activeTask",
-      "clear:generation",
-    ]);
+    expect(api.mutationOrder).toEqual(["clear:activeTask", "clear:generation"]);
     expect(api.state).toEqual({});
   });
 

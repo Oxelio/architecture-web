@@ -90,10 +90,13 @@ function includesAll(
   return required.every((value) => known.has(value));
 }
 
-function splitOutsideQuotes(value: string, separator: "whitespace" | ","): string[] {
+function splitOutsideQuotes(
+  value: string,
+  separator: "whitespace" | ",",
+): string[] {
   const parts: string[] = [];
   let current = "";
-  let quote: "\"" | "'" | null = null;
+  let quote: '"' | "'" | null = null;
 
   for (const character of value) {
     if (quote) {
@@ -103,7 +106,7 @@ function splitOutsideQuotes(value: string, separator: "whitespace" | ","): strin
       }
       continue;
     }
-    if (character === "\"" || character === "'") {
+    if (character === '"' || character === "'") {
       quote = character;
       current += character;
       continue;
@@ -128,7 +131,7 @@ function splitOutsideQuotes(value: string, separator: "whitespace" | ","): strin
 }
 
 function unquotedColon(value: string): number {
-  let quote: "\"" | "'" | null = null;
+  let quote: '"' | "'" | null = null;
   for (let index = 0; index < value.length; index += 1) {
     const character = value[index];
     if (quote) {
@@ -137,7 +140,7 @@ function unquotedColon(value: string): number {
       }
       continue;
     }
-    if (character === "\"" || character === "'") {
+    if (character === '"' || character === "'") {
       quote = character;
       continue;
     }
@@ -152,7 +155,7 @@ function normalizeFilterToken(value: string): string {
   const trimmed = value.trim();
   const unquoted =
     trimmed.length >= 2 &&
-    ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
       (trimmed.startsWith("'") && trimmed.endsWith("'")))
       ? trimmed.slice(1, -1)
       : trimmed;
@@ -274,10 +277,7 @@ function verifyViews(
   }
 
   const done = view(project, "Done");
-  if (
-    !done ||
-    !hasExactPositiveFieldValues(done, "Work State", ["Done"])
-  ) {
+  if (!done || !hasExactPositiveFieldValues(done, "Work State", ["Done"])) {
     blockers.push("DONE_VIEW_SEMANTICS_INVALID");
   }
 
