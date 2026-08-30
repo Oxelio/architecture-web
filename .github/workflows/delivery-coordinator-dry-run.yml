@@ -11,6 +11,10 @@ on:
         options:
           - ready-queue
           - task-dispatch
+      executor_route:
+        description: Explicit activated agent:* route to observe. No production route is implied by Work #9.
+        required: true
+        type: string
       work_number:
         description: Owning Work number for task-dispatch mode.
         required: false
@@ -25,8 +29,6 @@ on:
       - ".github/workflows/delivery-coordinator-dry-run.yml"
       - "packages/tooling/delivery-automation/**"
       - "pnpm-lock.yaml"
-  schedule:
-    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
@@ -65,11 +67,11 @@ jobs:
       - name: Observe coordinator decision
         shell: bash
         env:
-          ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main'))) && secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN || '' }}
+          ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main')) && secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN || '' }}
           COORDINATOR_MODE: ${{ inputs.mode || 'ready-queue' }}
           WORK_NUMBER: ${{ inputs.work_number || '' }}
           TASK_NUMBER: ${{ inputs.task_number || '' }}
-          EXECUTOR_ROUTE: agent:codex
+          EXECUTOR_ROUTE: ${{ inputs.executor_route || '' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set +e
