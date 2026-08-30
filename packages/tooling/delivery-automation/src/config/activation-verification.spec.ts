@@ -250,6 +250,34 @@ describe("verifyDeliveryActivation", () => {
     expect(result.blockers).toContain("NATIVE_STATUS_VISIBLE");
   });
 
+  it("does not block an unrelated non-operational view that shows native Status", () => {
+    const withScratchView = {
+      ...project,
+      views: [
+        ...project.views,
+        {
+          id: "V7",
+          number: 7,
+          name: "Scratch",
+          layout: "TABLE_LAYOUT",
+          filter: null,
+          visibleFields: ["Title", "Status"],
+          groupByFields: [],
+          verticalGroupByFields: [],
+        },
+      ],
+    };
+
+    const result = verifyDeliveryActivation({
+      repository: "Oxelio/Architecture-Web",
+      inventory: inventory(withScratchView),
+      nativeCapabilities,
+      evidenceRef: "evidence",
+    });
+
+    expect(result.status).toBe("verified");
+  });
+
   it("blocks when a native operational capability has not been verified", () => {
     const result = verifyDeliveryActivation({
       repository: "Oxelio/Architecture-Web",

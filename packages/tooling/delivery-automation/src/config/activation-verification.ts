@@ -59,6 +59,15 @@ const requiredBacklogFields = [
   "Assignees",
 ] as const;
 
+const operationalViewNames = new Set([
+  "Backlog",
+  "Ready Queue",
+  "Workflow",
+  "Active",
+  "Waiting",
+  "Done",
+]);
+
 function view(
   project: ProjectSnapshot,
   name: string,
@@ -91,9 +100,13 @@ function filterContains(
   return phrases.every((phrase) => filter.includes(normalizeFilter(phrase)));
 }
 
-function hasNativeStatusVisible(project: ProjectSnapshot): boolean {
-  return project.views.some((candidate) =>
-    candidate.visibleFields.includes("Status"),
+function hasNativeStatusVisibleInOperationalViews(
+  project: ProjectSnapshot,
+): boolean {
+  return project.views.some(
+    (candidate) =>
+      operationalViewNames.has(candidate.name) &&
+      candidate.visibleFields.includes("Status"),
   );
 }
 
@@ -153,7 +166,7 @@ function verifyViews(
     blockers.push("DONE_VIEW_SEMANTICS_INVALID");
   }
 
-  if (hasNativeStatusVisible(project)) {
+  if (hasNativeStatusVisibleInOperationalViews(project)) {
     blockers.push("NATIVE_STATUS_VISIBLE");
   }
 
