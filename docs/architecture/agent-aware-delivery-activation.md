@@ -190,27 +190,90 @@ V1 has no time-based automatic claim expiry:
 
 The claim protocol may be validated independently of a production coding-agent runtime.
 
-## 8. Gate evaluation
+## 8. Gate evaluation and publication
 
 ### 8.1 Work Merge Gate
 
 The deterministic Work Merge Gate consumes evidence already established by the responsible review/validation/authority activities. It reports pass/fail plus stable reasons and never merges the PR.
 
-Repository-required enforcement remains a separate capability state. If the repository cannot enforce the check, report `enforcement: unavailable` rather than treating the gate as required Current Truth.
+Live technical evidence is re-read from GitHub for the owning Work State, dependency state, authorized Work Integration PR target, exact target head SHA, and PR mergeability. Review acceptance, validation sufficiency, Task disposition, prior authority-gate satisfaction, Working Decision resolution, and repository-check sufficiency remain results established by their proper owners/activities. The V1 publisher may record those established results only when an evidence reference is supplied for every asserted `true` result.
+
+A workflow-dispatch input is therefore a **recording instruction**, not semantic authority. The publisher does not prove a review or validation result merely because an operator supplied `true`. Until those evidence owners have a stronger machine-verifiable recording contract, this publication mechanism MUST NOT be represented as required repository enforcement.
+
+Repository-required enforcement remains a separate capability state. For Work #9 the published result reports `enforcement: unavailable` rather than treating the check as required Current Truth.
 
 ### 8.2 Release Promotion Gate
 
 The Release Promotion Gate verifies the identified Release Work/candidate, beta evidence, candidate-specific Human Release Approval, blockers, applicable checks/protections, and required synchronization evidence.
 
-A pass does not merge or deploy and does not create Human Release Approval.
+The promotion target is derived from the Release Work's cross-referenced, same-repository open `release/* -> main` Pull Request. The candidate source ref/SHA is therefore not supplied by a free-form workflow input.
+
+Human Release Approval is read from the latest marked Release Work comment using this V1 record shape:
+
+```text
+<!-- architecture-web:human-release-approval:v1 -->
+Authority: Human Release Authority
+Decision: APPROVED | REVOKED
+Candidate Source Ref: release/...
+Candidate Source SHA: <40-hex commit SHA>
+Candidate Artifact Identity: <identity> | none
+```
+
+The record is accepted only when:
+
+- its author is a GitHub `User`, not a bot identity;
+- the author currently has repository role `maintain` or `admin`, matching the canonical maintainer eligibility basis;
+- the authority declaration is exactly `Human Release Authority`;
+- the decision and candidate identity parse successfully;
+- the latest marked record is an approval rather than a revocation;
+- the approved candidate identity exactly matches the current promotion candidate.
+
+A permission/record API failure is technical unavailability, not equivalent to missing or denied Human Release Approval. It therefore fails closed as unavailable rather than silently becoming a business/authority outcome.
+
+A passing result does not merge or deploy and does not create Human Release Approval. Work #9 likewise keeps Release Promotion Gate enforcement `unavailable` until the concrete repository enforcement mechanism is separately activated and verified.
+
+### 8.3 Trusted publication boundary
+
+V1 publication uses two separate GitHub Actions jobs rather than one over-privileged job:
+
+1. **Evaluate** runs trusted repository code with read-only repository permissions. The Work Merge evaluator may receive the separate Projects credential because it must read activated Project owners. It produces a bounded gate-result envelope containing gate kind, exact target SHA, result, summary, and context.
+2. **Publish** receives the evaluated envelope, has `checks: write`, has no Projects credential, validates the allowed gate kind/check-name pairing and target SHA shape, then publishes the completed Check Run.
+
+The two Check Run names are fixed:
+
+```text
+Architecture Web / Work Merge Gate
+Architecture Web / Release Promotion Gate
+```
+
+The Work Merge check is attached to the exact Work Integration PR head SHA re-read during evaluation. The Release Promotion check is attached to the exact release-candidate source SHA. A later target change therefore does not make an earlier passing check apply to the new candidate.
+
+Neither job receives merge/deployment authority. The publication result is evidence only.
+
+### 8.4 Default-branch bootstrap constraint
+
+GitHub's `workflow_dispatch` event is available only when the workflow file exists on the repository default branch. Architecture Web currently uses `main` as that default branch while ordinary Work integrates into `development`.
+
+Consequently, the manual Task-claim and gate-publisher workflows may be **implemented in `development` before they are operationally dispatchable**, but they do not become Current Truth merely because the files exist there. Their bootstrap sequence is:
+
+1. implement and validate the workflow/tooling through the Work Integration PR and repository CI;
+2. integrate the Work into `development` under the normal Work lifecycle;
+3. promote the relevant workflow definitions to `main` through the normal release path;
+4. only after the workflow path exists on `main`, dispatch the workflow with the explicitly selected authorized ref (for example `development`) and verify the live publisher boundary;
+5. keep the corresponding mechanism/enforcement unavailable until that verification succeeds.
+
+This is a GitHub platform constraint, not a reason to change the project's branch semantics or silently bypass release governance. Work #9 may remain open after its Work Integration PR merges while this activation evidence is obtained.
 
 ## 9. Security boundaries
 
-- Project credentials are separate from repository-scoped credentials and are available only to trusted inventory/publisher jobs.
+- Project credentials are separate from repository-scoped credentials and are available only to trusted inventory/evaluation/publisher paths that require them.
+- A job with `checks: write` MUST NOT also receive the Projects credential in the V1 gate-publication boundary.
 - Pull-request/untrusted execution must not receive the Projects credential.
 - Privileged publisher jobs must not execute untrusted repository code before privileged mutations.
 - GitHub event payloads are triggers, not authoritative current state; trusted logic re-reads GitHub before decisions/mutations.
 - Repository/Issue/PR text is untrusted input to any future agent executor.
+- Gate publication accepts only fixed gate/check identities and exact GitHub-derived target SHAs; a published PASS grants no merge, release, deployment, review, validation, or human-approval authority.
+- Expected missing/negative authority evidence may become a gate blocker; unexpected GitHub/API failure remains technical unavailability.
 - No provider/API credential is required for Work #9 completion because production executor activation is deferred.
 
 ## 10. Activation sequence
@@ -221,14 +284,15 @@ Activation is incremental and fail-closed:
 2. provision the least-privilege Projects credential through the human/operator path;
 3. create/repair and verify required Project fields/views, repository labels, and native relationships;
 4. mark only successfully verified mappings active in repository-local configuration;
-5. verify Work-scoped claim storage and trusted acquire/release/recovery behavior;
+5. verify Work-scoped claim storage and trusted acquire/release/recovery behavior when the claim workflow is operationally dispatchable;
 6. verify deterministic coordinator observation against live operational state;
 7. verify target authorization/revalidation against the Work Integration PR boundary;
-8. publish/verify Work Merge Gate evidence while keeping unsupported enforcement explicitly unavailable;
-9. verify Release Promotion Gate observation/records where the required backing primitives are available;
-10. leave production coding-agent execution inactive until a separate Work establishes and validates an executor profile.
+8. implement Work Merge Gate and Release Promotion Gate publication boundaries while keeping enforcement unavailable;
+9. after the publisher workflow paths are present on the default branch, live-dispatch and verify Check Run publication on explicit authorized target refs/candidates;
+10. verify Release Promotion Gate Human Release Approval recording against a candidate-specific sandbox/release example when the backing release primitives are available;
+11. leave production coding-agent execution inactive until a separate Work establishes and validates an executor profile.
 
-Partial activation remains explicit.
+Partial activation remains explicit. A workflow that is implemented but blocked by default-branch bootstrap is not represented as operationally active.
 
 ## 11. Validation strategy
 
@@ -238,11 +302,13 @@ Minimum evidence for Work #9:
 - inventory tests for zero/one/multiple Project matches and missing/conflicting primitives;
 - target tests for missing/multiple PRs, wrong base, fork head, governed head branch, changed head SHA/ref, and untrusted target override;
 - claim concurrency tests for simultaneous acquisition, partial state, generation mismatch, release, reconciliation, unreadable run state, and mixed human/automated fail-closed behavior;
-- static inspection of workflow permissions and Projects credential isolation;
+- gate-publication tests for exact SHA binding, allowed gate/check identities, success/failure Check Run publication, Human Release Approval parsing/revocation/maintainer eligibility, and technical-unavailability handling;
+- static inspection of workflow permissions and Projects credential isolation, including the evaluate/publish split;
 - live/sandbox Project verification proving that each mapping marked verified exists and is readable/usable;
-- live claim acquire/re-read/release evidence through the trusted publisher without requiring a production coding agent;
+- live claim acquire/re-read/release evidence through the trusted publisher once the default-branch bootstrap prerequisite is satisfied;
 - coordinator observation evidence against live activated mappings;
-- Work Merge Gate and Release Promotion Gate evidence at their implemented boundaries;
+- live Work Merge Gate and Release Promotion Gate publication evidence once their default-branch bootstrap prerequisite is satisfied;
+- explicit evidence that unavailable required-check/ruleset enforcement remains represented as unavailable;
 - repository validation commands required by `docs/development/testing.md` for the changed tooling/workflow boundary.
 
 Provider-specific agent execution, model quality, inference compatibility, provider billing, and production agent safe-output validation are evidence requirements of the deferred executor-profile Work, not Work #9.
@@ -269,6 +335,14 @@ Selecting one production runtime now would exceed the corrected Work #9 scope an
 
 No ADR is required merely to defer this replaceable adapter choice. Re-evaluate the ADR trigger if follow-up research proposes a durable cross-project executor architecture, persistent external control service, or another structural rule whose rationale should be preserved.
 
+### D-05 — gate evaluation and Check Run publication use separate privilege domains
+
+Selected. Combining the Projects credential with `checks: write` would create an unnecessary privileged surface. The evaluator owns evidence collection/evaluation; the publisher owns only bounded Check Run publication. The boundary is explicit even though both jobs currently execute in one workflow invocation.
+
+### D-06 — default-branch bootstrap does not change branch governance
+
+Selected. GitHub requires `workflow_dispatch` definitions to exist on the default branch. Rather than changing the default branch or bypassing the release topology for convenience, Architecture Web records these publishers as unavailable until their workflow definitions reach `main` through the normal release path. Once present there, dispatch may explicitly select another authorized ref such as `development`.
+
 ## 13. Completion boundary for Work #9
 
 Work #9 may move from `Implementing` toward review only when:
@@ -276,13 +350,14 @@ Work #9 may move from `Implementing` toward review only when:
 - the deterministic tooling/workflows required by this revised scope are implemented;
 - current-head repository CI is green;
 - Project-backed mappings intended to become active are live-verified, or remain explicitly inactive with a documented blocker that is outside the accepted completion scope;
-- trusted claim acquire/release/recovery has sufficient live/sandbox evidence for the activated claim owner;
+- trusted claim acquire/release/recovery has sufficient live/sandbox evidence for any claim owner represented as activated;
 - coordinator and target-verification fail-closed behavior has sufficient evidence;
-- gate evaluation/publication boundaries required by this scope are implemented and their enforcement availability is represented accurately;
+- gate evaluation/publication boundaries required by this scope are implemented, their privilege separation is verified, and their enforcement/dispatch availability is represented accurately;
+- default-branch bootstrap dependencies are explicit: no `workflow_dispatch` publisher is claimed operational before the same workflow path exists on `main` and a live dispatch has succeeded;
 - provider-specific runtime artifacts are absent from the production target of this Work;
 - Code Review, Architecture Review, Security Review, and final Validation can proceed against a coherent control-plane target.
 
-Work #9 does **not** require a production coding-agent execution to become Done. That capability requires the separate executor-profile research and any implementation Work it authorizes.
+Work #9 does **not** require a production coding-agent execution to become Done. It also does not require unavailable repository enforcement to be invented. Any implemented publisher that cannot yet satisfy its default-branch bootstrap prerequisite remains explicitly unavailable until normal release promotion makes live verification possible.
 
 ## 14. Follow-up research trigger
 
