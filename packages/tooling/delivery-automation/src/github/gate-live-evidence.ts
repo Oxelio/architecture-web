@@ -33,6 +33,12 @@ interface PullRequestMergeability {
   readonly head: { readonly sha: string };
 }
 
+interface ReleaseWorkIssue {
+  readonly number: number;
+  readonly state: "open" | "closed";
+  readonly pull_request?: object;
+}
+
 interface TimelineEvent {
   readonly event: string;
   readonly source?: {
@@ -245,6 +251,22 @@ export async function readReleasePromotionTarget(input: {
   | { readonly status: "ambiguous"; readonly pullRequestNumbers: readonly number[] }
 > {
   const fetchImpl = input.fetchImpl ?? fetch;
+  const workResponse = await fetchImpl(
+    `https://api.github.com/repos/${input.repository}/issues/${input.releaseWorkNumber}`,
+    { headers: headers(input.repositoryToken) },
+  );
+  if (!workResponse.ok) {
+    return { status: "unavailable" };
+  }
+  const releaseWork = (await workResponse.json()) as ReleaseWorkIssue;
+  if (
+    releaseWork.number !== input.releaseWorkNumber ||
+    releaseWork.state !== "open" ||
+    releaseWork.pull_request
+  ) {
+    return { status: "unavailable" };
+  }
+
   const referencedNumbers = new Set<number>();
 
   for (let page = 1; page <= 20; page += 1) {
