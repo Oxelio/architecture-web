@@ -23,12 +23,9 @@ on:
         required: false
         type: string
       execution_kind:
-        description: Execution kind for acquire. Human claims do not require an automated route.
+        description: Execution kind for acquire (human or automated).
         required: false
-        type: choice
-        options:
-          - human
-          - automated
+        type: string
       executor_route:
         description: Expected agent:* route. Required only for automated acquire.
         required: false
