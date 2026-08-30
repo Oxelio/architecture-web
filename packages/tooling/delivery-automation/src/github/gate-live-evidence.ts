@@ -220,7 +220,7 @@ export async function readWorkMergeGateLiveEvidence(input: {
     return { status: "blocked", reason: "WORK_ITEM_UNAVAILABLE" };
   }
 
-  const workState = parseWorkState(work.fields["Work State"]);
+  const workState = parseWorkState(work.fields["Status"]);
   if (!workState) {
     return { status: "blocked", reason: "WORK_STATE_UNAVAILABLE" };
   }
