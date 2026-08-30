@@ -1,5 +1,9 @@
 name: Delivery Coordinator Dry Run
 
+# Work #9 keeps coordinator observation provider-neutral. There is intentionally
+# no scheduled route-specific execution until Research #14 selects an executor
+# profile and its scheduling policy. Manual workflow_dispatch is operational only
+# after this workflow path exists on the repository default branch.
 on:
   workflow_dispatch:
     inputs:
