@@ -223,6 +223,54 @@ describe("verifyDeliveryActivation", () => {
     expect(result.blockers).toContain("CLAIM_FIELDS_MISSING_OR_INVALID");
   });
 
+  it("rejects a negated Ready Queue filter", () => {
+    const invalidReady = {
+      ...project,
+      views: project.views.map((candidate) =>
+        candidate.name === "Ready Queue"
+          ? { ...candidate, filter: "-work-state:Ready" }
+          : candidate,
+      ),
+    };
+
+    const result = verifyDeliveryActivation({
+      repository: "Oxelio/Architecture-Web",
+      inventory: inventory(invalidReady),
+      nativeCapabilities,
+      evidenceRef: "evidence",
+    });
+
+    expect(result.status).toBe("blocked");
+    if (result.status !== "blocked") {
+      throw new Error("expected blocked result");
+    }
+    expect(result.blockers).toContain("READY_QUEUE_VIEW_SEMANTICS_INVALID");
+  });
+
+  it("rejects free text that merely contains the expected Waiting words", () => {
+    const invalidWaiting = {
+      ...project,
+      views: project.views.map((candidate) =>
+        candidate.name === "Waiting"
+          ? { ...candidate, filter: "Work State Awaiting Approval" }
+          : candidate,
+      ),
+    };
+
+    const result = verifyDeliveryActivation({
+      repository: "Oxelio/Architecture-Web",
+      inventory: inventory(invalidWaiting),
+      nativeCapabilities,
+      evidenceRef: "evidence",
+    });
+
+    expect(result.status).toBe("blocked");
+    if (result.status !== "blocked") {
+      throw new Error("expected blocked result");
+    }
+    expect(result.blockers).toContain("WAITING_VIEW_SEMANTICS_INVALID");
+  });
+
   it("blocks when native Status leaks into an operational view", () => {
     const withStatusVisible = {
       ...project,

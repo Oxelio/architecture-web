@@ -68,6 +68,12 @@ const operationalViewNames = new Set([
   "Done",
 ]);
 
+interface FilterTerm {
+  readonly negated: boolean;
+  readonly field: string;
+  readonly values: readonly string[];
+}
+
 function view(
   project: ProjectSnapshot,
   name: string,
@@ -84,20 +90,124 @@ function includesAll(
   return required.every((value) => known.has(value));
 }
 
-function normalizeFilter(value: string | null): string {
-  return (value ?? "")
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+function splitOutsideQuotes(value: string, separator: "whitespace" | ","): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let quote: "\"" | "'" | null = null;
+
+  for (const character of value) {
+    if (quote) {
+      current += character;
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === "\"" || character === "'") {
+      quote = character;
+      current += character;
+      continue;
+    }
+
+    const isSeparator =
+      separator === "," ? character === "," : /\s/u.test(character);
+    if (isSeparator) {
+      if (current.trim()) {
+        parts.push(current.trim());
+        current = "";
+      }
+      continue;
+    }
+    current += character;
+  }
+
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+  return parts;
 }
 
-function filterContains(
+function unquotedColon(value: string): number {
+  let quote: "\"" | "'" | null = null;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quote) {
+      if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === "\"" || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === ":") {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function normalizeFilterToken(value: string): string {
+  const trimmed = value.trim();
+  const unquoted =
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'")))
+      ? trimmed.slice(1, -1)
+      : trimmed;
+
+  return unquoted
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function parseFilterTerms(filter: string | null): readonly FilterTerm[] {
+  if (!filter?.trim()) {
+    return [];
+  }
+
+  const terms: FilterTerm[] = [];
+  for (const token of splitOutsideQuotes(filter, "whitespace")) {
+    const negated = token.startsWith("-");
+    const raw = negated ? token.slice(1) : token;
+    const colon = unquotedColon(raw);
+    if (colon <= 0 || colon === raw.length - 1) {
+      continue;
+    }
+
+    const field = normalizeFilterToken(raw.slice(0, colon));
+    const values = splitOutsideQuotes(raw.slice(colon + 1), ",")
+      .map(normalizeFilterToken)
+      .filter(Boolean);
+    if (field && values.length > 0) {
+      terms.push({ negated, field, values });
+    }
+  }
+  return terms;
+}
+
+function hasExactPositiveFieldValues(
   viewSnapshot: ProjectViewSnapshot,
-  ...phrases: string[]
+  field: string,
+  expectedValues: readonly string[],
 ): boolean {
-  const filter = normalizeFilter(viewSnapshot.filter);
-  return phrases.every((phrase) => filter.includes(normalizeFilter(phrase)));
+  const expectedField = normalizeFilterToken(field);
+  const matches = parseFilterTerms(viewSnapshot.filter).filter(
+    (term) => term.field === expectedField,
+  );
+  if (matches.length !== 1 || matches[0]?.negated) {
+    return false;
+  }
+
+  const actual = new Set(matches[0].values);
+  const expected = expectedValues.map(normalizeFilterToken);
+  return (
+    actual.size === expected.length &&
+    expected.every((value) => actual.has(value))
+  );
 }
 
 function hasNativeStatusVisibleInOperationalViews(
@@ -129,7 +239,7 @@ function verifyViews(
   const ready = view(project, "Ready Queue");
   if (
     !ready ||
-    !filterContains(ready, "Work State", "Ready") ||
+    !hasExactPositiveFieldValues(ready, "Work State", ["Ready"]) ||
     !includesAll(ready.visibleFields, ["Priority", "Labels", "Work State"])
   ) {
     blockers.push("READY_QUEUE_VIEW_SEMANTICS_INVALID");
@@ -143,26 +253,30 @@ function verifyViews(
   const active = view(project, "Active");
   if (
     !active ||
-    !filterContains(
-      active,
-      "Work State",
+    !hasExactPositiveFieldValues(active, "Work State", [
       "Preparing",
       "Ready",
       "Implementing",
       "Reviewing",
       "Validating",
-    )
+    ])
   ) {
     blockers.push("ACTIVE_VIEW_SEMANTICS_INVALID");
   }
 
   const waiting = view(project, "Waiting");
-  if (!waiting || !filterContains(waiting, "Work State", "Awaiting Approval")) {
+  if (
+    !waiting ||
+    !hasExactPositiveFieldValues(waiting, "Work State", ["Awaiting Approval"])
+  ) {
     blockers.push("WAITING_VIEW_SEMANTICS_INVALID");
   }
 
   const done = view(project, "Done");
-  if (!done || !filterContains(done, "Work State", "Done")) {
+  if (
+    !done ||
+    !hasExactPositiveFieldValues(done, "Work State", ["Done"])
+  ) {
     blockers.push("DONE_VIEW_SEMANTICS_INVALID");
   }
 
