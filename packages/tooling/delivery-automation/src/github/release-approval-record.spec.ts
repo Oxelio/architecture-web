@@ -194,4 +194,40 @@ describe("readHumanReleaseApproval", () => {
     expect(result.evidence.exists).toBe(false);
     expect(result.diagnostic).toContain("maintain/admin");
   });
+
+  it("keeps permission API failures as technical unavailability", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/comments?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 10,
+              html_url: "https://github.test/comment/10",
+              body: approvalBody,
+              user: { login: "maintainer", type: "User" },
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (url.includes("/collaborators/maintainer/permission")) {
+        return new Response("service unavailable", { status: 503 });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    await expect(
+      readHumanReleaseApproval({
+        repository: "Oxelio/Architecture-Web",
+        releaseWorkNumber: 20,
+        repositoryToken: "repo-token",
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      status: "unavailable",
+      diagnostic:
+        "Human Release Authority lookup unavailable for @maintainer (HTTP 503)",
+    });
+  });
 });
