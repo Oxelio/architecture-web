@@ -181,7 +181,7 @@ describe("releaseTaskClaim", () => {
     expect(api.mutationOrder).toEqual([]);
   });
 
-  it("clears Active Task last and verifies an idle record", async () => {
+  it("keeps generation until last and verifies an idle record", async () => {
     const api = createProjectApi({
       activeTask: "42",
       claimant: "agent:codex",
@@ -202,11 +202,72 @@ describe("releaseTaskClaim", () => {
 
     expect(api.mutationOrder).toEqual([
       "clear:claimant",
-      "clear:generation",
       "clear:run",
       "clear:acquiredAt",
       "clear:activeTask",
+      "clear:generation",
     ]);
     expect(api.state).toEqual({});
+  });
+
+  it("resumes a partially completed release when task and generation still match", async () => {
+    const api = createProjectApi({
+      activeTask: "42",
+      generation: "generation-1",
+    });
+
+    await expect(
+      releaseTaskClaim({
+        target,
+        expectedTaskNumber: 42,
+        expectedGeneration: "generation-1",
+        projectsToken: "project-token",
+        fetchImpl: api.fetchImpl,
+      }),
+    ).resolves.toEqual({ status: "released" });
+
+    expect(api.mutationOrder).toEqual([
+      "clear:activeTask",
+      "clear:generation",
+    ]);
+    expect(api.state).toEqual({});
+  });
+
+  it("finishes a release interrupted after Active Task was cleared", async () => {
+    const api = createProjectApi({ generation: "generation-1" });
+
+    await expect(
+      releaseTaskClaim({
+        target,
+        expectedTaskNumber: 42,
+        expectedGeneration: "generation-1",
+        projectsToken: "project-token",
+        fetchImpl: api.fetchImpl,
+      }),
+    ).resolves.toEqual({ status: "released" });
+
+    expect(api.mutationOrder).toEqual(["clear:generation"]);
+    expect(api.state).toEqual({});
+  });
+
+  it("refuses to resume an inconsistent release with a stale generation", async () => {
+    const api = createProjectApi({
+      activeTask: "42",
+      generation: "newer-generation",
+    });
+
+    await expect(
+      releaseTaskClaim({
+        target,
+        expectedTaskNumber: 42,
+        expectedGeneration: "older-generation",
+        projectsToken: "project-token",
+        fetchImpl: api.fetchImpl,
+      }),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "CLAIM_GENERATION_MISMATCH",
+    });
+    expect(api.mutationOrder).toEqual([]);
   });
 });

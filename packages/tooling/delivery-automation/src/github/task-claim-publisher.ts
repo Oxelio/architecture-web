@@ -162,17 +162,30 @@ function text(
   return typeof value?.text === "string" ? value.text : undefined;
 }
 
-export async function readPublishedTaskClaim(input: {
+function nonEmpty(value: string | undefined): string | null {
+  const result = value?.trim();
+  return result ? result : null;
+}
+
+function positiveTaskNumber(value: string | undefined): number | null {
+  const raw = nonEmpty(value);
+  if (!raw || !/^\d+$/.test(raw)) {
+    return null;
+  }
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function readPublishedTaskClaimFields(input: {
   readonly target: TaskClaimTarget;
   readonly projectsToken: string;
-  readonly fetchImpl?: FetchLike;
-}): Promise<ParsedTaskClaim> {
-  const fetchImpl = input.fetchImpl ?? fetch;
+  readonly fetchImpl: FetchLike;
+}): Promise<Readonly<Record<string, string>>> {
   const data = await graphQl<ClaimNodeResponse>({
     token: input.projectsToken,
     query: readClaimQuery,
     variables: { itemId: input.target.projectItemId },
-    fetchImpl,
+    fetchImpl: input.fetchImpl,
   });
 
   const node = data.node;
@@ -182,19 +195,34 @@ export async function readPublishedTaskClaim(input: {
     );
   }
 
-  const activeTask = text(node.activeTask);
-  const claimant = text(node.claimant);
-  const generation = text(node.generation);
-  const run = text(node.run);
-  const acquiredAt = text(node.acquiredAt);
+  const activeTask = nonEmpty(text(node.activeTask));
+  const claimant = nonEmpty(text(node.claimant));
+  const generation = nonEmpty(text(node.generation));
+  const run = nonEmpty(text(node.run));
+  const acquiredAt = nonEmpty(text(node.acquiredAt));
 
-  return parseTaskClaim({
+  return {
     ...(activeTask ? { [taskClaimFieldNames.activeTask]: activeTask } : {}),
     ...(claimant ? { [taskClaimFieldNames.claimant]: claimant } : {}),
     ...(generation ? { [taskClaimFieldNames.generation]: generation } : {}),
     ...(run ? { [taskClaimFieldNames.run]: run } : {}),
     ...(acquiredAt ? { [taskClaimFieldNames.acquiredAt]: acquiredAt } : {}),
-  });
+  };
+}
+
+export async function readPublishedTaskClaim(input: {
+  readonly target: TaskClaimTarget;
+  readonly projectsToken: string;
+  readonly fetchImpl?: FetchLike;
+}): Promise<ParsedTaskClaim> {
+  const fetchImpl = input.fetchImpl ?? fetch;
+  return parseTaskClaim(
+    await readPublishedTaskClaimFields({
+      target: input.target,
+      projectsToken: input.projectsToken,
+      fetchImpl,
+    }),
+  );
 }
 
 async function setTextField(input: {
@@ -326,6 +354,67 @@ export async function acquireTaskClaim(input: {
   return { status: "acquired", record: verified.record };
 }
 
+function validateReleaseGuard(
+  fields: Readonly<Record<string, string>>,
+  current: ParsedTaskClaim,
+  expectedTaskNumber: number,
+  expectedGeneration: string,
+): ReleaseTaskClaimResult | null {
+  if (current.state === "idle") {
+    return { status: "already-released" };
+  }
+
+  if (current.state === "active") {
+    if (current.record.taskNumber !== expectedTaskNumber) {
+      return { status: "blocked", reason: "CLAIM_TASK_MISMATCH" };
+    }
+    if (current.record.generation !== expectedGeneration) {
+      return { status: "blocked", reason: "CLAIM_GENERATION_MISMATCH" };
+    }
+    return null;
+  }
+
+  const generation = nonEmpty(fields[taskClaimFieldNames.generation]);
+  if (!generation) {
+    return { status: "blocked", reason: "CLAIM_INCONSISTENT" };
+  }
+  if (generation !== expectedGeneration) {
+    return { status: "blocked", reason: "CLAIM_GENERATION_MISMATCH" };
+  }
+
+  const activeTaskValue = nonEmpty(fields[taskClaimFieldNames.activeTask]);
+  if (activeTaskValue) {
+    const activeTask = positiveTaskNumber(activeTaskValue);
+    if (!activeTask) {
+      return { status: "blocked", reason: "CLAIM_INCONSISTENT" };
+    }
+    if (activeTask !== expectedTaskNumber) {
+      return { status: "blocked", reason: "CLAIM_TASK_MISMATCH" };
+    }
+  }
+
+  return null;
+}
+
+async function clearIfPresent(input: {
+  readonly fields: Readonly<Record<string, string>>;
+  readonly fieldName: string;
+  readonly target: TaskClaimTarget;
+  readonly fieldId: string;
+  readonly projectsToken: string;
+  readonly fetchImpl: FetchLike;
+}): Promise<void> {
+  if (!nonEmpty(input.fields[input.fieldName])) {
+    return;
+  }
+  await clearField({
+    target: input.target,
+    fieldId: input.fieldId,
+    projectsToken: input.projectsToken,
+    fetchImpl: input.fetchImpl,
+  });
+}
+
 export async function releaseTaskClaim(input: {
   readonly target: TaskClaimTarget;
   readonly expectedTaskNumber: number;
@@ -334,56 +423,62 @@ export async function releaseTaskClaim(input: {
   readonly fetchImpl?: FetchLike;
 }): Promise<ReleaseTaskClaimResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const current = await readPublishedTaskClaim({
+  const fields = await readPublishedTaskClaimFields({
     target: input.target,
     projectsToken: input.projectsToken,
     fetchImpl,
   });
-
-  if (current.state === "idle") {
-    return { status: "already-released" };
-  }
-  if (current.state === "inconsistent") {
-    return { status: "blocked", reason: "CLAIM_INCONSISTENT" };
-  }
-  if (current.record.taskNumber !== input.expectedTaskNumber) {
-    return { status: "blocked", reason: "CLAIM_TASK_MISMATCH" };
-  }
-  if (current.record.generation !== input.expectedGeneration) {
-    return { status: "blocked", reason: "CLAIM_GENERATION_MISMATCH" };
+  const current = parseTaskClaim(fields);
+  const guardResult = validateReleaseGuard(
+    fields,
+    current,
+    input.expectedTaskNumber,
+    input.expectedGeneration,
+  );
+  if (guardResult) {
+    return guardResult;
   }
 
-  // Keep Active Task until all metadata is cleared. Any interruption remains
-  // active/inconsistent rather than exposing a false idle state.
-  await clearField({
+  // Generation is the final release guard. Keeping it until the last mutation
+  // makes an interrupted release safely retryable with the same generation,
+  // while a stale generation still cannot clear a newer claim.
+  await clearIfPresent({
+    fields,
+    fieldName: taskClaimFieldNames.claimant,
     target: input.target,
     fieldId: input.target.fieldIds.claimant,
     projectsToken: input.projectsToken,
     fetchImpl,
   });
-  await clearField({
+  await clearIfPresent({
+    fields,
+    fieldName: taskClaimFieldNames.run,
     target: input.target,
-    fieldId: input.target.fieldIds.generation,
+    fieldId: input.target.fieldIds.run,
     projectsToken: input.projectsToken,
     fetchImpl,
   });
-  if (current.record.runId) {
-    await clearField({
-      target: input.target,
-      fieldId: input.target.fieldIds.run,
-      projectsToken: input.projectsToken,
-      fetchImpl,
-    });
-  }
-  await clearField({
+  await clearIfPresent({
+    fields,
+    fieldName: taskClaimFieldNames.acquiredAt,
     target: input.target,
     fieldId: input.target.fieldIds.acquiredAt,
     projectsToken: input.projectsToken,
     fetchImpl,
   });
-  await clearField({
+  await clearIfPresent({
+    fields,
+    fieldName: taskClaimFieldNames.activeTask,
     target: input.target,
     fieldId: input.target.fieldIds.activeTask,
+    projectsToken: input.projectsToken,
+    fetchImpl,
+  });
+  await clearIfPresent({
+    fields,
+    fieldName: taskClaimFieldNames.generation,
+    target: input.target,
+    fieldId: input.target.fieldIds.generation,
     projectsToken: input.projectsToken,
     fetchImpl,
   });
