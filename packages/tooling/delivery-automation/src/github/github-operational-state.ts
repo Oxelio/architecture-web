@@ -425,7 +425,7 @@ function deriveWipState(input: {
     if (!item.issueOpen || item.issueNumber === input.candidateNumber) {
       continue;
     }
-    const state = parseWorkState(item.fields["Work State"]);
+    const state = parseWorkState(item.fields["Status"]);
     if (!state) {
       return "unavailable";
     }
@@ -463,7 +463,7 @@ export async function readWorkPullCandidates(input: {
   return Promise.all(
     items.map(async (item): Promise<WorkPullCandidate> => {
       const workState = input.activation.workState
-        ? parseWorkState(item.fields["Work State"])
+        ? parseWorkState(item.fields["Status"])
         : null;
       const priority = input.activation.priority
         ? parsePriority(item.fields["Priority"])
@@ -709,7 +709,7 @@ export async function readTaskDispatchCandidate(input: {
   }
 
   const workState = input.activation.workState
-    ? parseWorkState(work.fields["Work State"])
+    ? parseWorkState(work.fields["Status"])
     : null;
 
   return {
