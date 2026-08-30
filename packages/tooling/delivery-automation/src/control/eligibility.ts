@@ -20,6 +20,10 @@ export type TaskParentState = "verified" | "mismatch" | "unavailable";
 
 export type TargetRefSource = "authorized-work-context" | "agent-output";
 
+export type TaskClaimExecution =
+  | { readonly kind: "human" }
+  | { readonly kind: "automated"; readonly executorRoute: string };
+
 export type EligibilityBlocker =
   | "WORK_CLOSED"
   | "TASK_CLOSED"
@@ -246,15 +250,20 @@ export function evaluateWorkPull(
 
 export function evaluateTaskClaimAcquisition(
   candidate: TaskDispatchCandidate,
+  execution: TaskClaimExecution,
 ): EligibilityDecision {
   const blockers: EligibilityBlocker[] = [];
   evaluateTaskExecutionPrerequisites(candidate, blockers);
+  const route =
+    execution.kind === "automated"
+      ? evaluateRoute(candidate.route, execution.executorRoute, blockers)
+      : null;
   const targetRef = evaluateTargetRef(candidate.targetRef, blockers);
 
   return {
     eligible: blockers.length === 0,
     blockers,
-    route: null,
+    route,
     targetRef,
   };
 }
