@@ -1,17 +1,50 @@
 {
   "schemaVersion": 1,
   "policyOwner": "docs/project/delivery-pipeline.md",
-  "project": null,
+  "project": {
+    "owner": "Oxelio",
+    "number": 3
+  },
   "mappings": {
-    "workState": { "status": "inactive" },
-    "workType": { "status": "inactive" },
-    "workflowDepth": { "status": "inactive" },
-    "priority": { "status": "inactive" },
-    "characteristics": { "status": "inactive" },
-    "routes": { "status": "inactive" },
-    "dependencies": { "status": "inactive" },
-    "taskParent": { "status": "inactive" },
-    "taskClaim": { "status": "inactive" },
-    "workIntegrationPr": { "status": "inactive" }
+    "workState": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "workType": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "workflowDepth": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "priority": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "characteristics": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "routes": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "dependencies": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "taskParent": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "taskClaim": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    },
+    "workIntegrationPr": {
+      "status": "verified",
+      "evidenceRef": "work-9-live-project-verification"
+    }
   }
 }
