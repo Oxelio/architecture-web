@@ -27,7 +27,7 @@ export interface DeliveryExpectations {
 export const architectureWebDeliveryExpectations: DeliveryExpectations = {
   fields: [
     {
-      name: "Work State",
+      name: "Status",
       dataType: "SINGLE_SELECT",
       options: [
         "Idea",
