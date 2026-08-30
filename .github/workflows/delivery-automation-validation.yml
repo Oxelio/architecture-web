@@ -10,6 +10,7 @@ on:
       - ".github/delivery-automation.json"
       - ".github/workflows/**"
       - "docs/architecture/agent-aware-delivery-activation.md"
+      - "docs/project/delivery-pipeline.md"
       - "packages/tooling/delivery-automation/**"
       - "package.json"
       - "pnpm-lock.yaml"
