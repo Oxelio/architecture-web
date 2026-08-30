@@ -44,6 +44,7 @@ interface TimelineEvent {
   readonly source?: {
     readonly issue?: {
       readonly number: number;
+      readonly repository_url?: string;
       readonly pull_request?: object;
     };
   };
@@ -68,6 +69,14 @@ export interface ReleasePromotionTarget {
 
 function normalizeRepository(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function normalizeUrl(value: string): string {
+  return value.trim().replace(/\/+$/u, "").toLowerCase();
+}
+
+function repositoryApiUrl(repository: string): string {
+  return `https://api.github.com/repos/${repository}`;
 }
 
 function headers(token: string): Record<string, string> {
@@ -268,6 +277,7 @@ export async function readReleasePromotionTarget(input: {
   }
 
   const referencedNumbers = new Set<number>();
+  const expectedRepositoryUrl = normalizeUrl(repositoryApiUrl(input.repository));
 
   for (let page = 1; page <= 20; page += 1) {
     const response = await fetchImpl(
@@ -282,7 +292,11 @@ export async function readReleasePromotionTarget(input: {
     for (const event of events) {
       const sourceIssue =
         event.event === "cross-referenced" ? event.source?.issue : undefined;
-      if (sourceIssue?.pull_request) {
+      if (
+        sourceIssue?.pull_request &&
+        typeof sourceIssue.repository_url === "string" &&
+        normalizeUrl(sourceIssue.repository_url) === expectedRepositoryUrl
+      ) {
         referencedNumbers.add(sourceIssue.number);
       }
     }

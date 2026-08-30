@@ -6,6 +6,7 @@ import {
 } from "./gate-live-evidence.js";
 
 const repository = "Oxelio/Architecture-Web";
+const repositoryUrl = `https://api.github.com/repos/${repository}`;
 const headSha = "a".repeat(40);
 
 function json(value: unknown, status = 200): Response {
@@ -65,7 +66,13 @@ describe("readWorkMergeGateLiveEvidence", () => {
         return json([
           {
             event: "cross-referenced",
-            source: { issue: { number: 13, pull_request: {} } },
+            source: {
+              issue: {
+                number: 13,
+                repository_url: repositoryUrl,
+                pull_request: {},
+              },
+            },
           },
         ]);
       }
@@ -159,7 +166,13 @@ describe("readReleasePromotionTarget", () => {
         return json([
           {
             event: "cross-referenced",
-            source: { issue: { number: 30, pull_request: {} } },
+            source: {
+              issue: {
+                number: 30,
+                repository_url: repositoryUrl,
+                pull_request: {},
+              },
+            },
           },
         ]);
       }
@@ -198,6 +211,43 @@ describe("readReleasePromotionTarget", () => {
         },
       },
     });
+  });
+
+  it("rejects a cross-reference from another repository even when the PR number collides", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/issues/20")) {
+        return json({ number: 20, state: "open" });
+      }
+      if (url.includes("/issues/20/timeline")) {
+        return json([
+          {
+            event: "cross-referenced",
+            source: {
+              issue: {
+                number: 30,
+                repository_url: "https://api.github.com/repos/Other/Repository",
+                pull_request: {},
+              },
+            },
+          },
+        ]);
+      }
+      if (url.endsWith("/pulls/30")) {
+        throw new Error("cross-repository PR number must not be resolved locally");
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    await expect(
+      readReleasePromotionTarget({
+        repository,
+        releaseWorkNumber: 20,
+        repositoryToken: "repo-token",
+        artifactIdentity: null,
+        fetchImpl,
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
   });
 
   it("rejects a closed Release Work before resolving promotion PRs", async () => {
