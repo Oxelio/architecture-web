@@ -34,7 +34,7 @@ function projectItem(input: {
     fieldValues.push({
       __typename: "ProjectV2ItemFieldSingleSelectValue",
       name: input.workState,
-      field: { name: "Work State" },
+      field: { name: "Status" },
     });
   }
   if (input.priority) {
@@ -139,7 +139,7 @@ describe("readProjectWorkItems", () => {
         issueOpen: true,
         labels: ["agent:codex"],
         fields: {
-          "Work State": "Implementing",
+          Status: "Implementing",
           Priority: "P2 — Normal",
         },
       },
@@ -211,6 +211,43 @@ describe("readWorkPullCandidates", () => {
         priority: "P2 — Normal",
       },
     ]);
+  });
+
+  it("fails closed when an open Work has no Status value", async () => {
+    const fetchImpl: FetchLike = async (input) => {
+      const url = String(input);
+      if (url === "https://api.github.com/graphql") {
+        return jsonResponse(
+          projectResponse([
+            projectItem({
+              number: 20,
+              priority: "P1 — High",
+              labels: ["agent:codex"],
+            }),
+          ]),
+        );
+      }
+      if (url.includes("/issues/20/dependencies/blocked_by")) {
+        return jsonResponse([]);
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    };
+
+    const [candidate] = await readWorkPullCandidates({
+      repository: "Oxelio/Architecture-Web",
+      projectId: "PVT_1",
+      projectsToken: "project-token",
+      repositoryToken: "repo-token",
+      activation: activeOwners,
+      fetchImpl,
+    });
+
+    expect(candidate).toMatchObject({
+      workNumber: 20,
+      workStateAvailable: false,
+      workState: null,
+      wipState: "available",
+    });
   });
 });
 
