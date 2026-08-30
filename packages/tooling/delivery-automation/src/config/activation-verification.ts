@@ -30,7 +30,6 @@ export type ActivationVerificationBlocker =
   | "ACTIVE_VIEW_SEMANTICS_INVALID"
   | "WAITING_VIEW_SEMANTICS_INVALID"
   | "DONE_VIEW_SEMANTICS_INVALID"
-  | "NATIVE_STATUS_VISIBLE"
   | "DEPENDENCY_CAPABILITY_UNVERIFIED"
   | "TASK_PARENT_CAPABILITY_UNVERIFIED"
   | "WORK_INTEGRATION_PR_CAPABILITY_UNVERIFIED";
@@ -53,20 +52,11 @@ const requiredBacklogFields = [
   "Title",
   "Priority",
   "Labels",
-  "Work State",
+  "Status",
   "Work Type",
   "Workflow Depth",
   "Assignees",
 ] as const;
-
-const operationalViewNames = new Set([
-  "Backlog",
-  "Ready Queue",
-  "Workflow",
-  "Active",
-  "Waiting",
-  "Done",
-]);
 
 interface FilterTerm {
   readonly negated: boolean;
@@ -214,16 +204,6 @@ function hasExactPositiveFieldValues(
   );
 }
 
-function hasNativeStatusVisibleInOperationalViews(
-  project: ProjectSnapshot,
-): boolean {
-  return project.views.some(
-    (candidate) =>
-      operationalViewNames.has(candidate.name) &&
-      candidate.visibleFields.includes("Status"),
-  );
-}
-
 function verifyClaimFields(project: ProjectSnapshot): boolean {
   return Object.values(taskClaimFieldNames).every((name) => {
     const matches = project.fields.filter((field) => field.name === name);
@@ -243,21 +223,21 @@ function verifyViews(
   const ready = view(project, "Ready Queue");
   if (
     !ready ||
-    !hasExactPositiveFieldValues(ready, "Work State", ["Ready"]) ||
-    !includesAll(ready.visibleFields, ["Priority", "Labels", "Work State"])
+    !hasExactPositiveFieldValues(ready, "Status", ["Ready"]) ||
+    !includesAll(ready.visibleFields, ["Priority", "Labels", "Status"])
   ) {
     blockers.push("READY_QUEUE_VIEW_SEMANTICS_INVALID");
   }
 
   const workflow = view(project, "Workflow");
-  if (!workflow || !workflow.groupByFields.includes("Work State")) {
+  if (!workflow || !workflow.groupByFields.includes("Status")) {
     blockers.push("WORKFLOW_VIEW_SEMANTICS_INVALID");
   }
 
   const active = view(project, "Active");
   if (
     !active ||
-    !hasExactPositiveFieldValues(active, "Work State", [
+    !hasExactPositiveFieldValues(active, "Status", [
       "Preparing",
       "Ready",
       "Implementing",
@@ -271,18 +251,14 @@ function verifyViews(
   const waiting = view(project, "Waiting");
   if (
     !waiting ||
-    !hasExactPositiveFieldValues(waiting, "Work State", ["Awaiting Approval"])
+    !hasExactPositiveFieldValues(waiting, "Status", ["Awaiting Approval"])
   ) {
     blockers.push("WAITING_VIEW_SEMANTICS_INVALID");
   }
 
   const done = view(project, "Done");
-  if (!done || !hasExactPositiveFieldValues(done, "Work State", ["Done"])) {
+  if (!done || !hasExactPositiveFieldValues(done, "Status", ["Done"])) {
     blockers.push("DONE_VIEW_SEMANTICS_INVALID");
-  }
-
-  if (hasNativeStatusVisibleInOperationalViews(project)) {
-    blockers.push("NATIVE_STATUS_VISIBLE");
   }
 
   return blockers;
