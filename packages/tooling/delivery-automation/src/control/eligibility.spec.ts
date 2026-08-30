@@ -175,6 +175,27 @@ describe("evaluateTaskClaimAcquisition", () => {
     });
   });
 
+  it("allows a human claim when the active route explicitly selects human execution", () => {
+    expect(
+      evaluateTaskClaimAcquisition(
+        task({ route: { mappingActive: true, labels: ["agent:human"] } }),
+        { kind: "human" },
+      ),
+    ).toEqual({
+      eligible: true,
+      blockers: [],
+      route: "agent:human",
+      targetRef: "technical/example",
+    });
+  });
+
+  it("blocks a human claim from bypassing an explicitly automated route", () => {
+    const decision = evaluateTaskClaimAcquisition(task(), { kind: "human" });
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("ROUTE_MISMATCH");
+  });
+
   it("revalidates the selected route immediately before an automated claim", () => {
     expect(
       evaluateTaskClaimAcquisition(task(), {
