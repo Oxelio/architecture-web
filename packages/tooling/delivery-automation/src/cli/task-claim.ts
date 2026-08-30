@@ -1,16 +1,19 @@
 import { randomUUID } from "node:crypto";
 
-import { readProjectWorkItems } from "../github/github-operational-state.js";
+import { resolveActivationContext } from "../config/activation-context.js";
+import { evaluateTaskClaimAcquisition } from "../control/eligibility.js";
+import {
+  readProjectWorkItems,
+  readTaskDispatchCandidate,
+} from "../github/github-operational-state.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import {
   acquireTaskClaim,
   releaseTaskClaim,
 } from "../github/task-claim-publisher.js";
 import { resolveTaskClaimTarget } from "../github/task-claim-target.js";
-import {
-  type ExplicitProjectLocator,
-  selectProject,
-} from "../inventory/project-inventory.js";
+import { readAuthorizedWorkIntegrationTarget } from "../github/work-integration-target.js";
+import { readActivationManifest } from "./gate-publication-support.js";
 
 interface CliArguments {
   readonly action: "acquire" | "release";
@@ -79,18 +82,15 @@ function parseArguments(argv: readonly string[]): CliArguments {
   };
 }
 
-function explicitProjectLocator(): ExplicitProjectLocator | undefined {
-  const owner = process.env["ARCHITECTURE_WEB_PROJECT_OWNER"]?.trim();
-  const number = process.env["ARCHITECTURE_WEB_PROJECT_NUMBER"]?.trim();
-  if (!owner && !number) {
-    return undefined;
-  }
-  if (!owner || !number) {
-    throw new Error(
-      "ARCHITECTURE_WEB_PROJECT_OWNER and ARCHITECTURE_WEB_PROJECT_NUMBER must be supplied together",
-    );
-  }
-  return { owner, number: positiveInteger(number, "project-number") };
+function blocked(reason: string, blockers?: readonly string[]): void {
+  console.log(
+    JSON.stringify({
+      status: "blocked",
+      reason,
+      ...(blockers ? { blockers } : {}),
+    }),
+  );
+  process.exitCode = 2;
 }
 
 async function main(): Promise<void> {
@@ -99,41 +99,82 @@ async function main(): Promise<void> {
   const projectsToken = requiredEnvironment("ARCHITECTURE_WEB_PROJECTS_TOKEN");
   const repositoryToken = process.env["GITHUB_TOKEN"]?.trim() || projectsToken;
 
+  const manifest = await readActivationManifest();
   const inventory = await readGitHubInventory({
     repository,
     projectsToken,
     repositoryToken,
   });
-  const selection = selectProject(
+  const activation = resolveActivationContext({
     repository,
-    inventory.projects,
-    explicitProjectLocator(),
-  );
-  if (selection.status !== "selected") {
-    throw new Error(`Project selection blocked: ${selection.blocker}`);
+    manifest,
+    inventory,
+  });
+  if (activation.status === "blocked") {
+    blocked("DELIVERY_ACTIVATION_UNAVAILABLE", activation.blockers);
+    return;
   }
-
-  const workItems = await readProjectWorkItems({
-    repository,
-    projectId: selection.project.id,
-    projectsToken,
-  });
-  const target = resolveTaskClaimTarget({
-    project: selection.project,
-    workItems,
-    workNumber: args.workNumber,
-  });
+  if (!activation.activation.taskClaim) {
+    blocked("TASK_CLAIM_OWNER_INACTIVE");
+    return;
+  }
 
   if (args.action === "acquire") {
     if (!args.claimant) {
       throw new Error("--claimant is required for acquire");
     }
+    if (args.generation) {
+      throw new Error(
+        "--generation must not be supplied for acquire; the trusted publisher generates it",
+      );
+    }
+
+    const candidate = await readTaskDispatchCandidate({
+      repository,
+      projectId: activation.project.id,
+      projectsToken,
+      repositoryToken,
+      workNumber: args.workNumber,
+      taskNumber: args.taskNumber,
+      activation: activation.activation,
+    });
+    const decision = evaluateTaskClaimAcquisition(candidate);
+    if (!decision.eligible || !decision.targetRef) {
+      blocked("CLAIM_ACQUISITION_PRECONDITIONS_BLOCKED", decision.blockers);
+      return;
+    }
+
+    const authorizedTarget = await readAuthorizedWorkIntegrationTarget({
+      repository,
+      workNumber: args.workNumber,
+      repositoryToken,
+      active: activation.activation.workIntegrationPr,
+    });
+    if (authorizedTarget.status !== "selected") {
+      blocked("WORK_INTEGRATION_TARGET_UNAVAILABLE");
+      return;
+    }
+    if (authorizedTarget.target.headRef !== decision.targetRef) {
+      blocked("WORK_INTEGRATION_TARGET_CHANGED_DURING_CLAIM");
+      return;
+    }
+
+    const workItems = await readProjectWorkItems({
+      repository,
+      projectId: activation.project.id,
+      projectsToken,
+    });
+    const target = resolveTaskClaimTarget({
+      project: activation.project,
+      workItems,
+      workNumber: args.workNumber,
+    });
     const result = await acquireTaskClaim({
       target,
       record: {
         taskNumber: args.taskNumber,
         claimant: args.claimant,
-        generation: args.generation ?? randomUUID(),
+        generation: randomUUID(),
         runId: args.runId ?? null,
         acquiredAt: new Date().toISOString(),
       },
@@ -149,6 +190,17 @@ async function main(): Promise<void> {
   if (!args.generation) {
     throw new Error("--generation is required for release");
   }
+
+  const workItems = await readProjectWorkItems({
+    repository,
+    projectId: activation.project.id,
+    projectsToken,
+  });
+  const target = resolveTaskClaimTarget({
+    project: activation.project,
+    workItems,
+    workNumber: args.workNumber,
+  });
   const result = await releaseTaskClaim({
     target,
     expectedTaskNumber: args.taskNumber,

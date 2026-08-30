@@ -74,8 +74,7 @@ function verifyTaskClaim(project: ProjectSnapshot): ActivationContextBlocker[] {
 }
 
 function verifyRoutes(labels: readonly string[]): ActivationContextBlocker[] {
-  const known = new Set(labels);
-  return known.has("agent:human") && known.has("agent:codex")
+  return labels.includes("agent:human")
     ? []
     : ["MAPPING_DRIFT:routes:required-labels"];
 }

@@ -35,6 +35,7 @@ export type EligibilityBlocker =
   | "ROUTE_OWNER_UNAVAILABLE"
   | "ROUTE_UNASSIGNED"
   | "ROUTE_CONFLICT"
+  | "ROUTE_HUMAN_ONLY"
   | "ROUTE_MISMATCH"
   | "CLAIM_OWNER_UNAVAILABLE"
   | "CLAIM_INCONSISTENT"
@@ -131,6 +132,10 @@ function evaluateRoute(
   if (!selectedRoute) {
     throw new Error("Route cardinality invariant violated");
   }
+  if (selectedRoute === "agent:human") {
+    blockers.push("ROUTE_HUMAN_ONLY");
+    return selectedRoute;
+  }
   if (selectedRoute !== executorRoute) {
     blockers.push("ROUTE_MISMATCH");
   }
@@ -165,6 +170,39 @@ function evaluateDependencies(
     blockers.push("DEPENDENCY_OWNER_UNAVAILABLE");
   } else if (dependencyState === "blocked") {
     blockers.push("DEPENDENCY_BLOCKED");
+  }
+}
+
+function evaluateTaskExecutionPrerequisites(
+  candidate: TaskDispatchCandidate,
+  blockers: EligibilityBlocker[],
+): void {
+  if (!candidate.workOpen) {
+    blockers.push("WORK_CLOSED");
+  }
+  if (!candidate.taskOpen) {
+    blockers.push("TASK_CLOSED");
+  }
+  if (candidate.taskParentState === "unavailable") {
+    blockers.push("TASK_PARENT_OWNER_UNAVAILABLE");
+  } else if (candidate.taskParentState === "mismatch") {
+    blockers.push("TASK_PARENT_MISMATCH");
+  }
+
+  if (!candidate.workStateAvailable || candidate.workState === null) {
+    blockers.push("WORK_STATE_OWNER_UNAVAILABLE");
+  } else if (candidate.workState !== "Implementing") {
+    blockers.push("WORK_NOT_IMPLEMENTING");
+  }
+
+  evaluateDependencies(candidate.dependencyState, blockers);
+
+  if (candidate.claimState === "unavailable") {
+    blockers.push("CLAIM_OWNER_UNAVAILABLE");
+  } else if (candidate.claimState === "inconsistent") {
+    blockers.push("CLAIM_INCONSISTENT");
+  } else if (candidate.claimState === "active") {
+    blockers.push("CLAIM_ACTIVE");
   }
 }
 
@@ -206,40 +244,27 @@ export function evaluateWorkPull(
   };
 }
 
+export function evaluateTaskClaimAcquisition(
+  candidate: TaskDispatchCandidate,
+): EligibilityDecision {
+  const blockers: EligibilityBlocker[] = [];
+  evaluateTaskExecutionPrerequisites(candidate, blockers);
+  const targetRef = evaluateTargetRef(candidate.targetRef, blockers);
+
+  return {
+    eligible: blockers.length === 0,
+    blockers,
+    route: null,
+    targetRef,
+  };
+}
+
 export function evaluateTaskDispatch(
   candidate: TaskDispatchCandidate,
   executorRoute: string,
 ): EligibilityDecision {
   const blockers: EligibilityBlocker[] = [];
-
-  if (!candidate.workOpen) {
-    blockers.push("WORK_CLOSED");
-  }
-  if (!candidate.taskOpen) {
-    blockers.push("TASK_CLOSED");
-  }
-  if (candidate.taskParentState === "unavailable") {
-    blockers.push("TASK_PARENT_OWNER_UNAVAILABLE");
-  } else if (candidate.taskParentState === "mismatch") {
-    blockers.push("TASK_PARENT_MISMATCH");
-  }
-
-  if (!candidate.workStateAvailable || candidate.workState === null) {
-    blockers.push("WORK_STATE_OWNER_UNAVAILABLE");
-  } else if (candidate.workState !== "Implementing") {
-    blockers.push("WORK_NOT_IMPLEMENTING");
-  }
-
-  evaluateDependencies(candidate.dependencyState, blockers);
-
-  if (candidate.claimState === "unavailable") {
-    blockers.push("CLAIM_OWNER_UNAVAILABLE");
-  } else if (candidate.claimState === "inconsistent") {
-    blockers.push("CLAIM_INCONSISTENT");
-  } else if (candidate.claimState === "active") {
-    blockers.push("CLAIM_ACTIVE");
-  }
-
+  evaluateTaskExecutionPrerequisites(candidate, blockers);
   const route = evaluateRoute(candidate.route, executorRoute, blockers);
   const targetRef = evaluateTargetRef(candidate.targetRef, blockers);
 

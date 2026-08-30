@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  evaluateTaskClaimAcquisition,
   evaluateTaskDispatch,
   evaluateWorkPull,
   selectNextWork,
@@ -114,9 +115,19 @@ describe("evaluateWorkPull", () => {
     expect(decision.blockers).toContain("ROUTE_CONFLICT");
   });
 
-  it("keeps a Work routed elsewhere valid but not executable by this executor", () => {
+  it("never selects a human-only route for automated dispatch", () => {
     const decision = evaluateWorkPull(
       work({ route: { mappingActive: true, labels: ["agent:human"] } }),
+      "agent:human",
+    );
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("ROUTE_HUMAN_ONLY");
+  });
+
+  it("keeps a Work routed elsewhere valid but not executable by this executor", () => {
+    const decision = evaluateWorkPull(
+      work({ route: { mappingActive: true, labels: ["agent:other"] } }),
       "agent:codex",
     );
 
@@ -146,6 +157,34 @@ describe("selectNextWork", () => {
       decision.candidates.find((candidate) => candidate.workNumber === 5)
         ?.decision.blockers,
     ).toContain("DEPENDENCY_BLOCKED");
+  });
+});
+
+describe("evaluateTaskClaimAcquisition", () => {
+  it("validates execution state and target without requiring an automated route", () => {
+    expect(
+      evaluateTaskClaimAcquisition(
+        task({ route: { mappingActive: false, labels: ["agent:human"] } }),
+      ),
+    ).toEqual({
+      eligible: true,
+      blockers: [],
+      route: null,
+      targetRef: "technical/example",
+    });
+  });
+
+  it("fails closed when Task ownership or target state is unavailable", () => {
+    const decision = evaluateTaskClaimAcquisition(
+      task({
+        taskParentState: "unavailable",
+        targetRef: { ref: null, source: null, authorizedRefs: [] },
+      }),
+    );
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("TASK_PARENT_OWNER_UNAVAILABLE");
+    expect(decision.blockers).toContain("TARGET_REF_UNAVAILABLE");
   });
 });
 
@@ -218,6 +257,16 @@ describe("evaluateTaskDispatch", () => {
 
     expect(decision.eligible).toBe(false);
     expect(decision.blockers).toContain("ROUTE_UNASSIGNED");
+  });
+
+  it("never dispatches a Task whose selected route is human-only", () => {
+    const decision = evaluateTaskDispatch(
+      task({ route: { mappingActive: true, labels: ["agent:human"] } }),
+      "agent:human",
+    );
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("ROUTE_HUMAN_ONLY");
   });
 
   it("rejects a target ref sourced from agent output even if its value is authorized", () => {

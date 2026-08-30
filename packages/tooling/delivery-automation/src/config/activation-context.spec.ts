@@ -14,7 +14,7 @@ const claimFields = [
 
 function inventory(): GitHubInventorySnapshot {
   return {
-    labels: ["agent:human", "agent:codex"],
+    labels: ["agent:human"],
     projects: [
       {
         id: "PVT_project",
@@ -106,7 +106,7 @@ describe("resolveActivationContext", () => {
     ).toEqual({ status: "blocked", blockers: ["PROJECT_LOCATOR_INACTIVE"] });
   });
 
-  it("revalidates verified mappings against live Project and label schema", () => {
+  it("revalidates verified mappings without requiring a provider-specific route", () => {
     const result = resolveActivationContext({
       repository: "Oxelio/Architecture-Web",
       manifest: verifiedManifest(),
@@ -117,6 +117,7 @@ describe("resolveActivationContext", () => {
     if (result.status === "ready") {
       expect(result.project.id).toBe("PVT_project");
       expect(result.activation.taskClaim).toBe(true);
+      expect(result.activation.routes).toBe(true);
     }
   });
 
@@ -150,12 +151,12 @@ describe("resolveActivationContext", () => {
     });
   });
 
-  it("fails closed if route labels drift after activation", () => {
+  it("fails closed if the reserved human route label drifts after activation", () => {
     const snapshot = inventory();
     const result = resolveActivationContext({
       repository: "Oxelio/Architecture-Web",
       manifest: verifiedManifest(),
-      inventory: { ...snapshot, labels: ["agent:human"] },
+      inventory: { ...snapshot, labels: [] },
     });
 
     expect(result).toEqual({

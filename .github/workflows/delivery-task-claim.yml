@@ -23,8 +23,8 @@ on:
         required: false
         type: string
       generation:
-        description: Opaque claim generation. Required for acquire and release.
-        required: true
+        description: Claim generation returned by acquire. Required for release only.
+        required: false
         type: string
       run_id:
         description: Associated execution workflow run id. Optional for recovery/manual claims.
@@ -33,6 +33,8 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: delivery-task-claim-${{ inputs.work_number }}
@@ -95,7 +97,6 @@ jobs:
             "${CLAIM_ACTION}"
             --work "${WORK_NUMBER}"
             --task "${TASK_NUMBER}"
-            --generation "${CLAIM_GENERATION}"
           )
 
           if [[ "${CLAIM_ACTION}" == "acquire" ]]; then
@@ -103,10 +104,20 @@ jobs:
               echo "claimant is required for acquire" >&2
               exit 1
             fi
+            if [[ -n "${CLAIM_GENERATION}" ]]; then
+              echo "generation is publisher-owned and must be empty for acquire" >&2
+              exit 1
+            fi
             args+=(--claimant "${CLAIMANT}")
             if [[ -n "${EXECUTION_RUN_ID}" ]]; then
               args+=(--run "${EXECUTION_RUN_ID}")
             fi
+          else
+            if [[ -z "${CLAIM_GENERATION}" ]]; then
+              echo "generation is required for release" >&2
+              exit 1
+            fi
+            args+=(--generation "${CLAIM_GENERATION}")
           fi
 
           pnpm --filter @architecture/delivery-automation claim -- "${args[@]}"
