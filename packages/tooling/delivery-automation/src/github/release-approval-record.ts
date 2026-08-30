@@ -17,7 +17,6 @@ interface IssueComment {
 }
 
 interface PermissionResponse {
-  readonly permission?: string;
   readonly role_name?: string;
 }
 
@@ -40,6 +39,11 @@ export type HumanReleaseApprovalResolution =
       readonly status: "unavailable";
       readonly diagnostic: string;
     };
+
+type HumanReleaseAuthorityResolution =
+  | { readonly status: "authorized" }
+  | { readonly status: "unauthorized" }
+  | { readonly status: "unavailable"; readonly diagnostic: string };
 
 function headers(token: string): Record<string, string> {
   return {
@@ -113,22 +117,37 @@ export function parseHumanReleaseApprovalComment(input: {
   };
 }
 
-async function hasHumanReleaseAuthority(input: {
+async function resolveHumanReleaseAuthority(input: {
   readonly repository: string;
   readonly login: string;
   readonly repositoryToken: string;
   readonly fetchImpl: FetchLike;
-}): Promise<boolean> {
+}): Promise<HumanReleaseAuthorityResolution> {
   const response = await input.fetchImpl(
     `https://api.github.com/repos/${input.repository}/collaborators/${input.login}/permission`,
     { headers: headers(input.repositoryToken) },
   );
+  if (response.status === 404) {
+    return { status: "unauthorized" };
+  }
   if (!response.ok) {
-    return false;
+    return {
+      status: "unavailable",
+      diagnostic: `Human Release Authority lookup unavailable for @${input.login} (HTTP ${response.status})`,
+    };
   }
 
   const payload = (await response.json()) as PermissionResponse;
-  return payload.role_name === "admin" || payload.role_name === "maintain";
+  if (typeof payload.role_name !== "string") {
+    return {
+      status: "unavailable",
+      diagnostic: `Human Release Authority lookup returned no role for @${input.login}`,
+    };
+  }
+
+  return payload.role_name === "admin" || payload.role_name === "maintain"
+    ? { status: "authorized" }
+    : { status: "unauthorized" };
 }
 
 export async function readHumanReleaseApproval(input: {
@@ -167,7 +186,7 @@ export async function readHumanReleaseApproval(input: {
     }
   }
 
-  const latest = markedComments.at(-1);
+  const latest = markedComments.toSorted((left, right) => left.id - right.id).at(-1);
   if (!latest) {
     return {
       status: "resolved",
@@ -209,14 +228,16 @@ export async function readHumanReleaseApproval(input: {
     };
   }
 
-  if (
-    !(await hasHumanReleaseAuthority({
-      repository: input.repository,
-      login: record.author,
-      repositoryToken: input.repositoryToken,
-      fetchImpl,
-    }))
-  ) {
+  const authority = await resolveHumanReleaseAuthority({
+    repository: input.repository,
+    login: record.author,
+    repositoryToken: input.repositoryToken,
+    fetchImpl,
+  });
+  if (authority.status === "unavailable") {
+    return authority;
+  }
+  if (authority.status === "unauthorized") {
     return {
       status: "resolved",
       evidence: { exists: false, approvedCandidate: null },
