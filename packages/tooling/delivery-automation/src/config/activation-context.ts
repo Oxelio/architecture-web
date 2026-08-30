@@ -136,7 +136,7 @@ export function resolveActivationContext(input: {
 
   if (input.manifest.mappings.workState.status === "verified") {
     blockers.push(
-      ...verifySingleSelect(selection.project, "workState", "Work State", [
+      ...verifySingleSelect(selection.project, "workState", "Status", [
         "Idea",
         "Exploring",
         "Designing",
