@@ -39,8 +39,8 @@ function inventory(): GitHubInventorySnapshot {
         repositories: ["Oxelio/Architecture-Web"],
         fields: [
           {
-            id: "work-state",
-            name: "Work State",
+            id: "status",
+            name: "Status",
             dataType: "SINGLE_SELECT",
             options: [
               "Idea",
@@ -99,7 +99,7 @@ function verifiedManifest(): ReturnType<typeof parseActivationManifest> {
     policyOwner: "docs/project/delivery-pipeline.md",
     project: { owner: "Oxelio", number: 1 },
     mappings: {
-      workState: { status: "verified", evidenceRef: "validation:work-state" },
+      workState: { status: "verified", evidenceRef: "validation:status" },
       workType: { status: "verified", evidenceRef: "validation:work-type" },
       workflowDepth: {
         status: "verified",
@@ -168,6 +168,38 @@ describe("resolveActivationContext", () => {
       expect(result.activation.taskClaim).toBe(true);
       expect(result.activation.routes).toBe(true);
     }
+  });
+
+  it("fails closed if the verified Status lifecycle mapping drifts after activation", () => {
+    const snapshot = inventory();
+    const project = snapshot.projects[0];
+    if (!project) {
+      throw new Error("test project missing");
+    }
+    const drifted: GitHubInventorySnapshot = {
+      ...snapshot,
+      projects: [
+        {
+          ...project,
+          fields: project.fields.map((field) =>
+            field.name === "Status"
+              ? { ...field, options: ["Todo", "In Progress", "Done"] }
+              : field,
+          ),
+        },
+      ],
+    };
+
+    expect(
+      resolveActivationContext({
+        repository: "Oxelio/Architecture-Web",
+        manifest: verifiedManifest(),
+        inventory: drifted,
+      }),
+    ).toEqual({
+      status: "blocked",
+      blockers: ["MAPPING_DRIFT:workState:field-options"],
+    });
   });
 
   it("fails closed if a verified claim field disappears after activation", () => {
