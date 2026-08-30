@@ -147,6 +147,34 @@ function evaluateRoute(
   return selectedRoute;
 }
 
+function evaluateHumanClaimRoute(
+  route: RouteState,
+  blockers: EligibilityBlocker[],
+): string | null {
+  if (!route.mappingActive) {
+    return null;
+  }
+
+  const routes = activeAgentRoutes(route);
+  if (routes.length === 0) {
+    return null;
+  }
+  if (routes.length > 1) {
+    blockers.push("ROUTE_CONFLICT");
+    return null;
+  }
+
+  const selectedRoute = routes[0];
+  if (!selectedRoute) {
+    throw new Error("Route cardinality invariant violated");
+  }
+  if (selectedRoute !== "agent:human") {
+    blockers.push("ROUTE_MISMATCH");
+  }
+
+  return selectedRoute;
+}
+
 function evaluateTargetRef(
   target: TargetRefState,
   blockers: EligibilityBlocker[],
@@ -257,7 +285,7 @@ export function evaluateTaskClaimAcquisition(
   const route =
     execution.kind === "automated"
       ? evaluateRoute(candidate.route, execution.executorRoute, blockers)
-      : null;
+      : evaluateHumanClaimRoute(candidate.route, blockers);
   const targetRef = evaluateTargetRef(candidate.targetRef, blockers);
 
   return {
