@@ -161,10 +161,11 @@ describe("selectNextWork", () => {
 });
 
 describe("evaluateTaskClaimAcquisition", () => {
-  it("validates execution state and target without requiring an automated route", () => {
+  it("allows an explicit human claim without requiring an automated route", () => {
     expect(
       evaluateTaskClaimAcquisition(
         task({ route: { mappingActive: false, labels: ["agent:human"] } }),
+        { kind: "human" },
       ),
     ).toEqual({
       eligible: true,
@@ -174,12 +175,57 @@ describe("evaluateTaskClaimAcquisition", () => {
     });
   });
 
+  it("revalidates the selected route immediately before an automated claim", () => {
+    expect(
+      evaluateTaskClaimAcquisition(task(), {
+        kind: "automated",
+        executorRoute: "agent:codex",
+      }),
+    ).toEqual({
+      eligible: true,
+      blockers: [],
+      route: "agent:codex",
+      targetRef: "technical/example",
+    });
+  });
+
+  it("blocks an automated claim when the route changed after planning", () => {
+    const decision = evaluateTaskClaimAcquisition(
+      task({ route: { mappingActive: true, labels: ["agent:other"] } }),
+      { kind: "automated", executorRoute: "agent:codex" },
+    );
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("ROUTE_MISMATCH");
+  });
+
+  it("blocks an automated claim when the route becomes human-only", () => {
+    const decision = evaluateTaskClaimAcquisition(
+      task({ route: { mappingActive: true, labels: ["agent:human"] } }),
+      { kind: "automated", executorRoute: "agent:codex" },
+    );
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("ROUTE_HUMAN_ONLY");
+  });
+
+  it("fails closed when the route owner is unavailable for an automated claim", () => {
+    const decision = evaluateTaskClaimAcquisition(
+      task({ route: { mappingActive: false, labels: [] } }),
+      { kind: "automated", executorRoute: "agent:codex" },
+    );
+
+    expect(decision.eligible).toBe(false);
+    expect(decision.blockers).toContain("ROUTE_OWNER_UNAVAILABLE");
+  });
+
   it("fails closed when Task ownership or target state is unavailable", () => {
     const decision = evaluateTaskClaimAcquisition(
       task({
         taskParentState: "unavailable",
         targetRef: { ref: null, source: null, authorizedRefs: [] },
       }),
+      { kind: "human" },
     );
 
     expect(decision.eligible).toBe(false);
