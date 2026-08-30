@@ -198,11 +198,12 @@ function hasExactPositiveFieldValues(
   const matches = parseFilterTerms(viewSnapshot.filter).filter(
     (term) => term.field === expectedField,
   );
-  if (matches.length !== 1 || matches[0]?.negated) {
+  const match = matches[0];
+  if (matches.length !== 1 || !match || match.negated) {
     return false;
   }
 
-  const actual = new Set(matches[0].values);
+  const actual = new Set(match.values);
   const expected = expectedValues.map(normalizeFilterToken);
   return (
     actual.size === expected.length &&
