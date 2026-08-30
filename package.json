@@ -17,8 +17,8 @@
     "lint:fix": "pnpm -r --if-present run lint:fix",
     "test": "pnpm -r --if-present run test",
     "test:coverage": "pnpm -r --if-present run test:coverage",
-    "format": "pnpm -r --if-present run format",
-    "format:check": "pnpm -r --if-present run format:check"
+    "format": "prettier . --write",
+    "format:check": "prettier . --check"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,ts,tsx}": [

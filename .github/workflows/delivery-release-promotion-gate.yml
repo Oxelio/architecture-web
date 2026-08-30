@@ -1,0 +1,170 @@
+name: Delivery Release Promotion Gate Publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_work_number:
+        description: Release Work issue number.
+        required: true
+        type: string
+      candidate_artifact_identity:
+        description: Candidate artifact identity, if applicable.
+        required: false
+        type: string
+      beta_evidence_sufficient:
+        description: Established beta validation result.
+        required: true
+        type: boolean
+        default: false
+      beta_evidence_ref:
+        description: Reference proving beta evidence when true.
+        required: false
+        type: string
+      repository_checks_satisfied:
+        description: Established repository-check result excluding this gate.
+        required: true
+        type: boolean
+        default: false
+      repository_checks_evidence_ref:
+        description: Reference proving repository checks when true.
+        required: false
+        type: string
+      release_blockers_resolved:
+        description: Established release-blocker result.
+        required: true
+        type: boolean
+        default: false
+      release_blockers_evidence_ref:
+        description: Reference proving release blockers are resolved when true.
+        required: false
+        type: string
+      working_decisions_resolved:
+        description: Established Working Decision resolution result.
+        required: true
+        type: boolean
+        default: false
+      working_decisions_evidence_ref:
+        description: Reference proving Working Decision resolution when true.
+        required: false
+        type: string
+
+concurrency:
+  group: delivery-release-promotion-gate-${{ inputs.release_work_number }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: Evaluate Release Promotion Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      gate_result: ${{ steps.evaluate.outputs.gate_result }}
+    steps:
+      - name: Validate trusted control ref
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/development" ]]; then
+            echo "TRUSTED_CONTROL_REF_REQUIRED: dispatch this publisher with ref=development" >&2
+            exit 1
+          fi
+
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.15.1
+          run_install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Evaluate trusted gate evidence
+        id: evaluate
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_WORK_NUMBER: ${{ inputs.release_work_number }}
+          CANDIDATE_ARTIFACT_IDENTITY: ${{ inputs.candidate_artifact_identity }}
+          BETA_EVIDENCE_SUFFICIENT: ${{ inputs.beta_evidence_sufficient }}
+          BETA_EVIDENCE_REF: ${{ inputs.beta_evidence_ref }}
+          REPOSITORY_CHECKS_SATISFIED: ${{ inputs.repository_checks_satisfied }}
+          REPOSITORY_CHECKS_EVIDENCE_REF: ${{ inputs.repository_checks_evidence_ref }}
+          RELEASE_BLOCKERS_RESOLVED: ${{ inputs.release_blockers_resolved }}
+          RELEASE_BLOCKERS_EVIDENCE_REF: ${{ inputs.release_blockers_evidence_ref }}
+          WORKING_DECISIONS_RESOLVED: ${{ inputs.working_decisions_resolved }}
+          WORKING_DECISIONS_EVIDENCE_REF: ${{ inputs.working_decisions_evidence_ref }}
+        run: |
+          set -euo pipefail
+
+          pnpm --filter @architecture/delivery-automation gate:release-promotion:evaluate \
+            > gate-result.json
+
+          echo "gate_result=$(base64 -w0 gate-result.json)" >> "${GITHUB_OUTPUT}"
+          echo "## Release Promotion Gate evaluation" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+          cat gate-result.json >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
+
+  publish:
+    name: Publish Release Promotion Gate check
+    needs: evaluate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.15.1
+          run_install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish evaluated check
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GATE_RESULT_B64: ${{ needs.evaluate.outputs.gate_result }}
+        run: |
+          set +e
+          pnpm --filter @architecture/delivery-automation gate:check:publish \
+            | tee gate-publication.json
+          status=${PIPESTATUS[0]}
+          set -e
+
+          echo "## Release Promotion Gate publication" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+          cat gate-publication.json >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
+
+          exit "${status}"

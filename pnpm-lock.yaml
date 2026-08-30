@@ -1105,6 +1105,33 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
 
+  packages/tooling/delivery-automation:
+    devDependencies:
+      "@architecture/eslint-config":
+        specifier: workspace:*
+        version: link:../../eslint-config
+      "@types/node":
+        specifier: ^25.9.5
+        version: 25.9.5
+      "@vitest/coverage-v8":
+        specifier: ^4.1.10
+        version: 4.1.10(vitest@4.1.10)
+      eslint:
+        specifier: ^9.39.5
+        version: 9.39.5(jiti@2.6.1)(supports-color@7.2.0)
+      prettier:
+        specifier: ^3.9.6
+        version: 3.9.6
+      tsx:
+        specifier: ^4.23.1
+        version: 4.23.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@25.9.5)(@vitest/coverage-v8@4.1.10)(vite@8.1.5(@types/node@25.9.5)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.23.1)(yaml@2.9.0))
+
 packages:
   "@alloc/quick-lru@5.2.0":
     resolution:
@@ -3715,6 +3742,7 @@ packages:
         integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==,
       }
     engines: { node: ^18.18.0 || ^20.9.0 || >=21.1.0 }
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: "*"
