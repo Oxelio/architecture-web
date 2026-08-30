@@ -62,6 +62,9 @@ The deferred topics require evidence and comparison before becoming a new techni
 
 The implementation must preserve these delivery-policy constraints:
 
+- native GitHub Project `Status` is the unique operational adapter for the Method Work State once activated, with exactly the ten Method Work State values and no parallel custom `Work State` field;
+- absence of a `Status` value is not interpreted as `Idea` or another state and must fail closed whenever Work State is required;
+- GitHub platform automation must not manufacture Method lifecycle transitions from item-add, Issue-close, or Pull-Request-merge events;
 - `agent:*` identifies only an execution route/provider and does not encode model, Method Role, human identity, or approval authority;
 - automated executors cannot assign or change their own route;
 - lifecycle eligibility, dependencies, WIP, route validation, target authorization, claim ownership, merge-gate evaluation, and release prerequisites are deterministic control-plane concerns;
@@ -97,11 +100,13 @@ Project selection:
 3. select the single match, or require an explicit owner/number when selection is zero/ambiguous;
 4. verify Project identity again before trusted mutation.
 
-Activation verifies the Project/repository primitives required by `docs/project/delivery-pipeline.md`, including field names/types/options, required views, repository labels, native relationships, claim storage, and capability availability.
+Activation verifies the Project/repository primitives required by `docs/project/delivery-pipeline.md`, including field names/types/options, required views, repository labels, native relationships, claim storage, and capability availability. For lifecycle ownership specifically, the verifier requires native Project `Status` to expose exactly the ten Method Work State values and verifies the operational views against that field. A missing `Status` value on a Work item remains unavailable rather than being defaulted or inferred.
 
 Repository-local configuration may record non-secret adapter mappings only after live verification. Platform-generated IDs are discovered/revalidated and are not policy owners.
 
-A missing or unreadable external owner remains unavailable. The implementation must not infer a substitute from Issue text, PR text, chat history, or native GitHub `Status`.
+Some GitHub Project settings, including platform-level default values or built-in workflow automation configuration, are not established merely by field/view inventory. Where the available API cannot prove such a setting, activation evidence must retain an explicit operator verification rather than representing that property as machine-verified. The repository verifier still fails closed on every lifecycle primitive it can observe directly.
+
+A missing or unreadable external owner remains unavailable. The implementation must not infer a substitute from Issue text, PR text, chat history, or another Project field.
 
 ## 5. Coordinator behavior
 
@@ -134,6 +139,7 @@ Work #9 stops at deterministic planning/authorization evidence. It does not invo
 Expected unavailability is represented with machine-readable blockers rather than technical exceptions. Examples include:
 
 - Project locator/credential/mapping unavailable;
+- Work State unavailable because `Status` is absent or invalid;
 - route missing/conflicting;
 - dependency or WIP blocked;
 - claim active/partial/unreadable;
@@ -196,7 +202,7 @@ The claim protocol may be validated independently of a production coding-agent r
 
 The deterministic Work Merge Gate consumes evidence already established by the responsible review/validation/authority activities. It reports pass/fail plus stable reasons and never merges the PR.
 
-Live technical evidence is re-read from GitHub for the owning Work State, dependency state, authorized Work Integration PR target, exact target head SHA, and PR mergeability. Review acceptance, validation sufficiency, Task disposition, prior authority-gate satisfaction, Working Decision resolution, and repository-check sufficiency remain results established by their proper owners/activities. The V1 publisher may record those established results only when an evidence reference is supplied for every asserted `true` result.
+Live technical evidence is re-read from GitHub for the owning Work State through native `Status`, dependency state, authorized Work Integration PR target, exact target head SHA, and PR mergeability. Review acceptance, validation sufficiency, Task disposition, prior authority-gate satisfaction, Working Decision resolution, and repository-check sufficiency remain results established by their proper owners/activities. The V1 publisher may record those established results only when an evidence reference is supplied for every asserted `true` result.
 
 A workflow-dispatch input is therefore a **recording instruction**, not semantic authority. The publisher does not prove a review or validation result merely because an operator supplied `true`. Until those evidence owners have a stronger machine-verifiable recording contract, this publication mechanism MUST NOT be represented as required repository enforcement.
 
@@ -282,15 +288,16 @@ Activation is incremental and fail-closed:
 
 1. validate repository/Project inventory and baseline reporting;
 2. provision the least-privilege Projects credential through the human/operator path;
-3. create/repair and verify required Project fields/views, repository labels, and native relationships;
-4. mark only successfully verified mappings active in repository-local configuration;
-5. verify Work-scoped claim storage and trusted acquire/release/recovery behavior when the claim workflow is operationally dispatchable;
-6. verify deterministic coordinator observation against live operational state;
-7. verify target authorization/revalidation against the Work Integration PR boundary;
-8. implement Work Merge Gate and Release Promotion Gate publication boundaries while keeping enforcement unavailable;
-9. after the publisher workflow paths are present on the default branch, live-dispatch and verify Check Run publication on explicit authorized target refs/candidates;
-10. verify Release Promotion Gate Human Release Approval recording against a candidate-specific sandbox/release example when the backing release primitives are available;
-11. leave production coding-agent execution inactive until a separate Work establishes and validates an executor profile.
+3. create/repair and verify required Project fields/views, repository labels, native relationships, and the native `Status` Work State mapping;
+4. record operator verification for required GitHub settings that are not machine-observable through the activation inventory, including absence of an implicit lifecycle default and disabled incompatible built-in transition automations;
+5. mark only successfully verified mappings active in repository-local configuration;
+6. verify Work-scoped claim storage and trusted acquire/release/recovery behavior when the claim workflow is operationally dispatchable;
+7. verify deterministic coordinator observation against live operational state;
+8. verify target authorization/revalidation against the Work Integration PR boundary;
+9. implement Work Merge Gate and Release Promotion Gate publication boundaries while keeping enforcement unavailable;
+10. after the publisher workflow paths are present on the default branch, live-dispatch and verify Check Run publication on explicit authorized target refs/candidates;
+11. verify Release Promotion Gate Human Release Approval recording against a candidate-specific sandbox/release example when the backing release primitives are available;
+12. leave production coding-agent execution inactive until a separate Work establishes and validates an executor profile.
 
 Partial activation remains explicit. A workflow that is implemented but blocked by default-branch bootstrap is not represented as operationally active.
 
@@ -300,11 +307,13 @@ Minimum evidence for Work #9:
 
 - deterministic unit tests for Project selection, field/view verification, route cardinality, dependency/WIP ordering, target-ref validation, claim/gate predicates, and blocker results;
 - inventory tests for zero/one/multiple Project matches and missing/conflicting primitives;
+- lifecycle tests proving native `Status` is the sole mapped Work State field and that missing/invalid Status values fail closed;
 - target tests for missing/multiple PRs, wrong base, fork head, governed head branch, changed head SHA/ref, and untrusted target override;
 - claim concurrency tests for simultaneous acquisition, partial state, generation mismatch, release, reconciliation, unreadable run state, and mixed human/automated fail-closed behavior;
 - gate-publication tests for exact SHA binding, allowed gate/check identities, success/failure Check Run publication, Human Release Approval parsing/revocation/maintainer eligibility, and technical-unavailability handling;
 - static inspection of workflow permissions and Projects credential isolation, including the evaluate/publish split;
 - live/sandbox Project verification proving that each mapping marked verified exists and is readable/usable;
+- operator evidence for required Project lifecycle settings that the current inventory API cannot prove directly;
 - live claim acquire/re-read/release evidence through the trusted publisher once the default-branch bootstrap prerequisite is satisfied;
 - coordinator observation evidence against live activated mappings;
 - live Work Merge Gate and Release Promotion Gate publication evidence once their default-branch bootstrap prerequisite is satisfied;
