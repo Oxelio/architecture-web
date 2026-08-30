@@ -23,7 +23,7 @@ detailed in [ADR-0005](0005-domain-events-messaging.md).
 The separation between accounts, login identities, and authenticators is
 detailed in
 [ADR-0006](0006-iam-account-identities-and-authenticators.md).
-The proposed package-first workspace topology is detailed in
+The accepted package-first workspace topology is detailed in
 [ADR-0007](0007-package-first-workspace-topology.md).
 
 ### ADR-0001 — Technology-independent IAM core
