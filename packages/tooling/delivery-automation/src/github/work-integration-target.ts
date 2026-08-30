@@ -31,8 +31,27 @@ interface PullRequestDetail {
   };
 }
 
+interface CrossReferenceTimelineEvent {
+  readonly event: string;
+  readonly source?: {
+    readonly issue?: {
+      readonly number: number;
+      readonly repository_url?: string;
+      readonly pull_request?: object;
+    };
+  };
+}
+
 function normalizeRepository(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function normalizeUrl(value: string): string {
+  return value.trim().replace(/\/+$/u, "").toLowerCase();
+}
+
+function repositoryApiUrl(repository: string): string {
+  return `https://api.github.com/repos/${repository}`;
 }
 
 function isAllowedBase(baseRef: string): boolean {
@@ -53,6 +72,49 @@ function headers(token: string): Record<string, string> {
     authorization: `Bearer ${token}`,
     "x-github-api-version": "2026-03-10",
   };
+}
+
+async function verifySameRepositoryCrossReference(input: {
+  readonly repository: string;
+  readonly workNumber: number;
+  readonly pullRequestNumber: number;
+  readonly repositoryToken: string;
+  readonly fetchImpl: FetchLike;
+}): Promise<"verified" | "missing" | "unavailable"> {
+  const expectedRepositoryUrl = normalizeUrl(repositoryApiUrl(input.repository));
+
+  for (let page = 1; page <= 20; page += 1) {
+    const response = await input.fetchImpl(
+      `https://api.github.com/repos/${input.repository}/issues/${input.workNumber}/timeline?per_page=100&page=${page}`,
+      { headers: headers(input.repositoryToken) },
+    );
+    if (!response.ok) {
+      return "unavailable";
+    }
+
+    const events = (await response.json()) as readonly CrossReferenceTimelineEvent[];
+    const matched = events.some((event) => {
+      const sourceIssue =
+        event.event === "cross-referenced" ? event.source?.issue : undefined;
+      return (
+        sourceIssue?.pull_request !== undefined &&
+        sourceIssue.number === input.pullRequestNumber &&
+        typeof sourceIssue.repository_url === "string" &&
+        normalizeUrl(sourceIssue.repository_url) === expectedRepositoryUrl
+      );
+    });
+    if (matched) {
+      return "verified";
+    }
+    if (events.length < 100) {
+      return "missing";
+    }
+    if (page === 20) {
+      return "unavailable";
+    }
+  }
+
+  return "unavailable";
 }
 
 export async function readAuthorizedWorkIntegrationTarget(input: {
@@ -84,6 +146,23 @@ export async function readAuthorizedWorkIntegrationTarget(input: {
   }
 
   const expected = resolution.pullRequest;
+  const reference = await verifySameRepositoryCrossReference({
+    repository: input.repository,
+    workNumber: input.workNumber,
+    pullRequestNumber: expected.number,
+    repositoryToken: input.repositoryToken,
+    fetchImpl,
+  });
+  if (reference !== "verified") {
+    return {
+      status: "unavailable",
+      reason:
+        reference === "unavailable"
+          ? "WORK_INTEGRATION_PR_REFERENCE_UNAVAILABLE"
+          : "WORK_INTEGRATION_PR_REFERENCE_CHANGED",
+    };
+  }
+
   const response = await fetchImpl(
     `https://api.github.com/repos/${input.repository}/pulls/${expected.number}`,
     { headers: headers(input.repositoryToken) },

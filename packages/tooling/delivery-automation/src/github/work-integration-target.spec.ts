@@ -6,6 +6,9 @@ import {
   verifyAuthorizedWorkIntegrationTarget,
 } from "./work-integration-target.js";
 
+const repository = "Oxelio/Architecture-Web";
+const repositoryUrl = `https://api.github.com/repos/${repository}`;
+
 function json(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
@@ -29,7 +32,7 @@ function pr(
     head: {
       ref: overrides.headRef ?? "technical/work-9",
       sha,
-      repo: { full_name: "Oxelio/Architecture-Web" },
+      repo: { full_name: repository },
     },
   };
 }
@@ -38,6 +41,7 @@ function targetFetch(
   firstSha = "sha-1",
   secondSha = firstSha,
   headRef = "technical/work-9",
+  sourceRepositoryUrl = repositoryUrl,
 ): FetchLike {
   let pullReads = 0;
   return async (input) => {
@@ -49,6 +53,7 @@ function targetFetch(
           source: {
             issue: {
               number: 13,
+              repository_url: sourceRepositoryUrl,
               state: "open",
               labels: [],
               pull_request: {},
@@ -73,7 +78,7 @@ describe("readAuthorizedWorkIntegrationTarget", () => {
   it("returns PR number, head ref, head SHA and base after a second PR read", async () => {
     await expect(
       readAuthorizedWorkIntegrationTarget({
-        repository: "Oxelio/Architecture-Web",
+        repository,
         workNumber: 9,
         repositoryToken: "token",
         active: true,
@@ -90,11 +95,31 @@ describe("readAuthorizedWorkIntegrationTarget", () => {
     });
   });
 
+  it("rejects a cross-reference from another repository even when the PR number collides", async () => {
+    await expect(
+      readAuthorizedWorkIntegrationTarget({
+        repository,
+        workNumber: 9,
+        repositoryToken: "token",
+        active: true,
+        fetchImpl: targetFetch(
+          "sha-1",
+          "sha-1",
+          "technical/work-9",
+          "https://api.github.com/repos/Other/Repository",
+        ),
+      }),
+    ).resolves.toEqual({
+      status: "unavailable",
+      reason: "WORK_INTEGRATION_PR_REFERENCE_CHANGED",
+    });
+  });
+
   it("rejects governed branches as Work Integration heads", async () => {
     for (const headRef of ["main", "development", "release/1.0.0"]) {
       await expect(
         readAuthorizedWorkIntegrationTarget({
-          repository: "Oxelio/Architecture-Web",
+          repository,
           workNumber: 9,
           repositoryToken: "token",
           active: true,
@@ -112,7 +137,7 @@ describe("verifyAuthorizedWorkIntegrationTarget", () => {
   it("accepts the same exact target evidence", async () => {
     await expect(
       verifyAuthorizedWorkIntegrationTarget({
-        repository: "Oxelio/Architecture-Web",
+        repository,
         workNumber: 9,
         repositoryToken: "token",
         active: true,
@@ -130,7 +155,7 @@ describe("verifyAuthorizedWorkIntegrationTarget", () => {
   it("blocks when the PR head SHA changes before dispatch", async () => {
     await expect(
       verifyAuthorizedWorkIntegrationTarget({
-        repository: "Oxelio/Architecture-Web",
+        repository,
         workNumber: 9,
         repositoryToken: "token",
         active: true,
