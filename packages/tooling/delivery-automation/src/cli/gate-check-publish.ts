@@ -16,10 +16,10 @@ interface GateEvaluationEnvelope {
   readonly context: unknown;
 }
 
-const allowedCheckNames = new Set([
-  "Architecture Web / Work Merge Gate",
-  "Architecture Web / Release Promotion Gate",
-]);
+const checkNameByGate = {
+  "work-merge": "Architecture Web / Work Merge Gate",
+  "release-promotion": "Architecture Web / Release Promotion Gate",
+} as const;
 
 function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   let value: unknown;
@@ -33,7 +33,8 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
     throw new Error("Gate evaluation envelope must be an object");
   }
   const record = value as Record<string, unknown>;
-  if (record["gate"] !== "work-merge" && record["gate"] !== "release-promotion") {
+  const gate = record["gate"];
+  if (gate !== "work-merge" && gate !== "release-promotion") {
     throw new Error("Gate evaluation envelope has an invalid gate kind");
   }
 
@@ -48,8 +49,8 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   const summary = check["summary"];
   const pass = check["pass"];
 
-  if (typeof name !== "string" || !allowedCheckNames.has(name)) {
-    throw new Error("Gate evaluation envelope has an unauthorized check name");
+  if (name !== checkNameByGate[gate]) {
+    throw new Error("Gate evaluation envelope has a mismatched check name");
   }
   if (typeof headSha !== "string" || !/^[0-9a-f]{40}$/iu.test(headSha)) {
     throw new Error("Gate evaluation envelope has an invalid head SHA");
@@ -65,7 +66,7 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   }
 
   return {
-    gate: record["gate"],
+    gate,
     check: { name, headSha, title, summary, pass },
     result: record["result"],
     context: record["context"],
