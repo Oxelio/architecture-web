@@ -2,7 +2,10 @@ import type { OperationalOwnerActivation } from "../github/github-operational-st
 
 export const activationMappingNames = [
   "workState",
+  "workType",
+  "workflowDepth",
   "priority",
+  "characteristics",
   "routes",
   "dependencies",
   "taskParent",
@@ -30,6 +33,8 @@ export interface DeliveryActivationManifest {
 
 const projectBackedMappings = new Set<ActivationMappingName>([
   "workState",
+  "workType",
+  "workflowDepth",
   "priority",
   "taskClaim",
 ]);

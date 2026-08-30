@@ -13,7 +13,10 @@ function inactiveManifest(): unknown {
     project: null,
     mappings: {
       workState: { status: "inactive" },
+      workType: { status: "inactive" },
+      workflowDepth: { status: "inactive" },
       priority: { status: "inactive" },
+      characteristics: { status: "inactive" },
       routes: { status: "inactive" },
       dependencies: { status: "inactive" },
       taskParent: { status: "inactive" },
@@ -38,6 +41,13 @@ describe("parseActivationManifest", () => {
     });
     expect(activationBlockers(manifest)).toContain("PROJECT_LOCATOR_INACTIVE");
     expect(activationBlockers(manifest)).toContain("OWNER_INACTIVE:workState");
+    expect(activationBlockers(manifest)).toContain("OWNER_INACTIVE:workType");
+    expect(activationBlockers(manifest)).toContain(
+      "OWNER_INACTIVE:workflowDepth",
+    );
+    expect(activationBlockers(manifest)).toContain(
+      "OWNER_INACTIVE:characteristics",
+    );
   });
 
   it("requires evidence for every verified mapping", () => {
@@ -53,15 +63,15 @@ describe("parseActivationManifest", () => {
     const input = inactiveManifest() as {
       mappings: Record<string, { status: string; evidenceRef?: string }>;
     };
-    input.mappings["workState"] = {
+    input.mappings["workType"] = {
       status: "verified",
-      evidenceRef: "validation:work-state",
+      evidenceRef: "validation:work-type",
     };
 
     expect(() => parseActivationManifest(input)).toThrow(/Project locator/);
   });
 
-  it("derives activation only from explicit verified records", () => {
+  it("derives coordinator activation only from explicit verified runtime records", () => {
     const input = inactiveManifest() as {
       project: { owner: string; number: number } | null;
       mappings: Record<string, { status: string; evidenceRef?: string }>;

@@ -8,9 +8,9 @@ import {
   type ProjectViewSnapshot,
   selectProject,
 } from "../inventory/project-inventory.js";
-import type {
-  ActivationMappingName,
-  DeliveryActivationManifest,
+import {
+  activationMappingNames,
+  type DeliveryActivationManifest,
 } from "./activation-manifest.js";
 
 export interface NativeCapabilityVerification {
@@ -165,17 +165,7 @@ function verifiedMappings(
 ): DeliveryActivationManifest["mappings"] {
   const mapping = { status: "verified" as const, evidenceRef };
   return Object.fromEntries(
-    (
-      [
-        "workState",
-        "priority",
-        "routes",
-        "dependencies",
-        "taskParent",
-        "taskClaim",
-        "workIntegrationPr",
-      ] satisfies readonly ActivationMappingName[]
-    ).map((name) => [name, mapping]),
+    activationMappingNames.map((name) => [name, mapping]),
   ) as DeliveryActivationManifest["mappings"];
 }
 

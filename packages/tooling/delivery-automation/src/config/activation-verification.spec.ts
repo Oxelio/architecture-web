@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { taskClaimFieldNames } from "../control/task-claim.js";
 import type { GitHubInventorySnapshot } from "../github/github-project-inventory.js";
 import type { ProjectSnapshot } from "../inventory/project-inventory.js";
+import { activationMappingNames } from "./activation-manifest.js";
 import { verifyDeliveryActivation } from "./activation-verification.js";
 
 const workStates = [
@@ -164,7 +165,6 @@ const labels = [
   "char:operational",
   "char:compliance",
   "agent:human",
-  "agent:codex",
 ] as const;
 
 function inventory(
@@ -194,7 +194,7 @@ describe("verifyDeliveryActivation", () => {
     }
     expect(result.manifest.project).toEqual({ owner: "Oxelio", number: 1 });
     expect(Object.values(result.manifest.mappings)).toEqual(
-      Array.from({ length: 7 }, () => ({
+      Array.from({ length: activationMappingNames.length }, () => ({
         status: "verified",
         evidenceRef: "issue:9#activation-evidence",
       })),

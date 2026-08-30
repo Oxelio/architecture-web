@@ -28,6 +28,31 @@ export type ActivationContextResolution =
       readonly blockers: readonly ActivationContextBlocker[];
     };
 
+const workTypeOptions = [
+  "Product Behavior Change",
+  "Defect Correction",
+  "Technical Change",
+  "Architecture Change",
+  "Research / Discovery",
+  "Governance Change",
+  "Documentation-only Change",
+] as const;
+
+const workflowDepthOptions = ["Quick", "Standard", "Complex"] as const;
+
+const characteristicLabels = [
+  "char:security",
+  "char:privacy",
+  "char:migration",
+  "char:breaking",
+  "char:performance",
+  "char:cross-system",
+  "char:concurrency",
+  "char:destructive",
+  "char:operational",
+  "char:compliance",
+] as const;
+
 function exactField(
   project: ProjectSnapshot,
   name: string,
@@ -73,10 +98,15 @@ function verifyTaskClaim(project: ProjectSnapshot): ActivationContextBlocker[] {
   return [];
 }
 
-function verifyRoutes(labels: readonly string[]): ActivationContextBlocker[] {
-  return labels.includes("agent:human")
+function verifyRequiredLabels(
+  labels: readonly string[],
+  mapping: "characteristics" | "routes",
+  required: readonly string[],
+): ActivationContextBlocker[] {
+  const known = new Set(labels);
+  return required.every((label) => known.has(label))
     ? []
-    : ["MAPPING_DRIFT:routes:required-labels"];
+    : [`MAPPING_DRIFT:${mapping}:required-labels`];
 }
 
 export function resolveActivationContext(input: {
@@ -104,7 +134,7 @@ export function resolveActivationContext(input: {
   const activation = operationalOwnerActivation(input.manifest);
   const blockers: ActivationContextBlocker[] = [];
 
-  if (activation.workState) {
+  if (input.manifest.mappings.workState.status === "verified") {
     blockers.push(
       ...verifySingleSelect(selection.project, "workState", "Work State", [
         "Idea",
@@ -121,7 +151,29 @@ export function resolveActivationContext(input: {
     );
   }
 
-  if (activation.priority) {
+  if (input.manifest.mappings.workType.status === "verified") {
+    blockers.push(
+      ...verifySingleSelect(
+        selection.project,
+        "workType",
+        "Work Type",
+        workTypeOptions,
+      ),
+    );
+  }
+
+  if (input.manifest.mappings.workflowDepth.status === "verified") {
+    blockers.push(
+      ...verifySingleSelect(
+        selection.project,
+        "workflowDepth",
+        "Workflow Depth",
+        workflowDepthOptions,
+      ),
+    );
+  }
+
+  if (input.manifest.mappings.priority.status === "verified") {
     blockers.push(
       ...verifySingleSelect(selection.project, "priority", "Priority", [
         "P0 — Critical",
@@ -132,12 +184,24 @@ export function resolveActivationContext(input: {
     );
   }
 
-  if (activation.taskClaim) {
+  if (input.manifest.mappings.characteristics.status === "verified") {
+    blockers.push(
+      ...verifyRequiredLabels(
+        input.inventory.labels,
+        "characteristics",
+        characteristicLabels,
+      ),
+    );
+  }
+
+  if (input.manifest.mappings.taskClaim.status === "verified") {
     blockers.push(...verifyTaskClaim(selection.project));
   }
 
-  if (activation.routes) {
-    blockers.push(...verifyRoutes(input.inventory.labels));
+  if (input.manifest.mappings.routes.status === "verified") {
+    blockers.push(
+      ...verifyRequiredLabels(input.inventory.labels, "routes", ["agent:human"]),
+    );
   }
 
   if (blockers.length > 0) {
