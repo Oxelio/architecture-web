@@ -112,7 +112,9 @@ function claimExecution(args: CliArguments): TaskClaimExecution {
 
   if (args.executionKind === "human") {
     if (args.executorRoute) {
-      throw new Error("--executor-route must not be supplied for a human claim");
+      throw new Error(
+        "--executor-route must not be supplied for a human claim",
+      );
     }
     return { kind: "human" };
   }
