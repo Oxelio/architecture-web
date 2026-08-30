@@ -46,7 +46,7 @@ describe("readWorkMergeGateLiveEvidence", () => {
                         {
                           __typename: "ProjectV2ItemFieldSingleSelectValue",
                           name: "Validating",
-                          field: { name: "Work State" },
+                          field: { name: "Status" },
                         },
                       ],
                       pageInfo: { hasNextPage: false },
