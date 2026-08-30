@@ -1,12 +1,6 @@
 name: Delivery Release Promotion Gate Publisher
 
 on:
-  pull_request:
-    branches:
-      - development
-    types:
-      - ready_for_review
-      - reopened
   workflow_dispatch:
     inputs:
       release_work_number:
