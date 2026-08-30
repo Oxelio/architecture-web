@@ -68,7 +68,7 @@ async function main(): Promise<void> {
   const repositoryToken = requiredEnvironment("GITHUB_TOKEN");
   const workNumber = positiveInteger("WORK_NUMBER");
   const taskNumber = positiveInteger("TASK_NUMBER");
-  const executorRoute = process.env["EXECUTOR_ROUTE"]?.trim() || "agent:codex";
+  const executorRoute = requiredEnvironment("EXECUTOR_ROUTE");
   const manifest = await readManifest();
 
   if (!manifest.project) {
