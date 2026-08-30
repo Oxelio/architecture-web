@@ -29,12 +29,12 @@ ownership is assigned per subject:
 Work identity                    -> top-level GitHub Issue
 Work operational objective /     -> top-level GitHub Issue
 execution scope
-Work State                       -> GitHub Project field: Work State
+Work State                       -> GitHub Project native field: Status
 Work Type                        -> GitHub Project field: Work Type
 Workflow Depth                   -> GitHub Project field: Workflow Depth
 Priority                         -> GitHub Project field: Priority
 Change Characteristics           -> GitHub Issue labels: char:*
-Execution route/provider          -> GitHub Issue label: agent:*
+Execution route/provider         -> GitHub Issue label: agent:*
 Human identity assignment         -> GitHub native assignees
 Work dependency/blocker relation -> GitHub native relationship when represented;
                                    otherwise Work Issue operational context
@@ -108,10 +108,12 @@ Initial activation of Project-backed fields, labels, views, relationships,
 execution-claim mechanisms, required checks, environments, and privileged
 publisher credentials therefore requires separate delivery/governance
 implementation and verification. That step MUST verify at least the configured
-field names and values, applicable labels/relationships, native `Status`
-treatment, routing visibility, execution-claim semantics, required checks, and
-the intended Project views before an external owner or enforcement mechanism is
-treated as effective.
+field names and values, applicable labels/relationships, the native `Status`
+Work State mapping, routing visibility, execution-claim semantics, required
+checks, and the intended Project views before an external owner or enforcement
+mechanism is treated as effective. Project lifecycle settings that cannot be
+proved through the available inventory API require explicit operator evidence
+rather than an implicit machine-verification claim.
 
 If an activated external owner later becomes unreadable or unusable, surface a
 synchronization/availability problem. Do not silently create a competing owner.
@@ -204,8 +206,8 @@ the executable Work or Task.
 The namespace MUST NOT encode a concrete model, Method Role, runtime framework,
 or approval/authority gate. Tokens such as `agent:human`, `agent:codex`,
 `agent:claude-code`, or `agent:gemini` name contractual execution routes; for
-example, `agent:codex` does not freeze a model version, runtime, workflow, or
-credential mechanism.
+example, `agent:codex` does not freeze a model version, runtime framework,
+credential mechanism, inference provider, or scheduling mechanism.
 
 An executable Work or Task MUST have at most one active `agent:*` route:
 
@@ -262,10 +264,11 @@ This constraint does not create a Task-level Method Work State.
 
 ## 4. Work State
 
-Once effectively activated, the GitHub Project field `Work State` is Architecture
-Web's unique operational owner of the Method Work State.
+Once effectively activated, the GitHub Project native field `Status` is
+Architecture Web's unique operational owner of the Method Work State. The
+Project MUST NOT maintain a parallel custom `Work State` field.
 
-Allowed values are exactly:
+Allowed `Status` values are exactly:
 
 ```text
 Idea
@@ -280,22 +283,24 @@ Validating
 Done
 ```
 
+`Status` has no project-defined default value. An item being added to the Project
+does not establish `Idea` or any other Method Work State. A missing `Status`
+means the Work State is operationally unavailable/unclassified; deterministic
+coordination and automated execution MUST fail closed whenever a Work State is
+required.
+
 A Work State mutation is permitted only when the Method transition rule and all
 applicable gates are satisfied. Project tooling MUST NOT move Work merely
 because an API operation is available.
+
+GitHub built-in automations MUST NOT assign or transition `Status` solely because
+an item is added, an Issue is closed, or a Pull Request is merged. In particular,
+Issue closure or PR merge MUST NOT automatically manufacture `Done`.
 
 The policy applies to both forward transitions and Method-valid returns to an
 upstream state. Returning upstream after a later finding is normal lifecycle
 behavior and MUST be recorded when the responsible Role/activity has established
 that return.
-
-### Native GitHub `Status`
-
-GitHub's native `Status` field is **not** a lifecycle owner for Architecture Web.
-If the field cannot be removed, it SHOULD be hidden from operational views and
-MUST NOT be maintained as a parallel `Todo / In progress / Done` lifecycle.
-
-Automations MUST NOT infer or mutate `Work State` from native `Status`.
 
 ## 5. Classification and delivery fields
 
@@ -305,7 +310,7 @@ Once their assignments are effectively activated, the Project SHOULD expose:
 Title
 Assignees
 Execution route (`agent:*`)
-Work State
+Status (Method Work State)
 Work Type
 Workflow Depth
 Priority
@@ -409,7 +414,8 @@ story points, or deadlines.
 
 Delivery selection policy:
 
-1. Only Work whose `Work State = Ready` is eligible for the Ready Queue.
+1. Only Work whose Method Work State is `Ready`, represented operationally as
+   `Status = Ready`, is eligible for the Ready Queue.
 2. Dependencies and WIP policy remove Work that cannot currently execute.
 3. For an automated executor, retain only Work whose activated `agent:*` route
    matches that executor. A Work routed elsewhere remains valid Ready Work but
@@ -440,7 +446,7 @@ Table showing at least:
 Title
 Priority
 Execution route (`agent:*`)
-Work State
+Status (Method Work State)
 Work Type
 Workflow Depth
 Assignees
@@ -451,7 +457,7 @@ Assignees
 Table filtered to:
 
 ```text
-Work State = Ready
+Status = Ready
 ```
 
 The view SHOULD expose `agent:*` routing when that mapping is activated so human
@@ -461,11 +467,11 @@ dependency/manual ordering as needed.
 
 ### Workflow
 
-Board grouped by `Work State`, using the ten Method values.
+Board grouped by `Status`, using the ten Method Work State values.
 
 ### Active
 
-Show Work in:
+Show Work whose `Status` is one of:
 
 ```text
 Preparing
@@ -480,7 +486,7 @@ Validating
 Filter:
 
 ```text
-Work State = Awaiting Approval
+Status = Awaiting Approval
 ```
 
 ### Done
@@ -488,7 +494,7 @@ Work State = Awaiting Approval
 Table filtered to:
 
 ```text
-Work State = Done
+Status = Done
 ```
 
 ## 8. Pull Requests
@@ -531,7 +537,8 @@ validation sufficiency, human approval, Priority, or merge authority.
 
 It may pass only when:
 
-- the owning Work is identifiable and `Work State = Validating`;
+- the owning Work is identifiable and its Method Work State is `Validating`
+  (`Status = Validating`);
 - required in-scope Tasks have acceptable terminal dispositions;
 - required dependency blockers are resolved;
 - applicable review results have already been accepted;
@@ -553,8 +560,8 @@ by the distinct Release Promotion Gate.
 
 ### Completed Work
 
-Closing a Work Issue as completed SHOULD be the consequence of `Work State =
-Done`, not a replacement for the Done invariants.
+Closing a Work Issue as completed SHOULD be the consequence of Method Work State
+`Done` (`Status = Done`), not a replacement for the Done invariants.
 
 Before moving to `Done` and closing as completed, verify:
 
@@ -604,8 +611,8 @@ The default Architecture Web policy is:
 | Recommend Priority                                                                                                | No mutation required                                                                              | Any Role with sufficient delivery context                                                                                        | Recommendation is non-authoritative until accepted/applied by delivery authority                                                                                                                                                                                         |
 | Mutate `Priority`                                                                                                 | Only with explicit delivery-coordination permission and activated field                           | Human or Workflow Coordinator explicitly delegated delivery-ordering authority                                                   | Dependency and priority policy respected                                                                                                                                                                                                                                 |
 | Create Task Sub-issues                                                                                            | Allowed when the mapping is available                                                             | Technical Planner establishes Task boundaries; Workflow Coordinator may record/create the authorized Task units                  | Task Planning is triggered and task boundaries are authorized                                                                                                                                                                                                            |
-| Initialize or mutate `Work State` for any Method-valid transition or upstream return other than `Ready` or `Done` | Allowed when the `Work State` owner is activated                                                  | Workflow Coordinator records the result; the subject-matter Role/activity retains authority for the underlying semantic decision | Method route/transition conditions satisfied; any applicable human, quality, or evidence gate already satisfied. Covers `Idea`, `Exploring`, `Designing`, `Awaiting Approval`, `Preparing`, `Implementing`, `Reviewing`, `Validating`, and Method-valid returns upstream |
-| Mutate `Work State` from `Preparing` to `Ready`                                                                   | Allowed when the `Work State` owner is activated                                                  | Workflow Coordinator records the established Readiness result                                                                    | Valid `READY` or `READY WITH RISKS` result exists; prior authority gates satisfied                                                                                                                                                                                       |
+| Initialize or mutate `Work State` for any Method-valid transition or upstream return other than `Ready` or `Done` | Allowed when the `Status` Work State owner is activated                                            | Workflow Coordinator records the result; the subject-matter Role/activity retains authority for the underlying semantic decision | Method route/transition conditions satisfied; any applicable human, quality, or evidence gate already satisfied. Covers `Idea`, `Exploring`, `Designing`, `Awaiting Approval`, `Preparing`, `Implementing`, `Reviewing`, `Validating`, and Method-valid returns upstream |
+| Mutate `Work State` from `Preparing` to `Ready`                                                                   | Allowed when the `Status` Work State owner is activated                                            | Workflow Coordinator records the established Readiness result                                                                    | Valid `READY` or `READY WITH RISKS` result exists; prior authority gates satisfied                                                                                                                                                                                       |
 | Create branch                                                                                                     | Allowed for authorized implementation/governance scope                                            | Active Role authorized to modify that scope                                                                                      | Applicable upstream authority/gates satisfied                                                                                                                                                                                                                            |
 | Rewrite or replace `main` / `development` Git refs                                                                | Not granted by default                                                                            | Explicit human governance authority                                                                                              | Material Governance Change accepted; preservation, rollback, and validation plan established                                                                                                                                                                             |
 | Modify repository code/docs                                                                                       | Allowed only for authorized scope                                                                 | Active Role owns the relevant implementation/design/governance activity                                                          | Must preserve upstream owners and applicable gates                                                                                                                                                                                                                       |
@@ -649,7 +656,9 @@ Safe candidates include:
 
 Automation MUST NOT blindly:
 
-- translate native `Status` into `Work State`;
+- assign or transition lifecycle `Status` merely because an item is added, an
+  Issue is closed, or a Pull Request is merged;
+- infer an absent `Status` as `Idea` or another Work State;
 - mark a Work `Ready` without Readiness;
 - mark a Work `Done` when a PR merges;
 - execute human-only approvals;
@@ -833,6 +842,7 @@ authority.
 External mappings/enforcement become effective only after separate implementation
 and verification. This includes, where applicable:
 
+- native `Status` Work State mapping and its lifecycle-safe Project settings;
 - `agent:*` label inventory and route mapping;
 - Task dependency mappings;
 - active Task execution-claim mechanism;
