@@ -39,6 +39,14 @@ function isAllowedBase(baseRef: string): boolean {
   return baseRef === "development" || baseRef.startsWith("release/");
 }
 
+function isAllowedWorkHead(headRef: string): boolean {
+  return (
+    headRef !== "main" &&
+    headRef !== "development" &&
+    !headRef.startsWith("release/")
+  );
+}
+
 function headers(token: string): Record<string, string> {
   return {
     accept: "application/vnd.github+json",
@@ -97,6 +105,7 @@ export async function readAuthorizedWorkIntegrationTarget(input: {
     actual.head.ref !== expected.headRef ||
     actual.base.ref !== expected.baseRef ||
     !isAllowedBase(actual.base.ref) ||
+    !isAllowedWorkHead(actual.head.ref) ||
     !actual.head.sha
   ) {
     return { status: "unavailable", reason: "WORK_INTEGRATION_PR_CHANGED" };

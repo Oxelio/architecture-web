@@ -34,7 +34,11 @@ function pr(
   };
 }
 
-function targetFetch(firstSha = "sha-1", secondSha = firstSha): FetchLike {
+function targetFetch(
+  firstSha = "sha-1",
+  secondSha = firstSha,
+  headRef = "technical/work-9",
+): FetchLike {
   let pullReads = 0;
   return async (input) => {
     const url = String(input);
@@ -55,7 +59,11 @@ function targetFetch(firstSha = "sha-1", secondSha = firstSha): FetchLike {
     }
     if (url.endsWith("/pulls/13")) {
       pullReads += 1;
-      return json(pr(pullReads === 1 ? firstSha : secondSha));
+      return json(
+        pr(pullReads === 1 ? firstSha : secondSha, {
+          headRef,
+        }),
+      );
     }
     throw new Error(`Unexpected request ${url}`);
   };
@@ -80,6 +88,23 @@ describe("readAuthorizedWorkIntegrationTarget", () => {
         baseRef: "development",
       },
     });
+  });
+
+  it("rejects governed branches as Work Integration heads", async () => {
+    for (const headRef of ["main", "development", "release/1.0.0"]) {
+      await expect(
+        readAuthorizedWorkIntegrationTarget({
+          repository: "Oxelio/Architecture-Web",
+          workNumber: 9,
+          repositoryToken: "token",
+          active: true,
+          fetchImpl: targetFetch("sha-1", "sha-1", headRef),
+        }),
+      ).resolves.toEqual({
+        status: "unavailable",
+        reason: "WORK_INTEGRATION_PR_CHANGED",
+      });
+    }
   });
 });
 
