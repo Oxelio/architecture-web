@@ -64,7 +64,6 @@ choice is made:
 - whether packages are published outside the monorepo;
 - shared or independent versioning;
 - automated enforcement of all dependency rules;
-- correction of the historical `persitence` path;
 - keeping `SecurityService` in the API or extracting dedicated use cases and
   adapters;
 - the scheduling strategy for security maintenance.
