@@ -1,6 +1,6 @@
 # Technical Design — Activate deterministic agent-aware delivery control plane
 
-**Artifact status:** Proposed — revised during implementation  
+**Artifact status:** Implemented — under review  
 **Content status:** Proposed  
 **Document type:** Technical Design  
 **Domain:** Delivery automation / GitHub operations
@@ -11,7 +11,7 @@
 **Work Type:** Technical Change  
 **Workflow Depth:** Complex  
 **Change Characteristics:** security, cross-system, concurrency, operational  
-**Current activity:** Implementation with Technical Design correction  
+**Current activity:** Reviewing after implementation correction  
 **Authorized functional source:** Not applicable; this Work must preserve product behavior.
 
 **Canonical owners:**
@@ -180,11 +180,16 @@ Preferred Project fields on the parent Work item:
 
 Claim acquisition:
 
-1. re-read Work/claim state inside the Work-specific serialized publisher;
+1. re-read Work/Task/claim state inside the Work-specific serialized publisher;
 2. prove there is no active claim;
-3. resolve and verify the authorized Work Integration target where the requested claim requires a repository write target;
-4. write the complete new claim with a new opaque generation;
-5. re-read the claim and prove ownership of the same generation.
+3. require an explicit execution kind (`human` or `automated`) rather than inferring it from claimant text or run metadata;
+4. for an automated claim, require the expected `agent:*` executor route and revalidate the freshly read Task route immediately before acquisition; unavailable, unassigned, conflicting, human-only, or mismatched routes block acquisition;
+5. for a human claim, do not require an automated route as a hidden execution precondition;
+6. resolve and verify the authorized Work Integration target where the requested claim requires a repository write target;
+7. write the complete new claim with a new opaque generation;
+8. re-read the claim and prove ownership of the same generation.
+
+The expected automated route is a revalidation input to the trusted publisher, not a route mutation or authority source. The publisher never changes `agent:*` labels during claim acquisition.
 
 Claim release is generation-guarded and idempotent. A release must never clear a newer claimant.
 
@@ -309,6 +314,7 @@ Minimum evidence for Work #9:
 - inventory tests for zero/one/multiple Project matches and missing/conflicting primitives;
 - lifecycle tests proving native `Status` is the sole mapped Work State field and that missing/invalid Status values fail closed;
 - target tests for missing/multiple PRs, wrong base, fork head, governed head branch, changed head SHA/ref, and untrusted target override;
+- claim tests proving explicit human claims remain possible without an automated route and automated claims revalidate route ownership/cardinality/match immediately before acquisition;
 - claim concurrency tests for simultaneous acquisition, partial state, generation mismatch, release, reconciliation, unreadable run state, and mixed human/automated fail-closed behavior;
 - gate-publication tests for exact SHA binding, allowed gate/check identities, success/failure Check Run publication, Human Release Approval parsing/revocation/maintainer eligibility, and technical-unavailability handling;
 - static inspection of workflow permissions and Projects credential isolation, including the evaluate/publish split;
@@ -351,6 +357,10 @@ Selected. Combining the Projects credential with `checks: write` would create an
 ### D-06 — default-branch bootstrap does not change branch governance
 
 Selected. GitHub requires `workflow_dispatch` definitions to exist on the default branch. Rather than changing the default branch or bypassing the release topology for convenience, Architecture Web records these publishers as unavailable until their workflow definitions reach `main` through the normal release path. Once present there, dispatch may explicitly select another authorized ref such as `development`.
+
+### D-07 — claim execution kind is explicit at the trusted publisher boundary
+
+Selected. The publisher must not infer whether an acquisition is human or automated from claimant text, run metadata, or route labels. Human acquisition remains route-neutral at the claim boundary, while automated acquisition carries an expected `agent:*` executor route and validates that expectation against the freshly read Task route immediately before claim mutation. This closes the planning-to-claim route-change window without making an automated route a hidden precondition for human execution.
 
 ## 13. Completion boundary for Work #9
 
