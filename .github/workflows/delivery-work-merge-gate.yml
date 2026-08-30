@@ -69,7 +69,6 @@ concurrency:
 jobs:
   evaluate:
     name: Evaluate Work Merge Gate
-    if: github.ref == 'refs/heads/development'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -79,6 +78,14 @@ jobs:
     outputs:
       gate_result: ${{ steps.evaluate.outputs.gate_result }}
     steps:
+      - name: Validate trusted control ref
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/development" ]]; then
+            echo "TRUSTED_CONTROL_REF_REQUIRED: dispatch this publisher with ref=development" >&2
+            exit 1
+          fi
+
       - name: Checkout trusted workflow revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
