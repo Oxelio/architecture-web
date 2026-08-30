@@ -100,6 +100,14 @@ const fieldSelection = `
   }
 `;
 
+// Keep the outer Project page deliberately small. GitHub computes GraphQL node
+// limits from the product of nested connection bounds, so requesting 100
+// Projects × 100 views × 100 fields can exceed the 500,000-node query limit
+// before any data is returned. The outer connection is cursor-paginated below,
+// so a smaller page preserves complete inventory without weakening fail-closed
+// checks on the nested Project configuration.
+const projectsPageSize = 10;
+
 const projectsQuery = `
   query ArchitectureWebDeliveryProjects(
     $owner: String!
@@ -107,7 +115,7 @@ const projectsQuery = `
     $after: String
   ) {
     repository(owner: $owner, name: $name) {
-      projectsV2(first: 100, after: $after) {
+      projectsV2(first: ${projectsPageSize}, after: $after) {
         nodes {
           id
           number
