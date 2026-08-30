@@ -2,6 +2,11 @@ name: Delivery Automation Validation
 
 on:
   pull_request:
+    branches:
+      - development
+    types:
+      - ready_for_review
+      - reopened
     paths:
       - ".github/delivery-automation.json"
       - ".github/workflows/**"

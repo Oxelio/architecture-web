@@ -1,6 +1,12 @@
 name: Delivery Work Merge Gate Publisher
 
 on:
+  pull_request:
+    branches:
+      - development
+    types:
+      - ready_for_review
+      - reopened
   workflow_dispatch:
     inputs:
       work_number:

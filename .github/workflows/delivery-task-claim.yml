@@ -1,6 +1,12 @@
 name: Delivery Task Claim Publisher
 
 on:
+  pull_request:
+    branches:
+      - development
+    types:
+      - ready_for_review
+      - reopened
   workflow_dispatch:
     inputs:
       action:
