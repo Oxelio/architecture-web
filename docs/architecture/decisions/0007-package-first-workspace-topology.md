@@ -1,7 +1,7 @@
 # ADR-0007 — Package-first workspace topology
 
-**Status:** Proposed
-**Content status:** Proposed
+**Status:** Accepted
+**Content status:** Canonical
 **Document type:** Architecture Decision Record
 **Domain:** Workspace / package topology
 
@@ -228,11 +228,14 @@ constraints above.
 
 ## Target and synchronization
 
-**Approved target affected:** The proposed target for Work #16 is a package-first
+**Approved target affected:** Work #16 is authorized to implement a package-first
 workspace topology in which each direct workspace child of `packages/` is an
 actual package root; cohesive core packages keep domain/application structure
-below their own `src/` directory. This target remains unapproved while this ADR
-is `Proposed`.
+below their own `src/` directory.
+
+This decision was explicitly accepted by the project maintainer on 2026-08-30.
+Acceptance authorizes the structural target but does not make it Current Truth
+before the migration is effective.
 
 **Current-state owners to synchronize when the decision becomes effective:**
 
