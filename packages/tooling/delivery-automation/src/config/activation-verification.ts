@@ -80,6 +80,16 @@ function includesAll(
   return required.every((value) => known.has(value));
 }
 
+function groupedByField(
+  viewSnapshot: ProjectViewSnapshot,
+  field: string,
+): boolean {
+  return (
+    viewSnapshot.groupByFields.includes(field) ||
+    viewSnapshot.verticalGroupByFields.includes(field)
+  );
+}
+
 function splitOutsideQuotes(
   value: string,
   separator: "whitespace" | ",",
@@ -230,7 +240,7 @@ function verifyViews(
   }
 
   const workflow = view(project, "Workflow");
-  if (!workflow || !workflow.groupByFields.includes("Status")) {
+  if (!workflow || !groupedByField(workflow, "Status")) {
     blockers.push("WORKFLOW_VIEW_SEMANTICS_INVALID");
   }
 
