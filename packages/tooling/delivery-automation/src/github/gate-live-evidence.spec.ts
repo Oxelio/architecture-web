@@ -152,6 +152,9 @@ describe("readReleasePromotionTarget", () => {
   it("selects the single same-repository release branch PR targeting main", async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.endsWith("/issues/20")) {
+        return json({ number: 20, state: "open" });
+      }
       if (url.includes("/issues/20/timeline")) {
         return json([
           {
@@ -195,5 +198,49 @@ describe("readReleasePromotionTarget", () => {
         },
       },
     });
+  });
+
+  it("rejects a closed Release Work before resolving promotion PRs", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/issues/20")) {
+        return json({ number: 20, state: "closed" });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    await expect(
+      readReleasePromotionTarget({
+        repository,
+        releaseWorkNumber: 20,
+        repositoryToken: "repo-token",
+        artifactIdentity: null,
+        fetchImpl,
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a pull request number used as Release Work identity", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/issues/20")) {
+        return json({ number: 20, state: "open", pull_request: {} });
+      }
+      throw new Error(`Unexpected URL ${url}`);
+    });
+
+    await expect(
+      readReleasePromotionTarget({
+        repository,
+        releaseWorkNumber: 20,
+        repositoryToken: "repo-token",
+        artifactIdentity: null,
+        fetchImpl,
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
