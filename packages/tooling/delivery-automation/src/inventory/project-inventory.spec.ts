@@ -31,7 +31,7 @@ function project(input: {
 const expectations: DeliveryExpectations = {
   fields: [
     {
-      name: "Work State",
+      name: "Status",
       dataType: "SINGLE_SELECT",
       options: ["Idea", "Ready", "Done"],
     },
@@ -40,9 +40,9 @@ const expectations: DeliveryExpectations = {
   labels: ["char:security", "agent:codex"],
 };
 
-const workStateField = {
-  id: "field-state",
-  name: "Work State",
+const statusField = {
+  id: "field-status",
+  name: "Status",
   dataType: "SINGLE_SELECT",
   options: ["Idea", "Ready", "Done"],
 } as const;
@@ -53,9 +53,9 @@ const workflowView = {
   name: "Workflow",
   layout: "BOARD_LAYOUT",
   filter: null,
-  visibleFields: ["Title", "Work State"],
+  visibleFields: ["Title", "Status"],
   groupByFields: [],
-  verticalGroupByFields: ["Work State"],
+  verticalGroupByFields: ["Status"],
 } as const;
 
 describe("selectProject", () => {
@@ -121,7 +121,7 @@ describe("buildInventoryReport", () => {
       projects: [
         project({
           number: 1,
-          fields: [workStateField],
+          fields: [statusField],
           views: [workflowView],
         }),
       ],
@@ -147,7 +147,7 @@ describe("buildInventoryReport", () => {
         project({
           number: 1,
           closed: true,
-          fields: [workStateField],
+          fields: [statusField],
           views: [workflowView],
         }),
       ],
@@ -166,8 +166,8 @@ describe("buildInventoryReport", () => {
         project({
           number: 1,
           fields: [
-            workStateField,
-            { ...workStateField, id: "field-state-duplicate" },
+            statusField,
+            { ...statusField, id: "field-status-duplicate" },
           ],
           views: [
             workflowView,
@@ -180,7 +180,7 @@ describe("buildInventoryReport", () => {
     });
 
     expect(report.inspectionStatus).toBe("blocked");
-    expect(report.duplicateFields).toEqual(["Work State"]);
+    expect(report.duplicateFields).toEqual(["Status"]);
     expect(report.duplicateViews).toEqual(["Workflow"]);
   });
 
@@ -190,7 +190,7 @@ describe("buildInventoryReport", () => {
       projects: [
         project({
           number: 1,
-          fields: [workStateField],
+          fields: [statusField],
           views: [{ ...workflowView, layout: "TABLE_LAYOUT" }],
         }),
       ],
@@ -216,8 +216,8 @@ describe("buildInventoryReport", () => {
           number: 1,
           fields: [
             {
-              id: "field-state",
-              name: "Work State",
+              id: "field-status",
+              name: "Status",
               dataType: "SINGLE_SELECT",
               options: ["Idea", "Ready", "Unexpected"],
             },
@@ -233,7 +233,7 @@ describe("buildInventoryReport", () => {
     expect(report.missingLabels).toEqual(["agent:codex"]);
     expect(report.mismatchedFields).toEqual([
       {
-        name: "Work State",
+        name: "Status",
         expectedType: "SINGLE_SELECT",
         actualType: "SINGLE_SELECT",
         missingOptions: ["Done"],
