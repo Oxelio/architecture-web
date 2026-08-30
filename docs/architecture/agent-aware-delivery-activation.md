@@ -184,12 +184,12 @@ Claim acquisition:
 2. prove there is no active claim;
 3. require an explicit execution kind (`human` or `automated`) rather than inferring it from claimant text or run metadata;
 4. for an automated claim, require the expected `agent:*` executor route and revalidate the freshly read Task route immediately before acquisition; unavailable, unassigned, conflicting, human-only, or mismatched routes block acquisition;
-5. for a human claim, do not require an automated route as a hidden execution precondition;
+5. for a human claim, do not require an assigned route, but if the activated route owner exposes an explicit route it must be `agent:human`; conflicting or explicitly automated routes block human acquisition;
 6. resolve and verify the authorized Work Integration target where the requested claim requires a repository write target;
 7. write the complete new claim with a new opaque generation;
 8. re-read the claim and prove ownership of the same generation.
 
-The expected automated route is a revalidation input to the trusted publisher, not a route mutation or authority source. The publisher never changes `agent:*` labels during claim acquisition.
+The expected automated route is a revalidation input to the trusted publisher, not a route mutation or authority source. The publisher never changes `agent:*` labels during claim acquisition. Human mode likewise cannot override an explicit automated route assignment.
 
 Claim release is generation-guarded and idempotent. A release must never clear a newer claimant.
 
@@ -314,7 +314,7 @@ Minimum evidence for Work #9:
 - inventory tests for zero/one/multiple Project matches and missing/conflicting primitives;
 - lifecycle tests proving native `Status` is the sole mapped Work State field and that missing/invalid Status values fail closed;
 - target tests for missing/multiple PRs, wrong base, fork head, governed head branch, changed head SHA/ref, and untrusted target override;
-- claim tests proving explicit human claims remain possible without an automated route and automated claims revalidate route ownership/cardinality/match immediately before acquisition;
+- claim tests proving human claims work without a required route, respect an explicit `agent:human` assignment, cannot bypass an explicitly automated route, and automated claims revalidate route ownership/cardinality/match immediately before acquisition;
 - claim concurrency tests for simultaneous acquisition, partial state, generation mismatch, release, reconciliation, unreadable run state, and mixed human/automated fail-closed behavior;
 - gate-publication tests for exact SHA binding, allowed gate/check identities, success/failure Check Run publication, Human Release Approval parsing/revocation/maintainer eligibility, and technical-unavailability handling;
 - static inspection of workflow permissions and Projects credential isolation, including the evaluate/publish split;
@@ -360,7 +360,7 @@ Selected. GitHub requires `workflow_dispatch` definitions to exist on the defaul
 
 ### D-07 — claim execution kind is explicit at the trusted publisher boundary
 
-Selected. The publisher must not infer whether an acquisition is human or automated from claimant text, run metadata, or route labels. Human acquisition remains route-neutral at the claim boundary, while automated acquisition carries an expected `agent:*` executor route and validates that expectation against the freshly read Task route immediately before claim mutation. This closes the planning-to-claim route-change window without making an automated route a hidden precondition for human execution.
+Selected. The publisher must not infer whether an acquisition is human or automated from claimant text, run metadata, or route labels. Human acquisition does not require a route to be assigned, but when the activated route owner contains an explicit route it must select `agent:human`; an automated route cannot be bypassed by claiming in human mode. Automated acquisition carries an expected `agent:*` executor route and validates that expectation against the freshly read Task route immediately before claim mutation. This closes the planning-to-claim route-change window without making route assignment a hidden precondition for ordinary human execution.
 
 ## 13. Completion boundary for Work #9
 
