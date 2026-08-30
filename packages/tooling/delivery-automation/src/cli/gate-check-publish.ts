@@ -49,7 +49,7 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   const summary = check["summary"];
   const pass = check["pass"];
 
-  if (name !== checkNameByGate[gate]) {
+  if (typeof name !== "string" || name !== checkNameByGate[gate]) {
     throw new Error("Gate evaluation envelope has a mismatched check name");
   }
   if (typeof headSha !== "string" || !/^[0-9a-f]{40}$/iu.test(headSha)) {
