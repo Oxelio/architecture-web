@@ -48,8 +48,8 @@ function projectNode(input?: {
     fields: {
       nodes: [
         fieldNode({
-          id: "field-state",
-          name: "Work State",
+          id: "field-status",
+          name: "Status",
           dataType: "SINGLE_SELECT",
           options: ["Idea", "Done"],
         }),
@@ -63,13 +63,13 @@ function projectNode(input?: {
           number: 1,
           name: "Workflow",
           layout: "BOARD_LAYOUT",
-          filter: "work-state:Ready",
+          filter: "status:Ready",
           fields: {
             nodes: [
               fieldNode({ id: "title", name: "Title", dataType: "TITLE" }),
               fieldNode({
-                id: "field-state",
-                name: "Work State",
+                id: "field-status",
+                name: "Status",
                 dataType: "SINGLE_SELECT",
                 options: ["Idea", "Done"],
               }),
@@ -83,8 +83,8 @@ function projectNode(input?: {
           verticalGroupByFields: {
             nodes: [
               fieldNode({
-                id: "field-state",
-                name: "Work State",
+                id: "field-status",
+                name: "Status",
                 dataType: "SINGLE_SELECT",
                 options: ["Idea", "Done"],
               }),
@@ -149,8 +149,8 @@ describe("readGitHubInventory", () => {
         repositories: ["Oxelio/Architecture-Web"],
         fields: [
           {
-            id: "field-state",
-            name: "Work State",
+            id: "field-status",
+            name: "Status",
             dataType: "SINGLE_SELECT",
             options: ["Idea", "Done"],
           },
@@ -161,10 +161,10 @@ describe("readGitHubInventory", () => {
             number: 1,
             name: "Workflow",
             layout: "BOARD_LAYOUT",
-            filter: "work-state:Ready",
-            visibleFields: ["Title", "Work State"],
+            filter: "status:Ready",
+            visibleFields: ["Title", "Status"],
             groupByFields: [],
-            verticalGroupByFields: ["Work State"],
+            verticalGroupByFields: ["Status"],
           },
         ],
       },
