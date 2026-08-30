@@ -72,7 +72,6 @@ function writeResult(result: unknown, blocked = false): void {
 
 async function main(): Promise<void> {
   const repository = requireEnvironment("GITHUB_REPOSITORY");
-  const executorRoute = process.env["EXECUTOR_ROUTE"]?.trim() || "agent:codex";
   const mode = process.env["COORDINATOR_MODE"]?.trim() || "ready-queue";
   if (mode !== "ready-queue" && mode !== "task-dispatch") {
     throw new Error(
@@ -121,6 +120,20 @@ async function main(): Promise<void> {
         mode,
         status: "blocked",
         blockers: context.blockers,
+        mutationRequested: false,
+      },
+      true,
+    );
+    return;
+  }
+
+  const executorRoute = process.env["EXECUTOR_ROUTE"]?.trim();
+  if (!executorRoute) {
+    writeResult(
+      {
+        mode,
+        status: "blocked",
+        blockers: ["EXECUTOR_ROUTE_UNSPECIFIED"],
         mutationRequested: false,
       },
       true,
