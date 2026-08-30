@@ -41,12 +41,6 @@ const project: ProjectSnapshot = {
       id: "STATUS",
       name: "Status",
       dataType: "SINGLE_SELECT",
-      options: ["Todo"],
-    },
-    {
-      id: "WS",
-      name: "Work State",
-      dataType: "SINGLE_SELECT",
       options: workStates,
     },
     {
@@ -92,7 +86,7 @@ const project: ProjectSnapshot = {
         "Title",
         "Priority",
         "Labels",
-        "Work State",
+        "Status",
         "Work Type",
         "Workflow Depth",
         "Assignees",
@@ -105,8 +99,8 @@ const project: ProjectSnapshot = {
       number: 2,
       name: "Ready Queue",
       layout: "TABLE_LAYOUT",
-      filter: "work-state:Ready",
-      visibleFields: ["Title", "Priority", "Labels", "Work State"],
+      filter: "status:Ready",
+      visibleFields: ["Title", "Priority", "Labels", "Status"],
       groupByFields: [],
       verticalGroupByFields: [],
     },
@@ -116,8 +110,8 @@ const project: ProjectSnapshot = {
       name: "Workflow",
       layout: "BOARD_LAYOUT",
       filter: null,
-      visibleFields: ["Title", "Priority", "Labels", "Work State"],
-      groupByFields: ["Work State"],
+      visibleFields: ["Title", "Priority", "Labels", "Status"],
+      groupByFields: ["Status"],
       verticalGroupByFields: [],
     },
     {
@@ -125,8 +119,8 @@ const project: ProjectSnapshot = {
       number: 4,
       name: "Active",
       layout: "TABLE_LAYOUT",
-      filter: "work-state:Preparing,Ready,Implementing,Reviewing,Validating",
-      visibleFields: ["Title", "Priority", "Labels", "Work State"],
+      filter: "status:Preparing,Ready,Implementing,Reviewing,Validating",
+      visibleFields: ["Title", "Priority", "Labels", "Status"],
       groupByFields: [],
       verticalGroupByFields: [],
     },
@@ -135,8 +129,8 @@ const project: ProjectSnapshot = {
       number: 5,
       name: "Waiting",
       layout: "TABLE_LAYOUT",
-      filter: '"Work State":"Awaiting Approval"',
-      visibleFields: ["Title", "Priority", "Labels", "Work State"],
+      filter: 'Status:"Awaiting Approval"',
+      visibleFields: ["Title", "Priority", "Labels", "Status"],
       groupByFields: [],
       verticalGroupByFields: [],
     },
@@ -145,8 +139,8 @@ const project: ProjectSnapshot = {
       number: 6,
       name: "Done",
       layout: "TABLE_LAYOUT",
-      filter: "work-state:Done",
-      visibleFields: ["Title", "Priority", "Labels", "Work State"],
+      filter: "status:Done",
+      visibleFields: ["Title", "Priority", "Labels", "Status"],
       groupByFields: [],
       verticalGroupByFields: [],
     },
@@ -201,6 +195,30 @@ describe("verifyDeliveryActivation", () => {
     );
   });
 
+  it("blocks when Status does not expose exactly the Method Work State values", () => {
+    const invalidStatus = {
+      ...project,
+      fields: project.fields.map((field) =>
+        field.name === "Status"
+          ? { ...field, options: ["Todo", "In Progress", "Done"] }
+          : field,
+      ),
+    };
+
+    const result = verifyDeliveryActivation({
+      repository: "Oxelio/Architecture-Web",
+      inventory: inventory(invalidStatus),
+      nativeCapabilities,
+      evidenceRef: "evidence",
+    });
+
+    expect(result.status).toBe("blocked");
+    if (result.status !== "blocked") {
+      throw new Error("expected blocked result");
+    }
+    expect(result.blockers).toContain("BASELINE_MISMATCH");
+  });
+
   it("blocks when claim fields are not present as unique TEXT fields", () => {
     const withoutClaim = {
       ...project,
@@ -228,7 +246,7 @@ describe("verifyDeliveryActivation", () => {
       ...project,
       views: project.views.map((candidate) =>
         candidate.name === "Ready Queue"
-          ? { ...candidate, filter: "-work-state:Ready" }
+          ? { ...candidate, filter: "-status:Ready" }
           : candidate,
       ),
     };
@@ -252,7 +270,7 @@ describe("verifyDeliveryActivation", () => {
       ...project,
       views: project.views.map((candidate) =>
         candidate.name === "Waiting"
-          ? { ...candidate, filter: "Work State Awaiting Approval" }
+          ? { ...candidate, filter: "Status Awaiting Approval" }
           : candidate,
       ),
     };
@@ -269,61 +287,6 @@ describe("verifyDeliveryActivation", () => {
       throw new Error("expected blocked result");
     }
     expect(result.blockers).toContain("WAITING_VIEW_SEMANTICS_INVALID");
-  });
-
-  it("blocks when native Status leaks into an operational view", () => {
-    const withStatusVisible = {
-      ...project,
-      views: project.views.map((candidate) =>
-        candidate.name === "Backlog"
-          ? {
-              ...candidate,
-              visibleFields: [...candidate.visibleFields, "Status"],
-            }
-          : candidate,
-      ),
-    };
-
-    const result = verifyDeliveryActivation({
-      repository: "Oxelio/Architecture-Web",
-      inventory: inventory(withStatusVisible),
-      nativeCapabilities,
-      evidenceRef: "evidence",
-    });
-
-    expect(result.status).toBe("blocked");
-    if (result.status !== "blocked") {
-      throw new Error("expected blocked result");
-    }
-    expect(result.blockers).toContain("NATIVE_STATUS_VISIBLE");
-  });
-
-  it("does not block an unrelated non-operational view that shows native Status", () => {
-    const withScratchView = {
-      ...project,
-      views: [
-        ...project.views,
-        {
-          id: "V7",
-          number: 7,
-          name: "Scratch",
-          layout: "TABLE_LAYOUT",
-          filter: null,
-          visibleFields: ["Title", "Status"],
-          groupByFields: [],
-          verticalGroupByFields: [],
-        },
-      ],
-    };
-
-    const result = verifyDeliveryActivation({
-      repository: "Oxelio/Architecture-Web",
-      inventory: inventory(withScratchView),
-      nativeCapabilities,
-      evidenceRef: "evidence",
-    });
-
-    expect(result.status).toBe("verified");
   });
 
   it("blocks when a native operational capability has not been verified", () => {
