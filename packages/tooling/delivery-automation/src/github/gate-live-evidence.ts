@@ -1,13 +1,13 @@
 import type { WorkState } from "../control/eligibility.js";
 import type { ReleaseCandidateIdentity } from "../control/release-promotion-gate.js";
 import {
-  readProjectWorkItems,
   type OperationalOwnerActivation,
+  readProjectWorkItems,
 } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
 import {
-  readAuthorizedWorkIntegrationTarget,
   type AuthorizedWorkIntegrationTarget,
+  readAuthorizedWorkIntegrationTarget,
 } from "./work-integration-target.js";
 
 const validWorkStates = new Set<WorkState>([
