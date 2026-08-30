@@ -22,6 +22,17 @@ on:
         description: Claimant identity. Required for acquire.
         required: false
         type: string
+      execution_kind:
+        description: Execution kind for acquire. Human claims do not require an automated route.
+        required: false
+        type: choice
+        options:
+          - human
+          - automated
+      executor_route:
+        description: Expected agent:* route. Required only for automated acquire.
+        required: false
+        type: string
       generation:
         description: Claim generation returned by acquire. Required for release only.
         required: false
@@ -81,6 +92,8 @@ jobs:
           WORK_NUMBER: ${{ inputs.work_number }}
           TASK_NUMBER: ${{ inputs.task_number }}
           CLAIMANT: ${{ inputs.claimant }}
+          EXECUTION_KIND: ${{ inputs.execution_kind }}
+          EXECUTOR_ROUTE: ${{ inputs.executor_route }}
           CLAIM_GENERATION: ${{ inputs.generation }}
           EXECUTION_RUN_ID: ${{ inputs.run_id }}
           ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN }}
@@ -104,17 +117,43 @@ jobs:
               echo "claimant is required for acquire" >&2
               exit 1
             fi
+            if [[ -z "${EXECUTION_KIND}" ]]; then
+              echo "execution_kind is required for acquire" >&2
+              exit 1
+            fi
             if [[ -n "${CLAIM_GENERATION}" ]]; then
               echo "generation is publisher-owned and must be empty for acquire" >&2
               exit 1
             fi
-            args+=(--claimant "${CLAIMANT}")
+
+            args+=(--claimant "${CLAIMANT}" --execution-kind "${EXECUTION_KIND}")
+
+            if [[ "${EXECUTION_KIND}" == "automated" ]]; then
+              if [[ -z "${EXECUTOR_ROUTE}" ]]; then
+                echo "executor_route is required for automated acquire" >&2
+                exit 1
+              fi
+              args+=(--executor-route "${EXECUTOR_ROUTE}")
+            elif [[ "${EXECUTION_KIND}" == "human" ]]; then
+              if [[ -n "${EXECUTOR_ROUTE}" ]]; then
+                echo "executor_route must be empty for human acquire" >&2
+                exit 1
+              fi
+            else
+              echo "execution_kind must be human or automated" >&2
+              exit 1
+            fi
+
             if [[ -n "${EXECUTION_RUN_ID}" ]]; then
               args+=(--run "${EXECUTION_RUN_ID}")
             fi
           else
             if [[ -z "${CLAIM_GENERATION}" ]]; then
               echo "generation is required for release" >&2
+              exit 1
+            fi
+            if [[ -n "${EXECUTION_KIND}" || -n "${EXECUTOR_ROUTE}" ]]; then
+              echo "execution_kind and executor_route are acquire-only" >&2
               exit 1
             fi
             args+=(--generation "${CLAIM_GENERATION}")
