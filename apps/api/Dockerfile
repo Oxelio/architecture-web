@@ -1,4 +1,4 @@
-FROM node:26.5.0-alpine3.24 AS builder
+FROM node:26.8.1-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -8,13 +8,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/foundation/package.json packages/foundation/package.json
-COPY packages/iam/core/package.json packages/iam/core/package.json
-COPY packages/iam/infrastructure/email/nodemailer/package.json packages/iam/infrastructure/email/nodemailer/package.json
-COPY packages/iam/infrastructure/email/postmark/package.json packages/iam/infrastructure/email/postmark/package.json
-COPY packages/iam/infrastructure/persitence/kysely/package.json packages/iam/infrastructure/persitence/kysely/package.json
-COPY packages/iam/infrastructure/security/argon2/package.json packages/iam/infrastructure/security/argon2/package.json
-COPY packages/iam/infrastructure/security/bcrypt/package.json packages/iam/infrastructure/security/bcrypt/package.json
-COPY packages/iam/infrastructure/session/redis/package.json packages/iam/infrastructure/session/redis/package.json
+COPY packages/iam/package.json packages/iam/package.json
+COPY packages/iam/iam-email-nodemailer/package.json packages/iam/iam-email-nodemailer/package.json
+COPY packages/iam/iam-email-postmark/package.json packages/iam/iam-email-postmark/package.json
+COPY packages/iam/iam-persistence-kysely/package.json packages/iam/iam-persistence-kysely/package.json
+COPY packages/iam/iam-password-argon2/package.json packages/iam/iam-password-argon2/package.json
+COPY packages/iam/iam-password-bcrypt/package.json packages/iam/iam-password-bcrypt/package.json
+COPY packages/iam/iam-session-redis/package.json packages/iam/iam-session-redis/package.json
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
 
 RUN pnpm install --frozen-lockfile

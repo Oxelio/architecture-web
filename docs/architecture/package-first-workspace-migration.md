@@ -77,27 +77,27 @@ packages/
 
 ### Physical migration map
 
-| Existing package root | Target package root | Package identity | Required internal change |
-| --- | --- | --- | --- |
-| `packages/iam/core` | `packages/iam` | `@architecture/iam` | move production `domain/` and `application/` below `src/` |
-| `packages/iam/infrastructure/persitence/kysely` | `packages/iam-persistence-kysely` | `@architecture/iam-persistence-kysely` | root move only |
-| `packages/iam/infrastructure/session/redis` | `packages/iam-session-redis` | `@architecture/iam-session-redis` | root move only |
-| `packages/iam/infrastructure/security/argon2` | `packages/iam-password-argon2` | `@architecture/iam-password-argon2` | root move only |
-| `packages/iam/infrastructure/security/bcrypt` | `packages/iam-password-bcrypt` | `@architecture/iam-password-bcrypt` | root move only |
-| `packages/iam/infrastructure/security/sha256` | `packages/iam-email-verification-sha256` | `@architecture/iam-email-verification-sha256` | root move only |
-| `packages/iam/infrastructure/email/nodemailer` | `packages/iam-email-nodemailer` | `@architecture/iam-email-nodemailer` | root move only |
-| `packages/iam/infrastructure/email/postmark` | `packages/iam-email-postmark` | `@architecture/iam-email-postmark` | root move only |
-| `packages/audit/core` | `packages/audit` | `@architecture/audit` | move production `domain/` and `application/` below `src/` |
-| `packages/audit/infrastructure/persistence/kysely` | `packages/audit-persistence-kysely` | `@architecture/audit-persistence-kysely` | root move only |
-| `packages/messaging/core` | `packages/messaging` | `@architecture/messaging` | move production `domain/` and `application/` below `src/` |
-| `packages/messaging/infrastructure/persistence/kysely` | `packages/messaging-persistence-kysely` | `@architecture/messaging-persistence-kysely` | root move only |
-| `packages/notifications/core` | `packages/notifications` | `@architecture/notifications` | move production `domain/` and `application/` below `src/` |
-| `packages/notifications/infrastructure/persistence/kysely` | `packages/notifications-persistence-kysely` | `@architecture/notifications-persistence-kysely` | root move only |
-| `packages/notifications/infrastructure/delivery/nodemailer` | `packages/notifications-delivery-nodemailer` | `@architecture/notifications-delivery-nodemailer` | root move only |
-| `packages/notifications/infrastructure/delivery/slack-webhook` | `packages/notifications-delivery-slack-webhook` | `@architecture/notifications-delivery-slack-webhook` | root move only |
-| `packages/notifications/infrastructure/delivery/sms-webhook` | `packages/notifications-delivery-sms-webhook` | `@architecture/notifications-delivery-sms-webhook` | root move only |
-| `packages/notifications/infrastructure/recipient/iam-kysely` | `packages/notifications-recipient-iam-kysely` | `@architecture/notifications-recipient-iam-kysely` | root move only |
-| `packages/tooling/delivery-automation` | `packages/delivery-automation` | `@architecture/delivery-automation` | root move only |
+| Existing package root                                          | Target package root                             | Package identity                                     | Required internal change                                  |
+| -------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| `packages/iam/core`                                            | `packages/iam`                                  | `@architecture/iam`                                  | move production `domain/` and `application/` below `src/` |
+| `packages/iam/infrastructure/persitence/kysely`                | `packages/iam-persistence-kysely`               | `@architecture/iam-persistence-kysely`               | root move only                                            |
+| `packages/iam/infrastructure/session/redis`                    | `packages/iam-session-redis`                    | `@architecture/iam-session-redis`                    | root move only                                            |
+| `packages/iam/infrastructure/security/argon2`                  | `packages/iam-password-argon2`                  | `@architecture/iam-password-argon2`                  | root move only                                            |
+| `packages/iam/infrastructure/security/bcrypt`                  | `packages/iam-password-bcrypt`                  | `@architecture/iam-password-bcrypt`                  | root move only                                            |
+| `packages/iam/infrastructure/security/sha256`                  | `packages/iam-email-verification-sha256`        | `@architecture/iam-email-verification-sha256`        | root move only                                            |
+| `packages/iam/infrastructure/email/nodemailer`                 | `packages/iam-email-nodemailer`                 | `@architecture/iam-email-nodemailer`                 | root move only                                            |
+| `packages/iam/infrastructure/email/postmark`                   | `packages/iam-email-postmark`                   | `@architecture/iam-email-postmark`                   | root move only                                            |
+| `packages/audit/core`                                          | `packages/audit`                                | `@architecture/audit`                                | move production `domain/` and `application/` below `src/` |
+| `packages/audit/infrastructure/persistence/kysely`             | `packages/audit-persistence-kysely`             | `@architecture/audit-persistence-kysely`             | root move only                                            |
+| `packages/messaging/core`                                      | `packages/messaging`                            | `@architecture/messaging`                            | move production `domain/` and `application/` below `src/` |
+| `packages/messaging/infrastructure/persistence/kysely`         | `packages/messaging-persistence-kysely`         | `@architecture/messaging-persistence-kysely`         | root move only                                            |
+| `packages/notifications/core`                                  | `packages/notifications`                        | `@architecture/notifications`                        | move production `domain/` and `application/` below `src/` |
+| `packages/notifications/infrastructure/persistence/kysely`     | `packages/notifications-persistence-kysely`     | `@architecture/notifications-persistence-kysely`     | root move only                                            |
+| `packages/notifications/infrastructure/delivery/nodemailer`    | `packages/notifications-delivery-nodemailer`    | `@architecture/notifications-delivery-nodemailer`    | root move only                                            |
+| `packages/notifications/infrastructure/delivery/slack-webhook` | `packages/notifications-delivery-slack-webhook` | `@architecture/notifications-delivery-slack-webhook` | root move only                                            |
+| `packages/notifications/infrastructure/delivery/sms-webhook`   | `packages/notifications-delivery-sms-webhook`   | `@architecture/notifications-delivery-sms-webhook`   | root move only                                            |
+| `packages/notifications/infrastructure/recipient/iam-kysely`   | `packages/notifications-recipient-iam-kysely`   | `@architecture/notifications-recipient-iam-kysely`   | root move only                                            |
+| `packages/tooling/delivery-automation`                         | `packages/delivery-automation`                  | `@architecture/delivery-automation`                  | root move only                                            |
 
 No other package root is created, renamed, merged, or split by this Work.
 

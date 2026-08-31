@@ -11,7 +11,7 @@ on:
       - ".github/workflows/**"
       - "docs/architecture/agent-aware-delivery-activation.md"
       - "docs/project/delivery-pipeline.md"
-      - "packages/tooling/delivery-automation/**"
+      - "packages/delivery-automation/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
