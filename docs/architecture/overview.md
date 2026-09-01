@@ -10,7 +10,7 @@ exceptions described here are not implicit templates for new features.
 
 Architecture Web is a reference identity-management application: sign-up,
 sign-in, email verification, profile, administration, sessions, recovery, MFA,
-auditing, export, and account deletion. The historical IAM core keeps its rules
+auditing, export, and account deletion. The IAM package keeps its rules
 independent from Fastify, React, PostgreSQL, Redis, and email providers. The
 newer security vertical is orchestrated in the API and is a documented
 exception to this separation.
@@ -20,7 +20,7 @@ dependency-injection framework is used: implementations are assembled
 explicitly inside the API.
 
 The bounded context is named **IAM** (`Identity and Access Management`). Its
-core is split into three internal capabilities:
+core package is split into three internal capabilities:
 
 - `accounts`: account, email address, verification, and password;
 - `authentication`: sign-in, resolution, and personal sessions;
@@ -33,32 +33,47 @@ deletion across those capabilities. Account status (`active`, `suspended`, or
 
 ## Monorepo map
 
+Every direct child of `packages/` is a workspace package root. Cohesive bounded-
+context packages keep their domain and application layers below `src/`; technical
+adapters and repository tooling use separate direct package roots.
+
 ```text
 apps/
-├── api/                         HTTP interface and composition
-└── web/                         React interface
+├── api/                                      HTTP interface and composition
+└── web/                                      React interface
 packages/
-├── audit/
-│   ├── core/                    Audit domain + application
-│   └── infrastructure/
-│       └── persistence/kysely/  Audit PostgreSQL persistence
-├── foundation/                  modelling primitives
-├── eslint-config/               shared ESLint rules
-├── messaging/                   outbox and event delivery
-├── notifications/               Notifications bounded context
-└── iam/
-    ├── core/                    domain + application
-    └── infrastructure/
-        ├── email/               Nodemailer and Postmark
-        ├── persitence/kysely/   PostgreSQL through Kysely
-        ├── security/            Argon2, bcrypt, and SHA-256
-        └── session/redis/       sessions and rate limiting
+├── audit/                                    Audit domain + application
+│   └── src/{domain,application}/
+├── audit-persistence-kysely/                 Audit PostgreSQL persistence
+├── delivery-automation/                      private delivery tooling
+├── eslint-config/                            shared ESLint rules
+├── foundation/                               modelling primitives
+├── iam/                                      IAM domain + application
+│   └── src/{domain,application}/
+├── iam-email-nodemailer/                     Nodemailer email adapter
+├── iam-email-postmark/                       Postmark email adapter
+├── iam-email-verification-sha256/            verification-token hashing
+├── iam-password-argon2/                      Argon2 password hashing
+├── iam-password-bcrypt/                      bcrypt password hashing
+├── iam-persistence-kysely/                   IAM PostgreSQL persistence
+├── iam-session-redis/                        sessions and rate limiting
+├── messaging/                                Messaging domain + application
+│   └── src/{domain,application}/
+├── messaging-persistence-kysely/             PostgreSQL outbox persistence
+├── notifications/                            Notifications domain + application
+│   └── src/{domain,application}/
+├── notifications-delivery-nodemailer/        SMTP notification delivery
+├── notifications-delivery-slack-webhook/     Slack webhook delivery
+├── notifications-delivery-sms-webhook/       SMS webhook delivery
+├── notifications-persistence-kysely/         Notifications PostgreSQL persistence
+└── notifications-recipient-iam-kysely/       IAM-backed recipient directory
 ```
 
-The `persitence` directory contains a historical spelling error, while the
-published package is correctly named
-`@architecture/iam-persistence-kysely`. Documentation uses the real path
-when linking to code.
+Package names and public exports are owned by their manifests. Physical package
+roots no longer encode a nested `core`/`infrastructure` workspace hierarchy;
+architectural responsibility remains expressed by package ownership, internal
+`src/domain` and `src/application` layers where applicable, and dependency
+rules.
 
 ## Main flow
 
@@ -124,9 +139,9 @@ post-commit application flow and is not placed in the generic outbox.
 
 ## Observed trade-offs
 
-- `packages/iam/core` contains domain and application in one package, with
-  separate public subpath exports.
-- The API depends on both core and adapters. This is intentional in the
+- `packages/iam` contains domain and application in one package, with separate
+  public subpath exports and internal layers below `src/`.
+- The API depends on both core packages and adapters. This is intentional in the
   composition root, where concrete details must be known.
 - HTTP contracts (`*.http.ts`, `*.route-options.ts`) are separate from
   application contracts (`*.contracts.ts`). This adds files but prevents HTTP
