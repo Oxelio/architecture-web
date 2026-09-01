@@ -7,28 +7,30 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
-      "#domain": fileURLToPath(new URL("./domain", import.meta.url)),
-      "#entities": fileURLToPath(new URL("./domain/entities", import.meta.url)),
+      "#domain": fileURLToPath(new URL("./src/domain", import.meta.url)),
+      "#entities": fileURLToPath(
+        new URL("./src/domain/entities", import.meta.url),
+      ),
       "#value-objects": fileURLToPath(
-        new URL("./domain/value-objects", import.meta.url),
+        new URL("./src/domain/value-objects", import.meta.url),
       ),
       "#repositories": fileURLToPath(
-        new URL("./application/repositories", import.meta.url),
+        new URL("./src/application/repositories", import.meta.url),
       ),
       "#services": fileURLToPath(
-        new URL("./application/services", import.meta.url),
+        new URL("./src/application/services", import.meta.url),
       ),
       "#accounts": fileURLToPath(
-        new URL("./application/accounts", import.meta.url),
+        new URL("./src/application/accounts", import.meta.url),
       ),
       "#authentication": fileURLToPath(
-        new URL("./application/authentication", import.meta.url),
+        new URL("./src/application/authentication", import.meta.url),
       ),
       "#access-administration": fileURLToPath(
-        new URL("./application/access-administration", import.meta.url),
+        new URL("./src/application/access-administration", import.meta.url),
       ),
       "#testing": fileURLToPath(
-        new URL("./application/testing", import.meta.url),
+        new URL("./src/application/testing", import.meta.url),
       ),
     },
   },
@@ -44,7 +46,7 @@ export default defineConfig({
 
       reportsDirectory: "./coverage",
 
-      include: ["**/application/**/*.ts", "**/domain/**/*.ts"],
+      include: ["src/application/**/*.ts", "src/domain/**/*.ts"],
       exclude: [
         "**/node_modules/**",
         "**/dist/**",
