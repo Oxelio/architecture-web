@@ -117,7 +117,9 @@ packages/<context>/
     └── application/
 ```
 
-Package-local files that already belong to the package root remain at the package root. Existing source/test organization inside `domain/` and `application/` is preserved; this Work does not reorganize domain models, use cases, tests, or ports.
+Package-local files that already belong to the package root remain at the package root. Existing source/test organization inside `domain/` and `application/` is otherwise preserved; this Work does not reorganize domain models, tests, ports, or application responsibilities.
+
+For IAM only, the capability directories `accounts`, `authentication`, and `access-administration` already provide the meaningful grouping for their use cases. The intermediate taxonomic `use-cases/` directory MAY therefore be removed while relocating IAM below `src/`, producing paths such as `src/application/accounts/sign-up/` instead of `src/application/accounts/use-cases/sign-up/`. This is an internal path simplification only: it MUST NOT change use-case contracts, public exports, bounded-context responsibilities, dependency direction, or product behavior. It does not authorize equivalent reorganization in other bounded contexts without a separate design decision.
 
 ### TypeScript build shape
 
@@ -137,7 +139,8 @@ This preserves the compiled shape expected by current `exports`, `main`, and `ty
 For package-local `imports` entries used to resolve source during development or tests:
 
 - source/type targets that currently point at `./domain/...` or `./application/...` move to `./src/domain/...` or `./src/application/...`;
-- compiled/default targets continue to point at `./dist/domain/...` or `./dist/application/...`.
+- compiled/default targets continue to point at `./dist/domain/...` or `./dist/application/...`;
+- IAM package-local aliases and relative paths that traversed the removed `use-cases/` level move to the corresponding capability-owned paths and obsolete aliases are removed.
 
 Vitest aliases and coverage include patterns that currently point at the package-root `domain/` or `application/` trees move to the corresponding `src/` paths.
 
@@ -236,11 +239,12 @@ For IAM, Audit, Messaging, and Notifications:
 
 1. promote the existing core package files to the direct context root;
 2. move `domain/` and `application/` below `src/`;
-3. update package-local source aliases/import maps, TypeScript configuration, Vitest aliases, and coverage paths;
-4. preserve public exports and emitted `dist` layout;
-5. update repository-owned physical references affected by these core moves;
-6. refresh lockfile importer paths;
-7. run affected package and consumer validation.
+3. for IAM, remove the redundant `use-cases/` taxonomy below `accounts`, `authentication`, and `access-administration`, updating only the affected internal paths;
+4. update package-local source aliases/import maps, TypeScript configuration, Vitest aliases, and coverage paths;
+5. preserve public exports and emitted `dist` layout;
+6. update repository-owned physical references affected by these core moves;
+7. refresh lockfile importer paths;
+8. run affected package and consumer validation.
 
 ### Checkpoint B — IAM adapters
 
@@ -284,7 +288,7 @@ Compatibility invariants:
 - applications continue to consume the same package identities;
 - build output subpaths for cohesive packages remain compatible.
 
-Package-local `imports` source/type targets may change because they are internal to the moved package source layout.
+Package-local `imports` source/type targets may change because they are internal to the moved package source layout. IAM internal paths may additionally reflect the authorized removal of the redundant capability-local `use-cases/` directory.
 
 The repository does not establish external compatibility for consumers that depend directly on internal monorepo filesystem paths.
 
@@ -322,7 +326,7 @@ A pre/post manifest snapshot SHOULD compare, keyed by package name:
 - `types`;
 - dependencies and peer dependencies.
 
-The expected difference is physical location plus package-local source `imports` needed for the four cohesive core packages.
+The expected difference is physical location plus package-local source `imports` needed for the four cohesive core packages. IAM may also differ in internal source paths because the capability-local `use-cases/` taxonomy is intentionally removed; this MUST NOT alter the public `exports` surface.
 
 ### Dependency/install evidence
 
