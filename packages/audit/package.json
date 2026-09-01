@@ -4,28 +4,28 @@
   "type": "module",
   "imports": {
     "#domain/*": {
-      "types": "./domain/*.ts",
+      "types": "./src/domain/*.ts",
       "default": "./dist/domain/*.js"
     },
     "#events/*": {
-      "types": "./application/events/*.ts",
+      "types": "./src/application/events/*.ts",
       "default": "./dist/application/events/*.js"
     },
     "#repositories/*": {
-      "types": "./application/repositories/*.ts",
+      "types": "./src/application/repositories/*.ts",
       "default": "./dist/application/repositories/*.js"
     },
     "#services/*": {
-      "types": "./application/services/*.ts",
+      "types": "./src/application/services/*.ts",
       "default": "./dist/application/services/*.js"
     }
   },
   "exports": {
-    "./domain": {
+    "./src/domain": {
       "types": "./dist/domain/index.d.ts",
       "default": "./dist/domain/index.js"
     },
-    "./application": {
+    "./src/application": {
       "types": "./dist/application/index.d.ts",
       "default": "./dist/application/index.js"
     }
