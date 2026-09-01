@@ -35,7 +35,7 @@ on:
     paths:
       - ".github/delivery-automation.json"
       - ".github/workflows/delivery-coordinator-dry-run.yml"
-      - "packages/tooling/delivery-automation/**"
+      - "packages/delivery-automation/**"
       - "pnpm-lock.yaml"
 
 permissions:
