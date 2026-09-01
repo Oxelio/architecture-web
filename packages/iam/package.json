@@ -17,51 +17,51 @@
   },
   "imports": {
     "#domain/*": {
-      "types": "./domain/*.ts",
+      "types": "./src/domain/*.ts",
       "default": "./dist/domain/*.js"
     },
     "#entities/*": {
-      "types": "./domain/entities/*.ts",
+      "types": "./src/domain/entities/*.ts",
       "default": "./dist/domain/entities/*.js"
     },
     "#value-objects/*": {
-      "types": "./domain/value-objects/*.ts",
+      "types": "./src/domain/value-objects/*.ts",
       "default": "./dist/domain/value-objects/*.js"
     },
     "#use-cases/*": {
-      "types": "./application/use-cases/*.ts",
+      "types": "./src/application/use-cases/*.ts",
       "default": "./dist/application/use-cases/*.js"
     },
     "#accounts/*": {
-      "types": "./application/accounts/*.ts",
+      "types": "./src/application/accounts/*.ts",
       "default": "./dist/application/accounts/*.js"
     },
     "#authentication/*": {
-      "types": "./application/authentication/*.ts",
+      "types": "./src/application/authentication/*.ts",
       "default": "./dist/application/authentication/*.js"
     },
     "#access-administration/*": {
-      "types": "./application/access-administration/*.ts",
+      "types": "./src/application/access-administration/*.ts",
       "default": "./dist/application/access-administration/*.js"
     },
     "#services/*": {
-      "types": "./application/services/*.ts",
+      "types": "./src/application/services/*.ts",
       "default": "./dist/application/services/*.js"
     },
     "#events/*": {
-      "types": "./application/events/*.ts",
+      "types": "./src/application/events/*.ts",
       "default": "./dist/application/events/*.js"
     },
     "#repositories/*": {
-      "types": "./application/repositories/*.ts",
+      "types": "./src/application/repositories/*.ts",
       "default": "./dist/application/repositories/*.js"
     },
     "#transactions/*": {
-      "types": "./application/transactions/*.ts",
+      "types": "./src/application/transactions/*.ts",
       "default": "./dist/application/transactions/*.js"
     },
     "#testing/*": {
-      "types": "./application/testing/*.ts",
+      "types": "./src/application/testing/*.ts",
       "default": "./dist/application/testing/*.js"
     }
   },

@@ -9,26 +9,26 @@ export type {
   ActivateUserError,
   ActivateUserInput,
   ActivateUserOutput,
-} from "./access-administration/use-cases/activate-user/activate-user.contracts.js";
+} from "./access-administration/activate-user/activate-user.contracts.js";
 export type {
   AssignUserRole,
   AssignUserRoleError,
   AssignUserRoleInput,
   AssignUserRoleOutput,
-} from "./access-administration/use-cases/assign-user-role/assign-user-role.contracts.js";
+} from "./access-administration/assign-user-role/assign-user-role.contracts.js";
 export type {
   GetUserAdministrationOverview,
   GetUserAdministrationOverviewInput,
   GetUserAdministrationOverviewOutput,
   UserAdministrationOverview,
-} from "./access-administration/use-cases/get-user-administration-overview/get-user-administration-overview.contracts.js";
+} from "./access-administration/get-user-administration-overview/get-user-administration-overview.contracts.js";
 export type {
   AdministeredUserSession,
   ListUserSessions,
   ListUserSessionsError,
   ListUserSessionsInput,
   ListUserSessionsOutput,
-} from "./access-administration/use-cases/list-user-sessions/list-user-sessions.contracts.js";
+} from "./access-administration/list-user-sessions/list-user-sessions.contracts.js";
 export type {
   AdminUser,
   ListUsers,
@@ -37,31 +37,31 @@ export type {
   ListUsersOutput,
   ListUsersResult,
   UserListPagination,
-} from "./access-administration/use-cases/list-users/list-users.contracts.js";
+} from "./access-administration/list-users/list-users.contracts.js";
 export type {
   RevokeUserSession,
   RevokeUserSessionError,
   RevokeUserSessionInput,
   RevokeUserSessionOutput,
-} from "./access-administration/use-cases/revoke-user-session/revoke-user-session.contracts.js";
+} from "./access-administration/revoke-user-session/revoke-user-session.contracts.js";
 export type {
   SuspendUser,
   SuspendUserError,
   SuspendUserInput,
   SuspendUserOutput,
-} from "./access-administration/use-cases/suspend-user/suspend-user.contracts.js";
+} from "./access-administration/suspend-user/suspend-user.contracts.js";
 export type {
   ChangeEmail,
   ChangeEmailError,
   ChangeEmailInput,
   ChangeEmailOutput,
-} from "./accounts/use-cases/change-email/change-email.contracts.js";
+} from "./accounts/change-email/change-email.contracts.js";
 export type {
   ChangePassword,
   ChangePasswordError,
   ChangePasswordInput,
   ChangePasswordOutput,
-} from "./accounts/use-cases/change-password/change-password.contracts.js";
+} from "./accounts/change-password/change-password.contracts.js";
 export type {
   AccountLoginIdentifier,
   CurrentAccount,
@@ -69,67 +69,67 @@ export type {
   GetCurrentAccountError,
   GetCurrentAccountInput,
   GetCurrentAccountOutput,
-} from "./accounts/use-cases/get-current-account/get-current-account.contracts.js";
+} from "./accounts/get-current-account/get-current-account.contracts.js";
 export type {
   EvaluatePassword,
   EvaluatePasswordInput,
   GetPasswordPolicy,
   PasswordEvaluation,
   PublicPasswordPolicy,
-} from "./accounts/use-cases/password-policy/password-policy.contracts.js";
+} from "./accounts/password-policy/password-policy.contracts.js";
 export type {
   ResendEmailVerification,
   ResendEmailVerificationError,
   ResendEmailVerificationInput,
   ResendEmailVerificationOutput,
-} from "./accounts/use-cases/resend-email-verification/resend-email-verification.contracts.js";
+} from "./accounts/resend-email-verification/resend-email-verification.contracts.js";
 export type {
   SignUp,
   SignUpError,
   SignUpInput,
   SignUpOutput,
   UserRegistration,
-} from "./accounts/use-cases/sign-up/sign-up.contracts.js";
+} from "./accounts/sign-up/sign-up.contracts.js";
 export type {
   VerifyEmail,
   VerifyEmailError,
   VerifyEmailInput,
   VerifyEmailOutput,
-} from "./accounts/use-cases/verify-email/verify-email.contracts.js";
+} from "./accounts/verify-email/verify-email.contracts.js";
 export type {
   CurrentUserSession,
   ListCurrentUserSessions,
   ListCurrentUserSessionsError,
   ListCurrentUserSessionsInput,
   ListCurrentUserSessionsOutput,
-} from "./authentication/use-cases/list-current-user-sessions/list-current-user-sessions.contracts.js";
+} from "./authentication/list-current-user-sessions/list-current-user-sessions.contracts.js";
 export type {
   ResolveSession,
   ResolveSessionError,
   ResolveSessionInput,
   ResolveSessionOutput,
   SessionResolution,
-} from "./authentication/use-cases/resolve-session/resolve-session.contracts.js";
+} from "./authentication/resolve-session/resolve-session.contracts.js";
 export type {
   RevokeCurrentUserSession,
   RevokeCurrentUserSessionError,
   RevokeCurrentUserSessionInput,
   RevokeCurrentUserSessionOutput,
-} from "./authentication/use-cases/revoke-current-user-session/revoke-current-user-session.contracts.js";
+} from "./authentication/revoke-current-user-session/revoke-current-user-session.contracts.js";
 export type {
   AuthenticationSession,
   SignIn,
   SignInError,
   SignInInput,
   SignInOutput,
-} from "./authentication/use-cases/sign-in/sign-in.contracts.js";
-export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/use-cases/sign-in/sign-in.use-case.js";
+} from "./authentication/sign-in/sign-in.contracts.js";
+export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/sign-in/sign-in.use-case.js";
 export type {
   SignOut,
   SignOutError,
   SignOutInput,
   SignOutOutput,
-} from "./authentication/use-cases/sign-out/sign-out.contracts.js";
+} from "./authentication/sign-out/sign-out.contracts.js";
 
 // ============================================================
 // Factories
