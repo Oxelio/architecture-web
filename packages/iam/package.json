@@ -28,10 +28,6 @@
       "types": "./src/domain/value-objects/*.ts",
       "default": "./dist/domain/value-objects/*.js"
     },
-    "#use-cases/*": {
-      "types": "./src/application/use-cases/*.ts",
-      "default": "./dist/application/use-cases/*.js"
-    },
     "#accounts/*": {
       "types": "./src/application/accounts/*.ts",
       "default": "./dist/application/accounts/*.js"
