@@ -19,18 +19,21 @@ flowchart TD
     NotificationsApp[notifications/application] --> NotificationsDomain[notifications/domain]
     NotificationsApp --> MessagingApp
     NotificationsDomain --> Foundation
-    Infra[iam/infrastructure] --> App
+    Infra[iam adapters] --> App
     Infra --> Domain
-    MessagingInfra[messaging/infrastructure] --> MessagingApp
-    AuditInfra[audit/infrastructure] --> AuditApp
-    NotificationsInfra[notifications/infrastructure] --> NotificationsApp
+    MessagingInfra[messaging adapters] --> MessagingApp
+    AuditInfra[audit adapters] --> AuditApp
+    NotificationsInfra[notifications adapters] --> NotificationsApp
     Composition[apps/api/composition-root] --> Infra
     Composition --> App
     Composition --> AuditInfra
     Composition --> AuditApp
 ```
 
-An arrow means “may depend on”; it does not require the dependency.
+An arrow means “may depend on”; it does not require the dependency. Labels such
+as `iam/application` describe architectural responsibility, not nested workspace
+package paths; cohesive domain/application packages keep those layers below their
+own `src/` directories.
 
 ## Matrix
 
@@ -84,11 +87,11 @@ import { EmailValueObject } from "@architecture/iam/domain";
 ```
 
 They **MUST NOT** import files inside
-`packages/iam/core/application/<capability>/use-cases`. Within a package, declared
-`#...` aliases **SHOULD** replace `../` parent imports. The current ESLint rule
-reports parent imports as warnings.
+`packages/iam/src/application/<capability>/<use-case>`. Within a package,
+declared `#...` aliases **SHOULD** replace `../` parent imports. The current
+ESLint rule reports parent imports as warnings.
 
-Internal core aliases omit `.js`; relative imports intended for ESM output
+Internal package aliases omit `.js`; relative imports intended for ESM output
 generally include `.js`.
 
 ## Port compatibility

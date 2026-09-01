@@ -25,14 +25,14 @@ therefore calls a concrete service and maps its `SecurityError` exceptions to
 HTTP responses.
 
 This organization is an **observed fact**, not a new general rule. It is an
-exception to the boundaries documented for `packages/iam/core`. No ADR decides
-whether the vertical should remain in the API or move to dedicated ports and
-use cases.
+exception to the boundaries documented for `packages/iam` and the project
+[dependency rules](../architecture/dependency-rules.md). No ADR decides whether
+the vertical should remain in the API or move to dedicated ports and use cases.
 
 ## Persistence and secrets
 
 Migration
-`packages/iam/infrastructure/persitence/kysely/src/persistence/migrations/003_create_iam_security.ts`
+`packages/iam-persistence-kysely/src/persistence/migrations/003_create_iam_security.ts`
 adds:
 
 | Table                           | Responsibility                                     |
@@ -105,7 +105,7 @@ endpoints.
 | MFA availability and roles       | enrollment, sign-in, and disabling     |
 | export and deletion              | their respective workflows             |
 | audit retention and consultation | writing, consultation, and maintenance |
-| complete password policy         | provider injected into IAM core        |
+| complete password policy         | provider injected into IAM application |
 | session duration                 | `SignInUseCase` and MFA completion     |
 
 `accounts.emailVerification` remains represented but has no consumer, so the
