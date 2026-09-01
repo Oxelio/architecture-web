@@ -1,7 +1,7 @@
 import { Entity } from "@architecture/foundation";
 
-import type { NotificationChannelType } from "#value-objects/notification-channel.value-object";
-import type { NotificationRecipientIdentifierValueObject } from "#value-objects/notification-recipient-identifier.value-object";
+import type { NotificationChannelType } from "#domain/value-objects/notification-channel.value-object";
+import type { NotificationRecipientIdentifierValueObject } from "#domain/value-objects/notification-recipient-identifier.value-object";
 
 interface NotificationRecipientProperties {
   readonly identifier: NotificationRecipientIdentifierValueObject;

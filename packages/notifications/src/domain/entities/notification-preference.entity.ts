@@ -1,7 +1,7 @@
 import { AggregateRoot } from "@architecture/foundation";
 
-import type { NotificationChannelValueObject } from "#value-objects/notification-channel.value-object";
-import { NotificationPreferenceIdentifierValueObject } from "#value-objects/notification-preference-identifier.value-object";
+import type { NotificationChannelValueObject } from "#domain/value-objects/notification-channel.value-object";
+import { NotificationPreferenceIdentifierValueObject } from "#domain/value-objects/notification-preference-identifier.value-object";
 
 interface NotificationPreferenceProperties {
   readonly identifier: NotificationPreferenceIdentifierValueObject;

@@ -1,5 +1,6 @@
 import type { Result } from "@architecture/foundation";
-import type { NotificationChannelType } from "@architecture/notifications/domain";
+
+import type { NotificationChannelType } from "#domain/index";
 
 export interface GetNotificationPreferencesInput {
   readonly actorUserId: string;

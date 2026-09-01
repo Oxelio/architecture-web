@@ -1,5 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
-import type { NotificationSeverity } from "@architecture/notifications/domain";
+
+import type { NotificationSeverity } from "#domain/index";
 
 import type { ListNotificationsErrorCodes } from "./list-notifications.codes.js";
 

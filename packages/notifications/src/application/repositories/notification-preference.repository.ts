@@ -1,7 +1,7 @@
 import type {
   NotificationChannelType,
   NotificationPreferenceEntity,
-} from "@architecture/notifications/domain";
+} from "#domain/index";
 
 export abstract class NotificationPreferenceRepository {
   abstract listForRecipient(

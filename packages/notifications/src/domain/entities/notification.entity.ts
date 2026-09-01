@@ -1,15 +1,15 @@
 import { AggregateRoot } from "@architecture/foundation";
 
-import { NotificationDeliveryEntity } from "#entities/notification-delivery.entity";
+import { NotificationDeliveryEntity } from "#domain/entities/notification-delivery.entity";
 import {
   type NotificationChannelType,
   NotificationChannelValueObject,
-} from "#value-objects/notification-channel.value-object";
+} from "#domain/value-objects/notification-channel.value-object";
 import {
   NotificationDeliveryIdentifierValueObject,
   NotificationIdentifierValueObject,
-} from "#value-objects/notification-identifier.value-object";
-import type { NotificationSeverityValueObject } from "#value-objects/notification-severity.value-object";
+} from "#domain/value-objects/notification-identifier.value-object";
+import type { NotificationSeverityValueObject } from "#domain/value-objects/notification-severity.value-object";
 
 export interface RehydratedNotificationProperties {
   readonly identifier: NotificationIdentifierValueObject;

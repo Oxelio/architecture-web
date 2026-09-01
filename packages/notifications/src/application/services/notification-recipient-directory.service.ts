@@ -1,4 +1,4 @@
-import type { NotificationRecipientEntity } from "@architecture/notifications/domain";
+import type { NotificationRecipientEntity } from "#domain/index";
 
 export abstract class NotificationRecipientDirectory {
   abstract findUser(

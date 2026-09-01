@@ -1,8 +1,9 @@
+import { describe, expect, it, vi } from "vitest";
+
 import {
   NotificationEntity,
   NotificationSeverityValueObject,
-} from "@architecture/notifications/domain";
-import { describe, expect, it, vi } from "vitest";
+} from "#domain/index";
 
 import type { NotificationRepository } from "../../repositories/notification.repository.js";
 import { ListNotificationsUseCase } from "./list-notifications.use-case.js";

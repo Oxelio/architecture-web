@@ -1,6 +1,6 @@
 import { Result } from "@architecture/foundation";
-import { NotificationIdentifierValueObject } from "@architecture/notifications/domain";
 
+import { NotificationIdentifierValueObject } from "#domain/index";
 import type { NotificationRepository } from "#repositories/notification.repository";
 
 import { MarkNotificationReadErrorCodes } from "./mark-notification-read.codes.js";

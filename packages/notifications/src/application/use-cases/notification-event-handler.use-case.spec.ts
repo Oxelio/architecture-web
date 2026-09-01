@@ -1,8 +1,9 @@
+import { describe, expect, it, vi } from "vitest";
+
 import {
   NotificationRecipientEntity,
   NotificationRecipientIdentifierValueObject,
-} from "@architecture/notifications/domain";
-import { describe, expect, it, vi } from "vitest";
+} from "#domain/index";
 
 import type { NotificationRepository } from "../repositories/notification.repository.js";
 import type { NotificationPreferenceRepository } from "../repositories/notification-preference.repository.js";

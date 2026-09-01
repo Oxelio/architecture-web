@@ -1,7 +1,7 @@
 import { Entity } from "@architecture/foundation";
 
-import type { NotificationChannelValueObject } from "#value-objects/notification-channel.value-object";
-import type { NotificationDeliveryIdentifierValueObject } from "#value-objects/notification-identifier.value-object";
+import type { NotificationChannelValueObject } from "#domain/value-objects/notification-channel.value-object";
+import type { NotificationDeliveryIdentifierValueObject } from "#domain/value-objects/notification-identifier.value-object";
 
 export type NotificationDeliveryStatus =
   "pending" | "processing" | "sent" | "failed" | "dead_letter";

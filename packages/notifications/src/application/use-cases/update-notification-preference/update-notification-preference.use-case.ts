@@ -1,8 +1,8 @@
 import { Result } from "@architecture/foundation";
 
-import { NotificationPreferenceEntity } from "#entities/notification-preference.entity";
+import { NotificationPreferenceEntity } from "#domain/entities/notification-preference.entity";
+import { NotificationChannelValueObject } from "#domain/value-objects/notification-channel.value-object";
 import type { NotificationPreferenceRepository } from "#repositories/notification-preference.repository";
-import { NotificationChannelValueObject } from "#value-objects/notification-channel.value-object";
 
 import type {
   UpdateNotificationPreference,

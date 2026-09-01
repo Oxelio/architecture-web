@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "./dist",
+    "rootDir": "src",
+    "outDir": "dist",
     "module": "nodenext",
     "target": "esnext",
     "lib": ["esnext"],
@@ -20,5 +20,5 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["application/**/*.ts", "domain/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

@@ -1,7 +1,7 @@
 import type {
   NotificationChannelType,
   NotificationSeverity,
-} from "@architecture/notifications/domain";
+} from "#domain/index";
 
 export interface NotificationPolicy {
   readonly severity: NotificationSeverity;

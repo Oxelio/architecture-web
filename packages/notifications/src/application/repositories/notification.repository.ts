@@ -1,4 +1,4 @@
-import type { NotificationEntity } from "@architecture/notifications/domain";
+import type { NotificationEntity } from "#domain/index";
 
 export abstract class NotificationRepository {
   abstract create(notification: NotificationEntity): Promise<void>;

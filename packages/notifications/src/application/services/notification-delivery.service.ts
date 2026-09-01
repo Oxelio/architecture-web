@@ -2,7 +2,7 @@ import type {
   NotificationChannelType,
   NotificationDeliveryEntity,
   NotificationEntity,
-} from "@architecture/notifications/domain";
+} from "#domain/index";
 
 export abstract class NotificationDelivery {
   abstract readonly channel: NotificationChannelType;

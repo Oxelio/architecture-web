@@ -1,15 +1,15 @@
 import type { IntegrationEventHandler } from "@architecture/messaging/application";
 import type { IntegrationEvent } from "@architecture/messaging/domain";
-import {
-  NotificationEntity,
-  NotificationSeverityValueObject,
-} from "@architecture/notifications/domain";
 
 import {
   notificationPolicies,
   type NotificationPolicy,
 } from "#application/policies/notification.policies";
-import type { NotificationRecipientEntity } from "#entities/notification-recipient.entity";
+import type { NotificationRecipientEntity } from "#domain/entities/notification-recipient.entity";
+import {
+  NotificationEntity,
+  NotificationSeverityValueObject,
+} from "#domain/index";
 import type { NotificationRepository } from "#repositories/notification.repository";
 import type { NotificationPreferenceRepository } from "#repositories/notification-preference.repository";
 import type { NotificationDelivery } from "#services/notification-delivery.service";
