@@ -6,27 +6,27 @@
   "types": "./dist/application/index.d.ts",
   "imports": {
     "#domain/*": {
-      "types": "./domain/*.ts",
+      "types": "./src/domain/*.ts",
       "default": "./dist/domain/*.js"
     },
     "#entities/*": {
-      "types": "./domain/entities/*.ts",
+      "types": "./src/domain/entities/*.ts",
       "default": "./dist/domain/entities/*.js"
     },
     "#value-objects/*": {
-      "types": "./domain/value-objects/*.ts",
+      "types": "./src/domain/value-objects/*.ts",
       "default": "./dist/domain/value-objects/*.js"
     },
     "#application/*": {
-      "types": "./application/*.ts",
+      "types": "./src/application/*.ts",
       "default": "./dist/application/*.js"
     },
     "#repositories/*": {
-      "types": "./application/repositories/*.ts",
+      "types": "./src/application/repositories/*.ts",
       "default": "./dist/application/repositories/*.js"
     },
     "#services/*": {
-      "types": "./application/services/*.ts",
+      "types": "./src/application/services/*.ts",
       "default": "./dist/application/services/*.js"
     }
   },

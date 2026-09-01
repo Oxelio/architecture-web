@@ -21,11 +21,11 @@
     }
   },
   "exports": {
-    "./src/domain": {
+    "./domain": {
       "types": "./dist/domain/index.d.ts",
       "default": "./dist/domain/index.js"
     },
-    "./src/application": {
+    "./application": {
       "types": "./dist/application/index.d.ts",
       "default": "./dist/application/index.js"
     }
