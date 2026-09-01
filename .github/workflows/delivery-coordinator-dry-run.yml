@@ -84,7 +84,7 @@ jobs:
         run: |
           set +e
           (
-            cd packages/tooling/delivery-automation
+            cd packages/delivery-automation
             pnpm exec tsx src/cli/coordinator-dry-run.ts
           ) | tee coordinator-result.json
           status=${PIPESTATUS[0]}
