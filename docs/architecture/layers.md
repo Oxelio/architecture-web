@@ -15,7 +15,7 @@ answer at least two real needs.
 
 ## IAM domain
 
-`packages/iam/core/domain` contains entities and value objects. An entity
+`packages/iam/src/domain` contains entities and value objects. An entity
 has an identity and business transitions; a value object validates and wraps a
 value without its own identity.
 
@@ -39,9 +39,12 @@ applies defaults, while `rehydrate` restores already persisted state.
 
 ## IAM application
 
-`packages/iam/core/application` exposes use cases, input/output contracts,
-codes, and required ports. A use case orchestrates a business intent and
-returns a `Result`.
+`packages/iam/src/application` exposes use cases, input/output contracts,
+codes, and required ports. Capability directories such as `accounts`,
+`authentication`, and `access-administration` group their use cases directly;
+there is no additional workspace or required `use-cases` taxonomy between a
+capability and its individual use-case directories. A use case orchestrates a
+business intent and returns a `Result`.
 
 This layer **MAY** depend on the domain, Foundation, and its own ports. It
 **MUST NOT** depend on Kysely, Redis, Argon2, Nodemailer, Postmark, or Fastify
@@ -72,18 +75,20 @@ administrative-session operations.
 
 ## Infrastructure
 
-Each package under `packages/iam/infrastructure` adapts one technology to
-a public application port. It **MUST** state compatibility with `implements`,
-for example
+IAM technical implementations are direct workspace packages such as
+`packages/iam-persistence-kysely`, `packages/iam-session-redis`,
+`packages/iam-password-argon2`, and the IAM email/hash adapters. Each adapter
+adapts one targeted technology to a public application port and **MUST** state
+compatibility with `implements`, for example
 `RedisSessionAdapter implements SessionRepository`.
 
 An adapter **MAY** depend on public `application` and `domain` exports and on
-its targeted library. It **MUST NOT** bypass core exports or import an
+its targeted library. It **MUST NOT** bypass package exports or import an
 application.
 
-Persistence mappers belong here. `UserMapper`, for example, converts Kysely
-rows to `UserEntity` and rejects invalid persisted data with
-`InvalidPersistenceDataError`.
+Persistence mappers belong to the persistence adapter package. `UserMapper`,
+for example, converts Kysely rows to `UserEntity` and rejects invalid persisted
+data with `InvalidPersistenceDataError`.
 
 `KyselyIamUnitOfWorkAdapter` provides repositories bound to one transaction.
 `RedisSessionAdapter.saveEnforcingMaximum` uses one Redis script to save the
@@ -91,29 +96,30 @@ session, clean the expired index, and revoke excess sessions.
 
 ## Messaging, Audit, and Notifications
 
-`packages/messaging/core` separates the Messaging domain from its application.
-The domain owns the integration envelope, `OutboxMessageEntity`, and its value
-objects. The application exposes `OutboxWriter`, `OutboxRepository`, the
-router, and the worker without depending on a database. The PostgreSQL
-implementation and migration belong to
-`packages/messaging/infrastructure/persistence/kysely`.
+`packages/messaging` keeps Messaging domain and application in one package,
+under `src/domain` and `src/application`. The domain owns the integration
+envelope, `OutboxMessageEntity`, and its value objects. The application exposes
+`OutboxWriter`, `OutboxRepository`, the router, and the worker without depending
+on a database. The PostgreSQL implementation and migration belong to
+`packages/messaging-persistence-kysely`.
 
-`packages/audit/core` is an append-only bounded context. Its domain defines
-entries and the redaction policy; its application consumes integration events
-and application or security attempts, then exposes search, export, retention,
-and pseudonymization operations. The PostgreSQL schema, migration, and adapter
-belong to `packages/audit/infrastructure/persistence/kysely`.
+`packages/audit` is an append-only bounded-context package with domain and
+application below `src/`. Its domain defines entries and the redaction policy;
+its application consumes integration events and application or security
+attempts, then exposes search, export, retention, and pseudonymization
+operations. The PostgreSQL schema, migration, and adapter belong to
+`packages/audit-persistence-kysely`.
 
-`packages/notifications/core` is a separate bounded context. Its domain owns
-`NotificationEntity`, `NotificationDeliveryEntity`,
-`NotificationPreferenceEntity`, `NotificationRecipientEntity`, identifiers,
-channels, and severities. A preference owns the recipient-channel composite
-identity and its enabled-state transition. A recipient is an identified concept
-built by the IAM directory adapter; it selects the destination compatible with
-a channel without requiring its own persistence. `NotificationDeliveryEntity`,
-a child of the `NotificationEntity` aggregate, owns claim, success, failure,
-retry, and dead-letter transitions. The client-facing DTO remains an
-application contract.
+`packages/notifications` is a separate bounded-context package with domain and
+application below `src/`. Its domain owns `NotificationEntity`,
+`NotificationDeliveryEntity`, `NotificationPreferenceEntity`,
+`NotificationRecipientEntity`, identifiers, channels, and severities. A
+preference owns the recipient-channel composite identity and its enabled-state
+transition. A recipient is an identified concept built by the IAM directory
+adapter; it selects the destination compatible with a channel without requiring
+its own persistence. `NotificationDeliveryEntity`, a child of the
+`NotificationEntity` aggregate, owns claim, success, failure, retry, and
+dead-letter transitions. The client-facing DTO remains an application contract.
 
 The application turns received facts into aggregates, exposes each intention
 in a use-case directory with its contract and any stable error codes, and
@@ -123,10 +129,13 @@ their aggregate root; the `NotificationDelivery` and
 `NotificationRecipientDirectory` ports are abstract classes whose signatures
 use domain objects directly.
 
-Implementations remain under `packages/notifications/infrastructure`: Kysely
-persistence, Nodemailer email, separate Slack and SMS webhooks, and a Kysely
-directory adapting IAM users to `NotificationRecipientDirectory`. The core
-knows none of these choices.
+Notifications implementations are separate direct workspace packages:
+`packages/notifications-persistence-kysely`,
+`packages/notifications-delivery-nodemailer`,
+`packages/notifications-delivery-slack-webhook`,
+`packages/notifications-delivery-sms-webhook`, and
+`packages/notifications-recipient-iam-kysely`. The Notifications package knows
+none of these concrete choices.
 
 ## Fastify API
 

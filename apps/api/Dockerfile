@@ -1,21 +1,42 @@
-FROM node:26.5.0-alpine3.24 AS builder
+FROM node:26.8.1-alpine3.24 AS builder
 
 WORKDIR /app
 
-RUN npm install -g pnpm@11.15.1
+RUN npm install -g corepack@0.35.0 && corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
+
 COPY packages/foundation/package.json packages/foundation/package.json
-COPY packages/iam/core/package.json packages/iam/core/package.json
-COPY packages/iam/infrastructure/email/nodemailer/package.json packages/iam/infrastructure/email/nodemailer/package.json
-COPY packages/iam/infrastructure/email/postmark/package.json packages/iam/infrastructure/email/postmark/package.json
-COPY packages/iam/infrastructure/persitence/kysely/package.json packages/iam/infrastructure/persitence/kysely/package.json
-COPY packages/iam/infrastructure/security/argon2/package.json packages/iam/infrastructure/security/argon2/package.json
-COPY packages/iam/infrastructure/security/bcrypt/package.json packages/iam/infrastructure/security/bcrypt/package.json
-COPY packages/iam/infrastructure/session/redis/package.json packages/iam/infrastructure/session/redis/package.json
+
+COPY packages/iam/package.json packages/iam/package.json
+COPY packages/iam-email-nodemailer/package.json packages/iam-email-nodemailer/package.json
+COPY packages/iam-email-postmark/package.json packages/iam-email-postmark/package.json
+COPY packages/iam-persistence-kysely/package.json packages/iam-persistence-kysely/package.json
+COPY packages/iam-password-argon2/package.json packages/iam-password-argon2/package.json
+COPY packages/iam-password-bcrypt/package.json packages/iam-password-bcrypt/package.json
+COPY packages/iam-session-redis/package.json packages/iam-session-redis/package.json
+
+COPY packages/audit/package.json packages/audit/package.json
+COPY packages/audit-persistence-kysely/package.json packages/audit-persistence-kysely/package.json
+
+COPY packages/iam-email-verification-sha256/package.json packages/iam-email-verification-sha256/package.json
+
+COPY packages/messaging/package.json packages/messaging/package.json
+COPY packages/messaging-persistence-kysely/package.json packages/messaging-persistence-kysely/package.json
+
+COPY packages/notifications/package.json packages/notifications/package.json
+COPY packages/notifications-delivery-nodemailer/package.json packages/notifications-delivery-nodemailer/package.json
+COPY packages/notifications-delivery-slack-webhook/package.json packages/notifications-delivery-slack-webhook/package.json
+COPY packages/notifications-delivery-sms-webhook/package.json packages/notifications-delivery-sms-webhook/package.json
+COPY packages/notifications-persistence-kysely/package.json packages/notifications-persistence-kysely/package.json
+COPY packages/notifications-recipient-iam-kysely/package.json packages/notifications-recipient-iam-kysely/package.json
+
 COPY packages/eslint-config/package.json packages/eslint-config/package.json
+
+RUN corepack install
 
 RUN pnpm install --frozen-lockfile
 

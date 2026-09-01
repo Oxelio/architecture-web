@@ -35,7 +35,7 @@ on:
     paths:
       - ".github/delivery-automation.json"
       - ".github/workflows/delivery-coordinator-dry-run.yml"
-      - "packages/tooling/delivery-automation/**"
+      - "packages/delivery-automation/**"
       - "pnpm-lock.yaml"
 
 permissions:
@@ -64,10 +64,9 @@ jobs:
           node-version: "24"
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with:
-          version: 11.15.1
-          run_install: false
+          install: false
 
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
@@ -84,7 +83,7 @@ jobs:
         run: |
           set +e
           (
-            cd packages/tooling/delivery-automation
+            cd packages/delivery-automation
             pnpm exec tsx src/cli/coordinator-dry-run.ts
           ) | tee coordinator-result.json
           status=${PIPESTATUS[0]}

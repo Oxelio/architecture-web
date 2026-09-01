@@ -13,6 +13,7 @@ flowchart LR
     notifications["@architecture/notifications"]
     notificationsInfra["Notifications infrastructure"]
     adapters["IAM adapters"]
+    delivery["@architecture/delivery-automation (private)"]
     api["api (private)"]
     web["web (private)"]
     lint["@architecture/eslint-config"]
@@ -35,7 +36,12 @@ flowchart LR
     api -. tooling .-> lint
     web -. tooling .-> lint
     iam -. tooling .-> lint
+    delivery -. tooling .-> lint
 ```
+
+Every direct child of `packages/` is a workspace package root. Cohesive domain and
+application packages keep their internal architectural layers below `src/`;
+technical adapters and repository tooling are separate direct package roots.
 
 ## Catalog
 
@@ -61,12 +67,14 @@ flowchart LR
 | `@architecture/iam-email-nodemailer`                 | selected SMTP delivery                | root export                                       |
 | `@architecture/iam-email-postmark`                   | alternative provider                  | root export                                       |
 | `@architecture/eslint-config`                        | shared ESLint configurations          | `.`, `node`, `react-vite`, `architecture`, `full` |
+| `@architecture/delivery-automation`                  | repository delivery tooling           | private                                           |
 | `api`                                                | server and composition                | private                                           |
 | `web`                                                | React client                          | private                                           |
 
 Each package manifest remains the source of truth. Bcrypt and Postmark adapters
 are tested alternatives, but the current composition selects Argon2 and
-Nodemailer.
+Nodemailer. `@architecture/delivery-automation` is private repository tooling;
+it is a workspace package but not a product/runtime public API.
 
 ## Ports and selected implementations
 
@@ -102,10 +110,11 @@ page and page size, then returns the entity page and filtered total.
 
 PostgreSQL stores users, verifications, recoveries, MFA settings, backup codes,
 challenges, audits, notifications, deliveries, the outbox, configuration
-revisions, exports, and deletion requests. IAM Kysely migrations remain in
-`packages/iam/infrastructure/persitence/kysely/src/persistence/migrations`;
-Messaging, Audit, and Notifications migrations live in their respective
-`infrastructure/persistence/kysely` packages.
+revisions, exports, and deletion requests. IAM Kysely migrations live in
+`packages/iam-persistence-kysely/src/persistence/migrations`; Messaging, Audit,
+and Notifications migrations live respectively in
+`packages/messaging-persistence-kysely`, `packages/audit-persistence-kysely`, and
+`packages/notifications-persistence-kysely`.
 Redis stores expiring sessions, a per-user sorted set, and resend rate limits.
 
 `SecurityService` still queries recovery, MFA, configuration, export, and
@@ -120,5 +129,5 @@ silently normalized.
 
 Packages currently share version `1.0.0-alpha.1`, but the repository contains
 neither Semantic Release configuration nor evidence of independent versioning.
-Most packages use `prepublishOnly` to build. Any stronger publication or SemVer
-policy needs a human decision and an ADR.
+Most publishable packages use `prepublishOnly` to build. Any stronger publication
+or SemVer policy needs a human decision and an ADR.
