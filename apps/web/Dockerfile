@@ -2,10 +2,13 @@ FROM node:26.8.1-alpine3.24 AS build
 
 WORKDIR /app
 
-RUN npm install -g pnpm@11.15.1
+RUN npm install -g corepack@0.35.0 && corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
+COPY packages/eslint-config/package.json packages/eslint-config/package.json
+
+RUN corepack install
 
 RUN pnpm install --frozen-lockfile
 
