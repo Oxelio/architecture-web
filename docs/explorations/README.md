@@ -7,6 +7,7 @@ open questions, but are not normative merely because they are documented.
 
 Current Architecture Web explorations:
 
+- [Human-directed Task execution](delivery/human-directed-task-execution.md)
 - [Configurable user registration](identity/configurable-user-registration.md)
 
 When an Exploration reaches a conclusion, integrate accepted durable knowledge
