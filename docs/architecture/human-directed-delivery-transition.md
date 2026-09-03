@@ -16,36 +16,37 @@
 
 **Governance authority:**
 
-- the human Architecture Web maintainer explicitly accepted the Proposed Governance Target recorded in Work #31 comment `5527765997`;
-- the acceptance is recorded in Work #31 comment `5527788609`;
+- Work #31 comment `5527765997` contains the Proposed Governance Target;
+- the human Architecture Web maintainer explicitly accepted that exact target;
+- Work #31 comment `5527788609` records the Human Governance Acceptance;
 - the accepted target is therefore an **Approved Target**, but it is not Current Truth until the canonical governance owner is updated and integrated.
 
 **Canonical owners and evidence:**
 
 - `docs/project/project-method-profile.md` — resolves `governance.delivery` and owns the human governance-acceptance rule;
 - `docs/project/delivery-pipeline.md` — current owner of effective Architecture Web delivery policy;
-- `docs/explorations/delivery/human-directed-task-execution.md` — non-normative exploration and dependency inventory for this Work;
-- `.github/delivery-automation.json` — current repository-local external-owner activation record;
-- `docs/architecture/agent-aware-delivery-activation.md` — Work #9 Technical Design and historical rationale for the current claim implementation;
+- `docs/explorations/delivery/human-directed-task-execution.md` — non-normative exploration and dependency inventory;
+- `.github/delivery-automation.json` — repository-local external-owner activation record;
+- `docs/architecture/agent-aware-delivery-activation.md` — Work #9 Technical Design and historical rationale for the claim implementation;
 - `.github/workflows/` and `packages/delivery-automation` — current implementation evidence.
 
 ## 1. Authorized constraints to preserve
 
-The accepted governance target changes only Task execution claim/concurrency policy for the currently human-directed delivery model.
+The accepted target changes only Task execution claim/concurrency policy for the currently human-directed delivery model.
 
 The transition MUST preserve:
 
 - native GitHub Project `Status` as the unique operational Work State owner once activated;
 - Work Type, Workflow Depth, Priority, Change Characteristic and native dependency ownership;
 - Task Sub-issues as execution units without Task-level Method Work State;
-- native parent relationships and Task open/closed/disposition evidence;
+- native Task parent and open/closed/disposition evidence;
 - the Work-level implementation WIP limit of at most one Work in `Implementing` unless a human accepts a temporary exception;
 - Readiness and all applicable authority gates;
 - separate Code Review, Architecture Review, Functional Compliance Review and Validation;
 - Work Integration branch/PR rules;
 - Work Merge Gate, Release Promotion Gate and Human Release Approval semantics;
 - `agent:*` routing semantics unchanged by this Work;
-- the project branch topology and normal release path;
+- branch topology and the normal release path;
 - Work #9 history and rationale as historical evidence.
 
 The transition MUST NOT introduce a replacement claim, lease, heartbeat, Task lifecycle, hidden active-Task field or mandatory assignee convention.
@@ -65,27 +66,33 @@ Once #31 becomes effective, Architecture Web delivery is human-directed for Task
 
 This removes the project-wide V1 invariant that exactly one implementation Task may be active within a Work. It does **not** remove the Work-level WIP limit.
 
-## 3. Responsibility boundaries
+### 2.1 Canonical policy change to implement
 
-This change has three distinct owners and must not collapse them into one migration step.
+The implementation change in `docs/project/delivery-pipeline.md` must remove the current `V1 Task execution concurrency` claim protocol and replace it with policy equivalent to:
+
+> Architecture Web currently uses human-directed Task execution. When implementation Tasks exist inside an `Implementing` Work, a human selects an executable Task from the authorized Task plan. Semantic ordering and required serialization are expressed by the Task plan and activated Task dependencies. Architecture Web does not require a Work-scoped Task claim, lease, lock, heartbeat, mandatory assignee, or separate Task lifecycle for ordinary human execution. Independent Tasks may proceed in any order or in parallel only when their authorized design and dependencies permit it. The Work-level implementation WIP limit remains unchanged. Autonomous Task selection/dispatch requires a separate accepted Governance/Technical Design scope before activation.
+
+The final canonical wording may be edited for consistency with the surrounding document, but it MUST preserve the accepted semantics above and MUST NOT introduce additional governance decisions.
+
+Claim-dependent wording elsewhere in the same owner must also be removed or rewritten so the document contains no contradictory mandatory-claim rule.
+
+## 3. Responsibility boundaries
 
 ### 3.1 Governance owner
 
-`docs/project/delivery-pipeline.md` owns the effective rule. It must stop requiring:
+`docs/project/delivery-pipeline.md` owns the effective human-first rule. It must stop requiring:
 
 - Work-scoped Task execution claims;
 - claim acquisition/release for human execution;
 - universal Task serialization inside one Work;
 - mixed human/automated fail-closed logic based on claim state;
-- activation of an active Task execution-claim mechanism as a prerequisite of ordinary delivery.
-
-It must establish the accepted human-directed Task execution rule instead.
+- activation of a Task execution-claim mechanism as a prerequisite of ordinary delivery.
 
 ### 3.2 Activation record
 
-`.github/delivery-automation.json` records whether external mechanisms are active. When the governance change becomes effective, it MUST NOT continue to claim that `taskClaim` is an effective external owner.
+`.github/delivery-automation.json` must stop representing `taskClaim` as an effective external owner when the governance rule becomes effective.
 
-For the #31 governance transition, the existing schema remains version `1` and the `taskClaim` key is retained temporarily with:
+For Stage A, keep schema version `1` and retain the required key with:
 
 ```json
 {
@@ -93,83 +100,82 @@ For the #31 governance transition, the existing schema remains version `1` and t
 }
 ```
 
-This is a deliberate compatibility bridge. The current parser already supports inactive mappings, so the governance transition does not need to change the manifest schema merely to stop representing claim state as effective.
-
-Removal of the `taskClaim` key from the manifest contract, including any schema-version change, belongs to the downstream technical cleanup.
+The current parser already supports inactive mappings. Removing the key itself would require corresponding parser/schema changes and belongs to the downstream technical cleanup.
 
 ### 3.3 Implementation cleanup
 
-The claim workflow, claim-specific code/tests, Project fields and claim-dependent automated Task-dispatch surfaces are implementation evidence, not governance owners. They become obsolete after the governance owner is effective and `taskClaim` is inactive.
-
-Their physical removal belongs to a follow-up Technical Change so the project does not depend on the old claim rule while trying to remove the implementation of that same rule.
+The claim workflow, claim-specific code/tests, Project fields and claim-dependent automated Task-dispatch surfaces are implementation evidence, not governance owners. Their physical removal belongs to a follow-up Technical Change after #31 is Current Truth.
 
 ## 4. Transition topology
 
 The migration uses two Works rather than one all-at-once implementation.
 
-### Stage A — Work #31: governance adoption and deactivation
+### Stage A — Work #31: governance adoption and activation declassification
 
-#31 owns:
+After Readiness, #31 implements only the tightly coupled governance transition:
 
-- the canonical `docs/project/delivery-pipeline.md` change;
-- the repository-local activation synchronization from `taskClaim = verified` to `taskClaim = inactive`;
-- this Technical/Governance Migration Design;
-- the Work #31 Exploration conclusion;
-- an applicability note on Work #9 Technical Design sufficient to prevent its claim-specific target from being mistaken for the new effective policy after #31 is integrated.
+- update `docs/project/delivery-pipeline.md` to the accepted human-first rule;
+- change `.github/delivery-automation.json` from `taskClaim = verified` to `taskClaim = inactive` while keeping schema v1;
+- add a concise applicability note to `docs/architecture/agent-aware-delivery-activation.md` stating that claim-specific design remains Work #9 historical rationale but is superseded for current delivery once #31 is effective;
+- conclude the Exploration without turning it into a second normative owner.
 
-#31 does **not** need to delete the five Project claim fields or claim implementation before its governance rule can become effective.
+#31 does **not** delete the five live Project fields or remove claim implementation code before the governance rule is effective.
 
-The Work remains a Governance Change. Its primary integration result is an accepted governance owner change, not a speculative autonomous-executor redesign.
+### Stage B — follow-up Technical Change: remove obsolete implementation
 
-### Stage B — follow-up Technical Change: remove obsolete claim implementation
+After #31 is integrated, a separate Technical Change should remove and synchronize:
 
-A separate Technical Change should remove and synchronize:
-
-- Project fields `Active Task`, `Execution Claimant`, `Execution Claim Generation`, `Execution Claim Run`, `Execution Claim Acquired At` after a live re-read proves no meaningful active/partial record is being discarded;
-- `taskClaim` from the activation manifest contract, with an explicit decision on schema versioning;
+- Project fields `Active Task`, `Execution Claimant`, `Execution Claim Generation`, `Execution Claim Run`, `Execution Claim Acquired At`, after a live read proves no meaningful active/partial record is being discarded;
+- `taskClaim` from the activation manifest contract, with an explicit schema-version decision;
 - `.github/workflows/delivery-task-claim.yml`;
-- claim-only package scripts and source files;
-- claim-only tests;
+- claim-only package scripts, source files and tests;
 - claim-specific branches of mixed activation/coordinator/operational-state code;
 - autonomous `task-dispatch` coordinator surfaces that exist only for the deferred autonomous execution model;
-- any package/current-architecture wording that materially describes removed responsibilities.
+- current package/architecture wording materially describing removed responsibilities.
 
 The follow-up Work must preserve Ready Queue observation, Project inventory, Work State/classification mappings, dependency/WIP logic, Work Integration target authorization, Work Merge Gate, Release Promotion Gate, Human Release Approval handling and generic validation unless its own design establishes another reason to change them.
 
-## 5. Why the transition is split
+## 5. Why the migration is split
 
-The Current Truth requires a Task claim before implementation Task execution, while the current manual claim publisher is not operationally dispatchable until its workflow exists on the repository default branch.
+Current Truth requires Task claims for implementation Tasks, while the current manual claim publisher is not operationally dispatchable until its workflow exists on the repository default branch.
 
-Trying to perform claim-removal implementation Tasks before the governance rule changes would recreate the bootstrap problem that triggered #31.
+Trying to remove the claim implementation through implementation Tasks before changing the governing rule would recreate the bootstrap problem that triggered #31.
 
-The split avoids inventing an undocumented exception:
+The selected sequence is:
 
 ```text
 Current governance
     |
-    | human governance acceptance already exists
+    | Human Governance Acceptance already exists
     v
-#31 governance adoption
-    |- delivery-pipeline becomes human-first
-    |- taskClaim activation becomes inactive
+Work #31
+    |- adopt human-first rule in canonical owner
+    |- mark taskClaim activation inactive
+    |- mark Work #9 claim design superseded for current delivery
     v
 New Current Truth
     |
     v
 Follow-up Technical Change
     |- remove obsolete workflow/code/tests/fields
-    |- simplify manifest/schema and coordinator implementation
+    |- simplify manifest/schema/coordinator implementation
 ```
 
-No force update, branch-topology change, hidden exception or temporary replacement lock is required.
+No force update, branch-topology change, hidden policy exception or replacement lock is required.
 
-## 6. Task planning for Work #31
+## 6. Task Planning decision for #31
 
-#31 should remain a single coherent Governance Work rather than manufacturing implementation Sub-issues solely to satisfy ceremony.
+#31 remains one coherent Governance Work and does **not** create implementation Sub-issues for Stage A.
 
-Its repository change is one tightly coupled governance transition: canonical policy + activation-state deactivation + design/applicability synchronization. Splitting these into implementation Tasks before the new governance rule is effective would create the very Task-claim dependency the Work is removing.
+Reason:
 
-The downstream technical cleanup is independently verifiable and materially larger; it therefore receives its own Work and Task Planning after #31 becomes effective.
+- Stage A is one tightly coupled governance transition;
+- its owner/configuration/applicability changes must become effective together;
+- manufacturing implementation Tasks before the new governance rule is effective would make #31 depend on the Task-claim protocol it exists to remove;
+- the Method/project policy does not require artificial Sub-issues merely because Workflow Depth is Complex;
+- the materially larger and independently verifiable destructive cleanup is separated into the follow-up Technical Change, where Task Planning will be appropriate.
+
+This is a Task Planning result, not an exception to the Method.
 
 ## 7. Data and operational state
 
@@ -177,20 +183,18 @@ The downstream technical cleanup is independently verifiable and materially larg
 
 The five Project fields remain physically present through Stage A. Their presence no longer makes them an operational owner after:
 
-- `docs/project/delivery-pipeline.md` no longer assigns ownership to a claim mechanism; and
+- the canonical policy no longer assigns ownership to a claim mechanism; and
 - `.github/delivery-automation.json` records `taskClaim` as inactive.
 
-Before Stage B deletes them, the Project must be re-read live. Any populated or partial claim record must be explicitly assessed and cleared/migrated as operational cleanup evidence rather than silently discarded.
+Before Stage B deletes them, Project #3 must be re-read live. Any populated or partial claim record must be explicitly assessed and cleared/migrated as operational cleanup evidence rather than silently discarded.
 
 ### 7.2 Manifest compatibility bridge
 
-Stage A intentionally keeps schema v1. `taskClaim: inactive` is representable by the current parser and avoids mixing governance adoption with a manifest-contract migration.
+Stage A intentionally keeps schema v1. `taskClaim: inactive` is representable by the current parser and avoids mixing governance adoption with manifest-contract migration.
 
-Stage B decides whether removing the key warrants schema v2. Because the existing parser requires exact mapping keys, physical key removal cannot safely precede corresponding code/parser changes.
+Stage B decides whether removing the key warrants schema v2. The current parser requires an exact mapping key set, so physical key removal cannot safely precede parser changes.
 
-## 8. Flows and contracts
-
-### Human Task selection after #31
+## 8. Execution flow after #31
 
 ```text
 Work Status = Implementing
@@ -208,70 +212,69 @@ perform authorized work on the Work integration path
 record Task completion/disposition
         |
         v
-select next eligible Task when needed
+select another eligible Task when needed
 ```
 
 There is no claim acquisition/release step.
 
-### Automated execution
+No new automated Task-dispatch contract is introduced. Existing `agent:*` labels remain route metadata only. A future autonomous executor requires separate accepted governance/design for selection, concurrency, recovery, security and scheduling.
 
-No new automated Task-dispatch contract is introduced by #31. Existing `agent:*` labels remain route metadata only. A future autonomous executor requires a separate accepted Work to define its selection, concurrency, recovery, security and scheduling model.
+## 9. Concurrency and consistency
 
-## 9. Concurrency and idempotency
-
-The accepted target intentionally removes a global Task-level concurrency protocol.
+The target intentionally removes a global Task-level concurrency protocol.
 
 Concurrency is governed by:
 
 - Work-level WIP;
 - explicit Task dependencies;
-- the authorized Task plan;
-- normal Git branch/merge conflict handling;
+- the authorized Task plan/Technical Design;
+- normal Git branch/merge-conflict handling;
 - review and validation at the Work boundary.
 
-The project does not assume parallel Tasks are always safe. If a specific Work requires serialization for semantic or technical reasons, its Task dependencies or Technical Design must express that need for that Work rather than relying on a universal claim mechanism.
+The project does not assume parallel Tasks are always safe. If a specific Work requires serialization, its Task dependencies or Technical Design must express that need rather than relying on a universal claim mechanism.
 
 ## 10. Security and permissions
 
-Removing claims reduces privileged Project mutation surface because ordinary human Task execution no longer needs the Projects credential merely to acquire/release a lock.
+Removing claims reduces privileged Project mutation surface because ordinary human Task execution no longer needs Projects credentials merely to acquire/release a lock.
 
-Stage A does not expand any credential permission.
+Stage A expands no credential permission.
 
-Stage B should remove claim-specific privileged mutation paths and verify that:
+Stage B must verify that:
 
+- claim-specific privileged mutation paths are removed;
 - remaining workflows retain least privilege;
-- Projects credentials remain only where current Project owners must be read or mutated;
-- gate publisher privilege separation remains unchanged;
-- deletion of the claim workflow does not remove unrelated repository/gate validation.
+- Projects credentials remain only where active Project owners must be read or mutated;
+- Work/Release gate privilege separation remains unchanged;
+- deleting claim machinery does not remove unrelated validation or authority gates.
 
 `agent:*` route mutation authority remains unchanged.
 
-## 11. Migration and compatibility
+## 11. Migration truthfulness
 
-The transition must preserve truthful Current State throughout:
+The transition must preserve truthful state:
 
-1. Human Governance Acceptance already establishes the Approved Target.
-2. #31 prepares the canonical policy change and records `taskClaim` inactive in the same governed integration change.
-3. Until that integration occurs, the old delivery policy remains Current Truth.
-4. After integration, human-first delivery is Current Truth and claim state is no longer an active external owner.
-5. Obsolete claim implementation may still physically exist temporarily, but it is non-authoritative and must not be used as a substitute owner.
-6. The follow-up Technical Change removes the obsolete implementation and Project fields.
-7. Work #9 records remain historical evidence; only applicability/current-target wording is synchronized.
+1. Human Governance Acceptance establishes the Approved Target.
+2. Before #31 integration, the existing mandatory-claim policy and `taskClaim = verified` remain Current Truth.
+3. Stage A changes canonical policy and activation representation together.
+4. After Stage A integration, human-first delivery is Current Truth and claim state is no longer an active external owner.
+5. Obsolete claim implementation may physically remain for a short compatibility period, but it is non-authoritative and must not be used as a substitute owner.
+6. Stage B removes the obsolete implementation and fields.
+7. Work #9 Issue/PR/review/CI evidence remains historical evidence; only current applicability is synchronized.
 
-This is an intentional short compatibility period, not a second supported delivery mode.
+This is a one-way migration, not two supported delivery modes.
 
 ## 12. Failure handling
 
 Stage A must fail rather than integrate if:
 
-- the canonical policy still contains contradictory mandatory-claim language;
-- `taskClaim` remains `verified` while the policy says the claim mechanism is no longer active;
-- the change accidentally modifies `agent:*` routing semantics;
+- mandatory-claim language remains contradictory in the canonical delivery owner;
+- `taskClaim` remains `verified` while the new policy says the mechanism is inactive;
+- the change modifies `agent:*` routing semantics;
 - Work-level WIP, authority, review, validation, merge or release rules are weakened;
-- the Work #9 applicability note rewrites historical evidence rather than marking supersession;
-- validation detects a broken manifest/parser contract.
+- the Work #9 note rewrites historical evidence rather than marking supersession;
+- schema-v1 manifest parsing no longer accepts the intended inactive mapping.
 
-Stage B must stop before Project field deletion if live state cannot be read or if an active/partial claim value cannot be safely explained and cleared.
+Stage B must stop before Project field deletion if live state cannot be read or an active/partial claim value cannot be safely explained and cleared.
 
 ## 13. Validation strategy
 
@@ -279,98 +282,103 @@ Stage B must stop before Project field deletion if live state cannot be read or 
 
 Minimum evidence:
 
-- governance diff review proving the change matches accepted comment `5527765997` and introduces no additional policy semantics;
-- search/inspection proving no mandatory claim/concurrency rule remains in the effective delivery owner;
-- manifest parse/tests proving `taskClaim: inactive` remains valid under schema v1;
-- confirmation that Ready Queue, Work-level WIP, Work State, dependencies, Work/Release gates and release policy are unchanged;
+- governance diff review proving alignment with accepted comment `5527765997` and no additional policy semantics;
+- search/inspection proving no mandatory claim/concurrency rule remains in `docs/project/delivery-pipeline.md`;
+- tests proving `taskClaim: inactive` remains valid under schema v1 and does not corrupt unrelated activation parsing;
+- confirmation that Ready Queue, Work-level WIP, Work State, dependencies, Work/Release gates and release policy remain unchanged;
 - documentation relative-link/path validation;
 - `pnpm format:check`;
 - `git diff --check`;
-- package/repository tests affected by the manifest activation change;
-- Governance Review and Architecture/Security-Operational review focused on authority, activation truthfulness and privilege boundaries.
+- affected package/repository tests;
+- Governance Review;
+- Architecture/Security-Operational review focused on owner truthfulness and privilege boundaries;
+- final Validation against the integrated candidate.
 
 ### Stage B / follow-up Technical Change
 
-Minimum evidence should include build, typecheck, test typecheck, lint, tests, formatting and whitespace checks, plus focused tests for remaining activation/Ready Queue/gate behavior and live Project cleanup evidence.
+Minimum evidence should include build, typecheck, test typecheck, lint, tests, formatting and whitespace checks, focused tests for remaining activation/Ready Queue/gate behavior, and live Project cleanup evidence.
 
-## 14. Technical alternatives and trade-offs
+## 14. Alternatives and trade-offs
 
-### A. Remove everything in #31 before policy integration
+### Remove everything inside #31 before policy integration
 
-Rejected. It requires operating under the very claim rule being removed and recreates the default-branch bootstrap problem.
+Rejected. It recreates the bootstrap circularity and expands #31 into destructive technical cleanup.
 
-### B. Keep the claim subsystem indefinitely but mark it optional
+### Keep claims indefinitely as optional future infrastructure
 
-Rejected. The accepted target explicitly avoids preserving speculative lock/lease infrastructure for a future autonomous executor requirement that does not currently exist.
+Rejected. The accepted target explicitly avoids speculative claim/lease infrastructure for a requirement that does not exist.
 
-### C. Replace the claim with mandatory assignee/issue-comment `Active Task` convention
+### Replace claims with mandatory assignee/comment/Task-status conventions
 
-Rejected. This would recreate a second Task ownership protocol without a present correctness need.
+Rejected. This would recreate a hidden Task ownership protocol without a present correctness need.
 
-### D. Change `taskClaim` directly from verified to removed in schema v1
+### Remove the `taskClaim` manifest key directly in Stage A
 
-Rejected for Stage A. The current parser requires an exact mapping key set. Marking the mapping inactive is a smaller truthful transition; structural manifest cleanup belongs with the code migration.
+Rejected. The current parser requires the key. `inactive` is the smallest truthful compatible transition; structural schema cleanup belongs to Stage B.
 
-### E. Split governance adoption from technical cleanup
+### Split governance adoption from technical cleanup
 
-Selected. It preserves owner authority, avoids bootstrap circularity, provides a truthful compatibility bridge and gives the larger destructive cleanup its own Technical Change/Readiness boundary.
+Selected. It preserves owner authority, avoids bootstrap circularity, keeps the transition truthful and gives destructive cleanup its own Readiness boundary.
 
 ## 15. ADR assessment
 
 No ADR is triggered by #31.
 
-The change removes a speculative coordination mechanism and simplifies project delivery governance. It does not establish a durable structural application architecture decision with alternatives that need a separate long-lived rationale owner. The accepted governance record, this migration design, Work #9 historical rationale and Git history are sufficient.
+The change removes speculative delivery machinery and does not establish a durable structural application architecture decision requiring a separate rationale owner. The accepted governance record, this migration design, Work #9 historical rationale and Git history are sufficient.
 
-Re-evaluate the ADR trigger only if a future autonomous-executor design introduces a durable external coordination service, persistent distributed scheduler/lease architecture or another structural system boundary.
+Re-evaluate the ADR trigger if a future autonomous-executor design introduces a persistent external coordinator, distributed scheduler/lease service or another durable structural boundary.
 
 ## 16. Risks and resolved decisions
 
-### Resolved
+Resolved for Stage A:
 
-- **R-01 — bootstrap circularity:** resolved by separating governance adoption from claim implementation cleanup.
-- **R-02 — manifest truthfulness:** resolved for Stage A by changing `taskClaim` from `verified` to `inactive` while retaining schema v1.
-- **R-03 — accidental scope expansion into agent routing:** resolved by explicitly preserving `agent:*` semantics.
-- **R-04 — replacement hidden lock:** resolved by rejecting mandatory assignee/comment/Task-status substitutes.
-- **R-05 — Work #9 historical rewrite:** resolved by applicability/supersession annotation only.
+- **bootstrap circularity** — Stage A changes governance without implementation Sub-issues; destructive cleanup is deferred;
+- **activation truthfulness** — Stage A changes `taskClaim` to `inactive`, not removed;
+- **agent-routing scope creep** — `agent:*` remains unchanged;
+- **replacement hidden lock** — no mandatory assignee/comment/status substitute;
+- **historical rewrite** — Work #9 gets an applicability note only.
 
-### Remaining implementation risk for Stage B
+Remaining Stage B risk:
 
-- live Project #3 claim-field values cannot be assumed from repository evidence and must be read immediately before destructive cleanup.
+- live Project #3 claim-field values must be read immediately before destructive cleanup.
 
-This risk is non-blocking for Stage A because #31 does not delete the fields.
+That risk does not block Stage A because #31 does not delete those fields.
 
 ## 17. Work #9 applicability
 
-After #31 becomes effective, claim-specific parts of `docs/architecture/agent-aware-delivery-activation.md` remain historical rationale for Work #9 but are no longer an effective target for current delivery.
+After #31 becomes effective, claim-specific parts of `docs/architecture/agent-aware-delivery-activation.md` remain Historical Rationale for Work #9 but are no longer an effective target for current delivery.
 
-The document should receive a concise applicability note referencing Work #31. It must not be rewritten as though Work #9 never implemented claims.
+The document must receive a concise applicability note referencing #31. It must not be rewritten as though Work #9 never implemented claims.
 
-Non-claim parts of Work #9 remain applicable where still consistent with current policy, including deterministic Project inventory, Work State activation, Ready Queue observation, Work Integration target verification, gate evaluation/publication and privilege separation.
+Non-claim parts remain applicable where consistent with current policy, including deterministic Project inventory, Work State activation, Ready Queue observation, Work Integration target verification, gate evaluation/publication and privilege separation.
 
 ## 18. Follow-up Work trigger
 
-After #31 is integrated and the human-first rule is Current Truth, create one follow-up **Technical Change / Complex** Work for obsolete claim implementation removal.
+After #31 is integrated and human-first delivery is Current Truth, create one follow-up **Technical Change / Complex** Work for obsolete claim implementation removal.
 
 Expected Change Characteristics:
 
 - `char:cross-system`;
 - `char:operational`;
-- `char:concurrency` while removing concurrency machinery;
-- `char:destructive` because live Project fields and workflow/code paths will be deleted;
-- `char:security` because privileged workflow/credential surfaces are reduced.
+- `char:concurrency`;
+- `char:destructive` for live field/workflow/code deletion;
+- `char:security` because privileged mutation surfaces are reduced.
 
-That Work should create focused implementation Tasks after its Technical Design is sufficient and should pass formal Readiness before destructive cleanup.
+That Work should create focused implementation Tasks after its Technical Design is sufficient and pass formal Readiness before destructive cleanup.
 
 ## 19. Readiness inputs for #31
 
-#31 is ready for Task Planning / Readiness assessment when the branch contains:
+#31 may proceed to formal Readiness when the following design/context is resolved:
 
-- this migration design;
-- the accepted governance record in Work #31;
-- an Exploration conclusion matching the accepted target;
-- a prepared canonical `delivery-pipeline.md` diff matching the accepted target;
-- `taskClaim` prepared as inactive in the activation manifest;
-- a Work #9 applicability note that preserves historical rationale;
-- no unresolved decision about Stage A scope.
+- Human Governance Acceptance is recorded and unambiguous;
+- this migration design is present and internally consistent;
+- the Exploration inventory supports the accepted target;
+- the exact canonical policy semantics to implement are specified in this design;
+- Stage A scope is bounded to canonical governance adoption, activation declassification and Work #9 applicability synchronization;
+- Task Planning has explicitly concluded that no Stage A implementation Sub-issues are required;
+- no unresolved decision remains about `agent:*`, Work-level WIP, manifest compatibility, Work #9 history or the Stage A/Stage B split;
+- validation and review evidence requirements are defined.
 
-Project-backed Work Type / Workflow Depth / Work State remain operational Project subjects and must be synchronized according to the delivery profile before lifecycle transitions are treated as recorded Current State.
+No canonical owner, activation manifest or implementation file needs to be mutated merely to pass Readiness. Those are Stage A implementation actions permitted only after a valid Readiness result.
+
+Project-backed Work Type, Workflow Depth and Work State remain operational Project subjects and must be synchronized according to the delivery profile before lifecycle transitions are treated as recorded Current State.
