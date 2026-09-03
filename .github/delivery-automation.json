@@ -39,8 +39,7 @@
       "evidenceRef": "work-9-live-project-verification"
     },
     "taskClaim": {
-      "status": "verified",
-      "evidenceRef": "work-9-live-project-verification"
+      "status": "inactive"
     },
     "workIntegrationPr": {
       "status": "verified",
