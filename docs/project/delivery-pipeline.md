@@ -105,13 +105,13 @@ as unavailable rather than inferred or replaced by chat history, PR text, or a
 parallel ad hoc field.
 
 Initial activation of Project-backed fields, labels, views, relationships,
-execution-claim mechanisms, required checks, environments, and privileged
-publisher credentials therefore requires separate delivery/governance
-implementation and verification. That step MUST verify at least the configured
-field names and values, applicable labels/relationships, the native `Status`
-Work State mapping, routing visibility, execution-claim semantics, required
-checks, and the intended Project views before an external owner or enforcement
-mechanism is treated as effective. Project lifecycle settings that cannot be
+required checks, environments, and privileged publisher credentials therefore
+requires separate delivery/governance implementation and verification. That step
+MUST verify at least the configured field names and values, applicable
+labels/relationships, the native `Status` Work State mapping, routing visibility,
+required checks, and the intended Project views before an external owner or
+enforcement mechanism is treated as effective. Project lifecycle settings that
+cannot be
 proved through the available inventory API require explicit operator evidence
 rather than an implicit machine-verification claim.
 
@@ -239,28 +239,32 @@ implementation-defined but MUST be deterministic. Task closure alone does not
 prove successful completion when its disposition does not satisfy the authorized
 Task plan.
 
-#### V1 Task execution concurrency
+#### Human-directed Task execution
 
-V1 MUST serialize all active implementation Task execution within one Work,
-regardless of human or automated execution. At most one implementation Task may
-hold the Work's active Task execution claim at a time.
+Human-directed Task execution is the active delivery model. When implementation
+Tasks exist inside an `Implementing` Work, a human selects an executable Task from
+the authorized Task plan and coordinates its execution.
 
-A human or automated executor MUST establish that claim before beginning Task
-execution and MUST release or resolve it when execution ends, is handed off, or
-reaches an accepted terminal disposition.
+Ordinary human execution MUST NOT require a Work-scoped Task execution claim,
+lease, lock, generation, heartbeat, or equivalent machine-owned Task state. The
+project has no universal single-active-Task invariant inside one Work. Semantic
+ordering and permitted parallelism are established by the authorized Task plan
+and activated Task dependencies.
 
-The Workflow Coordinator MUST NOT dispatch an automated Task while another Task
-for the same Work has an active claim, including a human-executed Task. A human
-MUST NOT begin a second Task while another claim is active unless a human with
-explicit project delivery/governance authority authorizes a bounded exception.
+Native assignees MAY communicate responsibility or visibility, but they do not
+own exclusivity, lifecycle, execution authority, or a replacement Task lock. Task
+open/closed state and disposition remain execution evidence and do not create a
+Task-level Method Work State.
 
-The exact GitHub field, relationship, lock, lease, heartbeat, timeout, recovery,
-or other claim mechanism belongs to downstream activation/Technical Design.
-Until that mechanism is implemented and verified, automated dispatch MUST treat
-a mixed human/automated Work as unavailable when it cannot reliably establish
-that no human Task is active.
+If a specific Work requires Task serialization for semantic or technical reasons,
+its Task plan, dependencies, or Technical Design MUST express that constraint for
+that Work rather than relying on a project-wide concurrency protocol.
 
-This constraint does not create a Task-level Method Work State.
+Autonomous Task selection or dispatch is not an active project requirement. A
+future autonomous executor that needs concurrency ownership, recovery, leases, or
+scheduling MUST establish those concrete requirements through separate accepted
+Governance and Technical Design scope before activation. `agent:*` routing alone
+does not grant autonomous Task-dispatch authority.
 
 ## 4. Work State
 
@@ -429,8 +433,9 @@ Delivery selection policy:
 
 `agent:*` therefore filters dispatch candidates only after lifecycle, dependency,
 and WIP eligibility. It does not redefine Ready Queue membership or Priority.
-The same separation applies to Task dispatch inside an eligible `Implementing`
-Work.
+Inside an eligible `Implementing` Work, human Task selection follows the
+authorized Task plan and Task dependencies. Autonomous Task dispatch is not an
+active delivery requirement.
 
 The implementation WIP limit is an Architecture Web policy, not a generic Method
 invariant. Work in `Reviewing` or `Validating` is not counted by this initial
@@ -664,8 +669,6 @@ Automation MUST NOT blindly:
 - execute human-only approvals;
 - change Priority as a substitute for delivery authority;
 - let an execution agent self-assign or silently substitute its `agent:*` route;
-- assume a mixed human/automated Work is idle when Task activity cannot be
-  reliably established;
 - accept a target ref solely from untrusted agent output;
 - treat Work Merge Gate or Release Promotion Gate success as automatic merge
   authority.
@@ -688,9 +691,11 @@ feature execution unless the authorized Work explicitly includes them and
 applicable policy permits it.
 
 The delivery control plane MUST deterministically apply established policy for
-Work/Task dispatch eligibility, dependencies, WIP, routing validation, target-ref
+Work dispatch eligibility, dependencies, WIP, routing validation, target-ref
 validation, lifecycle-transition validity, Work Merge Gate evaluation, and
-Release Promotion Gate prerequisites.
+Release Promotion Gate prerequisites. Human Task selection remains governed by
+the authorized Task plan and Task dependencies rather than an autonomous
+control-plane dispatch protocol.
 
 The control plane MAY record or act on semantic results established by the Role
 or Authority responsible for the underlying Activity. It MUST NOT manufacture
@@ -836,8 +841,8 @@ restored.
 
 Durable delivery governance MUST remain independent from a specific agent runtime
 or AI model. Runtime implementation MAY change without redefining `agent:*`,
-Work State, Method Roles, Work Merge Gate semantics, Task concurrency, or release
-authority.
+Work State, Method Roles, Work Merge Gate semantics, human-directed Task
+execution policy, or release authority.
 
 External mappings/enforcement become effective only after separate implementation
 and verification. This includes, where applicable:
@@ -845,7 +850,6 @@ and verification. This includes, where applicable:
 - native `Status` Work State mapping and its lifecycle-safe Project settings;
 - `agent:*` label inventory and route mapping;
 - Task dependency mappings;
-- active Task execution-claim mechanism;
 - routing visibility/filtering in Project views;
 - Work Merge Gate required checks/rulesets;
 - Release Work operational mapping;

@@ -24,6 +24,14 @@
 
 This design implements the existing delivery policy. It does not redefine that policy.
 
+## Current applicability
+
+Work #9 remains historical rationale and implementation evidence for the deterministic delivery control plane.
+
+Once Work #31 becomes effective, the claim-specific parts of this design are superseded for current Architecture Web delivery. This includes mandatory Work-scoped Task execution claims, universal Task serialization, claim acquisition/release/recovery, and claim-specific activation requirements.
+
+Non-claim control-plane design remains applicable where it is consistent with the current canonical delivery policy in `docs/project/delivery-pipeline.md`, including Project inventory, Work State activation, Ready Queue observation, Work Integration target verification, gate evaluation/publication, and privilege separation.
+
 ## 1. Scope correction
 
 Implementation evidence established that selecting and operating a concrete coding-agent runtime is a separate material decision from activating the deterministic GitHub control plane. In particular, provider/runtime alternatives can change authentication, cost, scheduling, trust boundaries, availability, and execution topology without changing the delivery policy itself.
