@@ -37,6 +37,8 @@ pnpm lint
 pnpm test
 pnpm test:coverage
 pnpm format:check
+pnpm docs:links
+pnpm docs:links:test
 ```
 
 For a shorter loop:
@@ -87,15 +89,35 @@ sufficiency.
 
 ## Markdown links
 
-No dedicated link-checking script is versioned in the repository. During a documentation audit, validate every relative Markdown link against
-its target in the canonical `docs/` tree. There are no parallel language trees
-to mirror. A local checker should resolve links from the source document,
-remove fragments when checking file existence, decode paths, and ignore
-external URLs and standalone anchors. Anchors need a separate check when
-critical.
+Run `pnpm docs:links` to validate repository-relative Markdown links in
+`README.md`, `AGENTS.md`, and `docs/**/*.md`. The checker resolves targets from
+the source document, removes query strings and fragments before checking file
+existence, decodes URI paths, ignores external URLs and standalone anchors, and
+fails when a target is missing or escapes the repository root. Anchor existence
+itself is not validated.
 
-No dedicated documentation-link checker is currently part of the repository or
-CI. Adding one is a recommendation, not a current guarantee.
+The removed legacy `docs/method/` tree is explicitly rejected. References to the
+adopted Software Engineering Method under `external/software-engineering-method/`
+are checked against the initialized submodule and fail closed when that target is
+unavailable.
+
+Before local validation, initialize the Method submodule when needed:
+
+```bash
+git submodule update --init --recursive
+pnpm docs:links
+```
+
+A CI job that executes `pnpm docs:links` MUST checkout the Method submodule first.
+With `actions/checkout`, configure recursive submodule checkout or perform an
+equivalent explicit initialization before running the command. This requirement
+does not make GitHub Actions the validation authority.
+
+Run `pnpm docs:links:test` for the controlled checker tests. They cover a valid
+relative link, a nonexistent target, an explicitly forbidden `docs/method/`
+regression, and a missing Method submodule target. The negative cases must return
+validation errors, demonstrating fail-closed behavior without adding an external
+service, credential, action, or runtime dependency.
 
 ## Coverage
 
