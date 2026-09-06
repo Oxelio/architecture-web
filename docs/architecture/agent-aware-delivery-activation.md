@@ -1,6 +1,6 @@
 # Technical Design — Activate deterministic agent-aware delivery control plane
 
-**Artifact status:** Implemented — under review  
+**Artifact status:** Implemented\
 **Content status:** Proposed  
 **Document type:** Technical Design  
 **Domain:** Delivery automation / GitHub operations
@@ -11,7 +11,6 @@
 **Work Type:** Technical Change  
 **Workflow Depth:** Complex  
 **Change Characteristics:** security, cross-system, concurrency, operational  
-**Current activity:** Reviewing after implementation correction  
 **Authorized functional source:** Not applicable; this Work must preserve product behavior.
 
 **Canonical owners:**
