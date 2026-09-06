@@ -18,7 +18,9 @@
     "test": "pnpm -r --if-present run test",
     "test:coverage": "pnpm -r --if-present run test:coverage",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "docs:links": "node scripts/check-markdown-links.mjs",
+    "docs:links:test": "node --test scripts/check-markdown-links.test.mjs"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,ts,tsx}": [

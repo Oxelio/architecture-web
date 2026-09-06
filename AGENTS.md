@@ -43,8 +43,10 @@ permission matrix in the project delivery profile before creating/updating Work
 records, moving `Work State`, closing Work, or performing other workflow
 mutations.
 
-A merged PR is not automatically `Done`, and native GitHub `Status` is not an
-Architecture Web lifecycle owner.
+A merged PR is not automatically `Done`. Native GitHub Project `Status` is the
+operational Work State owner only when the mapping assigned by
+`docs/project/delivery-pipeline.md` is effectively activated and readable;
+otherwise Work State is unavailable rather than inferred.
 
 ## Architecture
 
