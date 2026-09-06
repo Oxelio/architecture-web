@@ -41,7 +41,9 @@ async function collectMarkdownFiles(
 
     if (info.isDirectory()) {
       const entries = await readdir(candidate, { withFileTypes: true });
-      for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      for (const entry of entries.sort((a, b) =>
+        a.name.localeCompare(b.name),
+      )) {
         await visit(resolve(candidate, entry.name));
       }
       return;
@@ -141,7 +143,9 @@ export async function validateMarkdownLinks({
         : resolve(dirname(source), normalized.path);
 
       if (!isWithin(root, targetPath)) {
-        errors.push(`${sourceLabel}: link escapes repository root: ${rawTarget}`);
+        errors.push(
+          `${sourceLabel}: link escapes repository root: ${rawTarget}`,
+        );
         continue;
       }
 
@@ -194,6 +198,9 @@ async function main() {
   );
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await main();
 }
