@@ -1,32 +1,38 @@
 #!/usr/bin/env node
 
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readdir, readFile, stat } from "node:fs/promises";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_REPO_ROOT = resolve(SCRIPT_DIR, '..');
-const DEFAULT_SOURCE_PATHS = ['README.md', 'AGENTS.md', 'docs'];
+export const DEFAULT_REPO_ROOT = resolve(SCRIPT_DIR, "..");
+const DEFAULT_SOURCE_PATHS = ["README.md", "AGENTS.md", "docs"];
 
 function toPosix(value) {
-  return value.replaceAll('\\', '/');
+  return value.replaceAll("\\", "/");
 }
 
 function isWithin(root, candidate) {
   const rel = relative(root, candidate);
-  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+  return (
+    rel === "" ||
+    (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+  );
 }
 
 async function pathStat(path) {
   try {
     return await stat(path);
   } catch (error) {
-    if (error?.code === 'ENOENT') return null;
+    if (error?.code === "ENOENT") return null;
     throw error;
   }
 }
 
-async function collectMarkdownFiles(repoRoot, sourcePaths = DEFAULT_SOURCE_PATHS) {
+async function collectMarkdownFiles(
+  repoRoot,
+  sourcePaths = DEFAULT_SOURCE_PATHS,
+) {
   const files = [];
 
   async function visit(candidate) {
@@ -41,7 +47,7 @@ async function collectMarkdownFiles(repoRoot, sourcePaths = DEFAULT_SOURCE_PATHS
       return;
     }
 
-    if (info.isFile() && candidate.endsWith('.md')) files.push(candidate);
+    if (info.isFile() && candidate.endsWith(".md")) files.push(candidate);
   }
 
   for (const sourcePath of sourcePaths) {
@@ -65,14 +71,16 @@ function extractTargets(markdown) {
     }
     if (fence !== null) continue;
 
-    const withoutInlineCode = line.replace(/`+[^`]*`+/gu, '');
+    const withoutInlineCode = line.replace(/`+[^`]*`+/gu, "");
     const inlineLink = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)/gu;
     let match;
     while ((match = inlineLink.exec(withoutInlineCode)) !== null) {
       targets.push(match[1]);
     }
 
-    const reference = withoutInlineCode.match(/^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)/u);
+    const reference = withoutInlineCode.match(
+      /^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)/u,
+    );
     if (reference) targets.push(reference[1]);
   }
 
@@ -81,12 +89,14 @@ function extractTargets(markdown) {
 
 function normalizeTarget(rawTarget) {
   let target = rawTarget.trim();
-  if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1);
+  if (target.startsWith("<") && target.endsWith(">")) {
+    target = target.slice(1, -1);
+  }
 
   if (
-    target === '' ||
-    target.startsWith('#') ||
-    target.startsWith('//') ||
+    target === "" ||
+    target.startsWith("#") ||
+    target.startsWith("//") ||
     /^(?:https?:|mailto:|tel:|data:)/iu.test(target)
   ) {
     return { ignored: true };
@@ -112,7 +122,7 @@ export async function validateMarkdownLinks({
   let linksChecked = 0;
 
   for (const source of files) {
-    const markdown = await readFile(source, 'utf8');
+    const markdown = await readFile(source, "utf8");
     for (const rawTarget of extractTargets(markdown)) {
       const normalized = normalizeTarget(rawTarget);
       if (normalized.ignored) continue;
@@ -120,11 +130,13 @@ export async function validateMarkdownLinks({
 
       const sourceLabel = toPosix(relative(root, source));
       if (normalized.invalidEncoding) {
-        errors.push(`${sourceLabel}: invalid URI encoding in link target ${rawTarget}`);
+        errors.push(
+          `${sourceLabel}: invalid URI encoding in link target ${rawTarget}`,
+        );
         continue;
       }
 
-      const targetPath = normalized.path.startsWith('/')
+      const targetPath = normalized.path.startsWith("/")
         ? resolve(root, `.${normalized.path}`)
         : resolve(dirname(source), normalized.path);
 
@@ -134,23 +146,30 @@ export async function validateMarkdownLinks({
       }
 
       const targetLabel = toPosix(relative(root, targetPath));
-      if (targetLabel === 'docs/method' || targetLabel.startsWith('docs/method/')) {
-        errors.push(`${sourceLabel}: removed legacy Method path is forbidden: ${rawTarget}`);
+      if (
+        targetLabel === "docs/method" ||
+        targetLabel.startsWith("docs/method/")
+      ) {
+        errors.push(
+          `${sourceLabel}: removed legacy Method path is forbidden: ${rawTarget}`,
+        );
         continue;
       }
 
       const targetInfo = await pathStat(targetPath);
       if (!targetInfo) {
         if (
-          targetLabel === 'external/software-engineering-method' ||
-          targetLabel.startsWith('external/software-engineering-method/')
+          targetLabel === "external/software-engineering-method" ||
+          targetLabel.startsWith("external/software-engineering-method/")
         ) {
           errors.push(
             `${sourceLabel}: Method submodule target is unavailable: ${rawTarget} ` +
-              '(initialize external/software-engineering-method before validation)',
+              "(initialize external/software-engineering-method before validation)",
           );
         } else {
-          errors.push(`${sourceLabel}: missing repository-relative target: ${rawTarget}`);
+          errors.push(
+            `${sourceLabel}: missing repository-relative target: ${rawTarget}`,
+          );
         }
       }
     }
@@ -162,7 +181,9 @@ export async function validateMarkdownLinks({
 async function main() {
   const result = await validateMarkdownLinks();
   if (result.errors.length > 0) {
-    console.error(`Markdown link validation failed (${result.errors.length} error(s)):`);
+    console.error(
+      `Markdown link validation failed (${result.errors.length} error(s)):`,
+    );
     for (const error of result.errors) console.error(`- ${error}`);
     process.exitCode = 1;
     return;
