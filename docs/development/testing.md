@@ -59,6 +59,32 @@ A business change should run core tests, typechecks for affected packages,
 adapter tests, and consuming app tests/lint/build. A changed port or public
 export warrants full-workspace validation.
 
+## Human-supplied validation evidence
+
+For the current human-directed delivery model, a human validator executes and
+supplies pre-merge validation evidence. GitHub Actions may provide supplementary
+check results, but it is not the validation authority and MUST NOT be required
+merely to regenerate evidence after every pushed Pull Request HEAD.
+
+Human-supplied validation evidence SHOULD record:
+
+- the human validator identity;
+- the exact candidate commit SHA and relevant Pull Request or ref;
+- the commands or checks executed;
+- the result of each command or check;
+- environment or tooling notes when they materially affect interpretation.
+
+Validation evidence is candidate-bound. Evidence for one commit SHA does not
+implicitly validate a later candidate SHA. When the candidate changes, rerun the
+checks whose evidence could have been invalidated by that change, proportional
+to the affected boundaries and risks. Before merge, confirm that accepted
+validation evidence applies to the current candidate SHA.
+
+A future automated evidence mechanism may replace or reduce this human execution
+only after separate accepted project scope establishes its semantics and
+activation. Automated check success by itself does not establish validation
+sufficiency.
+
 ## Markdown links
 
 No dedicated link-checking script is versioned in the repository. During a documentation audit, validate every relative Markdown link against
