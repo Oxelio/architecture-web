@@ -5,6 +5,8 @@ on:
     branches:
       - development
     types:
+      - opened
+      - synchronize
       - ready_for_review
     paths:
       - ".github/delivery-automation.json"
