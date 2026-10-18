@@ -1,9 +1,9 @@
 # Work #49 — Decision and evidence register
 
-**Status:** Working decision log / human review aid; non-normative.  
-**Scope:** Session bearer confidentiality only; no full IAM rewrite or `SecurityService` extraction.  
-**Work:** [#49](https://github.com/Oxelio/Architecture-Web/issues/49)  
-**Sources of authority:** SF-SESSION-001, SF-SECURITY-AUDIT-001, SF-ACCOUNT-DATA-001; architecture principles, dependency rules, ADRs 0004–0005; Project Method Profile and delivery profile.  
+- **Status:** Working decision log / human review aid; non-normative.
+- **Scope:** Session bearer confidentiality only; no full IAM rewrite or `SecurityService` extraction.
+- **Work:** [#49](https://github.com/Oxelio/Architecture-Web/issues/49)
+- **Sources of authority:** SF-SESSION-001, SF-SECURITY-AUDIT-001, SF-ACCOUNT-DATA-001; architecture principles, dependency rules, ADRs 0004–0005; Project Method Profile and delivery profile.
 **Assessed code:** `development` @ `a3d09eafe7caafe6542c6832a67cc6f26f219de1`.
 
 The human maintainer has accepted the **Option 3 structural target** in [Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807) and [ADR-0008](../../architecture/decisions/0008-session-reference-and-authentication-proof.md). Other proposed decisions require their designated owners and evidence.
