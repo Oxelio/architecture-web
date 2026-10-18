@@ -1,1 +1,35 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
+# Work #49 — Decision and evidence register
+
+**Status:** Working decision log / human review aid; non-normative.  
+**Scope:** Session bearer confidentiality only; no full IAM rewrite or `SecurityService` extraction.  
+**Work:** [#49](https://github.com/Oxelio/Architecture-Web/issues/49)  
+**Sources of authority:** SF-SESSION-001, SF-SECURITY-AUDIT-001, SF-ACCOUNT-DATA-001; architecture principles, dependency rules, ADRs 0004–0005; Project Method Profile and delivery profile.  
+**Assessed code:** `development` @ `a3d09eafe7caafe6542c6832a67cc6f26f219de1`.
+
+The human maintainer has accepted the **Option 3 structural target** in [Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807) and [ADR-0008](../../architecture/decisions/0008-session-reference-and-authentication-proof.md). Other proposed decisions require their designated owners and evidence.
+
+| ID | Decision or evidence | Recommendation | Owning authority | Blocking relation | State |
+| --- | --- | --- | --- | --- | --- |
+| D1 | Distinguish identity and bearer proof | Option 3 structural boundary accepted in ADR-0008; exact verifier and Redis protocol remain proposed | Software Architect; human architecture acceptance of proposed ADR | Blocks definitive design and implementation Readiness | Accepted structural target; protocol pending |
+| D2 | Cryptographic and Redis protocol | `v2.R.S`, canonical parsing, 32-byte CSPRNG secret, reference-bound SHA-256 verifier, constant-time fixed-size check; single-record atomic storage/touch | Technical Design (Software Architect) | Depends on D1; requires security review and real Redis tests | Proposed |
+| D3 | Real deployment and legacy credentials | Gather environments, number of active sessions, deployment versions and old writers; propose coordinated invalidation with reauthentication and no UUID fallback | Human deployment/security operator provides evidence; architecture owner approves cutover; Functional owner if current-session behavior must change | Blocks rollout and migration plan | Evidence missing |
+| D4 | Pre-existing secret-bearing Audit/outbox and logs | Immediately prevent *future* secret disclosure by allowlists/redaction in authorized implementation. Quarantine unsafe old replay before processing; choose retention-preserving treatment only after inventory/legal-hold review. Do **not** silently rewrite append-only records. | SF-SECURITY-AUDIT-001 functional owner, security/privacy and retention/legal authority, operator | Blocks historical remediation and safe worker resumption | Decision pending |
+| D5 | Existing unsafe account-export ZIPs | Block unsafe archive delivery, inventory ready/pending records and storage; regenerate safe data if allowed. Avoid inventing a new user-visible archive state, notification or status code. | SF-ACCOUNT-DATA-001 functional owner; Human Functional Approval if approved behavior must change; operator | Blocks deployment with stored unsafe ZIPs | Decision pending |
+| D6 | Sign-out with incorrect or absent proof | Keep cookie clearing; do not revoke by reference alone. Proposed mapping: malformed 400, well-formed wrong/expired proof 204 with no revocation. Verify current HTTP contract before accepting outcome. | IAM session functional owner / HTTP contract owner; Human Functional Approval for genuine behavior change | Blocks final error-contract design | Proposed; owner confirmation pending |
+| D7 | Missing MFA `SessionStarted` event | Credential issuance fix must cover MFA. Do not add new notification behavior under #49. If mandatory Audit fact not recorded, classify and route focused compliance remediation separately unless human expands scope. | Audit Functional owner; Notifications owner if new notification; Work #49 coordinator for scope | Does not block secure MFA credential; affects broader event completeness | Scope decision pending |
+| D8 | Concurrent revoke-all / in-flight request | Retain point-in-time deletion and existing session version barrier; do not assert cancellation of an already authorized in-flight request | SF-SESSION-001 owner for stronger externally observable guarantee; architect for consistency design | Block only if a stronger guarantee becomes mandatory | Provisional preservation |
+| D9 | Performance and topology | Obtain deployment architecture and owner-supplied latency/capacity budgets; real Redis script tests and comparable performance measurement | Service/deployment owner + Technical Design | Blocks final performance acceptance, not design comparison | Evidence missing |
+| D10 | GitHub Project classification/Work State | Read live `Status`, `Work Type`, `Workflow Depth` and relevant labels from Project #3; proposed Defect Correction/Complex, security/privacy with cross-system/migration/breaking as confirmed | Project native fields; Workflow Coordinator records authorized classification, human project access needed | Blocks certified lifecycle transition and implementation dispatch | Operationally unavailable |
+| D11 | Current architecture documentation drift | Correct five-root aggregate description and stale guides in a separately authorized documentation scope; do not rewrite Current Truth with the #49 Proposed Target | Current architecture docs, SF/guide owner | Does not block identity/proof design acceptance; must not be forgotten | Follow-up needed |
+
+## Owner-facing decisions requiring explicit confirmation
+
+1. **Architecture authority:** Option 3 structural target accepted in ADR-0008. The specific protocol/verifier details remain for Technical Design and security review.
+2. **Deployment/security operator:** Is there *any* currently deployed or test environment containing real sessions, Redis AOF/backups, Audit/outbox rows or downloadable ZIPs? Provide counts/versions and retention restrictions, not raw credential dumps.
+3. **Functional owner — sessions:** Is clearing the cookie without revoking an unknown/invalid proof an acceptable sign-out outcome? If not, choose the expected failure and status without exposing session existence.
+4. **Functional/retention owners — Audit and exports:** How should contaminated historical records and ready/pending archives be quarantined, redacted, replaced or retained while satisfying append-only, legal hold and user-facing contracts?
+5. **Scope owner:** Is event parity for MFA a separate follow-up rather than part of #49? The default recommendation is to separate it unless confidentiality work needs a producer-contract change.
+
+## Proposed next gate
+
+D1 is established by accepted ADR-0008. After remaining owner decisions and applicable Functional Approval, finalize the single Technical Design owner. Resolve D3–D6 before operational rollout; D3–D5 may also affect implementation preparation/Readiness when migration is involved. Then Technical Planner may define bounded Tasks; perform formal Readiness Review. No implementation, Task creation or lifecycle mutation is authorized by this working register.
