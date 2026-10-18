@@ -41,7 +41,7 @@ A legitimate reader of a session-management ID or an integration record can curr
 **Advantages:** unambiguous separation and flexible token representation; token alone is an opaque random value.  
 **Disadvantages:** requires a safe token-to-reference lookup or additional coordinated Redis key/index; complicates atomic revocation and expiration compared with a single record.
 
-### C — Public reference plus independent random secret (recommended)
+### C — Public reference plus independent random secret (chosen)
 
 An authentication credential consists of a version, public session reference and independently generated random secret. Only a verifier bound to the reference is retained in the authentication-only Redis session record.
 
@@ -76,4 +76,4 @@ Choose **Option C**, establishing these durable structural rules:
 
 ## Unresolved authority and deployment dependencies
 
-The decision does not approve (1) sign-out wrong-proof HTTP semantics; (2) disabling currently active sessions in actual deployments without an exposure inventory and user-impact assessment; (3) mutation/deletion of append-only historical Audit data subject to retention and legal hold; (4) ready/pending export ZIP disposition or user-facing status changes; (5) new MFA notification behavior. These are tracked in [working decision and evidence register](../../explorations/iam/work-49-decision-register.md). No Tasks, Readiness, implementation, merge or Work State transition is established here.
+The decision does not approve (1) sign-out wrong-proof HTTP semantics; (2) wiping any retained development/test sessions without an operator inventory (the human maintainer states there have been no deployments); (3) mutation/deletion of append-only historical Audit data subject to retention and legal hold; (4) ready/pending export ZIP disposition or user-facing status changes; (5) new MFA notification behavior. These are tracked in [working decision and evidence register](../../explorations/iam/work-49-decision-register.md). No Tasks, Readiness, implementation, merge or Work State transition is established here.
