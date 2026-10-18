@@ -11,7 +11,7 @@
 
 ## Work context
 
-I inspected the latest development implementation, its relevant tests, the three functional owners, architecture owners and relevant ADRs, and the Method revision actually adopted by the repository. This Technical Design remains Proposed. The Option 3 structural boundary is accepted in ADR-0008, but detailed technical, functional and operational decisions still require resolution.
+I inspected the latest development implementation, its relevant tests, the three functional owners, architecture owners and relevant ADRs, and the Method revision actually adopted by the repository. This Technical Design remains Proposed. The Option 3 structural boundary is accepted in ADR-0008. The human-approved sign-out behavior for Work #49 is now recorded in [SF-SESSION-001](../specifications/SF-SESSION-001.md) and the [Functional Approval record](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256658492); detailed technical/security decisions and local-environment evidence remain unresolved.
 
 **Classification recommendation:** Defect Correction / Complex. The primary intent restores established confidentiality requirements. Security, privacy, cross-system, compatibility, concurrency and operational migration characteristics apply. The selected mechanism also warrants a structural ADR; that does not silently reclassify or expand the Work into a general IAM redesign. Classification here is a recommendation, not a Project-field update.
 
@@ -71,7 +71,7 @@ After password validation and, where required, successful MFA, application orche
 
 Own/admin listings remain explicit safe projections. Authorized revocation continues by public reference, with the existing ownership checks and errors. Recent-password and MFA checks remain in place for export/deletion; possession of a public reference alone does not satisfy them.
 
-The public sign-out route deserves separate handling. Today it reads an unprotected cookie and deletes by its value. Under this proposal, it must verify proof before deleting a known session; otherwise anybody who knows a public reference could terminate that session. It need not reload account status just to forget a valid credential. Section 14 proposes the mapping for invalid and already absent proofs.
+The public sign-out route deserves separate handling. Today it reads an unprotected cookie and deletes by its value. Under this proposal, it must verify proof before deleting a known session; otherwise anybody who knows a public reference could terminate that session. It need not reload account status just to forget a valid credential. Section 14 records the human-approved mapping for invalid and already absent proofs.
 
 ## 5. Ports and external capabilities
 
@@ -193,7 +193,7 @@ Use safe versioned producer contracts, not consumer redaction as the only defens
 
 The existing non-MFA path saves Redis then appends to PostgreSQL outbox. Keep that ordering and its documented dual-write loss/failure window under ADR-0005; no distributed transaction is promised. Never set the cookie before required issuance/persistence work finishes. If append fails after Redis succeeds, do not return a credential as if durable audit acceptance succeeded; any orphan session remains bounded by TTL/maximum enforcement. Improving delivery atomicity is a separately scoped decision.
 
-MFA currently saves a session then records `authentication.signin` directly; it does not deliver its pending session-start event. This is an existing completeness gap. Updating its credential issuance is mandatory here. Whether #49 also adds the missing creation event/notification requires explicit scope and functional-compliance review: approved Audit behavior requires a session-creation fact, while adding a notification is not a free technical side effect. Do not manufacture equivalence between the current two flows.
+MFA currently saves a session then records `authentication.signin` directly; it does not deliver its pending session-start event. This is an existing completeness gap. Updating its credential issuance is mandatory here. The human Work #49 scope approval preserves existing Audit and Notifications behavior without new functionality: this correction must issue safe MFA credentials but must not silently introduce new MFA notifications or claim existing session-start Audit completeness. Record any pre-existing Audit obligation as a separate scoped compliance problem; do not manufacture equivalence between the current two flows.
 
 Audit's legacy key defense must redact `sessionId` and aliases such as `session_id`, credentials and verifier/hash keys, recursively, on write and read. New safe correlation uses `sessionReference` in a topic-specific allowlist, so historic `sessionId` is never reinterpreted as safe. Allowlisting must happen before generic outbox persistence; a downstream redactor cannot remove an outbox secret already persisted.
 
@@ -242,18 +242,18 @@ Observe aggregate counts for parse/verification failures, Redis technical errors
 
 ## 14. Error and failure handling
 
-| Situation | Proposed outcome / contract preservation |
+| Situation | Approved sign-out outcome or established contract preservation |
 | --- | --- |
 | Missing/malformed/unknown-version cookie, wrong proof, missing/expired session | Existing `session.unauthorized`, mapped by authentication to 401 `UNAUTHORIZED`; no existence or proof-detail disclosure. |
 | Missing user, currently rejected account state, stale user session version | Keep existing explicit unauthorized result; stale version cleanup remains. Do not disguise storage failure as invalid proof. |
 | Revocation bad reference, absent/wrong-owner target, denied administrator | Preserve invalid-ID, session-not-found, user-not-found and administrator error contracts, statuses and ownership hiding. HTTP schema validation remains a separate 400 boundary. |
-| Sign-out missing or malformed credential | Proposed preservation of `session.invalid_id` / 400 `INVALID_SESSION_ID`; clear the browser cookie as today. |
-| Sign-out structurally valid credential but absent session or wrong proof | Proposed 204 and cookie clear, with **no deletion** unless proof is valid. This keeps repeated/absent-session sign-out idempotent without creating a public-reference deletion capability. Confirm with contract owner because wrong-proof input did not exist before. |
+| Sign-out missing, malformed or unsupported-version credential | **Human-approved behavior:** `session.invalid_id` / HTTP 400 `INVALID_SESSION_ID`; clear the browser cookie, with no server-side revocation. |
+| Sign-out structurally valid credential but absent/expired session or wrong proof | **Human-approved behavior:** HTTP 204 and clear the browser cookie, with **no server-side deletion**. The response must not disclose session existence. |
 | Redis unavailable, crypto implementation failure, unexpected persisted corruption failure | Technical failure through existing error boundary, sanitized logging; no successful authentication, fallback plaintext lookup or fabricated business error. |
 | Optional metadata unavailable | Preserve optional representation and continue; not part of authentication proof. |
 | Outbox append fails after Redis creation | Technical failure and no success cookie; preserve/report ADR-0005's split-store window. Do not report a durable Audit fact prematurely. |
 
-Known malformed persisted records currently resolve as absent; preserve that fail-closed behavior and make corruption observable without raw-record logging. Final sign-out mapping is an explicit proposal for review, not a newly approved functional rule.
+Known malformed persisted records currently resolve as absent; preserve that fail-closed behavior and make corruption observable without raw-record logging. The sign-out mapping above is an **Approved Target** in [SF-SESSION-001](../specifications/SF-SESSION-001.md), accepted by the human on 19 October 2026; it is not current implementation behavior. The remaining technical design and security review are still Proposed.
 
 There is also existing documentation drift: `docs/guides/iam-sessions.md` says resolution requires an active account, while the resolver only checks `isSuspended()` and does not reject `pending_deletion`. The same guide says lifetime is hard-coded, while both creation paths now consult policy. The overview still describes three roots although ADR-0006/code define five. These discrepancies do not authorize copying the defects or fixing them under this scope. Route them to their current-architecture/functional owners; #49's tests must distinguish preserved mechanics from unrelated compliance gaps.
 
@@ -391,16 +391,16 @@ These owners are authority roles; the repository does not identify a separate na
 | --- | --- | --- |
 | Choose identity/proof model, verifier boundary and credential grammar | Option 3 accepted in ADR-0008; specific section 5–7 protocol remains Proposed | Human-accepted architecture target (ADR-0008); Software Architect owns detailed Technical Design and further design decisions |
 | Confirm legacy-session invalidation and any real deployment exposure | Human confirms no deployments; inspect any local/test persistence before targeted reset, with strict v2-only cookies and no fallback | Deployment/security operator supplies local-data facts; architecture authority owns safe cutover; SF-SESSION-001 Product/Domain owner only if accepted behavior must change |
-| Historical audit/outbox cleanup versus append-only retention/legal hold | Redact reads immediately in the future implementation; propose controlled non-secret preservation with authorized redaction, never silent deletion | Audit functional owner in SF-SECURITY-AUDIT-001, security/privacy authority and deployment operator; human-approved exception/change if physical rewrite conflicts with append-only or hold |
-| Unsafe ready/pending export state and manifest version | Recommend invalidate unsafe bytes and regenerate safely; version 3 proposed | Account-data functional/contract owner in SF-ACCOUNT-DATA-001; Product/Domain analysis and Human Functional Approval if observable state/notification policy changes |
-| Sign-out wrong-proof outcome | Recommend 204/no deletion for well-formed invalid/absent proof, existing 400 for malformed | IAM session functional/application/HTTP contract owner; confirm preservation or approve explicit changed behavior |
-| MFA session-start fact/notification completeness | Mandatory credential correction; do not silently add a notification | Audit owner for required facts; SF-NOTIFICATIONS-001 Product/Domain owner for changed notifications; #49 scope owner for including the extra event correction |
+| Historical audit/outbox cleanup versus append-only retention/legal hold | Preserve approved Audit behavior without new functionality; eliminate future secret exposure. No deployed history is reported; local/test data disposition remains operator-dependent and cannot silently rewrite retained evidence | Audit functional owner in SF-SECURITY-AUDIT-001, security/privacy authority and local-environment operator |
+| Unsafe ready/pending export state and manifest version | Preserve approved export states, request/download behavior and secret-free contents, without a new user journey or notification; identify any local/test archives before targeted disposal | Account-data functional owner in SF-ACCOUNT-DATA-001; local-environment operator for persisted development data |
+| Sign-out wrong-proof outcome | **Approved:** HTTP 204/no server deletion for well-formed wrong/absent/expired proof; 400 for missing/malformed/unsupported format, clear local cookie in each case; valid proof revokes its own session | SF-SESSION-001 Approved Target for Work #49; human [Functional Approval](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256658492) |
+| MFA session-start fact/notification completeness | Human-approved scope preserves existing notifications/audit user behavior; secure MFA issuance is mandatory, but adding MFA notifications is excluded. Route pre-existing Audit compliance gap separately | Existing Audit and Notifications Functional Specifications; human [scope approval](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256658492) |
 | Revoke-all versus concurrent sign-in, in-flight request guarantees | Preserve point-in-time semantics; no new sign-in barrier | Session functional owner if a stronger externally observable rule is needed; architect then designs ordering |
 | Actual service budgets and Redis deployment topology | Use standalone evidence; performance acceptance budget missing | Runtime/service operator supplies SLO/capacity/topology; architect reviews any topology departure |
 | Live Work State/classification unavailable | No inference, no transition | Workflow Coordinator / human Project operator reads activated Project #3 owners |
 | Current guide/overview drift and pending-deletion defect | Record and route separately, not silently normalize | Current architecture owner; relevant functional owner and separately authorized correction scope |
 
-The proposal is sufficient for a human to challenge and choose the model. It does not establish implementation readiness while these authority/migration/contract choices remain unresolved. No formal Readiness result is issued here.
+The human has accepted the structural Option 3 target and sign-out functional outcomes, while preserving Audit, export and Notifications behavior. This detailed proposal does not yet establish implementation Readiness: protocol/security review, local data inventory, candidate testing and operational Work State remain unresolved. No formal Readiness result is issued here.
 
 ## 19. Task-planning inputs
 
