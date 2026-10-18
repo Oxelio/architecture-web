@@ -1,12 +1,12 @@
 # Technical Design — Prevent session bearer credential disclosure
 
-**Work:** [Architecture Web #49](https://github.com/Oxelio/Architecture-Web/issues/49)  
-**Artifact status:** Proposed — detailed Technical Design pending scoped approvals  
-**Content status:** Proposed (single Technical Design owner; not yet an implementation authority)  
-**Document type:** Technical Design  
-**Domain:** IAM authentication, session management, Messaging, Audit, account export  
-**Evidence date:** 19 October 2026, Europe/Paris  
-**Implementation baseline:** `development` at `a3d09eafe7caafe6542c6832a67cc6f26f219de1`  
+- **Work:** [Architecture Web #49](https://github.com/Oxelio/Architecture-Web/issues/49)
+- **Artifact status:** Proposed — detailed Technical Design pending scoped approvals
+- **Content status:** Proposed (single Technical Design owner; not yet an implementation authority)
+- **Document type:** Technical Design
+- **Domain:** IAM authentication, session management, Messaging, Audit, account export
+- **Evidence date:** 19 October 2026, Europe/Paris
+- **Implementation baseline:** `development` at `a3d09eafe7caafe6542c6832a67cc6f26f219de1`
 **Adopted Method:** submodule gitlink `703051af50189a70399d82c82ca0f2b17c35f998`
 
 ## Work context
