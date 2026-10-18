@@ -1,10 +1,10 @@
 # Context Manifest — Work #49 architecture proposal
 
-**Artifact status:** Working context; non-normative; supports the Work #49 Technical Design  
-**Context status:** PARTIALLY RESOLVED for design comparison. Sufficient to produce a conditional Proposed design; not sufficient to establish implementation readiness.  
-**Role:** Architecture Analyst / Technical Designer (Method Software Architect authority).  
-**Activity:** Architecture alternatives and Technical Design proposal, stopped before implementation.  
-**Work State:** Unavailable; live Project #3 access returned `Resource not accessible by integration`.  
+- **Artifact status:** Working context; non-normative; supports the Work #49 Technical Design
+- **Context status:** PARTIALLY RESOLVED for design comparison. Sufficient to produce a conditional Proposed design; not sufficient to establish implementation readiness.
+- **Role:** Architecture Analyst / Technical Designer (Method Software Architect authority).
+- **Activity:** Architecture alternatives and Technical Design proposal, stopped before implementation.
+- **Work State:** Unavailable; live Project #3 access returned `Resource not accessible by integration`.
 **Recommended classification:** Defect Correction / Complex, with security/privacy, breaking compatibility, cross-system, concurrency and operational/data migration characteristics. Live classification not readable; this is not an owner-field replacement.
 
 ## Source identity and drift
