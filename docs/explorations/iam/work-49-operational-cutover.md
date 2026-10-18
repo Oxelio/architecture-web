@@ -1,7 +1,7 @@
 # Work #49 — Proposed containment and cutover plan
 
-**Status:** Proposed operational plan; not an execution instruction or approval.  
-**Depends on:** [Decision register](work-49-decision-register.md), especially D3–D6; [Technical Design](../../architecture/iam-session-credential-separation.md).  
+- **Status:** Proposed operational plan; not an execution instruction or approval.
+- **Depends on:** [Decision register](work-49-decision-register.md), especially D3–D6; [Technical Design](../../architecture/iam-session-credential-separation.md).
 **Human environment declaration (19 October 2026):** Architecture Web has never been deployed. This is an operator-supplied statement, not an inspection of local Compose volumes, test databases, old ZIPs or backups. No live inventory or reset/deployment action has been performed.
 
 ## 1. Exposure inventory — evidence first
