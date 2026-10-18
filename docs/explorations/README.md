@@ -9,6 +9,8 @@ Current Architecture Web explorations:
 
 - [Configurable user registration](identity/configurable-user-registration.md)
 
+- [Work #49 — session credential decision and evidence register](iam/work-49-decision-register.md), with [focused Context Manifest](iam/work-49-context.md) and [proposed operational cutover](iam/work-49-operational-cutover.md). These are working records, not canonical technical or functional owners.
+
 When an Exploration reaches a conclusion, integrate accepted durable knowledge
 into the appropriate owner. Functional behavior goes through the Functional
 Specification and human approval path; durable structural architecture
