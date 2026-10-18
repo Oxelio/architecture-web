@@ -26,6 +26,8 @@ detailed in
 The accepted package-first workspace topology is detailed in
 [ADR-0007](0007-package-first-workspace-topology.md).
 
+[ADR-0008 — Separate IAM session reference from authentication proof](0008-session-reference-and-authentication-proof.md) is the human-accepted structural target for Work #49. The session credential implementation is not yet current architecture; its [Technical Design](../iam-session-credential-separation.md) remains Proposed pending scoped review and operational decisions.
+
 ### ADR-0001 — Technology-independent IAM core
 
 **Status: accepted**
