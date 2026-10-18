@@ -1,12 +1,12 @@
 # ADR-0008 — Separate IAM session reference from authentication proof
 
-**Work:** [#49 — Prevent IAM session bearer credential exposure](https://github.com/Oxelio/Architecture-Web/issues/49)  
-**Status:** accepted  
-**Content status:** Canonical approved target; not current implementation  
-**Document type:** Architecture Decision Record  
-**Domain:** IAM authentication and sessions; Messaging and Audit integration  
-**Decision authority:** Human Architecture Web maintainer; [explicit acceptance record](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807), 19 October 2026  
-**Evidence baseline:** `development` @ `a3d09eafe7caafe6542c6832a67cc6f26f219de1`  
+- **Work:** [#49 — Prevent IAM session bearer credential exposure](https://github.com/Oxelio/Architecture-Web/issues/49)
+- **Status:** accepted
+- **Content status:** Canonical approved target; not current implementation
+- **Document type:** Architecture Decision Record
+- **Domain:** IAM authentication and sessions; Messaging and Audit integration
+- **Decision authority:** Human Architecture Web maintainer; [explicit acceptance record](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807), 19 October 2026
+- **Evidence baseline:** `development` @ `a3d09eafe7caafe6542c6832a67cc6f26f219de1`
 **Detailed implementation target:** [Proposed Technical Design](../iam-session-credential-separation.md)
 
 ## Context
@@ -33,19 +33,22 @@ A legitimate reader of a session-management ID or an integration record can curr
 
 ### A — Retain the UUID bearer and redact secondary projections
 
-**Advantages:** minimal new persistence and contract machinery; useful for immediate containment.  
+**Advantages:** minimal new persistence and contract machinery; useful for immediate containment.
+
 **Disadvantages:** identity still grants access; every new management/event/export path must be treated as a credential path. This does not satisfy the long-term confidentiality invariant.
 
 ### B — Independent public reference and opaque authentication token
 
-**Advantages:** unambiguous separation and flexible token representation; token alone is an opaque random value.  
+**Advantages:** unambiguous separation and flexible token representation; token alone is an opaque random value.
+
 **Disadvantages:** requires a safe token-to-reference lookup or additional coordinated Redis key/index; complicates atomic revocation and expiration compared with a single record.
 
 ### C — Public reference plus independent random secret (chosen)
 
 An authentication credential consists of a version, public session reference and independently generated random secret. Only a verifier bound to the reference is retained in the authentication-only Redis session record.
 
-**Advantages:** single Redis session record, existing management reference/revocation model, direct expiration/index semantics; leaked reference has no authentication authority.  
+**Advantages:** single Redis session record, existing management reference/revocation model, direct expiration/index semantics; leaked reference has no authentication authority.
+
 **Disadvantages:** incompatible with UUID-only legacy cookies, changes application/port contracts, requires coordinated issuers/resolvers and additional proof verification per authentication. A leaked **complete cookie** remains a bearer credential.
 
 ## Decision — accepted structural target
