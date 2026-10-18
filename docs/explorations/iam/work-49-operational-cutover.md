@@ -2,11 +2,11 @@
 
 **Status:** Proposed operational plan; not an execution instruction or approval.  
 **Depends on:** [Decision register](work-49-decision-register.md), especially D3–D6; [Technical Design](../../architecture/iam-session-credential-separation.md).  
-**No live inventory or deployment action has been performed.**
+**Human environment declaration (19 October 2026):** Architecture Web has never been deployed. This is an operator-supplied statement, not an inspection of local Compose volumes, test databases, old ZIPs or backups. No live inventory or reset/deployment action has been performed.
 
 ## 1. Exposure inventory — evidence first
 
-For every environment, determine without dumping credentials:
+For any locally persisted development/test environment that must be retained, determine without dumping credentials:
 
 - API instances and deployment versions, worker instances, rollback artifacts and external clients consuming `sid`.
 - Active legacy sessions and TTLs, Redis namespace ownership, AOF/snapshot/backup policy, data restoration routes.
@@ -15,9 +15,11 @@ For every environment, determine without dumping credentials:
 - Cached session listings, export ZIPs in pending/ready states, downloaded ZIPs that cannot be recalled, backup copies.
 - Logging/telemetry pipelines, retention policies, support/administrative access, and exposure evidence.
 
-Record versions, counts and ownership; never paste raw cookies, session IDs that remain bearer credentials, or archive bytes into an Issue, CI log or validation report. If real users could have accessed these channels, activate the security/incident process independently of the ordinary implementation workflow.
+Record versions, counts and ownership; never paste raw cookies, session IDs that remain bearer credentials, or archive bytes into an Issue, CI log or validation report. The human no-deployment declaration means there is no known deployed user exposure. If contrary evidence emerges (external client, shared test environment, or real users), activate the security/incident process independently of ordinary implementation.
 
 ## 2. Candidate cutover, only after appropriate approvals
+
+With no deployments, the default is a **development-environment reset and v2-only startup**, not a production zero-downtime migration. The ordered steps below apply only where retained local/test records or started workers require coordinated cleanup. Avoid inventing a production fleet, maintenance window or user logout requirement.
 
 1. Deploy compatible safe readers/consumers and secret-free logging policies. Prevent replay/visibility of unsafe v1 event payloads and block unsafe archive downloads **without physical deletion** pending retention decisions.
 2. Rehearse recovery/rollback in a representative isolated environment, including Redis AOF restore, in-flight API request behavior, already-issued cookies and dual-write outbox failure.
