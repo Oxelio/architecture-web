@@ -190,6 +190,21 @@ The implementation must follow these principles:
 
 The agent must check whether a session retention or deletion policy already exists and comply with it.
 
+## Sign-out and session authentication proof — approved target for Work #49
+
+**Approval:** Human Functional Approval of the sign-out outcomes recorded in [Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256658492) on 19 October 2026. This section defines the approved target for that Work; it does **not** assert that the current implementation already behaves this way. The document's existing `Lifecycle: Implementation` metadata retains its prior meaning.
+
+A session-management reference may identify a session for authorized consultation and revocation, but knowledge of that reference alone must never authenticate a user or permit a public sign-out operation to revoke that session. Public sign-out must use a valid authentication proof before deleting server-side session state.
+
+- When the presented credential proves a currently active session, sign-out revokes **that session only** and clears the client's session cookie.
+- When the credential is structurally valid but its proof is incorrect, or the referenced session is missing or expired, sign-out clears the client's cookie **without revoking any server-side session**. The client receives the same successful local sign-out outcome; the outcome must not reveal whether the reference exists.
+- When no credential is present, or the credential is malformed or uses an unsupported format, sign-out clears the client's cookie and returns an invalid-session outcome, without server-side revocation.
+- Unexpected technical failures must not be presented as successful server-side revocation or disguised as expected invalid-credential results.
+
+The approved HTTP mapping is recorded in the Work #49 human decision and the [Work #49 Technical Design](../architecture/iam-session-credential-separation.md): successful local sign-out is HTTP 204, and the missing/malformed/unsupported-format case is HTTP 400 `INVALID_SESSION_ID`. The HTTP contract remains owned by the API adapter, not the IAM domain model.
+
+This approval does not change account-export, Audit or Notifications user behavior, does not introduce new user notifications, and does not authorize implementation beyond Work #49's agreed credential-confidentiality correction.
+
 ## Expected Functional Model
 
 The model exposed by the application must be able to represent at least:
