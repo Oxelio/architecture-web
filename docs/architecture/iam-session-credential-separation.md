@@ -1,8 +1,8 @@
 # Technical Design — Prevent session bearer credential disclosure
 
 - **Work:** [Architecture Web #49](https://github.com/Oxelio/Architecture-Web/issues/49)
-- **Artifact status:** Proposed — detailed Technical Design pending scoped approvals
-- **Content status:** Proposed (single Technical Design owner; not yet an implementation authority)
+- **Artifact status:** Approved Target for Work #49 — scoped Software Architect design decision; not implemented
+- **Content status:** Approved Target (single Technical Design owner; no implementation or Readiness authority)
 - **Document type:** Technical Design
 - **Domain:** IAM authentication, session management, Messaging, Audit, account export
 - **Evidence date:** 19 October 2026, Europe/Paris
@@ -11,21 +11,21 @@
 
 ## Work context
 
-I inspected the latest development implementation, its relevant tests, the three functional owners, architecture owners and relevant ADRs, and the Method revision actually adopted by the repository. This Technical Design remains Proposed. The Option 3 structural boundary is accepted in ADR-0008. The human-approved sign-out behavior for Work #49 is now recorded in [SF-SESSION-001](../specifications/SF-SESSION-001.md) and the [Functional Approval record](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256658492); detailed technical/security decisions and local-environment evidence remain unresolved.
+I inspected the latest development implementation, its relevant tests, the three functional owners, architecture owners and relevant ADRs, and the Method revision actually adopted by the repository. This Technical Design is the **Approved Target for Work #49** after Software Architect review of D2 and the existing architecture boundaries. The structural target was human-accepted in ADR-0008. Sign-out behavior was human-approved in [SF-SESSION-001](../specifications/SF-SESSION-001.md) and [Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256658492). The implementation remains unchanged. Target acceptance does not establish Project Work State, Readiness, runtime security validation or authority for destructive local data cleanup.
 
 **Classification recommendation:** Defect Correction / Complex. The primary intent restores established confidentiality requirements. Security, privacy, cross-system, compatibility, concurrency and operational migration characteristics apply. The selected mechanism also warrants a structural ADR; that does not silently reclassify or expand the Work into a general IAM redesign. Classification here is a recommendation, not a Project-field update.
 
-**Role/activity:** Architecture Analyst / Technical Designer, mapped to the adopted Method's Software Architect authority. The activity is architecture decision analysis and a proposed Technical Design. It is not Developer activity or a formal Readiness Review.
+**Role/activity:** Software Architect (Technical Design and design-level Architecture Review), followed by separate Technical Planner/Readiness activities. This design is an Approved Target, not a claim of implementation or formal Readiness.
 
 **Operational context:** Issue #49 is readable. `.github/delivery-automation.json` marks Project-backed mappings verified and selects Oxelio Project #3. A live read of #49's Project item failed with `Resource not accessible by integration`. Work State, live Work Type, Workflow Depth and Priority are therefore unavailable; none is inferred from the Issue or this document. This does not prevent a requested read-only design proposal. It blocks claims about lifecycle position or a transition.
 
 **Authority:** `AGENTS.md`; `docs/project/project-method-profile.md`; `docs/project/delivery-pipeline.md`; `docs/project/architecture-principles.md`; `docs/architecture/{overview,dependency-rules,packages}.md`; ADR register and ADR-0004 through ADR-0007; `docs/development/testing.md`; and the three Functional Specifications below. The full activity-scoped [Context Manifest](../explorations/iam/work-49-context.md) distinguishes owners, evidence and limitations.
 
-### Accepted structural direction and proposed technical realization
+### Accepted structural direction and approved technical target
 
 We have three comparison options: **Option 1, contain exposure while retaining the existing bearer identity**; **Option 2, independent public reference plus opaque authentication token**; and **Option 3, public identifier plus independent secret in the authentication credential**. Option 1 is an insufficient baseline. Options 2 and 3 are viable if every affected boundary is changed together.
 
-ADR-0008 establishes **Option 3** as the accepted structural target. This design specifies its reviewed D2 protocol in section 7 using `v2.<public-reference>.<random-secret>` and a bound verifier stored in Redis; the Work as a whole remains Proposed pending Readiness. We retain the UUID session identity for consultation and revocation, while possession of that identity conveys no authentication authority. The main advantage over Option 2 is a single authoritative Redis session record, with no reverse credential index to coordinate. The costs are a changed cookie format, breaking application/port semantics, coordinated deployment and explicit invalidation of legacy credentials. This specific protocol remains Proposed; the structural acceptance alone is not implementation Readiness.
+ADR-0008 establishes **Option 3** as the accepted structural target. This design specifies its reviewed D2 protocol in section 7 using `v2.<public-reference>.<random-secret>` and a bound verifier stored in Redis; the Work remains outside implementation until Readiness. We retain the UUID session identity for consultation and revocation, while possession of that identity conveys no authentication authority. The main advantage over Option 2 is a single authoritative Redis session record, with no reverse credential index to coordinate. The costs are a changed cookie format, breaking application/port semantics, coordinated deployment and explicit invalidation of legacy credentials. The protocol is an Approved Technical Design decision within ADR-0008's accepted structural boundaries; neither approval grants implementation Readiness.
 
 ### Evidence map
 
@@ -267,7 +267,7 @@ Observe aggregate counts for parse/verification failures, Redis technical errors
 | Optional metadata unavailable | Preserve optional representation and continue; not part of authentication proof. |
 | Outbox append fails after Redis creation | Technical failure and no success cookie; preserve/report ADR-0005's split-store window. Do not report a durable Audit fact prematurely. |
 
-Known malformed persisted records currently resolve as absent; preserve that fail-closed behavior and make corruption observable without raw-record logging. The sign-out mapping above is an **Approved Target** in [SF-SESSION-001](../specifications/SF-SESSION-001.md), accepted by the human on 19 October 2026; it is not current implementation behavior. The remaining technical design and security review are still Proposed.
+Known malformed persisted records currently resolve as absent; preserve that fail-closed behavior and make corruption observable without raw-record logging. The sign-out mapping above is an **Approved Target** in [SF-SESSION-001](../specifications/SF-SESSION-001.md), accepted by the human on 19 October 2026; it is not current implementation behavior. Runtime security review and Validation still require the actual implementation candidate.
 
 There is also existing documentation drift: `docs/guides/iam-sessions.md` says resolution requires an active account, while the resolver only checks `isSuspended()` and does not reject `pending_deletion`. The same guide says lifetime is hard-coded, while both creation paths now consult policy. The overview still describes three roots although ADR-0006/code define five. These discrepancies do not authorize copying the defects or fixing them under this scope. Route them to their current-architecture/functional owners; #49's tests must distinguish preserved mechanics from unrelated compliance gaps.
 
@@ -395,7 +395,7 @@ Deriving a public reference from a high-entropy token can also be secure if that
 
 ADR-0001 through ADR-0003 remain applicable through the register: technology-independent core, explicit package boundaries and manual composition. ADR-0004 governs the session aggregate, atomic Redis maximum and session-version invalidation. ADR-0005 governs versioned integration contracts, idempotence and the Redis/outbox window. ADR-0006 and ADR-0007 constrain account boundaries and package topology.
 
-The new durable distinction between session identity and authentication proof, its verifier ownership, and its alternatives/rationale meet the Method ADR trigger. ADR-0008 records the human-accepted structural target and alternatives; the detailed Technical Design remains Proposed until its outstanding decisions and review are resolved. The Technical Design would own the implementation target, the ADR the durable rationale, and current architecture/guides would change only when the accepted target becomes effective.
+The new durable distinction between session identity and authentication proof, its verifier ownership, and its alternatives/rationale meet the Method ADR trigger. ADR-0008 records the human-accepted structural target and alternatives; this Software Architect-reviewed Technical Design owns the Approved Target implementation approach. The ADR owns the durable rationale; current architecture/guides change only when the target becomes effective.
 
 ## 18. Risks and unresolved technical decisions
 
@@ -403,7 +403,7 @@ These owners are authority roles; the repository does not identify a separate na
 
 | Decision / missing evidence | Proposed disposition | Authoritative owner / required activity |
 | --- | --- | --- |
-| Choose identity/proof model, verifier boundary and credential grammar | Option 3 accepted in ADR-0008; specific section 5–7 protocol remains Proposed | Human-accepted architecture target (ADR-0008); Software Architect owns detailed Technical Design and further design decisions |
+| Choose identity/proof model, verifier boundary and credential grammar | Option 3 accepted in ADR-0008; protocol and Redis consistency requirements established as Approved Target in sections 5–9 | Human-accepted architecture target (ADR-0008); Software Architect owns this Technical Design |
 | Confirm legacy-session invalidation and any real deployment exposure | Human confirms no deployments; inspect any local/test persistence before targeted reset, with strict v2-only cookies and no fallback | Deployment/security operator supplies local-data facts; architecture authority owns safe cutover; SF-SESSION-001 Product/Domain owner only if accepted behavior must change |
 | Historical audit/outbox cleanup versus append-only retention/legal hold | Preserve approved Audit behavior without new functionality; eliminate future secret exposure. No deployed history is reported; local/test data disposition remains operator-dependent and cannot silently rewrite retained evidence | Audit functional owner in SF-SECURITY-AUDIT-001, security/privacy authority and local-environment operator |
 | Unsafe ready/pending export state and manifest version | Preserve approved export states, ZIP manifest v2, request/download behavior and secret-free contents, without a new user journey or notification; identify any local/test archives before targeted disposal | Account-data functional owner in SF-ACCOUNT-DATA-001; local-environment operator for persisted development data |
@@ -420,4 +420,4 @@ The human has accepted the structural Option 3 target and sign-out functional ou
 
 After human architecture review and resolution of required functional/structural decisions, a planner can derive bounded execution units from the credential/port change, both issuance paths, Redis lifecycle, safe secondary projections, and deployment containment. The material dependencies are the accepted proof contract before producer/consumer code, safe historical-event handling before replay, and tested invalidation/rollback before cutover. Every changed port consumer and test double must converge on the same candidate; old/new unsafe resolver semantics cannot coexist in service.
 
-These are planning inputs only. This proposal does not approve Tasks, a PR, implementation, Project-field updates or lifecycle changes. Human architecture review and the owner decisions in the [working decision register](../explorations/iam/work-49-decision-register.md) must precede Task Planning and formal Readiness. The [accepted ADR-0008](decisions/0008-session-reference-and-authentication-proof.md) owns durable structural rationale, while this Technical Design owns the Proposed technical realization.
+Task planning inputs are not executable Tasks. This Approved Target does not create GitHub Sub-issues, authorize implementation, satisfy Readiness, approve a PR merge, or establish Project fields. The Technical Planner's proposed boundaries are recorded in [Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256926473). Native Task links and Project state must be verified before dispatch; the [accepted ADR-0008](decisions/0008-session-reference-and-authentication-proof.md) remains the durable structural owner, while this document owns the approved technical target.
