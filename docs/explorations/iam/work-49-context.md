@@ -1,5 +1,7 @@
 # Context Manifest — Work #49 architecture proposal
 
+> **Evidence snapshot, not live Work State:** This manifest preserves the initial design-analysis context and its then-unavailable Project fields. A later [Workflow Coordinator verification and Readiness Review](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6257274024) established native Project classifications, linked Tasks #51–#55 and `READY WITH RISKS`, with the Work still `Preparing` at that verification. The current Project fields and native GitHub relationships remain authoritative; this historical context capture does not replace them.
+
 - **Artifact status:** Working context; non-normative; supports the Work #49 Technical Design
 - **Context status:** PARTIALLY RESOLVED for design comparison. Sufficient to produce a conditional Proposed design; not sufficient to establish implementation readiness.
 - **Role:** Architecture Analyst / Technical Designer (Method Software Architect authority).
