@@ -7,7 +7,7 @@
 - **Domain:** IAM authentication and sessions; Messaging and Audit integration
 - **Decision authority:** Human Architecture Web maintainer; [explicit acceptance record](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807), 19 October 2026
 - **Evidence baseline:** `development` @ `a3d09eafe7caafe6542c6832a67cc6f26f219de1`
-**Detailed implementation target:** [Proposed Technical Design](../iam-session-credential-separation.md)
+**Detailed implementation target:** [Approved Target Technical Design](../iam-session-credential-separation.md)
 
 ## Context
 
@@ -74,7 +74,7 @@ Choose **Option C**, establishing these durable structural rules:
 
 - **Approved target:** bounded correction of IAM session credential handling in Work #49; not a broad IAM redesign.
 - **Current Truth:** the current resolver still accepts UUID bearer values. Do not edit `docs/architecture/overview.md` or guides to state the proposed design as implemented.
-- **Acceptance record:** [human acceptance for Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807). The detailed Technical Design remains Proposed; this structural approval alone does not grant implementation Readiness.
+- **Acceptance record:** [human acceptance for Work #49](https://github.com/Oxelio/Architecture-Web/issues/49#issuecomment-6256348807). The Software Architect-reviewed Technical Design records an Approved Target. Neither this structural approval nor the technical target grants implementation Readiness.
 - **When effective:** synchronize the current architecture overview, dependency/package documents only if affected, and `docs/guides/iam-sessions.md` as required by the implemented result. Validate integration schema changes against ADR-0005.
 
 ## Unresolved authority and deployment dependencies
