@@ -1,6 +1,9 @@
 packages:
   - "apps/*"
-  - "packages/*"
+  - "packages/contexts/*"
+  - "packages/adapters/*/*"
+  - "packages/shared/*"
+  - "packages/tooling/*"
 
 allowBuilds:
   argon2: true
