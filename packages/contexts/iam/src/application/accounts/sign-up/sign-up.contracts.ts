@@ -1,7 +1,7 @@
 // @file bounded-contexts/iam/application/use-cases/sign-up/sign-up.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { PasswordValidationError } from "#services/password-policy-validator.service";
+import type { PasswordValidationError } from "#accounts/password-policy/password-validation";
 import type {
   LoginIdentifierError,
   LoginIdentifierKind,

@@ -2,12 +2,14 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
+import type { PasswordValidation } from "#accounts/password-policy/password-validation";
+import { selectPasswordPolicyProfile } from "#domain/password-policy";
 import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
 import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
 import type { PasswordHasher } from "#services/password-hasher.service";
-import type { PasswordPolicyValidator } from "#services/password-policy-validator.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -26,9 +28,9 @@ export class ChangePasswordUseCase implements ChangePassword {
     private readonly passwordAuthenticators: PasswordAuthenticatorRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly sessionPort: SessionRepository,
-    private readonly passwordPolicy: PasswordPolicyValidator,
-    private readonly privilegedPasswordPolicy: PasswordPolicyValidator = passwordPolicy,
-    private readonly unitOfWork?: IamUnitOfWork,
+    private readonly policies: PasswordPolicyReader,
+    private readonly passwordValidation: PasswordValidation,
+    private readonly unitOfWork: IamUnitOfWork,
   ) {}
 
   async execute(payload: ChangePasswordInput): Promise<ChangePasswordOutput> {
@@ -62,14 +64,14 @@ export class ChangePasswordUseCase implements ChangePassword {
       return Result.failure(ChangePasswordErrorsCodes.currentPasswordInvalid);
     }
 
-    const activePolicy = user.role.isAdmin()
-      ? this.privilegedPasswordPolicy
-      : this.passwordPolicy;
+    const policy = await this.policies.get(
+      selectPasswordPolicyProfile(user.role),
+    );
     const emailIdentity = await this.loginIdentities.findForUser(
       user.identifier,
       "email",
     );
-    const validation = await activePolicy.validate({
+    const validation = await this.passwordValidation.validate(policy, {
       password: payload.password,
       confirmation: payload.passwordConfirmation,
       ...(emailIdentity
@@ -86,9 +88,8 @@ export class ChangePasswordUseCase implements ChangePassword {
       return Result.failure(password.error);
     }
 
-    const publicPolicy = await activePolicy.getPublicPolicy();
     if (
-      publicPolicy.rejectCurrentPassword &&
+      policy.rejectCurrentPassword &&
       (await this.passwordHasher.verify(
         password.value,
         authenticator.passwordHash,
@@ -102,17 +103,10 @@ export class ChangePasswordUseCase implements ChangePassword {
     authenticator.changePassword(hashed);
     user.invalidateSessions();
 
-    if (this.unitOfWork) {
-      await this.unitOfWork.execute(
-        async ({ passwordAuthenticators, users }) => {
-          await passwordAuthenticators.save(authenticator);
-          await users.save(user);
-        },
-      );
-    } else {
-      await this.passwordAuthenticators.save(authenticator);
-      await this.userPort.save(user);
-    }
+    await this.unitOfWork.execute(async ({ passwordAuthenticators, users }) => {
+      await passwordAuthenticators.save(authenticator);
+      await users.save(user);
+    });
     await this.sessionPort.deleteAllForUser(user.identifier);
 
     return Result.success(undefined);

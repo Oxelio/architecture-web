@@ -12,6 +12,7 @@ describe("createIam", () => {
       sessionRepository: {} as never,
       passwordHasher: {} as never,
       policyProvider: {} as never,
+      passwordPolicyReader: {} as never,
       passwordStrengthEvaluator: {} as never,
       commonPasswordChecker: {} as never,
       compromisedPasswordChecker: {} as never,

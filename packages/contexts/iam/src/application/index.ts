@@ -139,6 +139,21 @@ export { createIam } from "./create-iam.js";
 export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 
 // Ports
+export {
+  CommonPasswordChecker,
+  CompromisedPasswordChecker,
+  type PasswordContext,
+  PasswordStrengthEvaluator,
+} from "./accounts/password-policy/password-checks.js";
+export {
+  FixedPasswordPolicyReader,
+  type PasswordPolicyReader,
+} from "./accounts/password-policy/password-policy.reader.js";
+export {
+  PasswordValidation,
+  type PasswordValidationError,
+  type PasswordValidationResult,
+} from "./accounts/password-policy/password-validation.js";
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
 export { LoginIdentityRepository } from "./repositories/login-identity.repository.js";
 export { PasswordAuthenticatorRepository } from "./repositories/password-authenticator.repository.js";
@@ -165,18 +180,6 @@ export type {
   IamPolicyProvider,
 } from "./services/iam-policy-provider.service.js";
 export { PasswordHasher } from "./services/password-hasher.service.js";
-export {
-  PasswordPolicyValidator,
-  type PasswordValidationError,
-  type PasswordValidationResult,
-} from "./services/password-policy-validator.service.js";
-export {
-  CommonPasswordChecker,
-  CompromisedPasswordChecker,
-  type PasswordContext,
-  type PasswordPolicyProvider,
-  PasswordStrengthEvaluator,
-} from "./services/password-security.service.js";
 export {
   type SecondFactorChallenge,
   SecondFactorGate,

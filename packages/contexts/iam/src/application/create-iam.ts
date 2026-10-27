@@ -20,14 +20,21 @@ import type { ChangePassword } from "#accounts/change-password/change-password.c
 import { ChangePasswordUseCase } from "#accounts/change-password/change-password.use-case";
 import type { GetCurrentAccount } from "#accounts/get-current-account/get-current-account.contracts";
 import { GetCurrentAccountUseCase } from "#accounts/get-current-account/get-current-account.use-case";
+import {
+  CommonPasswordChecker,
+  CompromisedPasswordChecker,
+  PasswordStrengthEvaluator,
+} from "#accounts/password-policy/password-checks";
 import type {
   EvaluatePassword,
   GetPasswordPolicy,
 } from "#accounts/password-policy/password-policy.contracts";
+import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
 import {
   EvaluatePasswordUseCase,
   GetPasswordPolicyUseCase,
 } from "#accounts/password-policy/password-policy.use-case";
+import { PasswordValidation } from "#accounts/password-policy/password-validation";
 import type { ResendEmailVerification } from "#accounts/resend-email-verification/resend-email-verification.contracts";
 import { ResendEmailVerificationUseCase } from "#accounts/resend-email-verification/resend-email-verification.use-case";
 import type { SignUp } from "#accounts/sign-up/sign-up.contracts";
@@ -55,12 +62,6 @@ import { EmailVerificationRateLimiter } from "#services/email-verification-rate-
 import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import { PasswordHasher } from "#services/password-hasher.service";
-import { PasswordPolicyValidator } from "#services/password-policy-validator.service";
-import {
-  CommonPasswordChecker,
-  CompromisedPasswordChecker,
-  PasswordStrengthEvaluator,
-} from "#services/password-security.service";
 import type { SecondFactorGate } from "#services/second-factor-gate.service";
 import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 
@@ -72,6 +73,7 @@ export interface IamDependencies {
   sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
   policyProvider: IamPolicyProvider;
+  passwordPolicyReader: PasswordPolicyReader;
   passwordStrengthEvaluator: PasswordStrengthEvaluator;
   commonPasswordChecker: CommonPasswordChecker;
   compromisedPasswordChecker: CompromisedPasswordChecker;
@@ -108,16 +110,7 @@ export interface IamApplication {
 }
 
 export function createIam(dependencies: IamDependencies): IamApplication {
-  const passwordPolicy = new PasswordPolicyValidator(
-    dependencies.policyProvider,
-    "user",
-    dependencies.passwordStrengthEvaluator,
-    dependencies.commonPasswordChecker,
-    dependencies.compromisedPasswordChecker,
-  );
-  const privilegedPasswordPolicy = new PasswordPolicyValidator(
-    dependencies.policyProvider,
-    "admin",
+  const passwordValidation = new PasswordValidation(
     dependencies.passwordStrengthEvaluator,
     dependencies.commonPasswordChecker,
     dependencies.compromisedPasswordChecker,
@@ -146,8 +139,8 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.passwordAuthenticatorRepository,
       dependencies.passwordHasher,
       dependencies.sessionRepository,
-      passwordPolicy,
-      privilegedPasswordPolicy,
+      dependencies.passwordPolicyReader,
+      passwordValidation,
       dependencies.unitOfWork,
     ),
     getCurrentAccount: new GetCurrentAccountUseCase(
@@ -170,8 +163,13 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.userRepository,
       dependencies.sessionRepository,
     ),
-    getPasswordPolicy: new GetPasswordPolicyUseCase(passwordPolicy),
-    evaluatePassword: new EvaluatePasswordUseCase(passwordPolicy),
+    getPasswordPolicy: new GetPasswordPolicyUseCase(
+      dependencies.passwordPolicyReader,
+    ),
+    evaluatePassword: new EvaluatePasswordUseCase(
+      dependencies.passwordPolicyReader,
+      passwordValidation,
+    ),
     resendEmailVerification: new ResendEmailVerificationUseCase(
       dependencies.userRepository,
       dependencies.loginIdentityRepository,
@@ -208,7 +206,8 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.passwordHasher,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
-      passwordPolicy,
+      dependencies.passwordPolicyReader,
+      passwordValidation,
       dependencies.unitOfWork,
       dependencies.policyProvider,
     ),

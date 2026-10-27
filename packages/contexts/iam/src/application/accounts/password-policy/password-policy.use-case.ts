@@ -1,4 +1,4 @@
-import type { PasswordPolicyValidator } from "#services/password-policy-validator.service";
+import type { PasswordValidation } from "#accounts/password-policy/password-validation";
 
 import type {
   EvaluatePassword,
@@ -7,12 +7,13 @@ import type {
   PasswordEvaluation,
   PublicPasswordPolicy,
 } from "./password-policy.contracts.js";
+import type { PasswordPolicyReader } from "./password-policy.reader.js";
 
 export class GetPasswordPolicyUseCase implements GetPasswordPolicy {
-  constructor(private readonly validator: PasswordPolicyValidator) {}
+  constructor(private readonly policies: PasswordPolicyReader) {}
 
   async execute(): Promise<PublicPasswordPolicy> {
-    const policy = await this.validator.getPublicPolicy();
+    const policy = await this.policies.get("standard");
     return {
       level: policy.level,
       minLength: policy.minLength,
@@ -31,12 +32,18 @@ export class GetPasswordPolicyUseCase implements GetPasswordPolicy {
 }
 
 export class EvaluatePasswordUseCase implements EvaluatePassword {
-  constructor(private readonly validator: PasswordPolicyValidator) {}
+  constructor(
+    private readonly policies: PasswordPolicyReader,
+    private readonly validator: PasswordValidation,
+  ) {}
 
   async execute(input: EvaluatePasswordInput): Promise<PasswordEvaluation> {
-    const result = await this.validator.validate({
-      password: input.password,
-    });
+    const result = await this.validator.validate(
+      await this.policies.get("standard"),
+      {
+        password: input.password,
+      },
+    );
 
     return {
       valid: result.valid,

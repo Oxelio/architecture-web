@@ -212,7 +212,7 @@ export class TestPolicyProvider implements IamPolicyProvider {
     };
   }
 
-  async getPasswordPolicy() {
+  async get() {
     return {
       level: "standard" as const,
       minLength: 8,

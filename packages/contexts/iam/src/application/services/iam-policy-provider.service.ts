@@ -1,5 +1,3 @@
-import type { PasswordPolicy } from "#domain/password-policy";
-
 export type IamActorRole = "user" | "admin";
 
 export type IamCapability =
@@ -19,7 +17,6 @@ export interface IamAccountIdentityPolicy {
 }
 
 export interface IamPolicyProvider {
-  getPasswordPolicy(role: IamActorRole): Promise<PasswordPolicy>;
   getAccountIdentityPolicy?(): Promise<IamAccountIdentityPolicy>;
   getSessionDurationMinutes(): Promise<number>;
   isCapabilityEnabled(capability: IamCapability): Promise<boolean>;

@@ -5,6 +5,7 @@ import {
   type IamApplication,
   type IamDependencies,
   type IamPolicyProvider,
+  type PasswordPolicyReader,
   type SecondFactorGate,
 } from "@architecture/iam/application";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
@@ -37,13 +38,14 @@ import type { AppDatabase } from "./database.module.js";
 function buildIamDependencies(
   db: Kysely<AppDatabase>,
   redis: Redis,
-  policyProvider: IamDependencies["policyProvider"],
+  policyProvider: IamDependencies["policyProvider"] & PasswordPolicyReader,
   emailSender: NodemailerEmailSenderAdapter,
   outbox: OutboxWriter,
 ): IamDependencies {
   return {
     passwordHasher: new Argon2PasswordHasherAdapter(),
     policyProvider,
+    passwordPolicyReader: policyProvider,
     passwordStrengthEvaluator: new HeuristicPasswordStrengthEvaluator(),
     commonPasswordChecker: new LocalCommonPasswordChecker(),
     compromisedPasswordChecker: new LocalCompromisedPasswordChecker(),
@@ -78,7 +80,7 @@ function buildIamDependencies(
 export function buildIamModule(
   db: Kysely<AppDatabase>,
   redis: Redis,
-  security: SecondFactorGate & IamPolicyProvider,
+  security: SecondFactorGate & IamPolicyProvider & PasswordPolicyReader,
   emailSender: NodemailerEmailSenderAdapter,
   outbox: OutboxWriter,
 ): IamApplication {

@@ -20,6 +20,12 @@ export {
   type PasswordStrength,
   PasswordStrengths,
 } from "./password-policy.js";
+export {
+  evaluatePasswordRules,
+  type PasswordPolicyProfile,
+  type PasswordPolicyViolation,
+  selectPasswordPolicyProfile,
+} from "./password-policy.js";
 export { EmailVerificationEntity } from "#entities/email-verification.entity";
 export {
   LoginIdentityEntity,

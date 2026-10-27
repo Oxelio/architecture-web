@@ -1,13 +1,8 @@
-import type { PasswordPolicy, PasswordStrength } from "#domain/password-policy";
-
-export interface PasswordContext {
-  readonly email?: string;
-  readonly username?: string;
-  readonly displayName?: string;
-  readonly applicationName?: string;
-  readonly organizationName?: string;
-}
-
+import type {
+  PasswordContext,
+  PasswordStrength,
+} from "#domain/password-policy";
+export type { PasswordContext } from "#domain/password-policy";
 export abstract class PasswordStrengthEvaluator {
   abstract evaluate(
     password: string,
@@ -21,8 +16,4 @@ export abstract class CommonPasswordChecker {
 
 export abstract class CompromisedPasswordChecker {
   abstract isCompromised(password: string): Promise<boolean>;
-}
-
-export interface PasswordPolicyProvider {
-  readonly policy: PasswordPolicy;
 }

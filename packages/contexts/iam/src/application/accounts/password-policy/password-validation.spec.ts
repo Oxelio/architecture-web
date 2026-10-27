@@ -1,13 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createPasswordPolicy } from "#domain/password-policy";
 
-import { PasswordPolicyValidator } from "./password-policy-validator.service.js";
 import {
   CommonPasswordChecker,
   CompromisedPasswordChecker,
   PasswordStrengthEvaluator,
-} from "./password-security.service.js";
+} from "./password-checks.js";
+import { PasswordValidation } from "./password-validation.js";
 
 class FakeStrengthEvaluator extends PasswordStrengthEvaluator {
   constructor(private readonly strength = "acceptable" as const) {
@@ -40,21 +40,31 @@ class FakeCompromisedChecker extends CompromisedPasswordChecker {
 }
 
 function createValidator(overrides = {}, common = false, compromised = false) {
-  return new PasswordPolicyValidator(
-    {
-      getPasswordPolicy: async () =>
-        createPasswordPolicy("elevated", overrides),
-      getSessionDurationMinutes: async () => 60,
-      isCapabilityEnabled: async () => true,
-    },
-    "user",
+  const validation = new PasswordValidation(
     new FakeStrengthEvaluator(),
     new FakeCommonChecker(common),
     new FakeCompromisedChecker(compromised),
   );
+  return {
+    validate: (input: Parameters<PasswordValidation["validate"]>[1]) =>
+      validation.validate(createPasswordPolicy("elevated", overrides), input),
+  };
 }
 
-describe("PasswordPolicyValidator", () => {
+describe("PasswordValidation", () => {
+  it("propagates unexpected checker failures", async () => {
+    const failure = new Error("checker unavailable");
+    const validation = new PasswordValidation(
+      new FakeStrengthEvaluator(),
+      new FakeCommonChecker(),
+      { isCompromised: vi.fn().mockRejectedValue(failure) },
+    );
+    await expect(
+      validation.validate(createPasswordPolicy(), {
+        password: "a sufficiently long phrase",
+      }),
+    ).rejects.toBe(failure);
+  });
   it("accepts a long Unicode passphrase with spaces without modifying it", async () => {
     const password = "clé 🔐 gardée avec une longue phrase";
     const result = await createValidator({

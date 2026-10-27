@@ -2,6 +2,8 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
+import type { PasswordValidation } from "#accounts/password-policy/password-validation";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
@@ -11,7 +13,6 @@ import type { EmailSender } from "#services/email-sender.service";
 import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import type { PasswordHasher } from "#services/password-hasher.service";
-import type { PasswordPolicyValidator } from "#services/password-policy-validator.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
@@ -31,7 +32,8 @@ export class SignUpUseCase {
     private readonly password: PasswordHasher,
     private readonly emailSender: EmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
-    private readonly passwordPolicy: PasswordPolicyValidator,
+    private readonly policies: PasswordPolicyReader,
+    private readonly passwordValidation: PasswordValidation,
     private readonly unitOfWork: IamUnitOfWork,
     private readonly policyProvider: IamPolicyProvider,
   ) {}
@@ -68,12 +70,14 @@ export class SignUpUseCase {
       return Result.failure(SignUpErrorCodes.userAlreadyExists);
     }
 
-    const validation = await this.passwordPolicy.validate({
+    const policy = await this.policies.get("standard");
+    const validation = await this.passwordValidation.validate(policy, {
       password: payload.password,
       confirmation: payload.passwordConfirmation,
-      ...(login.value.kind === "email"
-        ? { context: { email: login.value.value } }
-        : {}),
+      context:
+        login.value.kind === "email"
+          ? { email: login.value.value }
+          : { username: login.value.value },
     });
     const firstValidationError = validation.errors[0];
     if (firstValidationError) {

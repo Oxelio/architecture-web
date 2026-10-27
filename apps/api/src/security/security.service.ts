@@ -14,10 +14,10 @@ import {
 } from "@architecture/audit/application";
 import type { AuditContext, AuditResult } from "@architecture/audit/domain";
 import type {
-  IamActorRole,
   IamCapability,
   IamPolicyProvider,
   PasswordHasher,
+  PasswordPolicyReader,
   SecondFactorChallenge,
   SecondFactorGate,
   SessionRepository,
@@ -103,7 +103,9 @@ function toAuditResponse(entry: AuditEntry) {
   };
 }
 
-export class SecurityService implements SecondFactorGate, IamPolicyProvider {
+export class SecurityService
+  implements SecondFactorGate, IamPolicyProvider, PasswordPolicyReader
+{
   private readonly key: Buffer;
 
   constructor(private readonly options: SecurityServiceOptions) {
@@ -124,9 +126,9 @@ export class SecurityService implements SecondFactorGate, IamPolicyProvider {
       : structuredClone(DEFAULT_SECURITY_POLICY);
   }
 
-  async getPasswordPolicy(role: IamActorRole) {
+  async get(profile: "standard" | "privileged") {
     const { passwords } = await this.policy();
-    const privileged = role === "admin";
+    const privileged = profile === "privileged";
     return createPasswordPolicy(
       privileged ? passwords.privilegedLevel : passwords.standardLevel,
       {
