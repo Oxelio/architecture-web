@@ -1,10 +1,10 @@
 // @file infrastructure/iam/email/nodemailer/src/nodemailer-email-sender.adapter.ts
 
-import type { EmailSender } from "@architecture/iam/application";
+import type { VerificationEmailSender } from "@architecture/iam/application";
 import type { EmailValueObject } from "@architecture/iam/domain";
 import nodemailer, { type Transporter } from "nodemailer";
 
-export class NodemailerEmailSenderAdapter implements EmailSender {
+export class NodemailerEmailSenderAdapter implements VerificationEmailSender {
   private readonly transporter: Transporter;
   private readonly fromAddress: string;
   private readonly verificationUrl: string;

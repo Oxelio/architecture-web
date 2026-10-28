@@ -4,6 +4,7 @@ import { createAdministrator } from "#access-administration/administrator.fixtur
 import { SessionEntity } from "#entities/session.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import { TestPolicies } from "#testing/iam-test-doubles";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { RevokeUserSessionUseCase } from "./revoke-user-session.use-case.js";
@@ -29,7 +30,11 @@ describe("RevokeUserSessionUseCase", () => {
       delete: deleteSession,
     } as unknown as SessionRepository;
 
-    const result = await new RevokeUserSessionUseCase(users, sessions).execute({
+    const result = await new RevokeUserSessionUseCase(
+      users,
+      sessions,
+      new TestPolicies(),
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: userId.value,
       sessionId: session.identifier.value,
@@ -59,7 +64,11 @@ describe("RevokeUserSessionUseCase", () => {
       delete: deleteSession,
     } as unknown as SessionRepository;
 
-    const result = await new RevokeUserSessionUseCase(users, sessions).execute({
+    const result = await new RevokeUserSessionUseCase(
+      users,
+      sessions,
+      new TestPolicies(),
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: userId.value,
       sessionId: otherSession.identifier.value,
@@ -86,6 +95,7 @@ describe("RevokeUserSessionUseCase", () => {
       {
         deleteAllForUser: deleteAll,
       } as unknown as SessionRepository,
+      new TestPolicies(),
     );
 
     expect(

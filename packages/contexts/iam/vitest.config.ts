@@ -7,6 +7,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "#application-result": fileURLToPath(
+        new URL("./src/application/application-result.ts", import.meta.url),
+      ),
+      "#transactions": fileURLToPath(
+        new URL("./src/application/transactions", import.meta.url),
+      ),
       "#domain": fileURLToPath(new URL("./src/domain", import.meta.url)),
       "#entities": fileURLToPath(
         new URL("./src/domain/entities", import.meta.url),
@@ -16,9 +22,6 @@ export default defineConfig({
       ),
       "#repositories": fileURLToPath(
         new URL("./src/application/repositories", import.meta.url),
-      ),
-      "#services": fileURLToPath(
-        new URL("./src/application/services", import.meta.url),
       ),
       "#accounts": fileURLToPath(
         new URL("./src/application/accounts", import.meta.url),

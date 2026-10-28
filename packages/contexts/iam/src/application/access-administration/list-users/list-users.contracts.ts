@@ -1,6 +1,6 @@
 import type { Result } from "@architecture/foundation";
 
-import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 import type { UserRole } from "#value-objects/user-role.value-object";
 
 export const USER_LIST_DEFAULT_PAGE = 1;

@@ -2,6 +2,7 @@ import {
   type IamTransactionalRepositories,
   IamUnitOfWork,
 } from "@architecture/iam/application";
+import type { UserIdentifierValueObject } from "@architecture/iam/domain";
 import type { OutboxWriter } from "@architecture/messaging/application";
 import type { Kysely } from "kysely";
 
@@ -23,7 +24,29 @@ export class KyselyIamUnitOfWorkAdapter extends IamUnitOfWork {
   execute<T>(
     work: (repositories: IamTransactionalRepositories) => Promise<T>,
   ): Promise<T> {
-    return this.db.transaction().execute((transaction) => {
+    return this.run(work);
+  }
+
+  executeForUser<T>(
+    userId: UserIdentifierValueObject,
+    work: (repositories: IamTransactionalRepositories) => Promise<T>,
+  ): Promise<T> {
+    return this.run(work, userId.value);
+  }
+
+  private run<T>(
+    work: (repositories: IamTransactionalRepositories) => Promise<T>,
+    userId?: string,
+  ): Promise<T> {
+    return this.db.transaction().execute(async (transaction) => {
+      if (userId) {
+        await transaction
+          .selectFrom("iam_users")
+          .select("id")
+          .where("id", "=", userId)
+          .forUpdate()
+          .executeTakeFirst();
+      }
       const outbox = this.createOutbox?.(transaction);
       return work({
         emailVerifications: new KyselyEmailVerificationAdapter(transaction),

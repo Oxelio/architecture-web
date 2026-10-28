@@ -7,6 +7,7 @@ import type {
 import {
   comparePasswordStrength,
   evaluatePasswordRules,
+  PasswordStrengths,
 } from "#domain/password-policy";
 
 import type {
@@ -54,6 +55,11 @@ export class PasswordValidation {
         ? this.compromisedPasswordChecker.isCompromised(input.password)
         : false,
     ]);
+    if (!PasswordStrengths.includes(strength)) {
+      throw new Error(
+        "Password strength evaluator returned an unknown strength",
+      );
+    }
     if (common) {
       errors.push({ code: "password.too_common" });
     }

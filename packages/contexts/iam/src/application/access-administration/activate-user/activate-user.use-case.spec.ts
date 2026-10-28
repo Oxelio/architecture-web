@@ -1,10 +1,10 @@
 // @file bounded-contexts/iam/application/use-cases/activate-user/activate-user.use-case.spec.ts
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { UserEntity } from "#entities/user.entity";
 import type { UserRepository } from "#repositories/user.repository";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ActivateUserUseCase } from "./activate-user.use-case.js";
@@ -35,7 +35,12 @@ describe("ActivateUserUseCase", () => {
     const administrator = createAdministrator();
     await userPort.save(administrator);
     actorUserId = administrator.identifier.value;
-    useCase = new ActivateUserUseCase(userPort);
+    useCase = new ActivateUserUseCase(userPort, {
+      executeForUser: async (
+        _id: UserIdentifierValueObject,
+        work: Parameters<IamUnitOfWork["execute"]>[0],
+      ) => work({ users: userPort } as never),
+    } as IamUnitOfWork);
   });
 
   it("should fail when userId is invalid", async () => {

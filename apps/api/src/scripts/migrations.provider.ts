@@ -5,6 +5,7 @@ import {
   iamAggregateConsistencyMigrations,
   iamAuthenticationMigrations,
   iamEmailVerificationMigrations,
+  iamSecurityInvariantMigrations,
   iamSecurityMigrations,
   iamUserMigrations,
 } from "@architecture/iam-persistence-kysely";
@@ -19,6 +20,7 @@ export const getAllMigrations = (): Record<string, Migration> => {
     ...iamSecurityMigrations,
     ...iamAggregateConsistencyMigrations,
     ...iamAuthenticationMigrations,
+    ...iamSecurityInvariantMigrations,
     ...messagingMigrations,
     ...auditMigrations,
     ...notificationMigrations,

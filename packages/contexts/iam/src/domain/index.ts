@@ -11,6 +11,12 @@ export {
   UserSuspended,
 } from "./events/iam-domain-events.js";
 export {
+  isMfaChallengeUsable,
+  isMfaEnrollmentUsable,
+  type MfaChallenge,
+  type MfaCredential,
+} from "./mfa.js";
+export {
   comparePasswordStrength,
   createPasswordPolicy,
   type PasswordCompositionRules,
@@ -26,6 +32,13 @@ export {
   type PasswordPolicyViolation,
   selectPasswordPolicyProfile,
 } from "./password-policy.js";
+export { isRecoveryTokenUsable, type RecoveryToken } from "./recovery-token.js";
+export {
+  changedPolicyKeys,
+  DEFAULT_SECURITY_POLICY,
+  parseSecurityPolicy,
+  type SecurityPolicy,
+} from "./security-policy.js";
 export { EmailVerificationEntity } from "#entities/email-verification.entity";
 export {
   LoginIdentityEntity,

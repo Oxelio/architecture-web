@@ -4,6 +4,7 @@ import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import { TestPolicies } from "#testing/iam-test-doubles";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 
@@ -32,6 +33,7 @@ describe("ListCurrentUserSessionsUseCase", () => {
     const result = await new ListCurrentUserSessionsUseCase(
       users,
       sessions,
+      new TestPolicies(),
     ).execute({
       actorUserId: actor.identifier.value,
       currentSessionId: session.identifier.value,

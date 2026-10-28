@@ -5,7 +5,7 @@ import type { UserRepository } from "#repositories/user.repository";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
-import { AdministratorAuthorizer } from "./administrator-authorizer.service.js";
+import { AdministratorAuthorizer } from "./administrator-authorizer.js";
 
 function createUser(): UserEntity {
   return UserEntity.create();

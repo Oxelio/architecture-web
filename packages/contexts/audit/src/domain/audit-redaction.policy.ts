@@ -1,4 +1,5 @@
-const sensitiveKey = /(password|token|secret|cookie|authorization|code)/i;
+const sensitiveKey =
+  /(password|token|secret|cookie|authorization|code|session[_-]?id)/i;
 
 export function redactAuditMetadata(value: unknown): unknown {
   if (Array.isArray(value)) {

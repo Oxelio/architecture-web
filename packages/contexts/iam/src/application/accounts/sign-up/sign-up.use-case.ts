@@ -2,17 +2,17 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
 import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
 import type { PasswordValidation } from "#accounts/password-policy/password-validation";
+import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { EmailSender } from "#services/email-sender.service";
-import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
-import type { PasswordHasher } from "#services/password-hasher.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
@@ -30,27 +30,19 @@ export class SignUpUseCase {
   constructor(
     private readonly loginIdentities: LoginIdentityRepository,
     private readonly password: PasswordHasher,
-    private readonly emailSender: EmailSender,
+    private readonly emailSender: VerificationEmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
     private readonly policies: PasswordPolicyReader,
     private readonly passwordValidation: PasswordValidation,
     private readonly unitOfWork: IamUnitOfWork,
-    private readonly policyProvider: IamPolicyProvider,
+    private readonly accountPolicies: AccountPolicyReader,
   ) {}
 
   async execute(payload: SignUpInput): Promise<SignUpOutput> {
-    if (
-      !(await this.policyProvider.isCapabilityEnabled(
-        "accounts.publicRegistration",
-      ))
-    ) {
+    const registrationPolicy = await this.accountPolicies.getAccountPolicy();
+    if (!registrationPolicy.publicRegistration) {
       return Result.failure(SignUpErrorCodes.featureDisabled);
     }
-    const registrationPolicy =
-      (await this.policyProvider.getAccountIdentityPolicy?.()) ?? {
-        allowedLoginIdentifiers: ["email"] as const,
-        requireEmailVerification: true,
-      };
     if (
       !registrationPolicy.allowedLoginIdentifiers.includes(payload.login.kind)
     ) {
@@ -95,7 +87,7 @@ export class SignUpUseCase {
     const identity = LoginIdentityEntity.create({
       userId: user.identifier,
       login: login.value,
-      verificationRequired: registrationPolicy.requireEmailVerification,
+      verificationRequired: registrationPolicy.emailVerification,
     });
     const authenticator = PasswordAuthenticatorEntity.create({
       userId: user.identifier,

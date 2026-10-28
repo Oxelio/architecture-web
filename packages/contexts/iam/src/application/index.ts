@@ -123,7 +123,6 @@ export type {
   SignInInput,
   SignInOutput,
 } from "./authentication/sign-in/sign-in.contracts.js";
-export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/sign-in/sign-in.use-case.js";
 export type {
   SignOut,
   SignOutError,
@@ -140,6 +139,36 @@ export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 
 // Ports
 export {
+  type AdministratorAuthorizationError,
+  AdministratorAuthorizationErrorCodes,
+  AdministratorAuthorizer,
+} from "./access-administration/administrator-authorizer.js";
+export type {
+  ConfigurationRevision,
+  ConfigurationStore,
+  PublishedConfigurationReader,
+} from "./access-administration/security-configuration/configuration.store.js";
+export type {
+  ConfigurationRevisionMetadata,
+  StoredConfigurationRevision,
+} from "./access-administration/security-configuration/configuration.store.js";
+export { PublishedIamPolicies } from "./access-administration/security-configuration/published-iam-policies.js";
+export * from "./access-administration/security-configuration/security-configuration.use-cases.js";
+export type {
+  AccountArchiveBuilder,
+  AccountAuditData,
+  AccountDeletionStore,
+  AccountExportStore,
+  AccountExportView,
+  DeletionRequest,
+} from "./accounts/account-data/account-data.ports.js";
+export * from "./accounts/account-data/account-deletion.use-cases.js";
+export * from "./accounts/account-data/account-export.use-cases.js";
+export type { AccountPolicyReader } from "./accounts/account-policy.reader.js";
+export { EmailVerificationRateLimiter } from "./accounts/email-verification/email-verification-rate-limiter.port.js";
+export { EmailVerificationTokenHasher } from "./accounts/email-verification/email-verification-token-hasher.port.js";
+export { VerificationEmailSender } from "./accounts/email-verification/verification-email-sender.port.js";
+export {
   CommonPasswordChecker,
   CompromisedPasswordChecker,
   type PasswordContext,
@@ -154,6 +183,42 @@ export {
   type PasswordValidationError,
   type PasswordValidationResult,
 } from "./accounts/password-policy/password-validation.js";
+export type {
+  PasswordRecoveryStore,
+  RecoveryCommit,
+} from "./accounts/recovery/password-recovery.store.js";
+export * from "./accounts/recovery/password-recovery.use-cases.js";
+export type { RecoveryPolicyReader } from "./accounts/recovery/recovery-policy.reader.js";
+export type {
+  AccountSecurityMail,
+  RecoveryOriginLimiter,
+  SecurityContext,
+  SecurityEventRecorder,
+  SecurityTokens,
+} from "./accounts/security-effects.js";
+export type {
+  AuthenticationPolicyReader,
+  SessionPolicyReader,
+} from "./authentication/authentication-policy.reader.js";
+export { IssueSession } from "./authentication/issue-session.js";
+export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/issue-session.js";
+export type {
+  MfaCryptography,
+  MfaStore,
+} from "./authentication/mfa/mfa.ports.js";
+export * from "./authentication/mfa/mfa.use-cases.js";
+export { PasswordHasher } from "./authentication/password/password-hasher.port.js";
+export {
+  FactorVerification,
+  Reauthentication,
+} from "./authentication/reauthentication.js";
+export type { SecondFactorChallenge } from "./authentication/sign-in/sign-in.contracts.js";
+export {
+  createIamSecurity,
+  type IamResult,
+  type IamSecurityApplication,
+  type IamSecurityDependencies,
+} from "./create-iam-security.js";
 export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
 export { LoginIdentityRepository } from "./repositories/login-identity.repository.js";
 export { PasswordAuthenticatorRepository } from "./repositories/password-authenticator.repository.js";
@@ -166,25 +231,8 @@ export {
   type UserSearchResult,
 } from "./repositories/user-query.repository.js";
 export {
-  type AdministratorAuthorizationError,
-  AdministratorAuthorizationErrorCodes,
-  AdministratorAuthorizer,
-} from "./services/administrator-authorizer.service.js";
-export { EmailSender } from "./services/email-sender.service.js";
-export { EmailVerificationRateLimiter } from "./services/email-verification-rate-limiter.service.js";
-export { EmailVerificationTokenHasher } from "./services/email-verification-token-hasher.service.js";
-export type {
-  IamAccountIdentityPolicy,
-  IamActorRole,
-  IamCapability,
-  IamPolicyProvider,
-} from "./services/iam-policy-provider.service.js";
-export { PasswordHasher } from "./services/password-hasher.service.js";
-export {
-  type SecondFactorChallenge,
-  SecondFactorGate,
-} from "./services/second-factor-gate.service.js";
-export {
   type IamTransactionalRepositories,
   IamUnitOfWork,
 } from "./transactions/iam-unit-of-work.js";
+export type { SecurityPolicy } from "#domain/security-policy";
+export type { SessionClient, SessionNetwork } from "#entities/session.entity";

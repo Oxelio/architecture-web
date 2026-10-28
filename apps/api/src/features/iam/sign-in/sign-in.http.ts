@@ -14,6 +14,16 @@ export const SignInHttpContract = {
   },
 
   errors: {
+    MFA_CHALLENGE_INVALID: {
+      status: 401,
+      code: "MFA_CHALLENGE_INVALID",
+      message: "Invalid MFA challenge",
+    },
+    MFA_ENROLLMENT_REQUIRED: {
+      status: 403,
+      code: "MFA_ENROLLMENT_REQUIRED",
+      message: "MFA enrollment required",
+    },
     "user.invalid_credentials": {
       status: 401,
 

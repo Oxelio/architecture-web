@@ -1,6 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 import type { UserRoleError } from "#value-objects/user-role.value-object";
 
 import type { AssignUserRoleErrorCodes } from "./assign-user-role.codes.js";

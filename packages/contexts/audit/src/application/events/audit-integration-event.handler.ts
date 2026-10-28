@@ -12,6 +12,17 @@ export const IAM_AUDITED_TOPICS = [
   "iam.user-activated",
   "iam.user-email-verified",
   "iam.session-started",
+  "security.config.published",
+  "account.recovery.completed",
+  "mfa.activated",
+  "mfa.disabled",
+  "mfa.backup_codes.regenerated",
+  "mfa.backup_code.used",
+  "account.export.generated",
+  "account.export.downloaded",
+  "account.deletion.requested",
+  "account.deletion.cancelled",
+  "account.deletion.executed",
 ] as const;
 
 export class AuditIntegrationEventHandler implements IntegrationEventHandler {
@@ -19,12 +30,18 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
 
   constructor(
     private readonly audit: AuditRecorder,
-    private readonly retentionDays = 365,
+    private readonly retention: { getRetentionDays(): Promise<number> },
   ) {}
 
-  handle(event: IntegrationEvent): Promise<void> {
+  async handle(event: IntegrationEvent): Promise<void> {
     const actorType =
-      event.context["actorType"] === "administrator" ? "administrator" : "user";
+      event.context["actorType"] === "administrator"
+        ? "administrator"
+        : event.context["actorType"] === "system"
+          ? "system"
+          : event.context["actorType"] === "anonymous"
+            ? "anonymous"
+            : "user";
     return this.audit.record({
       id: event.eventId,
       type: event.topic,
@@ -40,7 +57,7 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
           : {}),
       },
       metadata: event.payload,
-      retentionDays: this.retentionDays,
+      retentionDays: await this.retention.getRetentionDays(),
     });
   }
 }

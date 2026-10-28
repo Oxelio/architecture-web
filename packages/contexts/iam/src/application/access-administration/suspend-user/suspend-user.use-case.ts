@@ -2,9 +2,9 @@
 
 import { Result } from "@architecture/foundation";
 
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -19,9 +19,9 @@ export class SuspendUserUseCase implements SuspendUser {
   private readonly authorizer: AdministratorAuthorizer;
 
   constructor(
-    private readonly userPort: UserRepository,
+    userPort: UserRepository,
     private readonly sessionPort: SessionRepository,
-    private readonly unitOfWork?: IamUnitOfWork,
+    private readonly unitOfWork: IamUnitOfWork,
   ) {
     this.authorizer = new AdministratorAuthorizer(userPort);
   }
@@ -40,20 +40,23 @@ export class SuspendUserUseCase implements SuspendUser {
       return Result.failure(SuspendUserErrorCodes.selfOperation);
     }
 
-    const user = await this.userPort.findById(userId.value);
-    if (!user) {
-      return Result.failure(SuspendUserErrorCodes.notFound);
-    }
-
     const actorId = UserIdentifierValueObject.create(input.actorUserId);
-    user.suspend(actorId.success ? actorId.value : undefined);
-    if (this.unitOfWork) {
-      await this.unitOfWork.execute(({ users }) => users.save(user));
-    } else {
-      await this.userPort.save(user);
+    const result = await this.unitOfWork.executeForUser(
+      userId.value,
+      async ({ users }) => {
+        const user = await users.findById(userId.value);
+        if (!user) {
+          return Result.failure(SuspendUserErrorCodes.notFound);
+        }
+        user.suspend(actorId.success ? actorId.value : undefined);
+        await users.save(user);
+        return Result.success(undefined);
+      },
+    );
+    if (!result.success) {
+      return result;
     }
-    await this.sessionPort.deleteAllForUser(user.identifier);
-
+    await this.sessionPort.deleteAllForUser(userId.value);
     return Result.success(undefined);
   }
 }

@@ -1,5 +1,6 @@
 import type { OutboxWriter } from "@architecture/messaging/application";
 
+import { DEFAULT_SECURITY_POLICY } from "#domain/security-policy";
 import type { EmailVerificationEntity } from "#entities/email-verification.entity";
 import type { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
@@ -10,7 +11,6 @@ import { PasswordAuthenticatorRepository } from "#repositories/password-authenti
 import { UserRepository } from "#repositories/user.repository";
 import type { UserAccountView } from "#repositories/user-query.repository";
 import { UserQueryRepository } from "#repositories/user-query.repository";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import type {
@@ -128,6 +128,14 @@ export class InMemoryEmailVerificationRepository extends EmailVerificationReposi
 }
 
 export class InMemoryIamUnitOfWork extends IamUnitOfWork {
+  executeForUser<T>(
+    _userId: UserIdentifierValueObject,
+    work: (
+      repositories: import("#transactions/iam-unit-of-work").IamTransactionalRepositories,
+    ) => Promise<T>,
+  ): Promise<T> {
+    return this.execute<T>(work);
+  }
   constructor(
     readonly users: InMemoryUserRepository,
     readonly loginIdentities: InMemoryLoginIdentityRepository,
@@ -196,7 +204,7 @@ export class InMemoryUserQueryRepository extends UserQueryRepository {
   }
 }
 
-export class TestPolicyProvider implements IamPolicyProvider {
+export class TestPolicies {
   constructor(
     private readonly identifiers: readonly ("username" | "email")[] = [
       "username",
@@ -205,10 +213,11 @@ export class TestPolicyProvider implements IamPolicyProvider {
     private readonly emailVerification = true,
   ) {}
 
-  async getAccountIdentityPolicy() {
+  async getAccountPolicy() {
     return {
-      allowedLoginIdentifiers: this.identifiers,
-      requireEmailVerification: this.emailVerification,
+      ...DEFAULT_SECURITY_POLICY.accounts,
+      allowedLoginIdentifiers: [...this.identifiers],
+      emailVerification: this.emailVerification,
     };
   }
 
@@ -231,14 +240,11 @@ export class TestPolicyProvider implements IamPolicyProvider {
     };
   }
 
-  async getSessionDurationMinutes(): Promise<number> {
-    return 60;
+  async getSessionPolicy() {
+    return { ...DEFAULT_SECURITY_POLICY.sessions, durationMinutes: 60 };
   }
-
-  async isCapabilityEnabled(capability: string): Promise<boolean> {
-    return capability === "accounts.emailVerification"
-      ? this.emailVerification
-      : true;
+  async getAuthenticationPolicy() {
+    return structuredClone(DEFAULT_SECURITY_POLICY.authentication);
   }
 }
 

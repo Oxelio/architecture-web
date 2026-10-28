@@ -1,11 +1,11 @@
 // @file bounded-contexts/iam/application/use-cases/suspend-user/suspend-user.use-case.spec.ts
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { SuspendUserUseCase } from "./suspend-user.use-case.js";
@@ -38,7 +38,12 @@ describe("SuspendUserUseCase", () => {
     await userPort.save(administrator);
     actorUserId = administrator.identifier.value;
     sessionPort = { deleteAllForUser: vi.fn() } as unknown as SessionRepository;
-    useCase = new SuspendUserUseCase(userPort, sessionPort);
+    useCase = new SuspendUserUseCase(userPort, sessionPort, {
+      executeForUser: async (
+        _id: UserIdentifierValueObject,
+        work: Parameters<IamUnitOfWork["execute"]>[0],
+      ) => work({ users: userPort } as never),
+    } as IamUnitOfWork);
   });
 
   /* -------------------------------------------------- */

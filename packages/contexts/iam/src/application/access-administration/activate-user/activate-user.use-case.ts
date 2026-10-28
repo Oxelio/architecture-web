@@ -2,8 +2,8 @@
 
 import { Result } from "@architecture/foundation";
 
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { UserRepository } from "#repositories/user.repository";
-import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -18,8 +18,8 @@ export class ActivateUserUseCase implements ActivateUser {
   private readonly authorizer: AdministratorAuthorizer;
 
   constructor(
-    private readonly userPort: UserRepository,
-    private readonly unitOfWork?: IamUnitOfWork,
+    userPort: UserRepository,
+    private readonly unitOfWork: IamUnitOfWork,
   ) {
     this.authorizer = new AdministratorAuthorizer(userPort);
   }
@@ -35,20 +35,22 @@ export class ActivateUserUseCase implements ActivateUser {
       return Result.failure(ActivateUserErrorsCodes.invalidId);
     }
 
-    const user = await this.userPort.findById(userId.value);
-    if (!user) {
-      return Result.failure(ActivateUserErrorsCodes.notFound);
-    }
-
     const actorId = UserIdentifierValueObject.create(command.actorUserId);
-    user.activate(actorId.success ? actorId.value : undefined);
-
-    if (this.unitOfWork) {
-      await this.unitOfWork.execute(({ users }) => users.save(user));
-    } else {
-      await this.userPort.save(user);
+    const result = await this.unitOfWork.executeForUser(
+      userId.value,
+      async ({ users }) => {
+        const user = await users.findById(userId.value);
+        if (!user) {
+          return Result.failure(ActivateUserErrorsCodes.notFound);
+        }
+        user.activate(actorId.success ? actorId.value : undefined);
+        await users.save(user);
+        return Result.success(undefined);
+      },
+    );
+    if (!result.success) {
+      return result;
     }
-
     return Result.success(undefined);
   }
 }

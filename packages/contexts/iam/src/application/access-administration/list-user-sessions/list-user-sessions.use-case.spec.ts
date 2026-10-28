@@ -5,6 +5,7 @@ import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import { TestPolicies } from "#testing/iam-test-doubles";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
@@ -35,7 +36,11 @@ describe("ListUserSessionsUseCase", () => {
       findById: async (_id: SessionIdentifierValueObject) => session,
     } as unknown as SessionRepository;
 
-    const result = await new ListUserSessionsUseCase(users, sessions).execute({
+    const result = await new ListUserSessionsUseCase(
+      users,
+      sessions,
+      new TestPolicies(),
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: user.identifier.value,
     });
@@ -70,9 +75,13 @@ describe("ListUserSessionsUseCase", () => {
       findById: async (id: UserIdentifierValueObject) =>
         id.equals(administrator.identifier) ? administrator : null,
     } as unknown as UserRepository;
-    const result = await new ListUserSessionsUseCase(users, {
-      findActiveForUser: async () => [],
-    } as unknown as SessionRepository).execute({
+    const result = await new ListUserSessionsUseCase(
+      users,
+      {
+        findActiveForUser: async () => [],
+      } as unknown as SessionRepository,
+      new TestPolicies(),
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: "01900000-0000-7000-8000-000000000000",
     });

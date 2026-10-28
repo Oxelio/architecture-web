@@ -14,10 +14,14 @@ import type { RevokeUserSession } from "#access-administration/revoke-user-sessi
 import { RevokeUserSessionUseCase } from "#access-administration/revoke-user-session/revoke-user-session.use-case";
 import type { SuspendUser } from "#access-administration/suspend-user/suspend-user.contracts";
 import { SuspendUserUseCase } from "#access-administration/suspend-user/suspend-user.use-case";
+import type { AccountPolicyReader } from "#accounts/account-policy.reader";
 import type { ChangeEmail } from "#accounts/change-email/change-email.contracts";
 import { ChangeEmailUseCase } from "#accounts/change-email/change-email.use-case";
 import type { ChangePassword } from "#accounts/change-password/change-password.contracts";
 import { ChangePasswordUseCase } from "#accounts/change-password/change-password.use-case";
+import { EmailVerificationRateLimiter } from "#accounts/email-verification/email-verification-rate-limiter.port";
+import { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
 import type { GetCurrentAccount } from "#accounts/get-current-account/get-current-account.contracts";
 import { GetCurrentAccountUseCase } from "#accounts/get-current-account/get-current-account.use-case";
 import {
@@ -41,8 +45,12 @@ import type { SignUp } from "#accounts/sign-up/sign-up.contracts";
 import { SignUpUseCase } from "#accounts/sign-up/sign-up.use-case";
 import type { VerifyEmail } from "#accounts/verify-email/verify-email.contracts";
 import { VerifyEmailUseCase } from "#accounts/verify-email/verify-email.use-case";
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import { IssueSession } from "#authentication/issue-session";
 import type { ListCurrentUserSessions } from "#authentication/list-current-user-sessions/list-current-user-sessions.contracts";
 import { ListCurrentUserSessionsUseCase } from "#authentication/list-current-user-sessions/list-current-user-sessions.use-case";
+import type { BeginSecondFactorUseCase } from "#authentication/mfa/mfa.use-cases";
+import { PasswordHasher } from "#authentication/password/password-hasher.port";
 import type { ResolveSession } from "#authentication/resolve-session/resolve-session.contracts";
 import { ResolveSessionUseCase } from "#authentication/resolve-session/resolve-session.use-case";
 import type { RevokeCurrentUserSession } from "#authentication/revoke-current-user-session/revoke-current-user-session.contracts";
@@ -57,12 +65,6 @@ import { PasswordAuthenticatorRepository } from "#repositories/password-authenti
 import { SessionRepository } from "#repositories/session.repository";
 import { UserRepository } from "#repositories/user.repository";
 import { UserQueryRepository } from "#repositories/user-query.repository";
-import { EmailSender } from "#services/email-sender.service";
-import { EmailVerificationRateLimiter } from "#services/email-verification-rate-limiter.service";
-import { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
-import { PasswordHasher } from "#services/password-hasher.service";
-import type { SecondFactorGate } from "#services/second-factor-gate.service";
 import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 
 export interface IamDependencies {
@@ -72,18 +74,19 @@ export interface IamDependencies {
   passwordAuthenticatorRepository: PasswordAuthenticatorRepository;
   sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
-  policyProvider: IamPolicyProvider;
+  accountPolicies: AccountPolicyReader;
+  sessionPolicies: SessionPolicyReader;
   passwordPolicyReader: PasswordPolicyReader;
   passwordStrengthEvaluator: PasswordStrengthEvaluator;
   commonPasswordChecker: CommonPasswordChecker;
   compromisedPasswordChecker: CompromisedPasswordChecker;
-  emailSender: EmailSender;
+  emailSender: VerificationEmailSender;
   emailVerificationRepository: EmailVerificationRepository;
   rateLimiter: EmailVerificationRateLimiter;
   emailVerificationTokenHasher: EmailVerificationTokenHasher;
   unitOfWork: IamUnitOfWork;
-  outbox?: OutboxWriter;
-  secondFactorGate?: SecondFactorGate;
+  outbox: OutboxWriter;
+  beginSecondFactor: Pick<BeginSecondFactorUseCase, "execute">;
 }
 
 export interface IamApplication {
@@ -131,7 +134,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
       dependencies.unitOfWork,
-      dependencies.policyProvider,
+      dependencies.accountPolicies,
     ),
     changePassword: new ChangePasswordUseCase(
       dependencies.userRepository,
@@ -157,11 +160,12 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     listCurrentUserSessions: new ListCurrentUserSessionsUseCase(
       dependencies.userRepository,
       dependencies.sessionRepository,
-      dependencies.policyProvider,
+      dependencies.sessionPolicies,
     ),
     listUserSessions: new ListUserSessionsUseCase(
       dependencies.userRepository,
       dependencies.sessionRepository,
+      dependencies.sessionPolicies,
     ),
     getPasswordPolicy: new GetPasswordPolicyUseCase(
       dependencies.passwordPolicyReader,
@@ -184,21 +188,25 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     revokeCurrentUserSession: new RevokeCurrentUserSessionUseCase(
       dependencies.sessionRepository,
-      dependencies.policyProvider,
+      dependencies.sessionPolicies,
     ),
     revokeUserSession: new RevokeUserSessionUseCase(
       dependencies.userRepository,
       dependencies.sessionRepository,
+      dependencies.sessionPolicies,
     ),
     signIn: new SignInUseCase(
       dependencies.userRepository,
       dependencies.loginIdentityRepository,
       dependencies.passwordAuthenticatorRepository,
       dependencies.passwordHasher,
-      dependencies.sessionRepository,
-      dependencies.policyProvider,
-      dependencies.secondFactorGate,
-      dependencies.outbox,
+      dependencies.accountPolicies,
+      dependencies.beginSecondFactor,
+      new IssueSession(
+        dependencies.sessionRepository,
+        dependencies.sessionPolicies,
+        dependencies.outbox,
+      ),
     ),
     signOut: new SignOutUseCase(dependencies.sessionRepository),
     signUp: new SignUpUseCase(
@@ -209,7 +217,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.passwordPolicyReader,
       passwordValidation,
       dependencies.unitOfWork,
-      dependencies.policyProvider,
+      dependencies.accountPolicies,
     ),
     suspendUser: new SuspendUserUseCase(
       dependencies.userRepository,

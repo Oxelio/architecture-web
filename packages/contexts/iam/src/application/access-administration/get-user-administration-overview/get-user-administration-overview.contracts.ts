@@ -1,6 +1,6 @@
 import type { Result } from "@architecture/foundation";
 
-import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 
 export interface UserAdministrationOverview {
   readonly total: number;

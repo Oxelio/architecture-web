@@ -5,10 +5,13 @@ import {
   AuditIntegrationEventHandler,
 } from "@architecture/audit/application";
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
-import type { IamApplication } from "@architecture/iam/application";
+import type {
+  IamApplication,
+  IamSecurityApplication,
+  PublishedConfigurationReader,
+  SecurityEventRecorder,
+} from "@architecture/iam/application";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
-import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
-import { RedisSessionAdapter } from "@architecture/iam-session-redis";
 import {
   IntegrationEventRouter,
   OutboxWorker,
@@ -31,7 +34,6 @@ import {
 } from "@architecture/notifications-persistence-kysely";
 import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 
-import { SecurityService } from "#app/security/security.service";
 import { loadConfig } from "#config/app.config";
 
 import { createDatabase } from "./database.module.js";
@@ -40,7 +42,9 @@ import { createRedis } from "./redis.module.js";
 
 export interface ApplicationModule {
   readonly iam: IamApplication;
-  readonly security: SecurityService;
+  readonly security: IamSecurityApplication;
+  readonly securityEvents: SecurityEventRecorder;
+  readonly configuration: PublishedConfigurationReader;
   readonly audit: AuditApplication;
   readonly notifications: NotificationsApplication;
   readonly outboxWorker: OutboxWorker;
@@ -48,13 +52,11 @@ export interface ApplicationModule {
   dispose(): Promise<void>;
 }
 
-export function buildApplicationModule(): ApplicationModule {
+export async function buildApplicationModule(): Promise<ApplicationModule> {
   const config = loadConfig();
 
   const db = createDatabase(config.database);
   const redis = createRedis(config.redis);
-  const passwordHasher = new Argon2PasswordHasherAdapter();
-  const sessions = new RedisSessionAdapter(redis);
   const email = new NodemailerEmailSenderAdapter(
     config.smtp.host,
     config.smtp.port,
@@ -101,8 +103,18 @@ export function buildApplicationModule(): ApplicationModule {
     ),
     deliveries,
   });
+  const outbox = new KyselyOutboxWriterAdapter(db as never);
+  const iamModule = await buildIamModule(db, redis, email, outbox, audit, {
+    encryptionKey: config.security.encryptionKey,
+    recoveryUrl: config.smtp.recoveryUrl,
+    deletionCancellationUrl: config.smtp.deletionCancellationUrl,
+  });
   const router = new IntegrationEventRouter([
-    new AuditIntegrationEventHandler(audit),
+    new AuditIntegrationEventHandler(audit, {
+      getRetentionDays: async () =>
+        (await iamModule.configuration.readPublished()).values.audit
+          .retentionDays,
+    }),
     notifications.integrationEventHandler,
   ]);
   const outboxWorker = new OutboxWorker(
@@ -121,22 +133,9 @@ export function buildApplicationModule(): ApplicationModule {
     });
   }, 1_000);
   notificationTimer.unref();
-  const outbox = new KyselyOutboxWriterAdapter(db as never);
-  const security = new SecurityService({
-    db,
-    passwordHasher,
-    sessions,
-    email,
-    encryptionKey: config.security.encryptionKey,
-    recoveryUrl: config.smtp.recoveryUrl,
-    deletionCancellationUrl: config.smtp.deletionCancellationUrl,
-    audit,
-    outbox,
-  });
 
   return {
-    iam: buildIamModule(db, redis, security, email, outbox),
-    security,
+    ...iamModule,
     audit,
     notifications,
     outboxWorker,

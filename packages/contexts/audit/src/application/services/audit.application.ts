@@ -20,16 +20,18 @@ export class AuditApplication {
     });
   }
 
-  listOwn(userId: string, page: number, pageSize: number) {
-    return this.repository.listForSubject(userId, page, pageSize);
+  async listOwn(userId: string, page: number, pageSize: number) {
+    return (await this.repository.listForSubject(userId, page, pageSize)).map(
+      safeAuditEntry,
+    );
   }
 
-  list(filters: AuditQuery) {
-    return this.repository.query(filters);
+  async list(filters: AuditQuery) {
+    return (await this.repository.query(filters)).map(safeAuditEntry);
   }
 
-  exportFor(userId: string) {
-    return this.repository.exportForSubject(userId);
+  async exportFor(userId: string) {
+    return (await this.repository.exportForSubject(userId)).map(safeAuditEntry);
   }
 
   purge(now = new Date()) {
@@ -52,4 +54,10 @@ export class AuditApplication {
       since,
     );
   }
+}
+function safeAuditEntry(entry: import("../audit.contracts.js").AuditEntry) {
+  return {
+    ...entry,
+    metadata: redactAuditMetadata(entry.metadata) as Record<string, unknown>,
+  };
 }

@@ -1,6 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 
 import type { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
 

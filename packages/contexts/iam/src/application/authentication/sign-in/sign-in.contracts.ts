@@ -2,12 +2,21 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { SessionClient, SessionNetwork } from "#entities/session.entity";
-import type { SecondFactorChallenge } from "#services/second-factor-gate.service";
+export interface SecondFactorChallenge {
+  readonly mfaRequired: true;
+  readonly userId: string;
+  readonly sessionId: null;
+  readonly sessionExpiresAt: null;
+  readonly challengeId: string;
+  readonly expiresAt: Date;
+}
 import type { LoginIdentifierKind } from "#value-objects/login-identifier.value-object";
 
 import type { SignInErrorCodes } from "./sign-in.codes.js";
 
-export type SignInError = ValueOf<typeof SignInErrorCodes>;
+export type SignInError =
+  | ValueOf<typeof SignInErrorCodes>
+  | { readonly code: "MFA_CHALLENGE_INVALID" | "MFA_ENROLLMENT_REQUIRED" };
 
 export interface SignInInput {
   login: {

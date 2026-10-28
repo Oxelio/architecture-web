@@ -4,12 +4,12 @@ import { Result } from "@architecture/foundation";
 
 import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
 import type { PasswordValidation } from "#accounts/password-policy/password-validation";
+import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import { selectPasswordPolicyProfile } from "#domain/password-policy";
 import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
 import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import type { PasswordHasher } from "#services/password-hasher.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -100,13 +100,34 @@ export class ChangePasswordUseCase implements ChangePassword {
 
     const hashed = await this.passwordHasher.hash(password.value);
 
-    authenticator.changePassword(hashed);
-    user.invalidateSessions();
-
-    await this.unitOfWork.execute(async ({ passwordAuthenticators, users }) => {
-      await passwordAuthenticators.save(authenticator);
-      await users.save(user);
-    });
+    const committed = await this.unitOfWork.executeForUser(
+      user.identifier,
+      async ({ passwordAuthenticators, users }) => {
+        const currentUser = await users.findById(user.identifier);
+        const currentAuthenticator = await passwordAuthenticators.findForUser(
+          user.identifier,
+        );
+        if (
+          !currentUser ||
+          !currentAuthenticator ||
+          currentAuthenticator.isRevoked ||
+          !currentUser.role.equals(user.role) ||
+          !currentAuthenticator.passwordHash.equals(authenticator.passwordHash)
+        ) {
+          return Result.failure(
+            ChangePasswordErrorsCodes.currentPasswordInvalid,
+          );
+        }
+        currentAuthenticator.changePassword(hashed);
+        currentUser.invalidateSessions();
+        await passwordAuthenticators.save(currentAuthenticator);
+        await users.save(currentUser);
+        return Result.success(undefined);
+      },
+    );
+    if (!committed.success) {
+      return committed;
+    }
     await this.sessionPort.deleteAllForUser(user.identifier);
 
     return Result.success(undefined);

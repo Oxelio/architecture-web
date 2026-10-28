@@ -37,11 +37,13 @@ export function AdminSecurityCenter() {
   const [view, setView] = useState<"configuration" | "history" | "audit">(
     "configuration",
   );
-  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draft, setDraft] = useState<{ values: Draft; version: number } | null>(
+    null,
+  );
   const [justification, setJustification] = useState("");
   const [confirmedCritical, setConfirmedCritical] = useState(false);
 
-  const effectiveDraft = draft ?? config.data?.effective ?? null;
+  const effectiveDraft = draft?.values ?? config.data?.effective ?? null;
 
   const changed = useMemo(
     () =>
@@ -58,7 +60,7 @@ export function AdminSecurityCenter() {
     mutationFn: () =>
       publishSecurityConfig(
         effectiveDraft ?? {},
-        currentVersion(config.data),
+        draft?.version ?? currentVersion(config.data),
         justification,
         confirmedCritical,
       ),
@@ -80,7 +82,10 @@ export function AdminSecurityCenter() {
 
   const resetDraft = () => {
     if (config.data) {
-      setDraft(structuredClone(config.data.effective));
+      setDraft({
+        values: structuredClone(config.data.effective),
+        version: currentVersion(config.data),
+      });
       preview.reset();
     }
   };
@@ -122,9 +127,14 @@ export function AdminSecurityCenter() {
           catalog={config.data?.catalog ?? []}
           draft={effectiveDraft}
           onChange={(key, value) =>
-            setDraft((current) =>
-              setPolicyValue(current ?? effectiveDraft ?? {}, key, value),
-            )
+            setDraft((current) => ({
+              values: setPolicyValue(
+                current?.values ?? effectiveDraft ?? {},
+                key,
+                value,
+              ),
+              version: current?.version ?? currentVersion(config.data),
+            }))
           }
           onReset={resetDraft}
           changed={changed}
@@ -544,10 +554,7 @@ function Audit({
 }
 
 function currentVersion(config: SecurityConfigCenter | undefined): number {
-  return (
-    config?.revisions.find((revision) => revision.status === "published")
-      ?.version ?? 0
-  );
+  return config?.effectiveRevision.version ?? 0;
 }
 
 function getValue(source: Draft | null, key: string): unknown {

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import type { SessionRepository } from "#repositories/session.repository";
+import { TestPolicies } from "#testing/iam-test-doubles";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { RevokeCurrentUserSessionUseCase } from "./revoke-current-user-session.use-case.js";
@@ -20,7 +21,10 @@ describe("RevokeCurrentUserSessionUseCase", () => {
       delete: deleteSession,
     } as unknown as SessionRepository;
 
-    const result = await new RevokeCurrentUserSessionUseCase(sessions).execute({
+    const result = await new RevokeCurrentUserSessionUseCase(
+      sessions,
+      new TestPolicies(),
+    ).execute({
       actorUserId: actorId.value,
       sessionId: session.identifier.value,
     });
@@ -40,7 +44,10 @@ describe("RevokeCurrentUserSessionUseCase", () => {
       delete: vi.fn(),
     } as unknown as SessionRepository;
 
-    const result = await new RevokeCurrentUserSessionUseCase(sessions).execute({
+    const result = await new RevokeCurrentUserSessionUseCase(
+      sessions,
+      new TestPolicies(),
+    ).execute({
       actorUserId: UserIdentifierValueObject.generate().value,
       sessionId: session.identifier.value,
     });

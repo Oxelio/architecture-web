@@ -2,9 +2,9 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
 import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
 import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 

@@ -412,6 +412,7 @@ export function requestAccountDeletion(
 }
 
 export interface SecurityConfigCenter {
+  effectiveRevision: { id: string; version: number };
   catalog: {
     key: string;
     category: string;

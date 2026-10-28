@@ -13,6 +13,7 @@ describe("AuditIntegrationEventHandler", () => {
     } as unknown as AuditRepository;
     const handler = new AuditIntegrationEventHandler(
       new AuditApplication(repository),
+      { getRetentionDays: async () => 365 },
     );
 
     await handler.handle({

@@ -1,8 +1,9 @@
 import { Result } from "@architecture/foundation";
 
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
@@ -19,6 +20,7 @@ export class ListUserSessionsUseCase implements ListUserSessions {
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
+    private readonly policies: SessionPolicyReader,
   ) {
     this.authorizer = new AdministratorAuthorizer(users);
   }
@@ -29,6 +31,9 @@ export class ListUserSessionsUseCase implements ListUserSessions {
       return authorization;
     }
 
+    if (!(await this.policies.getSessionPolicy()).userManagement) {
+      return Result.failure(ListUserSessionsErrorCodes.featureDisabled);
+    }
     const userId = UserIdentifierValueObject.create(input.userId);
     if (!userId.success) {
       return Result.failure(ListUserSessionsErrorCodes.invalidUserId);

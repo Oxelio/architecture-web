@@ -1,8 +1,8 @@
 import { Result } from "@architecture/foundation";
 
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
 import type { SessionRepository } from "#repositories/session.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ListCurrentUserSessionsErrorCodes } from "./list-current-user-sessions.codes.js";
@@ -17,18 +17,13 @@ export class ListCurrentUserSessionsUseCase implements ListCurrentUserSessions {
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
-    private readonly policyProvider?: IamPolicyProvider,
+    private readonly policies: SessionPolicyReader,
   ) {}
 
   async execute(
     input: ListCurrentUserSessionsInput,
   ): Promise<ListCurrentUserSessionsOutput> {
-    if (
-      this.policyProvider &&
-      !(await this.policyProvider.isCapabilityEnabled(
-        "sessions.userManagement",
-      ))
-    ) {
+    if (!(await this.policies.getSessionPolicy()).userManagement) {
       return Result.failure(ListCurrentUserSessionsErrorCodes.featureDisabled);
     }
     const actorId = UserIdentifierValueObject.create(input.actorUserId);

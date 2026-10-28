@@ -8,7 +8,7 @@ import {
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
   testPasswordHash,
-  TestPolicyProvider,
+  TestPolicies,
 } from "#testing/iam-test-doubles";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
@@ -38,7 +38,7 @@ describe("SignUpUseCase", () => {
     sender.sendVerificationEmail.mockReset();
   });
 
-  function useCase(policy = new TestPolicyProvider()) {
+  function useCase(policy = new TestPolicies()) {
     return new SignUpUseCase(
       identities,
       { hash: vi.fn().mockResolvedValue(testPasswordHash()) } as never,
@@ -87,7 +87,7 @@ describe("SignUpUseCase", () => {
   });
 
   it("rejects an identifier kind disabled by policy", async () => {
-    const result = await useCase(new TestPolicyProvider(["username"])).execute({
+    const result = await useCase(new TestPolicies(["username"])).execute({
       login: { kind: "email", value: "user@example.com" },
       password: "correct horse battery staple",
       passwordConfirmation: "correct horse battery staple",

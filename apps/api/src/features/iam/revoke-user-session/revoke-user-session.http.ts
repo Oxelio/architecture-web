@@ -10,6 +10,11 @@ export const RevokeUserSessionHttpContract = {
     },
   },
   errors: {
+    "session.feature_disabled": {
+      status: 403,
+      code: "FEATURE_DISABLED",
+      message: "Session management disabled",
+    },
     "administrator.unauthorized": {
       status: 403,
       code: "ADMINISTRATOR_UNAUTHORIZED",

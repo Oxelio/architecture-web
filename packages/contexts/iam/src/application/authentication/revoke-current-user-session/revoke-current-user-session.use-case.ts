@@ -1,7 +1,7 @@
 import { Result } from "@architecture/foundation";
 
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
 import type { SessionRepository } from "#repositories/session.repository";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
@@ -15,18 +15,13 @@ import type {
 export class RevokeCurrentUserSessionUseCase implements RevokeCurrentUserSession {
   constructor(
     private readonly sessions: SessionRepository,
-    private readonly policyProvider?: IamPolicyProvider,
+    private readonly policies: SessionPolicyReader,
   ) {}
 
   async execute(
     input: RevokeCurrentUserSessionInput,
   ): Promise<RevokeCurrentUserSessionOutput> {
-    if (
-      this.policyProvider &&
-      !(await this.policyProvider.isCapabilityEnabled(
-        "sessions.userManagement",
-      ))
-    ) {
+    if (!(await this.policies.getSessionPolicy()).userManagement) {
       return Result.failure(RevokeCurrentUserSessionErrorCodes.featureDisabled);
     }
     const actorId = UserIdentifierValueObject.create(input.actorUserId);

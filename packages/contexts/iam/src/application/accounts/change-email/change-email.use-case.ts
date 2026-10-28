@@ -2,13 +2,13 @@
 
 import { Result } from "@architecture/foundation";
 
+import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
 import type { UserRepository } from "#repositories/user.repository";
-import type { EmailSender } from "#services/email-sender.service";
-import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
 import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
@@ -26,17 +26,15 @@ export class ChangeEmailUseCase implements ChangeEmail {
   constructor(
     private readonly userPort: UserRepository,
     private readonly loginIdentities: LoginIdentityRepository,
-    private readonly emailSender: EmailSender,
+    private readonly emailSender: VerificationEmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
     private readonly unitOfWork: IamUnitOfWork,
-    private readonly policyProvider?: IamPolicyProvider,
+    private readonly policies: AccountPolicyReader,
   ) {}
 
   async execute(command: ChangeEmailInput): Promise<ChangeEmailOutput> {
-    if (
-      this.policyProvider &&
-      !(await this.policyProvider.isCapabilityEnabled("accounts.emailChange"))
-    ) {
+    const accountPolicy = await this.policies.getAccountPolicy();
+    if (!accountPolicy.emailChange) {
       return Result.failure(ChangeEmailErrorsCodes.featureDisabled);
     }
     const userId = UserIdentifierValueObject.create(command.userId);
@@ -71,18 +69,16 @@ export class ChangeEmailUseCase implements ChangeEmail {
       return Result.success(undefined);
     }
 
-    const verificationRequired = await this.policyProvider?.isCapabilityEnabled(
-      "accounts.emailVerification",
-    );
+    const verificationRequired = accountPolicy.emailVerification;
     const identity =
       currentIdentity ??
       LoginIdentityEntity.create({
         userId: user.identifier,
         login: login.value,
-        verificationRequired: verificationRequired ?? true,
+        verificationRequired: verificationRequired,
       });
     if (currentIdentity) {
-      identity.replace(login.value, verificationRequired ?? true);
+      identity.replace(login.value, verificationRequired);
     }
 
     const token =
