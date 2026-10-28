@@ -140,8 +140,7 @@ not silently normalize invalid persisted state.
 Wire concrete adapters at the composition boundary. In the current API this
 means the composition root, not controllers or application use cases.
 
-The existing `apps/api/src/security` vertical is a documented historical
-exception and **MUST NOT** become an implicit template for new capabilities.
+IAM security operations follow this same boundary. Their Node and cross-context implementations live in `apps/api/src/adapters/iam`; their application use cases live in the IAM context.
 
 ## 10. Expose HTTP and UI
 

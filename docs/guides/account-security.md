@@ -1,135 +1,33 @@
 # Account security, MFA, audit, and configuration
 
-This guide describes the implementation currently located in
-`apps/api/src/security`. It covers account recovery, TOTP MFA, auditing,
-dynamic configuration, exports, and deferred deletion. Functional
-specifications remain the source of expected behavior; this document describes
-what the code executes today.
+Security workflows are application use cases in `packages/contexts/iam`, wired in `apps/api/src/composition-root/iam.module.ts`. HTTP endpoints live under `apps/api/src/features/iam/security`. See [IAM security architecture](../architecture/iam-security.md) for code ownership, transactions and partial failures.
 
-## Observed architectural placement
+## MFA and recovery
 
-`SecurityService` is built in
-`apps/api/src/composition-root/application.module.ts` and injected into:
+Password validation precedes `BeginSecondFactorUseCase`. An enrolled account receives a temporary challenge and no session cookie. MFA completion verifies and consumes the factor/challenge before issuing a session. Challenges retain their attempt limit across repeated password submissions. TOTP counters and backup codes cannot be reused.
 
-- `buildSecurityRoutes`, for security endpoints;
-- `createIam` as the `SecondFactorGate` implementation, allowing
-  `SignInUseCase` to suspend session creation when a second factor is active.
-- `createIam` as `IamPolicyProvider`, allowing use cases to reload one
-  consistent policy for passwords, capabilities, and session duration.
+Enrollment requires recent authentication and password verification, a first valid TOTP, and confirmation that generated backup codes were saved. Starting enrollment cannot erase an enabled factor. Activation and deactivation invalidate sessions. MFA remains enabled after password recovery.
 
-This module is a hybrid vertical. Unlike the historical IAM core capabilities,
-it does not consist of `Result`-returning use cases and dedicated repository
-adapters. It imports Kysely, session and password ports, domain objects,
-Nodemailer, and Node cryptographic primitives directly. `security.routes.ts`
-therefore calls a concrete service and maps its `SecurityError` exceptions to
-HTTP responses.
+Recovery requests return a generic confirmation for eligible and ineligible accounts. Tokens are stored only as hashes and expire, are superseded by later requests and are consumed atomically with password replacement. Complete password validation applies according to the account's persisted role. Recovery does not verify an email implicitly, remove suspension or sign the user in.
 
-This organization is an **observed fact**, not a new general rule. It is an
-exception to the boundaries documented for `packages/iam` and the project
-[dependency rules](../architecture/dependency-rules.md). No ADR decides whether
-the vertical should remain in the API or move to dedicated ports and use cases.
+TOTP secrets are encrypted with AES-256-GCM using a key derived from `SECURITY_ENCRYPTION_KEY`. Changing that key still requires a controlled secret migration. Plain recovery, verification and cancellation links are sent after commit and are not stored in the generic outbox.
 
-## Persistence and secrets
+## Export and deletion
 
-Migration
-`packages/iam-persistence-kysely/src/persistence/migrations/003_create_iam_security.ts`
-adds:
+An export requires recent authentication, fresh password proof and MFA when enabled. Explicit projections build a versioned ZIP containing account/identity data, session metadata, visible audit events and request history. Credentials, bearer session identifiers and MFA secrets are excluded. Binary data expires after 24 hours and is consumed once on download.
 
-| Table                           | Responsibility                                     |
-| ------------------------------- | -------------------------------------------------- |
-| `iam_password_recoveries`       | hashed recovery tokens, expiry, and consumption    |
-| `iam_mfa_settings`              | encrypted TOTP secret and enrollment state         |
-| `iam_mfa_backup_codes`          | SHA-256 backup-code derivatives and consumption    |
-| `iam_mfa_challenges`            | temporary sign-in and confirmation challenges      |
-| `iam_security_audit_events`     | append-only events, retention, and legal hold      |
-| `iam_security_config_revisions` | published and superseded revisions                 |
-| `iam_account_exports`           | temporary ZIP archive and lifecycle state          |
-| `iam_account_deletions`         | grace period, cancellation, and possible retention |
+Deletion enters `pending_deletion`, invalidates tokens and sessions, and sends a cancellation link to the verified address. Cancellation restores the previous status without restoring sessions. Maintenance processes due requests, honors legal hold, coordinates Audit pseudonymization and expires archives. Audit owns retention purge. The last active administrator is protected against concurrent deletion requests.
 
-Triggers on `iam_users`, `iam_login_identities`, and
-`iam_password_authenticators` invalidate recovery tokens after an email
-change, password change or revocation, or transition to pending deletion.
+`POST /v1/iam/admin/security/maintenance` remains the composed maintenance trigger; deployment scheduling is not added here.
 
-Usable tokens are never persisted. TOTP secrets use AES-256-GCM encryption
-derived from `SECURITY_ENCRYPTION_KEY`. Key rotation **MUST** include a
-controlled migration; changing only the variable makes existing secrets
-unreadable.
+## Dynamic configuration
 
-## Sign-in and MFA
+The application reads complete published PostgreSQL revisions without local caching. Administrators can consult, preview, publish with an expected version and restore previous values. Publication and its event are transactional. Configuration consumption uses narrow capability readers; publication uses separate administrative contracts.
 
-After password validation, `SignInUseCase` calls
-`SecondFactorGate.beginSignIn`. Without MFA it creates a session as before.
-With MFA it returns a challenge and the controller responds with `202` and no
-cookie. `POST /mfa/challenge/verify` then consumes a TOTP or backup code and
-creates the session.
+The catalog describes executable sign-up, identity-verification, email-change, session, recovery, MFA, export, deletion and password settings. Password settings affect creation/replacement, not existing-password sign-in. Session duration is applied by the shared session issuance flow.
 
-An active challenge is reused for the same account until expiry, so submitting
-the correct password again does not reset its attempt counter. An accepted
-TOTP counter cannot be replayed. Backup codes are independent, hashed, and
-consumed atomically.
+The editor retains its typed fields, reason, confirmation, history and restoration. Critical confirmation is an explicit confirmation rather than step-up authentication. Per-instance propagation telemetry is not added; new backend reads observe the current database revision.
 
-Enrollment has three final steps: QR-code creation, proof of an initial TOTP,
-and explicit confirmation that backup codes were saved. Enabling or disabling
-MFA revokes sessions.
+## Evidence limits
 
-## Recovery, export, and deletion
-
-A recovery request always returns the same generic confirmation. Email and
-network origin are stored in audit only as fingerprints. Limits apply to both a
-known account and the origin. Token consumption and password-hash replacement
-are transactional, followed by Redis session revocation.
-
-An export creates a temporary ZIP archive in PostgreSQL containing a manifest,
-account data, active sessions, accessible events, and request history. It
-expires after 24 hours, and its first download removes the binary content.
-
-A deletion request moves the user to `pending_deletion`, revokes sessions, and
-creates a cancellation token. Maintenance deletes due accounts, pseudonymizes
-their audits, expires archives, and purges audits outside retention. The last
-active administrator is protected.
-
-`POST /admin/security/maintenance` is the only composed trigger. The repository
-contains no scheduler; deployment **MUST** invoke the route periodically.
-
-## Dynamic configuration actually applied
-
-The latest `published` revision is read from PostgreSQL, so no restart is
-needed. Publication uses an expected version, with preview and rollback
-endpoints.
-
-| Option group                     | Current consumer                       |
-| -------------------------------- | -------------------------------------- |
-| sign-up and email change         | use cases and early HTTP hook          |
-| user session management          | use cases and early HTTP hook          |
-| recovery                         | `SecurityService.requestRecovery`      |
-| MFA availability and roles       | enrollment, sign-in, and disabling     |
-| export and deletion              | their respective workflows             |
-| audit retention and consultation | writing, consultation, and maintenance |
-| complete password policy         | provider injected into IAM application |
-| session duration                 | `SignInUseCase` and MFA completion     |
-
-`accounts.emailVerification` remains represented but has no consumer, so the
-catalog marks it unavailable and read-only. Previous `PASSWORD_*` variables are
-no longer read at startup.
-
-Administration now renders a typed form from the catalog with appropriate
-controls, before/after preview, mandatory reason, critical-change confirmation,
-history, and restoration. Critical confirmation is currently an explicit UI
-confirmation rather than step-up reauthentication.
-
-## Audit and evidence limits
-
-Historical IAM routes emit selected audits from the `onResponse` hook; security
-workflows write events from the service. An audit failure in the hook is logged
-without cancelling an already-sent response.
-
-Current tests cover policy, redaction, TOTP, and ZIP primitives alongside the
-existing monorepo suites. They are not an exhaustive integration suite for
-concurrent transactions, maintenance, SMTP, or all PostgreSQL/Redis workflows.
-This limitation **MUST** remain visible until dedicated integration coverage
-exists.
-
-Routes in `security.routes.ts` have no TypeBox schemas. Swagger may list them
-without precise request and response definitions; this file and
-`apps/web/src/services/api.ts` are currently the most precise executable
-sources for these contracts.
+Focused domain, application, adapter and HTTP tests cover important rules and failure contracts. An opt-in suite exercises PostgreSQL/Redis races, transactional outbox rollback, stale-session rejection, MFA consumption, archive download and administrator deletion. See [Testing](../development/testing.md) for the isolated environment and commands. A skipped integration suite is not evidence that the real scenarios passed.

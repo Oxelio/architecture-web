@@ -93,7 +93,7 @@ its exact arguments.
 - API: `apps/api/src/main.ts`, then `server.ts`;
 - composition: `apps/api/src/composition-root/application.module.ts`;
 - IAM routes: `apps/api/src/features/iam/routes/index.ts`;
-- security vertical: `apps/api/src/security/security.routes.ts`, then
-  `security.service.ts`;
+- security HTTP: `apps/api/src/features/iam/security/security.routes.ts`;
+- security use cases: `packages/contexts/iam/src/application/create-iam-security.ts`;
 - web: `apps/web/src/main.tsx`, then `App.tsx`;
 - web HTTP client: `apps/web/src/services/api.ts`.

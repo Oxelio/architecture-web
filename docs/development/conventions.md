@@ -11,8 +11,7 @@
   that distinction is useful.
 - Tests are colocated as `*.spec.ts` or `*.spec.tsx`.
 - IAM HTTP features following the preferred architecture have a folder under
-  `apps/api/src/features/iam/<feature>`. The current security vertical is an
-  observed historical exception, not an implicit template for new features.
+  `apps/api/src/features/iam/<feature>`. Security operations follow the same application/adapter separation and group their HTTP controllers under the IAM security feature.
 
 ## Contracts and results
 

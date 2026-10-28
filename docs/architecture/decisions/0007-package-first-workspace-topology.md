@@ -1,6 +1,8 @@
 # ADR-0007 — Package-first workspace topology
 
-**Status:** Accepted
+> Current applicability: the flat package topology described here has been superseded by the grouped topology in [Architecture overview](../overview.md). This document retains the earlier decision/migration rationale; it does not describe the current workspace.
+
+**Status:** Superseded
 **Content status:** Canonical
 **Document type:** Architecture Decision Record
 **Domain:** Workspace / package topology

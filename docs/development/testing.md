@@ -8,8 +8,7 @@ Tests are colocated with code and run with Vitest.
 - IAM core tests entities, value objects, use cases, and its factory.
 - Each adapter tests behavior and conversions for its technology.
 - The API tests helpers and controllers with non-trivial access or mapping.
-- The security module currently tests configuration validation, redaction,
-  TOTP, and ZIP-building primitives.
+- IAM security tests cover policy snapshots, recovery, MFA, configuration administration, export failures, HTTP ownership, and Node cryptographic/archive adapters.
 - The web has targeted unit tests; no E2E suite is declared.
 
 A use case **MUST** be tested without real infrastructure through port doubles.
@@ -22,10 +21,7 @@ and `limit`/`offset`; the API tests the public envelope; the web tests criterion
 serialization. Current Kysely tests use query-builder doubles and do not replace
 PostgreSQL plan measurements on representative data.
 
-Recovery, MFA, export, deletion, retention, and dynamic-publication
-transactions have no automated integration suite spanning PostgreSQL, Redis,
-and SMTP. Primitive tests in `security.service.spec.ts` therefore do not prove
-every concurrent scenario from the security specifications.
+PostgreSQL/Redis security integration tests are opt-in. They are skipped in ordinary unit runs unless both integration URLs are set. A skipped run does not validate concurrency or transaction guarantees. SMTP delivery, legal-retention completeness and deployment scheduling still require their own evidence.
 
 ## Root commands
 
@@ -124,3 +120,17 @@ service, credential, action, or runtime dependency.
 Vitest uses V8 and writes text, HTML, and LCOV reports to each package's
 `coverage` directory. No global minimum threshold is configured, so a
 percentage cannot replace tests of important business behavior.
+
+## Isolated IAM PostgreSQL/Redis integration
+
+Use the dedicated disposable Compose project, which has no application volumes:
+
+```powershell
+docker compose -p iam-refactor-tests -f compose.iam-test.yml up -d --wait
+$env:IAM_INTEGRATION_DATABASE_URL = 'postgresql://iam_test:iam_test@127.0.0.1:55432/iam_refactor_test'
+$env:IAM_INTEGRATION_REDIS_URL = 'redis://127.0.0.1:56379/15'
+pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts
+docker compose -p iam-refactor-tests -f compose.iam-test.yml down
+```
+
+The database name must start with `iam_refactor_test`. Every run creates a unique schema, migrates it, and removes only that schema. Redis uses generated test-account/session identifiers and clears only those owned keys; it never flushes a database. Both variables are required together. These checks cover publication races, single-use recovery, outbox rollback, session-version protection after cleanup failure, MFA attempts and backup-code consumption, single archive download, last-administrator deletion and policy snapshot consistency.

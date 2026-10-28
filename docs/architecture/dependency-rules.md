@@ -54,11 +54,7 @@ own `src/` directories.
 | API composition root                         | application and concrete adapters              | —                                           |
 | Web                                          | UI code and HTTP contract                      | business and infrastructure packages        |
 
-`apps/api/src/security/security.service.ts` is a current exception to the
-“API outside composition” row: it imports Kysely, domain objects, and adapter
-types. The matrix describes the rule followed by `features/iam`, not a
-guarantee enforced across all of `apps/api`. This exception **MUST NOT** be
-copied without an explicit architectural decision.
+IAM security routes follow the same boundary as other IAM transport. Node cryptography, mail, archives and cross-context bridges live under `apps/api/src/adapters`; concrete composition lives under `composition-root`.
 
 ## Direct answers
 
@@ -87,7 +83,7 @@ import { EmailValueObject } from "@architecture/iam/domain";
 ```
 
 They **MUST NOT** import files inside
-`packages/iam/src/application/<capability>/<use-case>`. Within a package,
+`packages/contexts/iam/src/application/<capability>/<use-case>`. Within a package,
 declared `#...` aliases **SHOULD** replace `../` parent imports. The current
 ESLint rule reports parent imports as warnings.
 
@@ -111,8 +107,6 @@ also breaking.
 
 ## Current enforcement and limitation
 
-pnpm packages, `exports`, and TypeScript types materialize boundaries. ESLint
-does not yet forbid every dependency direction. The matrix remains normative
-for the core and historical IAM features even when tooling does not block a
-violation. The `apps/api/src/security` vertical demonstrates that the
-convention can currently be bypassed.
+IAM ESLint presets reject application/technical imports in the domain and concrete database, cache, HTTP, crypto and provider dependencies in application code. API transport cannot import concrete IAM adapters or domain models; adapter and composition directories have explicit technical responsibilities. Tests verify both rejected and legitimate dependencies.
+
+Package exports and TypeScript enforce public contracts. These targeted static rules do not resolve every possible dependency path or replace review against the complete matrix.

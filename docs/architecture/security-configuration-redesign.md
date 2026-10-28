@@ -32,19 +32,19 @@ presented as implemented behaviour.
 The scope includes the security configuration centre, its consumers, and
 configurable rules currently held by domain objects or technical components.
 
-The “observed facts” below describe the redesign baseline. Current progress is:
+The “observed facts” below are historical baseline evidence, not the current implementation. Current ownership, atomic publication and remaining limitations are described in [IAM security](iam-security.md). Current progress is:
 
-| Workstream                       | Current state                                                         |
-| -------------------------------- | --------------------------------------------------------------------- |
-| typed form and catalog           | implemented; email verification explicitly read-only                  |
-| single password policy           | implemented through `IamPolicyProvider`; recovery remains length-only |
-| injected session duration        | implemented for direct sign-in and MFA completion                     |
-| single validation schema         | implemented in `security-policy.ts`                                   |
-| capabilities inside use cases    | implemented for sign-up, email change, and personal sessions          |
-| public capability contract       | implemented at `GET /v1/iam/capabilities`                             |
-| strengthened publication         | reason, preview, confirmation, and restoration implemented            |
-| step-up reauthentication         | pending                                                               |
-| multi-instance propagation state | pending                                                               |
+| Workstream                       | Current state                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| typed form and catalog           | implemented; email verification explicitly read-only                           |
+| single password policy           | implemented through explicit readers and shared validation, including recovery |
+| injected session duration        | implemented by shared application session issuance                             |
+| single validation schema         | owned by the IAM domain configuration parser                                   |
+| capabilities inside use cases    | implemented for sign-up, email change, and personal sessions                   |
+| public capability contract       | implemented at `GET /v1/iam/capabilities`                                      |
+| strengthened publication         | reason, preview, confirmation, and restoration implemented                     |
+| step-up reauthentication         | pending                                                                        |
+| multi-instance propagation state | pending                                                                        |
 
 ## Assessment
 

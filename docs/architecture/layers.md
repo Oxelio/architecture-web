@@ -1,168 +1,43 @@
 # Layers and boundaries
 
-## Foundation
+## Foundation and domains
 
-`packages/foundation` provides `AggregateRoot`, `DomainEvent`, `Entity`,
-`Identifier`, `ValueObject`, `Result`, and `ValueOf`. It contains no
-IAM-specific rule. `AggregateRoot` marks the entry point of a consistency
-boundary and collects business events without depending on a repository or
-database.
+`packages/shared/foundation` owns generic modeling primitives: aggregates, entities, identifiers, value objects, domain events and results. It has no business-context or infrastructure dependency.
 
-It **MAY** contain a generic primitive useful to multiple domains. It **MUST
-NOT** import a business package, application, or infrastructure technology.
-Because a Foundation abstraction couples every consumer, additions **SHOULD**
-answer at least two real needs.
+`packages/contexts/iam/src/domain` owns accounts, login identities, password authenticators, email verification, sessions, password requirements, configuration invariants and pure recovery/MFA lifecycle predicates. The five existing roots remain separate and reference each other by identifier. Policy values are not loaded by entities or value objects.
 
-## IAM domain
-
-`packages/iam/src/domain` contains entities and value objects. An entity
-has an identity and business transitions; a value object validates and wraps a
-value without its own identity.
-
-The domain **MAY** depend on Foundation and its own types. It **MUST NOT** import
-use cases, Fastify, React, Kysely, Redis, an email SDK, or an adapter.
-
-Examples include `UserEntity` for account status and session-version
-transitions, `LoginIdentityEntity` for normalized usernames and emails,
-`PasswordAuthenticatorEntity` for password-derivative lifecycle,
-`SessionEntity` for lifetime and validity, and `EmailValueObject.create` for
-validation through a `Result`.
-
-`UserEntity`, `LoginIdentityEntity`, `PasswordAuthenticatorEntity`,
-`SessionEntity`, and `EmailVerificationEntity` are the current IAM aggregate
-roots. A repository **MUST** load or save a root and **MUST
-NOT** expose direct mutation of an internal aggregate object. References
-between aggregates **MUST** use identifiers.
-
-Static factories have different meanings: `create` builds new valid state and
-applies defaults, while `rehydrate` restores already persisted state.
+Domain code must not import application contracts, HTTP, database, cache, configuration frameworks or cryptographic providers. UUID generation remains a generic identifier dependency. Passwords retain their original characters and are measured in Unicode code points.
 
 ## IAM application
 
-`packages/iam/src/application` exposes use cases, input/output contracts,
-codes, and required ports. Capability directories such as `accounts`,
-`authentication`, and `access-administration` group their use cases directly;
-there is no additional workspace or required `use-cases` taxonomy between a
-capability and its individual use-case directories. A use case orchestrates a
-business intent and returns a `Result`.
+`packages/contexts/iam/src/application` exposes intention-specific input/output contracts and use cases. Expected refusals are result values; unexpected technical exceptions propagate to the outer boundary.
 
-This layer **MAY** depend on the domain, Foundation, and its own ports. It
-**MUST NOT** depend on Kysely, Redis, Argon2, Nodemailer, Postmark, or Fastify
-implementations.
+Capabilities are `accounts`, `authentication` and `access-administration`. Readers, checks and outbound contracts live near their consumers. Shared aggregate repositories and transaction contracts remain explicit; there is no catch-all services directory.
 
-Repositories and abstract services are secondary ports. Command repositories
-persist users, login identities, authenticators, verifications, and sessions.
-`UserQueryRepository` builds projections spanning several roots.
-`IamUnitOfWork` provides a transaction spanning PostgreSQL user, identity,
-authenticator, and verification repositories.
-`createIam` is the application factory: it receives `IamDependencies` and
-returns the `IamApplication` use-case set.
+`createIam` and `createIamSecurity` only construct use cases from supplied dependencies. They do not resolve dependencies dynamically. Shared coordination is limited to genuine common behavior such as password validation, reauthentication and session issuance.
 
-`SecondFactorGate` is a special port called by `SignInUseCase`. Its composed
-implementation is `SecurityService`, located in the API rather than an
-infrastructure package.
-
-`UserRepository` owns only `UserEntity` writes and lookup by identifier;
-`UserQueryRepository` owns account and administration reads;
-`SessionRepository` owns session lifecycle and listing. A port name is not an
-authorization mechanism: authorization remains in use cases.
-
-Administration commands require the actor identifier.
-`AdministratorAuthorizer` reloads that actor from the repository and verifies
-that the account is active and has the administrator role, independently from
-Fastify. Personal-session operations use distinct use cases from
-administrative-session operations.
+Application use cases perform domain transitions, select policies explicitly and call application-owned ports. They never receive Kysely transactions, Redis clients, SMTP clients or Node cryptographic implementations. See [IAM security](iam-security.md) for concrete responsibilities and transaction boundaries.
 
 ## Infrastructure
 
-IAM technical implementations are direct workspace packages such as
-`packages/iam-persistence-kysely`, `packages/iam-session-redis`,
-`packages/iam-password-argon2`, and the IAM email/hash adapters. Each adapter
-adapts one targeted technology to a public application port and **MUST** state
-compatibility with `implements`, for example
-`RedisSessionAdapter implements SessionRepository`.
+IAM adapters are packages under `packages/adapters/iam`. PostgreSQL adapters map aggregate roots and implement atomic recovery, MFA, configuration, export and deletion capabilities. Redis implements sessions and email-verification rate limiting. Hashing and verification/email providers implement their public application contracts.
 
-An adapter **MAY** depend on public `application` and `domain` exports and on
-its targeted library. It **MUST NOT** bypass package exports or import an
-application.
+`apps/api/src/adapters/iam` contains the selected Node crypto, QR, ZIP, account-mail and Audit integration adapters. This directory is infrastructure inside the application host, not HTTP orchestration.
 
-Persistence mappers belong to the persistence adapter package. `UserMapper`,
-for example, converts Kysely rows to `UserEntity` and rejects invalid persisted
-data with `InvalidPersistenceDataError`.
+Adapters must use public package exports. Database predicates and locks enforce the atomic capabilities requested by application contracts; they do not determine password policy or authorize a role supplied by HTTP.
 
-`KyselyIamUnitOfWorkAdapter` provides repositories bound to one transaction.
-`RedisSessionAdapter.saveEnforcingMaximum` uses one Redis script to save the
-session, clean the expired index, and revoke excess sessions.
+## Messaging, Audit and Notifications
 
-## Messaging, Audit, and Notifications
+`packages/contexts/messaging` owns integration-event routing and outbox processing; its PostgreSQL adapter owns durable storage and claims. IAM PostgreSQL mutations append events using the transaction-bound outbox writer. Redis and provider calls remain separate consistency boundaries.
 
-`packages/messaging` keeps Messaging domain and application in one package,
-under `src/domain` and `src/application`. The domain owns the integration
-envelope, `OutboxMessageEntity`, and its value objects. The application exposes
-`OutboxWriter`, `OutboxRepository`, the router, and the worker without depending
-on a database. The PostgreSQL implementation and migration belong to
-`packages/messaging-persistence-kysely`.
+`packages/contexts/audit` owns audit contracts, redaction, consultation, export, retention and pseudonymization. Its integration handler subscribes to IAM/domain and security-operation events and receives a retention reader independent of IAM internals. Its PostgreSQL adapter remains separate from IAM persistence.
 
-`packages/audit` is an append-only bounded-context package with domain and
-application below `src/`. Its domain defines entries and the redaction policy;
-its application consumes integration events and application or security
-attempts, then exposes search, export, retention, and pseudonymization
-operations. The PostgreSQL schema, migration, and adapter belong to
-`packages/audit-persistence-kysely`.
+`packages/contexts/notifications` owns notification policies, recipients, preferences and delivery lifecycle. Its own application resolves mandatory/preferred channels and schedules deliveries. IAM emits facts rather than manipulating notification aggregates. Recipient directories and email/Slack/SMS providers are infrastructure adapters.
 
-`packages/notifications` is a separate bounded-context package with domain and
-application below `src/`. Its domain owns `NotificationEntity`,
-`NotificationDeliveryEntity`, `NotificationPreferenceEntity`,
-`NotificationRecipientEntity`, identifiers, channels, and severities. A
-preference owns the recipient-channel composite identity and its enabled-state
-transition. A recipient is an identified concept built by the IAM directory
-adapter; it selects the destination compatible with a channel without requiring
-its own persistence. `NotificationDeliveryEntity`, a child of the
-`NotificationEntity` aggregate, owns claim, success, failure, retry, and
-dead-letter transitions. The client-facing DTO remains an application contract.
+## HTTP and Web
 
-The application turns received facts into aggregates, exposes each intention
-in a use-case directory with its contract and any stable error codes, and
-schedules deliveries according to preferences and mandatory policies.
-`NotificationRepository` and `NotificationPreferenceRepository` each save
-their aggregate root; the `NotificationDelivery` and
-`NotificationRecipientDirectory` ports are abstract classes whose signatures
-use domain objects directly.
+`apps/api/src/composition-root` creates concrete dependencies, initializes configuration and wires the application graph. `features/iam` maps HTTP requests to application inputs, derives owned account identifiers from authenticated context, and presents results. Security HTTP routes follow the same application boundary as the other IAM endpoints.
 
-Notifications implementations are separate direct workspace packages:
-`packages/notifications-persistence-kysely`,
-`packages/notifications-delivery-nodemailer`,
-`packages/notifications-delivery-slack-webhook`,
-`packages/notifications-delivery-sms-webhook`, and
-`packages/notifications-recipient-iam-kysely`. The Notifications package knows
-none of these concrete choices.
+The React application is an HTTP consumer. Its contracts use transport shapes and serialized dates, never domain objects as UI state. Client validation supports feedback; backend application validation remains authoritative.
 
-## Fastify API
-
-`apps/api` is both the primary HTTP adapter and the composition root:
-
-- `server.ts` configures Fastify, CORS, Swagger, authentication, and routes;
-- `composition-root` creates PostgreSQL, Redis, and adapters, then calls
-  `createIam`;
-- `features/iam` groups controller, HTTP contract, presenter, and route
-  options by feature;
-- `routes` separates public, authenticated, and administrator endpoints.
-
-`apps/api/src/security` uses a second HTTP organization. It groups a concrete
-service, its types, and public/authenticated/administrator routes. The service
-orchestrates Kysely and several technical ports directly, so it does not follow
-the controller/use-case/adapter split described above for `features/iam`.
-
-For `features/iam`, concrete implementations are allowed in
-`composition-root`, not in controllers, which **MUST** call use-case
-interfaces. `security.routes.ts` is an observed exception whose handlers call
-`SecurityService` directly.
-
-## React application
-
-`apps/web` is an HTTP client independent from the business package. It uses
-React Router, React Query, React Hook Form, Zod, and i18next.
-`src/services/api.ts` centralizes UI transport contracts.
-
-The client **MUST NOT** use domain entities as UI state models. HTTP dates are
-serialized strings and errors are transport-specific.
+ESLint presets enforce selected IAM and API boundaries. Public exports, TypeScript, tests and review remain necessary for constraints outside those static restrictions.
