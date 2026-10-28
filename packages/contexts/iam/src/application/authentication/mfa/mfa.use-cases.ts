@@ -13,9 +13,9 @@ import type {
 } from "#authentication/reauthentication";
 import { isMfaChallengeUsable, isMfaEnrollmentUsable } from "#domain/mfa";
 import { isSecurityOperationId } from "#domain/security-operation-id";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import type { MfaCryptography, MfaStore } from "./mfa.ports.js";

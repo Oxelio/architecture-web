@@ -1,6 +1,6 @@
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
-import type { UserRepository } from "#repositories/user.repository";
-import type { UserQueryRepository } from "#repositories/user-query.repository";
+import type { UserRepository } from "#ports/user.repository";
+import type { UserQueryRepository } from "#ports/user-query.repository";
 
 import type {
   GetUserAdministrationOverview,

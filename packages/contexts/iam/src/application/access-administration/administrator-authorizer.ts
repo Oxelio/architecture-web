@@ -1,6 +1,6 @@
 import { Result, type ValueOf } from "@architecture/foundation";
 
-import type { UserRepository } from "#repositories/user.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 export const AdministratorAuthorizationErrorCodes = {

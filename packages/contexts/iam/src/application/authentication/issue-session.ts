@@ -3,7 +3,7 @@ import type { OutboxWriter } from "@architecture/messaging/application";
 import { SessionEntity } from "#entities/session.entity";
 import type { UserEntity } from "#entities/user.entity";
 import { toIamIntegrationEvent } from "#events/iam-integration-event";
-import type { SessionRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#ports/session.repository";
 
 import type { SessionPolicyReader } from "./authentication-policy.reader.js";
 export const MAX_ACTIVE_SESSIONS_PER_USER = 10;

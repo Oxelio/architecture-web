@@ -1,8 +1,8 @@
 import type { RecoveryToken } from "#domain/recovery-token";
 import type { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
 import type { UserEntity } from "#entities/user.entity";
-import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
+import type { UserRepository } from "#ports/user.repository";
 export interface RecoveryCommit {
   readonly user: UserEntity;
   readonly authenticator: PasswordAuthenticatorEntity;

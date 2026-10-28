@@ -2,8 +2,8 @@ import { Result } from "@architecture/foundation";
 
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";

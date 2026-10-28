@@ -2,8 +2,8 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 
 import { ResolveSessionErrorCodes } from "./resolve-session.codes.js";

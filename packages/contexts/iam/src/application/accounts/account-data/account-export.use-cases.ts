@@ -5,7 +5,7 @@ import type { SecurityTokens } from "#accounts/security-effects";
 import type { IamResult } from "#application-result";
 import type { Reauthentication } from "#authentication/reauthentication";
 import { isSecurityOperationId } from "#domain/security-operation-id";
-import type { SessionRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#ports/session.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import type {

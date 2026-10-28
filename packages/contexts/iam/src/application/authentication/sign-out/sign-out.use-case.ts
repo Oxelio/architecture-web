@@ -2,7 +2,7 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { SessionRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#ports/session.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 
 import { SignOutErrorCodes } from "./sign-out.codes.js";

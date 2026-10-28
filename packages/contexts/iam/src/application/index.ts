@@ -224,20 +224,20 @@ export {
   type IamSecurityApplication,
   type IamSecurityDependencies,
 } from "./create-iam-security.js";
-export { EmailVerificationRepository } from "./repositories/email-verification.repository.js";
-export { LoginIdentityRepository } from "./repositories/login-identity.repository.js";
-export { PasswordAuthenticatorRepository } from "./repositories/password-authenticator.repository.js";
-export { SessionRepository } from "./repositories/session.repository.js";
-export { UserRepository } from "./repositories/user.repository.js";
+export { EmailVerificationRepository } from "./ports/email-verification.repository.js";
+export {
+  type IamTransactionalRepositories,
+  IamUnitOfWork,
+} from "./ports/iam-unit-of-work.js";
+export { LoginIdentityRepository } from "./ports/login-identity.repository.js";
+export { PasswordAuthenticatorRepository } from "./ports/password-authenticator.repository.js";
+export { SessionRepository } from "./ports/session.repository.js";
+export { UserRepository } from "./ports/user.repository.js";
 export {
   type UserAccountView,
   UserQueryRepository,
   type UserSearchCriteria,
   type UserSearchResult,
-} from "./repositories/user-query.repository.js";
-export {
-  type IamTransactionalRepositories,
-  IamUnitOfWork,
-} from "./transactions/iam-unit-of-work.js";
+} from "./ports/user-query.repository.js";
 export type { SecurityPolicy } from "#domain/security-policy";
 export type { SessionClient, SessionNetwork } from "#entities/session.entity";

@@ -7,9 +7,9 @@ import type { EmailVerificationTokenHasher } from "#accounts/email-verification/
 import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";

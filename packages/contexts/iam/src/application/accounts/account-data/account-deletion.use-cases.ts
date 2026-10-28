@@ -11,9 +11,9 @@ import type {
   FactorVerification,
   Reauthentication,
 } from "#authentication/reauthentication";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import type {

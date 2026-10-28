@@ -6,9 +6,9 @@ import type { SignInPolicyReader } from "#authentication/authentication-policy.r
 import type { IssueSession } from "#authentication/issue-session";
 import type { BeginSecondFactorUseCase } from "#authentication/mfa/mfa.use-cases";
 import type { PasswordHasher } from "#authentication/password/password-hasher.port";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 

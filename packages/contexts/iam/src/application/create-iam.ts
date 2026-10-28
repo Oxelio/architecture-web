@@ -59,13 +59,14 @@ import type { SignIn } from "#authentication/sign-in/sign-in.contracts";
 import { SignInUseCase } from "#authentication/sign-in/sign-in.use-case";
 import type { SignOut } from "#authentication/sign-out/sign-out.contracts";
 import { SignOutUseCase } from "#authentication/sign-out/sign-out.use-case";
-import { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import { SessionRepository } from "#repositories/session.repository";
-import { UserRepository } from "#repositories/user.repository";
-import { UserQueryRepository } from "#repositories/user-query.repository";
-import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+
+import { EmailVerificationRepository } from "../../dist/application/ports/email-verification.repository.js";
+import { IamUnitOfWork } from "../../dist/application/ports/iam-unit-of-work.js";
+import { LoginIdentityRepository } from "../../dist/application/ports/login-identity.repository.js";
+import { PasswordAuthenticatorRepository } from "../../dist/application/ports/password-authenticator.repository.js";
+import { SessionRepository } from "../../dist/application/ports/session.repository.js";
+import { UserRepository } from "../../dist/application/ports/user.repository.js";
+import { UserQueryRepository } from "../../dist/application/ports/user-query.repository.js";
 
 export interface IamDependencies {
   userRepository: UserRepository;

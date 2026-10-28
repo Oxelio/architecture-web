@@ -1,8 +1,8 @@
 import { Result } from "@architecture/foundation";
 
 import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { ListCurrentUserSessionsErrorCodes } from "./list-current-user-sessions.codes.js";

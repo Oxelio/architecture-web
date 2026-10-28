@@ -6,11 +6,11 @@ import type { PasswordPolicyReader } from "#accounts/password-policy/password-po
 import type { PasswordValidation } from "#accounts/password-policy/password-validation";
 import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import { selectPasswordPolicyProfile } from "#domain/password-policy";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 

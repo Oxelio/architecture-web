@@ -3,9 +3,9 @@
 import { Result } from "@architecture/foundation";
 
 import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
-import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { EmailVerificationRepository } from "#ports/email-verification.repository";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 
 import { VerifyEmailErrorCodes } from "./verify-email.codes.js";

@@ -1,9 +1,10 @@
-import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import type { UserQueryRepository } from "#repositories/user-query.repository";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
+import type { EmailVerificationRepository } from "./email-verification.repository.js";
+import type { LoginIdentityRepository } from "./login-identity.repository.js";
+import type { PasswordAuthenticatorRepository } from "./password-authenticator.repository.js";
+import type { UserRepository } from "./user.repository.js";
+import type { UserQueryRepository } from "./user-query.repository.js";
 
 export interface IamTransactionalRepositories {
   readonly emailVerifications: EmailVerificationRepository;

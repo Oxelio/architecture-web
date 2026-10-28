@@ -3,9 +3,9 @@
 import { Result } from "@architecture/foundation";
 
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { SuspendUserErrorCodes } from "./suspend-user.codes.js";

@@ -2,7 +2,7 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { UserQueryRepository } from "#repositories/user-query.repository";
+import type { UserQueryRepository } from "#ports/user-query.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { GetCurrentAccountErrorCodes } from "./get-current-account.codes.js";
