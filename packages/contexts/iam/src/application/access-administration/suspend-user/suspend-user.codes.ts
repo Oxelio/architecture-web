@@ -1,6 +1,7 @@
 // @file bounded-contexts/iam/application/use-cases/suspend-user/suspend-user.codes.ts
 
 export const SuspendUserErrorCodes = {
+  lastActiveAdministrator: { code: "LAST_ACTIVE_ADMIN" },
   invalidId: {
     code: "user.invalid_id",
   },

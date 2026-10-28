@@ -74,7 +74,9 @@ export interface IamDependencies {
   passwordAuthenticatorRepository: PasswordAuthenticatorRepository;
   sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
-  accountPolicies: AccountPolicyReader;
+  accountPolicies: AccountPolicyReader &
+    import("#accounts/account-policy.reader").RegistrationPolicyReader &
+    import("#authentication/authentication-policy.reader").SignInPolicyReader;
   sessionPolicies: SessionPolicyReader;
   passwordPolicyReader: PasswordPolicyReader;
   passwordStrengthEvaluator: PasswordStrengthEvaluator;
@@ -214,7 +216,6 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       dependencies.passwordHasher,
       dependencies.emailSender,
       dependencies.emailVerificationTokenHasher,
-      dependencies.passwordPolicyReader,
       passwordValidation,
       dependencies.unitOfWork,
       dependencies.accountPolicies,

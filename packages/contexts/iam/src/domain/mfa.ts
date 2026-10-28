@@ -8,6 +8,7 @@ export interface MfaCredential {
 export interface MfaChallenge {
   readonly id: string;
   readonly userId: string;
+  readonly userSessionVersion?: number | null;
   readonly purpose: "signin" | "enrollment_confirmation";
   readonly attempts: number;
   readonly maximumAttempts: number;

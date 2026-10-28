@@ -443,6 +443,9 @@ export interface SecurityConfigCenter {
     created_by: string;
     created_at: string;
     published_at: string | null;
+    justification?: string | null;
+    origin?: string | null;
+    changes?: { key: string; before: unknown; after: unknown }[] | null;
   }[];
 }
 
@@ -457,6 +460,7 @@ export function publishSecurityConfig(
   expectedVersion: number,
   justification: string,
   confirmedCritical: boolean,
+  proof?: { password: string; mfaCode: string },
 ) {
   return request("/iam/admin/security/config", {
     method: "PUT",
@@ -465,6 +469,7 @@ export function publishSecurityConfig(
       expectedVersion,
       justification,
       confirmedCritical,
+      ...proof,
     }),
   });
 }
@@ -483,9 +488,19 @@ export function previewSecurityConfig(values: Record<string, unknown>) {
   });
 }
 
-export function rollbackSecurityConfig(revisionId: string) {
+export function rollbackSecurityConfig(
+  revisionId: string,
+  input: {
+    expectedVersion: number;
+    justification: string;
+    confirmedCritical: boolean;
+    password: string;
+    mfaCode: string;
+  },
+) {
   return request(`/iam/admin/security/config/${revisionId}/rollback`, {
     method: "POST",
+    body: JSON.stringify(input),
   });
 }
 

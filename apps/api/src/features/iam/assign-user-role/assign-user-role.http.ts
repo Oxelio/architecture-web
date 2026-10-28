@@ -10,6 +10,11 @@ export const AssignUserRoleHttpContract = {
     },
   },
   errors: {
+    LAST_ACTIVE_ADMIN: {
+      status: 409,
+      code: "LAST_ACTIVE_ADMIN",
+      message: "Preserve another valid administrator access path",
+    },
     "administrator.unauthorized": {
       status: 403,
       code: "ADMINISTRATOR_UNAUTHORIZED",

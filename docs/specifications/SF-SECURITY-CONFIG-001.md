@@ -173,7 +173,7 @@ All active instances must converge on the same revision after publication. The
 result reports whether it is effective everywhere, propagating, partially
 applied, or refused and not applied.
 
-An instance never builds a hybrid policy from two revisions. The initial normal
+An instance never builds a hybrid policy from two revisions. Each use-case execution captures one revision and shares it with its nested calls. A later MFA challenge confirmation is a new execution and captures the then-current revision; in-flight executions finish with their captured rules. This execution boundary was explicitly selected by the project maintainer for the IAM correction. The initial normal
 operation target is convergence within five seconds; immediate-risk options may
 require stricter behavior.
 
@@ -196,7 +196,7 @@ version. The model still distinguishes viewing, proposing, publishing,
 restoring, and reading history for future separation of duties.
 
 An administrator cannot delete history or alter revision authorship. The system
-refuses configuration that removes the final valid administrative access path.
+refuses configuration that removes the final valid administrative access path. The same protection applies to account suspension and role removal, as explicitly selected by the project maintainer for the IAM correction. An access path requires an active administrator, a non-revoked password authenticator, a usable allowed identity, and enrolled MFA when required; no enrollment grace or recovery exception is implied.
 
 ## Traceability and notifications
 

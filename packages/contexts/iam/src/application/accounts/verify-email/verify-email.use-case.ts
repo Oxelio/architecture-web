@@ -46,14 +46,22 @@ export class VerifyEmailUseCase {
       return Result.failure(VerifyEmailErrorCodes.userNotFound);
     }
 
-    identity.verify();
-    const consumed = await this.unitOfWork.execute(
+    const consumed = await this.unitOfWork.executeForUser(
+      identity.userId,
       async ({ emailVerifications, loginIdentities }) => {
-        const tokenConsumed = await emailVerifications.consume(tokenHash, now);
+        const current = await loginIdentities.findById(identity.identifier);
+        if (!current || !current.login.equals(identity.login)) {
+          return false;
+        }
+        const tokenConsumed = await emailVerifications.consume(
+          tokenHash,
+          new Date(),
+        );
         if (!tokenConsumed) {
           return false;
         }
-        await loginIdentities.save(identity);
+        current.verify();
+        await loginIdentities.save(current);
         return true;
       },
     );

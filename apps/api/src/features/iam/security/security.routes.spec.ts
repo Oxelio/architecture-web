@@ -173,4 +173,83 @@ describe("security HTTP application boundary", () => {
     expect(response.statusCode).toBe(400);
     expect(execute).not.toHaveBeenCalled();
   });
+  it("preserves EMAIL_INVALID when schema validation rejects a missing recovery address", async () => {
+    const execute = vi.fn(),
+      app = await server({ requestRecovery: { execute } as never });
+    const response = await app.inject({
+      method: "POST",
+      url: "/recovery",
+      payload: {},
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: { code: "EMAIL_INVALID" } });
+    expect(execute).not.toHaveBeenCalled();
+  });
+  it("preserves the established recovery confirmation code", async () => {
+    const app = await server({
+      resetPassword: {
+        execute: async () =>
+          Result.failure({ code: "password.confirmation_mismatch" }),
+      } as never,
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/recovery/reset",
+      payload: {
+        token: "private-token",
+        password: "one",
+        passwordConfirmation: "two",
+      },
+    });
+    expect(response.json()).toEqual({
+      error: { code: "PASSWORD_CONFIRMATION_MISMATCH" },
+    });
+  });
+  it.each([true, false])(
+    "clears the MFA cookie only on successful deactivation (%s)",
+    async (success) => {
+      const app = await server({
+        disableMfa: {
+          execute: async () =>
+            success
+              ? Result.success(undefined)
+              : Result.failure({ code: "MFA_CODE_INVALID" }),
+        } as never,
+      });
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/me/mfa",
+        payload: { password: "private-password", mfaCode: "123456" },
+      });
+      expect(response.statusCode).toBe(success ? 204 : 401);
+      if (success) {
+        expect(response.headers["set-cookie"]).toContain("sid=;");
+      } else {
+        expect(response.headers["set-cookie"]).toBeUndefined();
+      }
+    },
+  );
+  it.each([
+    ["POST", "/mfa/challenge/verify", "MFA_CHALLENGE_INVALID"],
+    ["POST", "/deletion/cancel", "DELETION_CANCELLATION_INVALID"],
+    ["POST", "/me/mfa/enrollment", "PASSWORD_REQUIRED"],
+    ["POST", "/me/mfa/enrollment/confirm", "MFA_CODE_REQUIRED"],
+    [
+      "POST",
+      "/me/mfa/enrollment/backup-codes/confirm",
+      "MFA_BACKUP_CODES_CONFIRMATION_REQUIRED",
+    ],
+    ["POST", "/me/mfa/backup-codes", "STRONG_AUTHENTICATION_REQUIRED"],
+    ["DELETE", "/me/mfa", "STRONG_AUTHENTICATION_REQUIRED"],
+    ["POST", "/me/exports", "PASSWORD_REQUIRED"],
+    ["POST", "/me/deletion", "DELETION_REQUEST_INVALID"],
+  ] as const)(
+    "preserves missing-field business errors for %s %s",
+    async (method, url, code) => {
+      const app = await server({});
+      const response = await app.inject({ method, url, payload: {} });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ error: { code } });
+    },
+  );
 });

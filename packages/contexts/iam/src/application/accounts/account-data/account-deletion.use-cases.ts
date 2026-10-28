@@ -1,6 +1,6 @@
 import { Result } from "@architecture/foundation";
 
-import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { AccountSecurityPolicyReader } from "#accounts/account-policy.reader";
 import type {
   AccountSecurityMail,
   SecurityTokens,
@@ -23,7 +23,7 @@ import type {
 } from "./account-data.ports.js";
 export class RequestAccountDeletionUseCase {
   constructor(
-    private readonly policies: AccountPolicyReader,
+    private readonly policies: AccountSecurityPolicyReader,
     private readonly reauthentication: Reauthentication,
     private readonly users: UserRepository,
     private readonly identities: LoginIdentityRepository,
@@ -44,7 +44,8 @@ export class RequestAccountDeletionUseCase {
         code: "DELETION_CONFIRMATION_REQUIRED",
       } as const);
     }
-    const policy = await this.policies.getAccountPolicy();
+    const captured = await this.policies.getAccountSecurityPolicy();
+    const policy = captured.accounts;
     if (!policy.deletion) {
       return Result.failure({ code: "DELETION_DISABLED" } as const);
     }
@@ -53,6 +54,7 @@ export class RequestAccountDeletionUseCase {
       input.sessionId,
       input.password,
       input.code,
+      captured.authentication,
     );
     if (!authorized.success) {
       return authorized;

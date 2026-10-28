@@ -6,6 +6,14 @@ export interface ConfigurationRevision {
   readonly createdBy: string;
   readonly createdAt: Date;
   readonly previousRevisionId: string | null;
+  readonly representationVersion?: number;
+  readonly status?: string;
+  readonly publishedAt?: Date | null;
+  readonly changes?:
+    readonly { key: string; before: unknown; after: unknown }[] | null;
+  readonly justification?: string | null;
+  readonly origin?: string | null;
+  readonly restoredFromRevisionId?: string | null;
 }
 export type ConfigurationRevisionMetadata = Omit<
   ConfigurationRevision,
@@ -19,14 +27,27 @@ export interface PublishedConfigurationReader {
 }
 export interface ConfigurationStore extends PublishedConfigurationReader {
   initialize(): Promise<void>;
+  readCenter(): Promise<{
+    published: ConfigurationRevision;
+    revisions: readonly ConfigurationRevisionMetadata[];
+  }>;
   history(): Promise<readonly ConfigurationRevisionMetadata[]>;
   find(id: string): Promise<StoredConfigurationRevision | null>;
   publish(input: {
     actorId: string;
     values: SecurityPolicy;
     expectedVersion: number;
+    expectedActorSessionVersion?: number;
     justification: string;
     changedKeys: readonly string[];
-  }): Promise<ConfigurationRevision | null>;
+    origin?: "administration" | "restoration";
+    restoredFromRevisionId?: string;
+  }): Promise<
+    | ConfigurationRevision
+    | "last_administrator"
+    | "unauthorized"
+    | "reauthentication_required"
+    | null
+  >;
   countAdministratorsWithoutMfa(): Promise<number>;
 }

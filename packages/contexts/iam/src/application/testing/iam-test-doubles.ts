@@ -24,6 +24,14 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 export class InMemoryUserRepository extends UserRepository {
   readonly values = new Map<string, UserEntity>();
 
+  async hasOtherAdministrativeAccess(excluding: UserIdentifierValueObject) {
+    return [...this.values.values()].some(
+      (user) =>
+        user.identifier.value !== excluding.value &&
+        user.role.isAdmin() &&
+        user.status.isActive(),
+    );
+  }
   async save(user: UserEntity): Promise<void> {
     this.values.set(user.identifier.value, user);
   }
@@ -36,6 +44,10 @@ export class InMemoryUserRepository extends UserRepository {
 export class InMemoryLoginIdentityRepository extends LoginIdentityRepository {
   readonly values = new Map<string, LoginIdentityEntity>();
 
+  async replacePreservingAdministrativeAccess(identity: LoginIdentityEntity) {
+    await this.save(identity);
+    return true;
+  }
   async save(identity: LoginIdentityEntity): Promise<void> {
     this.values.set(identity.identifier.value, identity);
   }
@@ -79,6 +91,21 @@ export class InMemoryLoginIdentityRepository extends LoginIdentityRepository {
 
 export class InMemoryPasswordAuthenticatorRepository extends PasswordAuthenticatorRepository {
   readonly values = new Map<string, PasswordAuthenticatorEntity>();
+
+  async recordSuccessfulUse(
+    authenticator: PasswordAuthenticatorEntity,
+  ): Promise<boolean> {
+    const current = this.values.get(authenticator.userId.value);
+    if (
+      !current ||
+      current.isRevoked ||
+      !current.passwordHash.equals(authenticator.passwordHash)
+    ) {
+      return false;
+    }
+    current.recordSuccessfulUse();
+    return true;
+  }
 
   async save(authenticator: PasswordAuthenticatorEntity): Promise<void> {
     this.values.set(authenticator.userId.value, authenticator);
@@ -213,6 +240,25 @@ export class TestPolicies {
     private readonly emailVerification = true,
   ) {}
 
+  async getRegistrationPolicy() {
+    return {
+      accounts: await this.getAccountPolicy(),
+      password: await this.get(),
+    };
+  }
+  async getSignInPolicy() {
+    return {
+      accounts: await this.getAccountPolicy(),
+      authentication: await this.getAuthenticationPolicy(),
+      sessions: await this.getSessionPolicy(),
+    };
+  }
+  async getAccountSecurityPolicy() {
+    return {
+      accounts: await this.getAccountPolicy(),
+      authentication: await this.getAuthenticationPolicy(),
+    };
+  }
   async getAccountPolicy() {
     return {
       ...DEFAULT_SECURITY_POLICY.accounts,

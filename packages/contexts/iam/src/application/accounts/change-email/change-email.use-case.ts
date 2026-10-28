@@ -94,15 +94,26 @@ export class ChangeEmailUseCase implements ChangeEmail {
         })
       : null;
 
-    await this.unitOfWork.execute(
+    const committed = await this.unitOfWork.executeForUser(
+      user.identifier,
       async ({ emailVerifications, loginIdentities }) => {
-        await loginIdentities.save(identity);
+        if (
+          !(await loginIdentities.replacePreservingAdministrativeAccess(
+            identity,
+          ))
+        ) {
+          return false;
+        }
         await emailVerifications.invalidatePreviousFor(identity.identifier);
         if (verification) {
           await emailVerifications.save(verification);
         }
+        return true;
       },
     );
+    if (!committed) {
+      return Result.failure(ChangeEmailErrorsCodes.lastActiveAdministrator);
+    }
     if (token) {
       await this.emailSender.sendVerificationEmail(email.value, token.value);
     }

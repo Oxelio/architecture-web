@@ -1,6 +1,6 @@
 # Technical Design — Work #16 package-first workspace migration
 
-> Current applicability: the flat package topology described here has been superseded by the grouped topology in [Architecture overview](overview.md). This document retains the earlier decision/migration rationale; it does not describe the current workspace.
+> Current applicability: this accepted design retains its target and historical rationale. The grouped topology in [Architecture overview](overview.md) is an implementation divergence, not evidence of an accepted replacement decision.
 
 **Artifact status:** Accepted
 **Content status:** Canonical

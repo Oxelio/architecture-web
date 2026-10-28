@@ -12,6 +12,9 @@ import { ActivateUserUseCase } from "./activate-user.use-case.js";
 /* ---------------- FAKE USER PORT ---------------- */
 
 class FakeUserPort implements UserRepository {
+  async hasOtherAdministrativeAccess() {
+    return true;
+  }
   private readonly users = new Map<string, UserEntity>();
 
   async findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {

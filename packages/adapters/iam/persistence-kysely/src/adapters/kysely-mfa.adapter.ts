@@ -9,7 +9,7 @@ import {
   type UserEntity,
 } from "@architecture/iam/domain";
 import type { OutboxWriter } from "@architecture/messaging/application";
-import type { Kysely } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 
 import type {
   IamDatabase,
@@ -17,6 +17,10 @@ import type {
   IamMfaSettingTable,
 } from "#persistence/schema";
 
+import {
+  currentAccessPolicy,
+  lockAdministrativeAccess,
+} from "./administrative-access.js";
 import { appendIamSecurityEvent } from "./iam-security-event.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 
@@ -37,7 +41,7 @@ function credential(row: IamMfaSettingTable): MfaCredential {
     lastCounter,
   };
 }
-function challenge(row: IamMfaChallengeTable): MfaChallenge {
+function challenge(row: Selectable<IamMfaChallengeTable>): MfaChallenge {
   if (
     !Number.isSafeInteger(row.attempts) ||
     row.attempts < 0 ||
@@ -58,6 +62,7 @@ function challenge(row: IamMfaChallengeTable): MfaChallenge {
     maximumAttempts: row.max_attempts,
     expiresAt: row.expires_at,
     consumedAt: row.consumed_at,
+    userSessionVersion: row.user_session_version,
   };
 }
 export class KyselyMfaAdapter implements MfaStore {
@@ -66,6 +71,7 @@ export class KyselyMfaAdapter implements MfaStore {
     private readonly outbox: (trx: Kysely<IamDatabase>) => OutboxWriter,
   ) {}
   private async lockAccount(trx: Kysely<IamDatabase>, userId: string) {
+    await lockAdministrativeAccess(trx);
     return trx
       .selectFrom("iam_users")
       .selectAll()
@@ -278,12 +284,20 @@ export class KyselyMfaAdapter implements MfaStore {
   }
   async beginChallenge(input: Parameters<MfaStore["beginChallenge"]>[0]) {
     return this.db.transaction().execute(async (trx) => {
-      await this.lockAccount(trx, input.userId);
+      const account = await this.lockAccount(trx, input.userId);
+      if (
+        !account ||
+        account.status !== "active" ||
+        account.session_version !== input.userSessionVersion
+      ) {
+        return null;
+      }
       const existing = await trx
         .selectFrom("iam_mfa_challenges")
         .selectAll()
         .where("user_id", "=", input.userId)
         .where("purpose", "=", "signin")
+        .where("user_session_version", "=", input.userSessionVersion)
         .where("consumed_at", "is", null)
         .where("expires_at", ">", input.now)
         .orderBy("created_at", "desc")
@@ -297,6 +311,7 @@ export class KyselyMfaAdapter implements MfaStore {
           id: input.id,
           user_id: input.userId,
           purpose: "signin",
+          user_session_version: input.userSessionVersion,
           attempts: 0,
           max_attempts: input.maximumAttempts,
           expires_at: input.expiresAt,
@@ -338,6 +353,7 @@ export class KyselyMfaAdapter implements MfaStore {
         if (
           !row ||
           row.purpose !== "signin" ||
+          row.user_session_version !== account.session_version ||
           !isMfaChallengeUsable(
             challenge(row),
             new Date(Math.max(input.now.getTime(), Date.now())),
@@ -439,7 +455,12 @@ export class KyselyMfaAdapter implements MfaStore {
   }
   async disable(user: UserEntity) {
     return this.db.transaction().execute(async (trx) => {
+      await lockAdministrativeAccess(trx);
+      const policy = await currentAccessPolicy(trx);
       const account = await this.lockAccount(trx, user.identifier.value);
+      if (policy.authentication.mfaRequiredRoles.includes(user.role.value)) {
+        return false;
+      }
       if (
         !account ||
         account.status !== user.status.value ||

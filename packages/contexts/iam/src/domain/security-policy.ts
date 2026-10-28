@@ -220,3 +220,45 @@ export function policyValue(policy: SecurityPolicy, key: string): unknown {
     return (value as Record<string, unknown>)[segment];
   }, policy);
 }
+
+/** Historical decoding is separate from strict validation of new publications.
+ * v1 permitted a missing identifier set (email only) and duplicate set members.
+ * Unknown keys remain errors; the stored document is never rewritten.
+ */
+export function parseStoredSecurityPolicy(
+  input: unknown,
+  representationVersion: number,
+) {
+  if (representationVersion === 2) {
+    return parseSecurityPolicy(input);
+  }
+  if (
+    representationVersion !== 1 ||
+    !input ||
+    typeof input !== "object" ||
+    Array.isArray(input)
+  ) {
+    return parseSecurityPolicy(null);
+  }
+  const legacy = structuredClone(input) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  if (
+    legacy["accounts"] &&
+    !Object.hasOwn(legacy["accounts"], "allowedLoginIdentifiers")
+  ) {
+    legacy["accounts"]["allowedLoginIdentifiers"] = ["email"];
+  }
+  for (const [section, key] of [
+    ["accounts", "allowedLoginIdentifiers"],
+    ["authentication", "mfaRequiredRoles"],
+  ] as const) {
+    const fields = legacy[section];
+    const values = fields?.[key];
+    if (fields && Array.isArray(values)) {
+      fields[key] = [...new Set(values)];
+    }
+  }
+  return parseSecurityPolicy(legacy);
+}

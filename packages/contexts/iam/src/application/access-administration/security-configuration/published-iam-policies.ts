@@ -22,7 +22,15 @@ export class PublishedIamPolicies
 {
   constructor(private readonly published: PublishedConfigurationReader) {}
   async get(profile: PasswordPolicyProfile) {
-    const { passwords: p } = (await this.published.readPublished()).values;
+    return this.passwordPolicy(
+      (await this.published.readPublished()).values.passwords,
+      profile,
+    );
+  }
+  private passwordPolicy(
+    p: import("#domain/security-policy").SecurityPolicy["passwords"],
+    profile: PasswordPolicyProfile,
+  ) {
     const privileged = profile === "privileged";
     return createPasswordPolicy(
       privileged ? p.privilegedLevel : p.standardLevel,
@@ -44,6 +52,24 @@ export class PublishedIamPolicies
         },
       },
     );
+  }
+  async getRegistrationPolicy() {
+    const { values } = await this.published.readPublished();
+    return {
+      accounts: values.accounts,
+      password: this.passwordPolicy(values.passwords, "standard"),
+    };
+  }
+  async getSignInPolicy() {
+    const { accounts, authentication, sessions } = (
+      await this.published.readPublished()
+    ).values;
+    return { accounts, authentication, sessions };
+  }
+  async getAccountSecurityPolicy() {
+    const { accounts, authentication } = (await this.published.readPublished())
+      .values;
+    return { accounts, authentication };
   }
   async getAccountPolicy() {
     return (await this.published.readPublished()).values.accounts;

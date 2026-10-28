@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";
 
+import { lockAdministrativeAccess } from "./administrative-access.js";
 import { KyselyEmailVerificationAdapter } from "./kysely-email-verification.adapter.js";
 import { KyselyLoginIdentityAdapter } from "./kysely-login-identity.adapter.js";
 import { KyselyPasswordAuthenticatorAdapter } from "./kysely-password-authenticator.adapter.js";
@@ -39,6 +40,7 @@ export class KyselyIamUnitOfWorkAdapter extends IamUnitOfWork {
     userId?: string,
   ): Promise<T> {
     return this.db.transaction().execute(async (transaction) => {
+      await lockAdministrativeAccess(transaction);
       if (userId) {
         await transaction
           .selectFrom("iam_users")

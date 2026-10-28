@@ -31,8 +31,9 @@ export interface MfaStore {
     userId: string;
     expiresAt: Date;
     maximumAttempts: number;
+    userSessionVersion: number;
     now: Date;
-  }): Promise<MfaChallenge>;
+  }): Promise<MfaChallenge | null>;
   verify(input: {
     userId: string;
     sealedSecret: string;

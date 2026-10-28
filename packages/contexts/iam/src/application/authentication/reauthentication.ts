@@ -81,7 +81,8 @@ export class Reauthentication {
     userId: string,
     sessionId: string,
     password: string,
-  ): Promise<IamResult<void>> {
+    capturedPolicy?: import("#domain/security-policy").SecurityPolicy["authentication"],
+  ): Promise<IamResult<number>> {
     const id = SessionIdentifierValueObject.create(sessionId),
       userIdentifier = UserIdentifierValueObject.create(userId);
     if (!id.success || !userIdentifier.success) {
@@ -91,7 +92,8 @@ export class Reauthentication {
     }
     const session = await this.sessions.findById(id.value),
       user = await this.users.findById(userIdentifier.value),
-      policy = await this.policies.getAuthenticationPolicy();
+      policy =
+        capturedPolicy ?? (await this.policies.getAuthenticationPolicy());
     if (
       !session ||
       !user ||
@@ -106,15 +108,24 @@ export class Reauthentication {
         code: "RECENT_AUTHENTICATION_REQUIRED",
       } as const);
     }
-    return this.password(userId, password);
+    const verified = await this.password(userId, password);
+    return verified.success
+      ? Result.success(session.userSessionVersion)
+      : verified;
   }
   async strong(
     userId: string,
     sessionId: string,
     password: string,
     code?: string,
-  ): Promise<IamResult<void>> {
-    const recent = await this.recent(userId, sessionId, password);
+    capturedPolicy?: import("#domain/security-policy").SecurityPolicy["authentication"],
+  ): Promise<IamResult<number>> {
+    const recent = await this.recent(
+      userId,
+      sessionId,
+      password,
+      capturedPolicy,
+    );
     if (!recent.success) {
       return recent;
     }
@@ -127,6 +138,6 @@ export class Reauthentication {
         return factor;
       }
     }
-    return Result.success(undefined);
+    return Result.success(recent.value);
   }
 }

@@ -5,13 +5,20 @@ import type {
   ConfigurationStore,
 } from "@architecture/iam/application";
 import {
+  changedPolicyKeys,
   DEFAULT_SECURITY_POLICY,
-  parseSecurityPolicy,
+  parseStoredSecurityPolicy,
+  policyValue,
 } from "@architecture/iam/domain";
 import type { OutboxWriter } from "@architecture/messaging/application";
 import { type Kysely, sql } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";
+
+import {
+  hasAdministrativeAccess,
+  lockAdministrativeAccess,
+} from "./administrative-access.js";
 export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
   constructor(
     private readonly db: Kysely<IamDatabase>,
@@ -23,6 +30,13 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
     created_by: string;
     created_at: Date;
     previous_revision_id: string | null;
+    representation_version: number;
+    comparison_data: { key: string; before: unknown; after: unknown }[] | null;
+    published_at: Date | null;
+    status: string;
+    justification: string | null;
+    origin: string | null;
+    restored_from_revision_id: string | null;
   }) {
     return {
       id: row.id,
@@ -30,6 +44,13 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
       createdBy: row.created_by,
       createdAt: row.created_at,
       previousRevisionId: row.previous_revision_id,
+      representationVersion: row.representation_version,
+      status: row.status,
+      publishedAt: row.published_at,
+      changes: row.comparison_data,
+      justification: row.justification,
+      origin: row.origin,
+      restoredFromRevisionId: row.restored_from_revision_id,
     };
   }
   private revision(row: {
@@ -39,19 +60,24 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
     created_by: string;
     created_at: Date;
     previous_revision_id: string | null;
+    representation_version: number;
+    comparison_data: { key: string; before: unknown; after: unknown }[] | null;
+    published_at: Date | null;
+    status: string;
+    justification: string | null;
+    origin: string | null;
+    restored_from_revision_id: string | null;
   }): ConfigurationRevision {
-    const parsed = parseSecurityPolicy(row.values);
+    const parsed = parseStoredSecurityPolicy(
+      row.values,
+      row.representation_version,
+    );
     if (!parsed.success) {
-      throw new Error("Invalid persisted IAM configuration");
+      throw new Error(
+        `Unsupported or corrupt IAM configuration revision ${row.id} (representation ${row.representation_version})`,
+      );
     }
-    return {
-      id: row.id,
-      version: row.version,
-      values: parsed.value,
-      createdBy: row.created_by,
-      createdAt: row.created_at,
-      previousRevisionId: row.previous_revision_id,
-    };
+    return { ...this.metadata(row), values: parsed.value };
   }
   async initialize() {
     await this.db.transaction().execute(async (trx) => {
@@ -61,7 +87,23 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
         .select("id")
         .where("status", "=", "published")
         .executeTakeFirst();
-      if (!existing) {
+      if (existing) {
+        const stored = await trx
+          .selectFrom("iam_security_config_revisions")
+          .selectAll()
+          .where("id", "=", existing.id)
+          .executeTakeFirstOrThrow();
+        this.revision(stored);
+      } else {
+        const historical = await trx
+          .selectFrom("iam_security_config_revisions")
+          .select("id")
+          .executeTakeFirst();
+        if (historical) {
+          throw new Error(
+            "IAM configuration history exists without a published revision",
+          );
+        }
         await trx
           .insertInto("iam_security_config_revisions")
           .values({
@@ -69,6 +111,9 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
             version: 1,
             status: "published",
             values: JSON.stringify(DEFAULT_SECURITY_POLICY),
+            representation_version: 2,
+            origin: "initialization",
+            justification: "Deployment initialization",
             created_by: "00000000-0000-0000-0000-000000000000",
             created_at: new Date(),
             published_at: new Date(),
@@ -88,6 +133,18 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
         .executeTakeFirstOrThrow(),
     );
   }
+  async readCenter() {
+    return this.db
+      .transaction()
+      .setIsolationLevel("repeatable read")
+      .execute(async (trx) => {
+        const reader = new KyselySecurityConfigurationAdapter(trx, this.outbox);
+        return {
+          published: await reader.readPublished(),
+          revisions: await reader.history(),
+        };
+      });
+  }
   async history() {
     return (
       await this.db
@@ -104,7 +161,7 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
       .selectAll()
       .where("id", "=", id)
       .executeTakeFirst();
-    return row ? { ...this.metadata(row), values: row.values } : null;
+    return row ? this.revision(row) : null;
   }
   async countAdministratorsWithoutMfa() {
     const row = await this.db
@@ -119,6 +176,7 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
   }
   async publish(input: Parameters<ConfigurationStore["publish"]>[0]) {
     return this.db.transaction().execute(async (trx) => {
+      await lockAdministrativeAccess(trx);
       await sql`select pg_advisory_xact_lock(728194001)`.execute(trx);
       const current = await trx
         .selectFrom("iam_security_config_revisions")
@@ -130,6 +188,31 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
       if (current.version !== input.expectedVersion) {
         return null;
       }
+      const actor = await trx
+        .selectFrom("iam_users")
+        .selectAll()
+        .where("id", "=", input.actorId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!actor || actor.role !== "admin" || actor.status !== "active") {
+        return "unauthorized" as const;
+      }
+      if (
+        input.expectedActorSessionVersion !== undefined &&
+        actor.session_version !== input.expectedActorSessionVersion
+      ) {
+        return "reauthentication_required" as const;
+      }
+      if (!(await hasAdministrativeAccess(trx, input.values))) {
+        return "last_administrator" as const;
+      }
+      const previous = this.revision(current);
+      const changedKeys = changedPolicyKeys(previous.values, input.values);
+      const changes = changedKeys.map((key) => ({
+        key,
+        before: policyValue(previous.values, key),
+        after: policyValue(input.values, key),
+      }));
       const id = randomUUID(),
         now = new Date();
       await trx
@@ -144,6 +227,13 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
           version: current.version + 1,
           status: "published",
           values: JSON.stringify(input.values),
+          representation_version: 2,
+          comparison_data: sql<
+            { key: string; before: unknown; after: unknown }[]
+          >`${JSON.stringify(changes)}::jsonb`,
+          justification: input.justification,
+          origin: input.origin ?? "administration",
+          restored_from_revision_id: input.restoredFromRevisionId ?? null,
           created_by: input.actorId,
           created_at: now,
           published_at: now,
@@ -160,7 +250,7 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
           occurredAt: now,
           payload: {
             version: row.version,
-            changedKeys: input.changedKeys,
+            changedKeys,
             justification: input.justification,
           },
           context: {

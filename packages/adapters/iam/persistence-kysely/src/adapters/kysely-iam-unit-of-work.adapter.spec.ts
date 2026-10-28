@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { lockAdministrativeAccess } from "./administrative-access.js";
+
+vi.mock("./administrative-access.js", () => ({
+  lockAdministrativeAccess: vi.fn(async () => undefined),
+}));
+
 import { KyselyEmailVerificationAdapter } from "./kysely-email-verification.adapter.js";
 import { KyselyIamUnitOfWorkAdapter } from "./kysely-iam-unit-of-work.adapter.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
@@ -17,6 +23,7 @@ describe("KyselyIamUnitOfWorkAdapter", () => {
 
     const result = await unitOfWork.execute(
       async ({ emailVerifications, users }) => {
+        expect(lockAdministrativeAccess).toHaveBeenCalledWith(transaction);
         expect(users).toBeInstanceOf(KyselyUserAdapter);
         expect(emailVerifications).toBeInstanceOf(
           KyselyEmailVerificationAdapter,

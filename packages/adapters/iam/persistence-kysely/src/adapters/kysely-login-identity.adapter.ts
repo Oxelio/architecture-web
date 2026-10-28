@@ -13,12 +13,41 @@ import type { Kysely } from "kysely";
 import { LoginIdentityMapper } from "#mappers/login-identity.mapper";
 import type { IamDatabase } from "#persistence/schema";
 
+import {
+  currentAccessPolicy,
+  hasAdministrativeAccess,
+  lockAdministrativeAccess,
+} from "./administrative-access.js";
+
 export class KyselyLoginIdentityAdapter implements LoginIdentityRepository {
   constructor(
     private readonly db: Kysely<IamDatabase>,
     private readonly outbox?: OutboxWriter,
   ) {}
 
+  async replacePreservingAdministrativeAccess(
+    identity: LoginIdentityEntity,
+  ): Promise<boolean> {
+    if (!this.db.isTransaction) {
+      throw new Error("Identity replacement requires an IAM unit of work");
+    }
+    await lockAdministrativeAccess(this.db);
+    const policy = await currentAccessPolicy(this.db);
+    if (
+      !identity.isUsable &&
+      (await hasAdministrativeAccess(this.db, policy)) &&
+      !(await hasAdministrativeAccess(
+        this.db,
+        policy,
+        undefined,
+        identity.identifier.value,
+      ))
+    ) {
+      return false;
+    }
+    await this.save(identity);
+    return true;
+  }
   async save(identity: LoginIdentityEntity): Promise<void> {
     const row = LoginIdentityMapper.toPersistence(identity);
     await this.db

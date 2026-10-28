@@ -41,15 +41,17 @@ export class BeginMfaEnrollmentUseCase {
       expiresAt: Date;
     }>
   > {
+    const authentication = await this.policies.getAuthenticationPolicy();
     const authorized = await this.reauthentication.recent(
       input.userId,
       input.sessionId,
       input.password,
+      authentication,
     );
     if (!authorized.success) {
       return authorized;
     }
-    if (!(await this.policies.getAuthenticationPolicy()).mfaAvailable) {
+    if (!authentication.mfaAvailable) {
       return Result.failure({ code: "MFA_UNAVAILABLE" } as const);
     }
     const id = UserIdentifierValueObject.create(input.userId);
@@ -201,6 +203,8 @@ export class BeginSecondFactorUseCase {
   ) {}
   async execute(input: {
     userId: string;
+    expectedSessionVersion: number;
+    policy?: import("#domain/security-policy").SecurityPolicy["authentication"];
   }): Promise<
     Result<
       | import("#authentication/sign-in/sign-in.contracts").SecondFactorChallenge
@@ -214,8 +218,12 @@ export class BeginSecondFactorUseCase {
     }
     const user = await this.users.findById(id.value),
       setting = await this.store.credential(input.userId),
-      policy = await this.policies.getAuthenticationPolicy();
-    if (!user || !user.status.isActive()) {
+      policy = input.policy ?? (await this.policies.getAuthenticationPolicy());
+    if (
+      !user ||
+      !user.status.isActive() ||
+      user.sessionVersion !== input.expectedSessionVersion
+    ) {
       return Result.failure({ code: "MFA_CHALLENGE_INVALID" } as const);
     }
     if (!setting?.enabledAt) {
@@ -229,8 +237,12 @@ export class BeginSecondFactorUseCase {
         userId: input.userId,
         expiresAt: new Date(now.getTime() + policy.mfaChallengeMinutes * 60000),
         maximumAttempts: policy.mfaMaxAttempts,
+        userSessionVersion: user.sessionVersion,
         now,
       });
+    if (!challenge) {
+      return Result.failure({ code: "MFA_CHALLENGE_INVALID" } as const);
+    }
     return Result.success({
       mfaRequired: true as const,
       userId: input.userId,
@@ -248,6 +260,7 @@ export class CompleteMfaSignInUseCase {
     private readonly users: UserRepository,
     private readonly issueSession: IssueSession,
     private readonly events: SecurityEventRecorder,
+    private readonly policies: import("#authentication/authentication-policy.reader").SignInPolicyReader,
   ) {}
   async execute(input: {
     challengeId: string;
@@ -262,6 +275,7 @@ export class CompleteMfaSignInUseCase {
       return Result.failure({ code: "MFA_CHALLENGE_INVALID" } as const);
     }
 
+    const captured = await this.policies.getSignInPolicy();
     const challenge = await this.store.findChallenge(input.challengeId);
     if (
       !challenge ||
@@ -283,10 +297,18 @@ export class CompleteMfaSignInUseCase {
       return Result.failure({ code: "MFA_CHALLENGE_INVALID" } as const);
     }
     const user = await this.users.findById(id.value);
-    if (!user || !user.status.isActive()) {
+    if (
+      !user ||
+      !user.status.isActive() ||
+      user.sessionVersion !== challenge.userSessionVersion
+    ) {
       return Result.failure({ code: "MFA_CHALLENGE_INVALID" } as const);
     }
-    const session = await this.issueSession.issue(user, input.metadata);
+    const session = await this.issueSession.issue(
+      user,
+      input.metadata,
+      captured.sessions,
+    );
     await this.events.record(
       "authentication.signin",
       "success",
@@ -356,10 +378,12 @@ export class DisableMfaUseCase {
     password: string;
     code: string;
   }): Promise<IamResult<void>> {
+    const authentication = await this.policies.getAuthenticationPolicy();
     const recent = await this.reauthentication.recent(
       input.userId,
       input.sessionId,
       input.password,
+      authentication,
     );
     if (!recent.success) {
       return recent;
@@ -372,11 +396,7 @@ export class DisableMfaUseCase {
     if (!user) {
       return Result.failure({ code: "USER_NOT_FOUND" } as const);
     }
-    if (
-      (await this.policies.getAuthenticationPolicy()).mfaRequiredRoles.includes(
-        user.role.value,
-      )
-    ) {
+    if (authentication.mfaRequiredRoles.includes(user.role.value)) {
       return Result.failure({ code: "MFA_REQUIRED_BY_POLICY" } as const);
     }
     const factor = await this.factor.verify(input.userId, input.code);

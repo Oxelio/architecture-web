@@ -42,6 +42,8 @@ export function AdminSecurityCenter() {
   );
   const [justification, setJustification] = useState("");
   const [confirmedCritical, setConfirmedCritical] = useState(false);
+  const [password, setPassword] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
 
   const effectiveDraft = draft?.values ?? config.data?.effective ?? null;
 
@@ -63,8 +65,11 @@ export function AdminSecurityCenter() {
         draft?.version ?? currentVersion(config.data),
         justification,
         confirmedCritical,
+        { password, mfaCode },
       ),
     onSuccess: async () => {
+      setPassword("");
+      setMfaCode("");
       setJustification("");
       setConfirmedCritical(false);
       setDraft(null);
@@ -73,8 +78,17 @@ export function AdminSecurityCenter() {
     },
   });
   const rollback = useMutation({
-    mutationFn: rollbackSecurityConfig,
+    mutationFn: (revisionId: string) =>
+      rollbackSecurityConfig(revisionId, {
+        expectedVersion: currentVersion(config.data),
+        justification,
+        confirmedCritical,
+        password,
+        mfaCode,
+      }),
     onSuccess: async () => {
+      setPassword("");
+      setMfaCode("");
       setDraft(null);
       await client.invalidateQueries({ queryKey: ["admin-security-config"] });
     },
@@ -92,6 +106,51 @@ export function AdminSecurityCenter() {
 
   return (
     <section className="mt-7 space-y-5">
+      {view !== "audit" ? (
+        <fieldset className="grid gap-3 rounded-xl border border-slate-700 p-4">
+          <legend>{t("securityConfig.stepUp")}</legend>
+          {view === "history" ? (
+            <label>
+              {t("securityConfig.justification")}
+              <input
+                value={justification}
+                onChange={(event) => setJustification(event.target.value)}
+              />
+            </label>
+          ) : null}
+          <label>
+            {t("securityConfig.password")}
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          <label>
+            {t("securityConfig.mfaCode")}
+            <input
+              autoComplete="one-time-code"
+              value={mfaCode}
+              onChange={(event) => setMfaCode(event.target.value)}
+            />
+          </label>
+          {view === "history" ? (
+            <label>
+              <input
+                type="checkbox"
+                checked={confirmedCritical}
+                onChange={(event) => setConfirmedCritical(event.target.checked)}
+              />
+              {t("securityConfig.confirm")}
+            </label>
+          ) : null}
+          {rollback.isError ? (
+            <p role="alert">{rollback.error.message}</p>
+          ) : null}
+        </fieldset>
+      ) : null}
+
       <nav
         className="flex flex-wrap gap-2"
         aria-label={t("securityConfig.navigation", {
@@ -482,6 +541,7 @@ function History({
   pending: boolean;
   onRollback: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
       <h2 className="text-xl font-semibold text-white">
@@ -501,6 +561,26 @@ function History({
                 {revision.created_by} ·{" "}
                 {new Date(revision.created_at).toLocaleString()}
               </p>
+              <p>
+                {revision.justification ??
+                  t("securityConfig.notRecorded", {
+                    defaultValue: "Not recorded",
+                  })}{" "}
+                ·{" "}
+                {revision.origin ??
+                  t("securityConfig.notRecorded", {
+                    defaultValue: "Not recorded",
+                  })}
+              </p>
+              {revision.changes?.map((change) => (
+                <p key={change.key}>
+                  {t(`securityConfig.fields.${change.key}.label`, {
+                    defaultValue: change.key,
+                  })}
+                  : {JSON.stringify(change.before)} →{" "}
+                  {JSON.stringify(change.after)}
+                </p>
+              ))}
             </div>
             {revision.version !== currentVersion ? (
               <button

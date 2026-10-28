@@ -1,6 +1,7 @@
 // @file bounded-contexts/iam/application/use-cases/change-email/change-email.codes.ts
 
 export const ChangeEmailErrorsCodes = {
+  lastActiveAdministrator: { code: "LAST_ACTIVE_ADMIN" },
   featureDisabled: {
     code: "feature.disabled",
   },

@@ -71,10 +71,26 @@ export class ResendEmailVerificationUseCase implements ResendEmailVerification {
       expiresAt,
     });
 
-    await this.unitOfWork.execute(async ({ emailVerifications }) => {
-      await emailVerifications.invalidatePreviousFor(identity.identifier);
-      await emailVerifications.save(verification);
-    });
+    const issued = await this.unitOfWork.executeForUser(
+      user.identifier,
+      async ({ emailVerifications, loginIdentities }) => {
+        const current = await loginIdentities.findById(identity.identifier);
+        if (
+          !current ||
+          current.isVerified ||
+          !current.login.equals(identity.login) ||
+          current.updatedAt.getTime() !== identity.updatedAt.getTime()
+        ) {
+          return false;
+        }
+        await emailVerifications.invalidatePreviousFor(identity.identifier);
+        await emailVerifications.save(verification);
+        return true;
+      },
+    );
+    if (!issued) {
+      return Result.success(undefined);
+    }
 
     const email = EmailValueObject.create(identity.login.value);
     if (!email.success) {

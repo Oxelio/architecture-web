@@ -43,7 +43,21 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
         .where("id", "=", input.userId)
         .forUpdate()
         .executeTakeFirst();
-      if (!user) {
+      const identity = await trx
+        .selectFrom("iam_login_identities")
+        .selectAll()
+        .where("id", "=", input.identityId)
+        .where("user_id", "=", input.userId)
+        .where("kind", "=", "email")
+        .where("normalized_value", "=", input.email)
+        .where("verification_status", "=", "verified")
+        .executeTakeFirst();
+      const account = await trx
+        .selectFrom("iam_users")
+        .select("status")
+        .where("id", "=", input.userId)
+        .executeTakeFirst();
+      if (!user || !identity || account?.status !== "active") {
         return false;
       }
       const recent = await trx
@@ -69,6 +83,8 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
           user_id: input.userId,
           token_hash: input.tokenHash,
           email_fingerprint: input.emailFingerprint,
+          login_identity_id: identity.id,
+          identity_generation: identity.generation,
           expires_at: input.expiresAt,
           created_at: input.now,
           consumed_at: null,
@@ -120,6 +136,19 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
           new Date(Math.max(now.getTime(), Date.now())),
         )
       ) {
+        return null;
+      }
+      const identity = row.login_identity_id
+        ? await trx
+            .selectFrom("iam_login_identities")
+            .selectAll()
+            .where("id", "=", row.login_identity_id)
+            .where("user_id", "=", row.user_id)
+            .where("kind", "=", "email")
+            .where("verification_status", "=", "verified")
+            .executeTakeFirst()
+        : null;
+      if (!identity || identity.generation !== row.identity_generation) {
         return null;
       }
       const id = UserIdentifierValueObject.create(row.user_id);

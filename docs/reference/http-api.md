@@ -9,11 +9,8 @@ available at `GET /docs`.
 This page describes boundaries and access levels. IAM routes use the
 `/v1/iam` prefix and the notification center uses `/v1/notifications`. For historical routes,
 `*.route-options.ts` files and Swagger describe exact bodies, statuses, and
-responses. Security and notification routes declared in
-`apps/api/src/security/security.routes.ts` and
-`apps/api/src/notifications/notification.routes.ts` do not have TypeBox
-schemas yet: those files and `apps/web/src/services/api.ts` are their executable
-source, and Swagger does not currently cover the whole API.
+responses. Security routes now live in `apps/api/src/features/iam/security/security.routes.ts`.
+They declare TypeBox schemas for recovery, MFA, account-data and configuration request bodies/parameters, and personal audit pagination. Error response envelopes are declared; success response schemas and administrative audit filters are not yet exhaustive; Swagger does not describe the whole API. Notification routes retain their separate transport coverage. The route implementations and `apps/web/src/services/api.ts` remain the executable sources for uncovered contracts.
 
 ## Public routes
 
@@ -145,3 +142,11 @@ Changing a path, method, status, envelope, required field, or code meaning is
 breaking for clients. Web client, schemas, presenters, tests, and this reference
 **MUST** change together. The route version currently follows the API package
 major version; no parallel deprecation policy is defined.
+
+## IAM correction compatibility
+
+Paths, methods, success envelopes and cookie attributes are preserved. Missing/invalid recovery email returns `400 EMAIL_INVALID`, missing reset fields return `400 RECOVERY_REQUEST_INVALID`, mismatched confirmation returns `400 PASSWORD_CONFIRMATION_MISMATCH`, and reset length failures retain `400 PASSWORD_POLICY_VIOLATION`. Newly enforced shared password checks may return their explicit validation codes. Successful MFA deactivation returns 204 and clears the authentication cookie; failed deactivation leaves it unchanged. Server-side session invalidation remains independent of cookie removal.
+
+Configuration publication retains `values`, `expectedVersion`, `justification` and `confirmedCritical`. Critical changes additionally require fresh proof using optional transport fields `password` and `mfaCode`; session identity is obtained from authenticated context. The critical checkbox alone is insufficient. Restoration now takes a body with required `expectedVersion` and `justification`, plus `confirmedCritical`, `password` and `mfaCode` when critical. This coordinated client/API safeguard migration is required by the approved security-configuration specification; no parallel HTTP versioning policy is introduced.
+
+History additionally exposes recorded `justification`, `origin`, `changes` and `restored_from_revision_id`; absent historical metadata is null. `LAST_ACTIVE_ADMIN` is a 409 refusal when a change would remove the final usable access path. `CONFIG_VERSION_CONFLICT` remains 409; invalid fresh authentication returns its established authorization error. The package-source migration is inventoried in [Packages](../architecture/packages.md). Session-started integration facts remain version 2 and exclude bearer identifiers; existing consumers and redaction protections remain in place.

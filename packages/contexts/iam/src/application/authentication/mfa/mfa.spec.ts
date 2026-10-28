@@ -36,7 +36,10 @@ describe("MFA application boundaries", () => {
       policies,
       store as never,
       {} as never,
-    ).execute({ userId: user.identifier.value });
+    ).execute({
+      userId: user.identifier.value,
+      expectedSessionVersion: user.sessionVersion,
+    });
     expect(result).toEqual({
       success: false,
       error: { code: "MFA_ENROLLMENT_REQUIRED" },

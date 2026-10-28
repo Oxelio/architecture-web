@@ -44,9 +44,24 @@ export class SuspendUserUseCase implements SuspendUser {
     const result = await this.unitOfWork.executeForUser(
       userId.value,
       async ({ users }) => {
+        const actor = actorId.success
+          ? await users.findById(actorId.value)
+          : null;
+        if (!actor?.role.isAdmin() || !actor.status.isActive()) {
+          return Result.failure({
+            code: "administrator.unauthorized",
+          } as const);
+        }
         const user = await users.findById(userId.value);
         if (!user) {
           return Result.failure(SuspendUserErrorCodes.notFound);
+        }
+        if (
+          user.role.isAdmin() &&
+          user.status.isActive() &&
+          !(await users.hasOtherAdministrativeAccess(user.identifier))
+        ) {
+          return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
         }
         user.suspend(actorId.success ? actorId.value : undefined);
         await users.save(user);

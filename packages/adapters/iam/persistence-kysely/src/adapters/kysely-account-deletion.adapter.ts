@@ -9,6 +9,10 @@ import { type Kysely, sql } from "kysely";
 
 import type { IamAccountDeletionTable, IamDatabase } from "#persistence/schema";
 
+import {
+  currentAccessPolicy,
+  hasAdministrativeAccess,
+} from "./administrative-access.js";
 import { appendIamSecurityEvent } from "./iam-security-event.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 function deletion(row: IamAccountDeletionTable): DeletionRequest {
@@ -44,13 +48,11 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         return "conflict" as const;
       }
       if (input.requireAnotherAdministrator) {
-        const other = await trx
-          .selectFrom("iam_users")
-          .select("id")
-          .where("role", "=", "admin")
-          .where("status", "=", "active")
-          .where("id", "!=", account.id)
-          .executeTakeFirst();
+        const other = await hasAdministrativeAccess(
+          trx,
+          await currentAccessPolicy(trx),
+          account.id,
+        );
         if (!other) {
           return "last_administrator" as const;
         }

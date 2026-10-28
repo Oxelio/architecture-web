@@ -17,6 +17,8 @@ export interface PasswordRecoveryStore {
     userId: string;
     tokenHash: string;
     emailFingerprint: string;
+    identityId: string;
+    email: string;
     expiresAt: Date;
     now: Date;
     maximumPerHour: number;

@@ -9,6 +9,9 @@ import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-
 import { AssignUserRoleUseCase } from "./assign-user-role.use-case.js";
 
 class FakeUserRepository implements UserRepository {
+  async hasOtherAdministrativeAccess() {
+    return true;
+  }
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {

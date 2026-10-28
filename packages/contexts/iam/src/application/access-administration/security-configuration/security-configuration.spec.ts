@@ -29,6 +29,10 @@ async function fixture(admin = true) {
   };
   const store = {
     readPublished: vi.fn(async () => revision),
+    readCenter: async (): ReturnType<ConfigurationStore["readCenter"]> => ({
+      published: await store.readPublished(),
+      revisions: await store.history(),
+    }),
     history: vi.fn(async () => [revision]),
     countAdministratorsWithoutMfa: vi.fn(async () => 2),
     publish: vi.fn(
@@ -98,6 +102,8 @@ describe("security configuration administration", () => {
     const result = await new PublishSecurityConfigurationUseCase(
       f.authorization,
       f.store,
+      { strong: async () => ({ success: true as const, value: 1 }) },
+      { record: async () => undefined },
     ).execute({
       actorId: f.actorId,
       values,
@@ -116,6 +122,8 @@ describe("security configuration administration", () => {
     const result = await new PublishSecurityConfigurationUseCase(
       f.authorization,
       f.store,
+      { strong: async () => ({ success: true as const, value: 1 }) },
+      { record: async () => undefined },
     ).execute({
       actorId: f.actorId,
       values: DEFAULT_SECURITY_POLICY,
@@ -133,15 +141,18 @@ describe("security configuration administration", () => {
       failure = new Error("database unavailable");
     f.store.publish.mockRejectedValue(failure);
     await expect(
-      new PublishSecurityConfigurationUseCase(f.authorization, f.store).execute(
-        {
-          actorId: f.actorId,
-          values: DEFAULT_SECURITY_POLICY,
-          expectedVersion: 3,
-          justification: "Review",
-          confirmedCritical: true,
-        },
-      ),
+      new PublishSecurityConfigurationUseCase(
+        f.authorization,
+        f.store,
+        { strong: async () => ({ success: true as const, value: 1 }) },
+        { record: async () => undefined },
+      ).execute({
+        actorId: f.actorId,
+        values: DEFAULT_SECURITY_POLICY,
+        expectedVersion: 3,
+        justification: "Review",
+        confirmedCritical: true,
+      }),
     ).rejects.toBe(failure);
   });
   it("rejects unknown keys, incomplete snapshots and invalid cross-field invariants", () => {
@@ -160,5 +171,32 @@ describe("security configuration administration", () => {
         },
       }).success,
     ).toBe(false);
+  });
+  it("requires actual fresh proof even when the critical checkbox is true", async () => {
+    const f = await fixture();
+    const values = structuredClone(DEFAULT_SECURITY_POLICY);
+    values.passwords.privilegedMinLength++;
+    const strong = vi.fn(async () => ({
+      success: false as const,
+      error: { code: "RECENT_AUTHENTICATION_REQUIRED" as const },
+    }));
+    const result = await new PublishSecurityConfigurationUseCase(
+      f.authorization,
+      f.store,
+      { strong },
+      { record: async () => undefined },
+    ).execute({
+      actorId: f.actorId,
+      values,
+      expectedVersion: 3,
+      justification: "Critical update",
+      confirmedCritical: true,
+    });
+    expect(result).toEqual({
+      success: false,
+      error: { code: "RECENT_AUTHENTICATION_REQUIRED" },
+    });
+    expect(strong).toHaveBeenCalledOnce();
+    expect(f.store.publish).not.toHaveBeenCalled();
   });
 });

@@ -44,7 +44,6 @@ describe("SignUpUseCase", () => {
       { hash: vi.fn().mockResolvedValue(testPasswordHash()) } as never,
       sender as never,
       { hash: vi.fn().mockResolvedValue(validTokenHash) } as never,
-      policy,
       { validate: vi.fn().mockResolvedValue({ errors: [] }) } as never,
       new InMemoryIamUnitOfWork(
         users,

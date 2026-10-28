@@ -65,6 +65,8 @@ export class RequestPasswordRecoveryUseCase {
         userId: user.identifier.value,
         tokenHash: this.tokens.hash(token),
         emailFingerprint: this.tokens.hash(login.value.value),
+        identityId: identity.identifier.value,
+        email: login.value.value,
         expiresAt: new Date(now.getTime() + policy.tokenMinutes * 60000),
         now,
         maximumPerHour: policy.requestsPerHour,

@@ -1,6 +1,6 @@
 import { Result } from "@architecture/foundation";
 
-import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { AccountSecurityPolicyReader } from "#accounts/account-policy.reader";
 import type { SecurityTokens } from "#accounts/security-effects";
 import type { IamResult } from "#application-result";
 import type { Reauthentication } from "#authentication/reauthentication";
@@ -15,7 +15,7 @@ import type {
 } from "./account-data.ports.js";
 export class RequestAccountExportUseCase {
   constructor(
-    private readonly policies: AccountPolicyReader,
+    private readonly policies: AccountSecurityPolicyReader,
     private readonly reauthentication: Reauthentication,
     private readonly store: AccountExportStore,
     private readonly sessions: SessionRepository,
@@ -29,7 +29,8 @@ export class RequestAccountExportUseCase {
     password: string;
     code?: string;
   }): Promise<IamResult<{ id: string; status: string }>> {
-    if (!(await this.policies.getAccountPolicy()).export) {
+    const captured = await this.policies.getAccountSecurityPolicy();
+    if (!captured.accounts.export) {
       return Result.failure({ code: "EXPORT_DISABLED" } as const);
     }
     const authorized = await this.reauthentication.strong(
@@ -37,6 +38,7 @@ export class RequestAccountExportUseCase {
       input.sessionId,
       input.password,
       input.code,
+      captured.authentication,
     );
     if (!authorized.success) {
       return authorized;

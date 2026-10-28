@@ -2,7 +2,7 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { SignInPolicyReader } from "#authentication/authentication-policy.reader";
 import type { IssueSession } from "#authentication/issue-session";
 import type { BeginSecondFactorUseCase } from "#authentication/mfa/mfa.use-cases";
 import type { PasswordHasher } from "#authentication/password/password-hasher.port";
@@ -26,13 +26,14 @@ export class SignInUseCase implements SignIn {
     private readonly loginIdentities: LoginIdentityRepository,
     private readonly passwordAuthenticators: PasswordAuthenticatorRepository,
     private readonly password: PasswordHasher,
-    private readonly policies: AccountPolicyReader,
+    private readonly policies: SignInPolicyReader,
     private readonly secondFactor: Pick<BeginSecondFactorUseCase, "execute">,
     private readonly issueSession: IssueSession,
   ) {}
 
   async execute(payload: SignInInput): Promise<SignInOutput> {
-    const { allowedLoginIdentifiers } = await this.policies.getAccountPolicy();
+    const captured = await this.policies.getSignInPolicy();
+    const { allowedLoginIdentifiers } = captured.accounts;
     if (!allowedLoginIdentifiers.includes(payload.login.kind)) {
       await this.password.fakeVerify();
       return Result.failure(SignInErrorCodes.invalidCredentials);
@@ -75,8 +76,14 @@ export class SignInUseCase implements SignIn {
       return Result.failure(SignInErrorCodes.invalidCredentials);
     }
 
-    authenticator.recordSuccessfulUse();
-    await this.passwordAuthenticators.save(authenticator);
+    if (
+      !(await this.passwordAuthenticators.recordSuccessfulUse(
+        authenticator,
+        new Date(),
+      ))
+    ) {
+      return Result.failure(SignInErrorCodes.invalidCredentials);
+    }
 
     if (!user.status.isActive()) {
       return Result.failure(SignInErrorCodes.userSuspended);
@@ -84,6 +91,8 @@ export class SignInUseCase implements SignIn {
 
     const challenge = await this.secondFactor.execute({
       userId: user.identifier.value,
+      expectedSessionVersion: user.sessionVersion,
+      policy: captured.authentication,
     });
     if (!challenge.success) {
       return challenge;
@@ -94,6 +103,7 @@ export class SignInUseCase implements SignIn {
     const data: AuthenticationSession = await this.issueSession.issue(
       user,
       payload,
+      captured.sessions,
     );
     return Result.success(data);
   }

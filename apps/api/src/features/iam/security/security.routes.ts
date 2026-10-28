@@ -125,6 +125,71 @@ export function buildSecurityRoutes(
   events: SecurityEventRecorder,
 ) {
   return async (app: FastifyInstance) => {
+    const errorEnvelope = Type.Object({
+      error: Type.Object(
+        { code: Type.String(), message: Type.Optional(Type.String()) },
+        { additionalProperties: true },
+      ),
+    });
+    app.addHook("onRoute", (options) => {
+      options.schema = {
+        ...options.schema,
+        response: {
+          400: errorEnvelope,
+          401: errorEnvelope,
+          403: errorEnvelope,
+          404: errorEnvelope,
+          409: errorEnvelope,
+          500: errorEnvelope,
+          ...(typeof options.schema?.response === "object"
+            ? options.schema.response
+            : {}),
+        },
+      };
+    });
+    const inheritedErrorHandler = app.errorHandler;
+    app.setErrorHandler(function (error, request, reply) {
+      if (error instanceof Error && "validation" in error && error.validation) {
+        const path = request.routeOptions.url?.replace(
+          /^.*?(?=\/(?:recovery|mfa|deletion|me|admin)(?:\/|$))/,
+          "",
+        );
+        const codes: Record<string, string> = {
+          "/recovery": "EMAIL_INVALID",
+          "/recovery/reset": "RECOVERY_REQUEST_INVALID",
+          "/mfa/challenge/verify": "MFA_CHALLENGE_INVALID",
+          "/deletion/cancel": "DELETION_CANCELLATION_INVALID",
+          "/me/mfa/enrollment": "PASSWORD_REQUIRED",
+          "/me/mfa/enrollment/confirm": "MFA_CODE_REQUIRED",
+          "/me/mfa/enrollment/backup-codes/confirm":
+            "MFA_BACKUP_CODES_CONFIRMATION_REQUIRED",
+          "/me/mfa/backup-codes": "STRONG_AUTHENTICATION_REQUIRED",
+          "/me/mfa": "STRONG_AUTHENTICATION_REQUIRED",
+          "/me/exports": "PASSWORD_REQUIRED",
+          "/me/deletion": "DELETION_REQUEST_INVALID",
+          "/admin/security/config": "CONFIG_INVALID",
+          "/admin/security/config/preview": "CONFIG_INVALID",
+        };
+        let code = path ? codes[path] : undefined;
+        const body = request.body as Record<string, unknown> | null;
+        if (
+          path === "/recovery/reset" &&
+          body &&
+          typeof body["token"] === "string" &&
+          typeof body["password"] === "string" &&
+          typeof body["passwordConfirmation"] === "string"
+        ) {
+          code =
+            body["password"] !== body["passwordConfirmation"]
+              ? "PASSWORD_CONFIRMATION_MISMATCH"
+              : "PASSWORD_POLICY_VIOLATION";
+        }
+        if (code) {
+          return reply.status(400).send({ error: { code } });
+        }
+      }
+      return inheritedErrorHandler.call(this, error, request, reply);
+    });
     app.get("/capabilities", async (_request, reply) =>
       reply.send({ data: await security.getCapabilities.execute() }),
     );
@@ -155,15 +220,33 @@ export function buildSecurityRoutes(
     app.post<{ Body: Static<typeof reset> }>(
       "/recovery/reset",
       { schema: { body: reset } },
-      async (request, reply) =>
-        applicationResponse(
-          reply,
-          await security.resetPassword.execute({
-            ...request.body,
-            context: requestContext(request),
-          }),
-          204,
-        ),
+      async (request, reply) => {
+        const result = await security.resetPassword.execute({
+          ...request.body,
+          context: requestContext(request),
+        });
+        if (
+          !result.success &&
+          result.error.code === "password.confirmation_mismatch"
+        ) {
+          return reply
+            .status(400)
+            .send({ error: { code: "PASSWORD_CONFIRMATION_MISMATCH" } });
+        }
+        if (
+          !result.success &&
+          [
+            "password.empty",
+            "password.too_short",
+            "password.too_long",
+          ].includes(result.error.code)
+        ) {
+          return reply
+            .status(400)
+            .send({ error: { code: "PASSWORD_POLICY_VIOLATION" } });
+        }
+        return applicationResponse(reply, result, 204);
+      },
     );
     const challenge = Type.Object({
       challengeId: Type.String(),
@@ -213,7 +296,7 @@ export function buildSecurityRoutes(
 
     await app.register(async (protectedApp) => {
       const { authenticate } = protectedApp as AuthenticatedFastifyInstance;
-      protectedApp.addHook("preHandler", authenticate);
+      protectedApp.addHook("preValidation", authenticate);
       protectedApp.get("/me/mfa", async (request, reply) => {
         const auth = actor(request, reply);
         if (!auth) {
@@ -316,16 +399,16 @@ export function buildSecurityRoutes(
           if (!auth) {
             return reply;
           }
-          return applicationResponse(
-            reply,
-            await security.disableMfa.execute({
-              userId: auth.userId,
-              sessionId: auth.sessionId,
-              password: request.body.password,
-              code: request.body.mfaCode,
-            }),
-            204,
-          );
+          const result = await security.disableMfa.execute({
+            userId: auth.userId,
+            sessionId: auth.sessionId,
+            password: request.body.password,
+            code: request.body.mfaCode,
+          });
+          if (result.success) {
+            reply.clearCookie(cookie.name, cookie.options);
+          }
+          return applicationResponse(reply, result, 204);
         },
       );
       protectedApp.post<{ Body: AuthenticationBody }>(
@@ -448,8 +531,8 @@ export function buildSecurityRoutes(
 
     await app.register(async (admin) => {
       const { authenticate } = admin as AuthenticatedFastifyInstance;
-      admin.addHook("preHandler", authenticate);
-      admin.addHook("preHandler", async (request, reply) => {
+      admin.addHook("preValidation", authenticate);
+      admin.addHook("preValidation", async (request, reply) => {
         if (request.auth?.role !== "admin") {
           return reply.status(403).send({ error: { code: "FORBIDDEN" } });
         }
@@ -471,13 +554,14 @@ export function buildSecurityRoutes(
             revisions: result.value.revisions.map((revision) => ({
               id: revision.id,
               version: revision.version,
-              status:
-                revision.version === result.value.revisions[0]?.version
-                  ? "published"
-                  : "superseded",
+              status: revision.status,
+              justification: revision.justification,
+              origin: revision.origin,
+              restored_from_revision_id: revision.restoredFromRevisionId,
               created_by: revision.createdBy,
               created_at: revision.createdAt,
-              published_at: revision.createdAt,
+              published_at: revision.publishedAt,
+              changes: revision.changes,
               previous_revision_id: revision.previousRevisionId,
             })),
           },
@@ -488,6 +572,8 @@ export function buildSecurityRoutes(
         expectedVersion: Type.Integer({ minimum: 1 }),
         justification: Type.String(),
         confirmedCritical: Type.Optional(Type.Boolean()),
+        password: Type.Optional(Type.String({ maxLength: 1024 })),
+        mfaCode: Type.Optional(Type.String()),
       });
       admin.put<{ Body: Static<typeof publication> }>(
         "/admin/security/config",
@@ -505,6 +591,13 @@ export function buildSecurityRoutes(
               expectedVersion: request.body.expectedVersion,
               justification: request.body.justification,
               confirmedCritical: request.body.confirmedCritical === true,
+              sessionId: auth.sessionId,
+              ...(request.body.password !== undefined
+                ? { password: request.body.password }
+                : {}),
+              ...(request.body.mfaCode !== undefined
+                ? { mfaCode: request.body.mfaCode }
+                : {}),
             }),
           );
         },
@@ -529,9 +622,17 @@ export function buildSecurityRoutes(
         },
       );
       const revision = Type.Object({ revisionId: Type.String() });
-      admin.post<{ Params: Static<typeof revision> }>(
+      admin.post<{
+        Params: Static<typeof revision>;
+        Body: Omit<Static<typeof publication>, "values">;
+      }>(
         "/admin/security/config/:revisionId/rollback",
-        { schema: { params: revision } },
+        {
+          schema: {
+            params: revision,
+            body: Type.Omit(publication, ["values"]),
+          },
+        },
         async (request, reply) => {
           const auth = actor(request, reply);
           if (!auth) {
@@ -542,6 +643,16 @@ export function buildSecurityRoutes(
             await security.restoreConfiguration.execute({
               actorId: auth.userId,
               revisionId: request.params.revisionId,
+              expectedVersion: request.body.expectedVersion,
+              justification: request.body.justification,
+              confirmedCritical: request.body.confirmedCritical === true,
+              sessionId: auth.sessionId,
+              ...(request.body.password !== undefined
+                ? { password: request.body.password }
+                : {}),
+              ...(request.body.mfaCode !== undefined
+                ? { mfaCode: request.body.mfaCode }
+                : {}),
             }),
           );
         },

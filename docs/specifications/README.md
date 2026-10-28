@@ -52,13 +52,13 @@ Slack, and SMS adapters. It remains `Approved` until the project explicitly
 starts/accepts implementation against the complete specification and closes
 remaining evidence gaps.
 
-| Specification             | Current coverage                                            | Gaps or missing evidence                                                                                              |
-| ------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `SF-ACCOUNT-DATA-001`     | ZIP export, download, deferred deletion, and cancellation   | no deployment scheduler in the repository; integration scenarios and legal-retention constraints are not demonstrated |
-| `SF-ACCOUNT-RECOVERY-001` | request, single-use token, reset, and session revocation    | complete shared validation and transactional reset; broader SMTP and abuse scenarios remain incomplete                |
-| `SF-MFA-001`              | TOTP enrollment, backup codes, and sign-in challenge        | complete enrollment/sign-in and notification delivery scenarios need broader evidence                                 |
-| `SF-SECURITY-AUDIT-001`   | event writes, consultation, and purge                       | event completeness and transactional durability are not demonstrated                                                  |
-| `SF-SECURITY-CONFIG-001`  | typed form, revisions, preview, restoration, and one policy | step-up authentication and propagation telemetry remain unimplemented                                                 |
+| Specification             | Current coverage                                            | Gaps or missing evidence                                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SF-ACCOUNT-DATA-001`     | ZIP export, download, deferred deletion, and cancellation   | no deployment scheduler in the repository; integration scenarios and legal-retention constraints are not demonstrated                                            |
+| `SF-ACCOUNT-RECOVERY-001` | request, single-use token, reset, and session revocation    | complete shared validation and transactional reset; broader SMTP and abuse scenarios remain incomplete                                                           |
+| `SF-MFA-001`              | TOTP enrollment, backup codes, and sign-in challenge        | complete enrollment/sign-in and notification delivery scenarios need broader evidence                                                                            |
+| `SF-SECURITY-AUDIT-001`   | event writes, consultation, and purge                       | event completeness and transactional durability are not demonstrated                                                                                             |
+| `SF-SECURITY-CONFIG-001`  | typed form, revisions, preview, restoration, and one policy | step-up and immutable comparison metadata implemented; fleet acknowledgement, operator recovery and full notification/accessibility acceptance remain incomplete |
 
 The [Account security](../guides/account-security.md) guide links these findings
 to executable sources and details known limitations.

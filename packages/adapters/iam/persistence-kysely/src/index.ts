@@ -16,4 +16,6 @@ export { iamSecurityMigrations } from "./persistence/migrations/003_create_iam_s
 export { iamAggregateConsistencyMigrations } from "./persistence/migrations/004_add_iam_aggregate_consistency.js";
 export { iamAuthenticationMigrations } from "./persistence/migrations/005_extract_iam_authentication.js";
 export { iamSecurityInvariantMigrations } from "./persistence/migrations/006_enforce_iam_security_invariants.js";
+export { iamAuthenticationProofMigrations } from "./persistence/migrations/007_bind_authentication_proofs.js";
+export { iamConfigurationVersionMigrations } from "./persistence/migrations/008_version_configuration.js";
 export type { IamDatabase } from "./persistence/schema.js";

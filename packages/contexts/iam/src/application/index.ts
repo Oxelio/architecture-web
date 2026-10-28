@@ -165,6 +165,10 @@ export type {
 export * from "./accounts/account-data/account-deletion.use-cases.js";
 export * from "./accounts/account-data/account-export.use-cases.js";
 export type { AccountPolicyReader } from "./accounts/account-policy.reader.js";
+export type {
+  AccountSecurityPolicyReader,
+  RegistrationPolicyReader,
+} from "./accounts/account-policy.reader.js";
 export { EmailVerificationRateLimiter } from "./accounts/email-verification/email-verification-rate-limiter.port.js";
 export { EmailVerificationTokenHasher } from "./accounts/email-verification/email-verification-token-hasher.port.js";
 export { VerificationEmailSender } from "./accounts/email-verification/verification-email-sender.port.js";
@@ -200,6 +204,7 @@ export type {
   AuthenticationPolicyReader,
   SessionPolicyReader,
 } from "./authentication/authentication-policy.reader.js";
+export type { SignInPolicyReader } from "./authentication/authentication-policy.reader.js";
 export { IssueSession } from "./authentication/issue-session.js";
 export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/issue-session.js";
 export type {

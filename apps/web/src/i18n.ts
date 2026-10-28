@@ -22,6 +22,14 @@ const getInitialLanguage = (): Language => {
 const resources = {
   fr: {
     translation: {
+      securityConfig: {
+        stepUp: "Modifications critiques et restauration",
+        justification: "Motif",
+        password: "Mot de passe actuel",
+        mfaCode: "Code MFA, si activé",
+        confirm: "Confirmer la modification critique",
+        notRecorded: "Non enregistré",
+      },
       passwordFeedback: {
         empty: "Saisissez un mot de passe.",
         confirmation_mismatch:
@@ -323,6 +331,14 @@ const resources = {
   },
   en: {
     translation: {
+      securityConfig: {
+        stepUp: "Critical changes and restoration",
+        justification: "Reason",
+        password: "Current password",
+        mfaCode: "MFA code, when enabled",
+        confirm: "Confirm the critical change",
+        notRecorded: "Not recorded",
+      },
       passwordFeedback: {
         empty: "Enter a password.",
         confirmation_mismatch: "Password confirmation does not match.",

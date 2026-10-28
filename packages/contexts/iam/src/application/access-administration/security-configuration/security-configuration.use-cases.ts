@@ -27,11 +27,11 @@ export class GetSecurityConfigurationUseCase {
     if (!authorized.success) {
       return authorized;
     }
-    const published = await this.store.readPublished();
+    const { published, revisions } = await this.store.readCenter();
     return Result.success({
       effective: published.values,
       effectiveRevision: { id: published.id, version: published.version },
-      revisions: await this.store.history(),
+      revisions,
     });
   }
 }
@@ -99,6 +99,11 @@ export class PublishSecurityConfigurationUseCase {
   constructor(
     private readonly authorization: AdministratorAuthorizer,
     private readonly store: ConfigurationStore,
+    private readonly reauthentication: Pick<
+      import("#authentication/reauthentication").Reauthentication,
+      "strong"
+    >,
+    private readonly events: import("#accounts/security-effects").SecurityEventRecorder,
   ) {}
   async execute(input: {
     actorId: string;
@@ -106,6 +111,73 @@ export class PublishSecurityConfigurationUseCase {
     expectedVersion: number;
     justification: string;
     confirmedCritical: boolean;
+    sessionId?: string;
+    password?: string;
+    mfaCode?: string;
+    origin?: "administration" | "restoration";
+    restoredFromRevisionId?: string;
+  }): Promise<
+    IamResult<{
+      id: string;
+      version: number;
+      effective: import("#domain/security-policy").SecurityPolicy;
+    }>
+  > {
+    const result = await this.perform(input).catch(async (failure: unknown) => {
+      try {
+        await this.events.record(
+          "security.config.publication-attempt",
+          "technical_failure",
+          {
+            actorType: "administrator",
+            actorId: input.actorId,
+            subjectId: input.actorId,
+          },
+          {
+            expectedVersion: input.expectedVersion,
+            origin: input.origin ?? "administration",
+            result: "technical_failure",
+          },
+        );
+      } catch (recordFailure) {
+        throw new AggregateError(
+          [failure, recordFailure],
+          "Configuration operation and failure recording failed",
+        );
+      }
+      throw failure;
+    });
+    await this.events.record(
+      "security.config.publication-attempt",
+      result.success ? "success" : "denied",
+      {
+        actorType: "administrator",
+        actorId: input.actorId,
+        subjectId: input.actorId,
+      },
+      {
+        expectedVersion: input.expectedVersion,
+        origin: input.origin ?? "administration",
+        justification: input.justification.trim().slice(0, 500),
+        ...(input.restoredFromRevisionId
+          ? { restoredFromRevisionId: input.restoredFromRevisionId }
+          : {}),
+        result: result.success ? "published" : result.error.code,
+      },
+    );
+    return result;
+  }
+  private async perform(input: {
+    actorId: string;
+    values: unknown;
+    expectedVersion: number;
+    justification: string;
+    confirmedCritical: boolean;
+    sessionId?: string;
+    password?: string;
+    mfaCode?: string;
+    origin?: "administration" | "restoration";
+    restoredFromRevisionId?: string;
   }): Promise<
     IamResult<{
       id: string;
@@ -134,13 +206,47 @@ export class PublishSecurityConfigurationUseCase {
         code: "CONFIG_CRITICAL_CONFIRMATION_REQUIRED",
       } as const);
     }
+    let expectedActorSessionVersion: number | undefined;
+    if (
+      changedKeys.some((key) => CRITICAL_SECURITY_POLICY_KEYS.includes(key))
+    ) {
+      const proof = await this.reauthentication.strong(
+        input.actorId,
+        input.sessionId ?? "",
+        input.password ?? "",
+        input.mfaCode,
+        previous.values.authentication,
+      );
+      if (!proof.success) {
+        return proof;
+      }
+      expectedActorSessionVersion = proof.value;
+    }
     const revision = await this.store.publish({
       actorId: input.actorId,
       values: parsed.value,
       expectedVersion: input.expectedVersion,
       justification: input.justification.trim().slice(0, 500),
       changedKeys,
+      ...(expectedActorSessionVersion !== undefined
+        ? { expectedActorSessionVersion }
+        : {}),
+      ...(input.origin ? { origin: input.origin } : {}),
+      ...(input.restoredFromRevisionId
+        ? { restoredFromRevisionId: input.restoredFromRevisionId }
+        : {}),
     });
+    if (revision === "reauthentication_required") {
+      return Result.failure({
+        code: "RECENT_AUTHENTICATION_REQUIRED",
+      } as const);
+    }
+    if (revision === "last_administrator") {
+      return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
+    }
+    if (revision === "unauthorized") {
+      return Result.failure({ code: "administrator.unauthorized" } as const);
+    }
     return revision
       ? Result.success({
           id: revision.id,
@@ -155,8 +261,71 @@ export class RestoreSecurityConfigurationUseCase {
     private readonly authorization: AdministratorAuthorizer,
     private readonly store: ConfigurationStore,
     private readonly publish: PublishSecurityConfigurationUseCase,
+    private readonly events: import("#accounts/security-effects").SecurityEventRecorder,
   ) {}
-  async execute(input: { actorId: string; revisionId: string }): Promise<
+  async execute(input: {
+    actorId: string;
+    revisionId: string;
+    expectedVersion: number;
+    justification: string;
+    confirmedCritical: boolean;
+    sessionId?: string;
+    password?: string;
+    mfaCode?: string;
+  }): Promise<
+    IamResult<{
+      id: string;
+      version: number;
+      effective: import("#domain/security-policy").SecurityPolicy;
+    }>
+  > {
+    const context = {
+      actorType: "administrator" as const,
+      actorId: input.actorId,
+      subjectId: input.actorId,
+    };
+    const metadata = {
+      expectedVersion: input.expectedVersion,
+      origin: "restoration",
+      justification: input.justification.trim().slice(0, 500),
+      ...(isSecurityOperationId(input.revisionId)
+        ? { restoredFromRevisionId: input.revisionId }
+        : {}),
+    };
+    const result = await this.perform(input).catch(async (failure: unknown) => {
+      try {
+        await this.events.record(
+          "security.config.restoration-attempt",
+          "technical_failure",
+          context,
+          { ...metadata, result: "technical_failure" },
+        );
+      } catch (recordFailure) {
+        throw new AggregateError(
+          [failure, recordFailure],
+          "Configuration restoration and failure recording failed",
+        );
+      }
+      throw failure;
+    });
+    await this.events.record(
+      "security.config.restoration-attempt",
+      result.success ? "success" : "denied",
+      context,
+      { ...metadata, result: result.success ? "published" : result.error.code },
+    );
+    return result;
+  }
+  private async perform(input: {
+    actorId: string;
+    revisionId: string;
+    expectedVersion: number;
+    justification: string;
+    confirmedCritical: boolean;
+    sessionId?: string;
+    password?: string;
+    mfaCode?: string;
+  }): Promise<
     IamResult<{
       id: string;
       version: number;
@@ -175,13 +344,15 @@ export class RestoreSecurityConfigurationUseCase {
     if (!target) {
       return Result.failure({ code: "CONFIG_REVISION_NOT_FOUND" } as const);
     }
-    const current = await this.store.readPublished();
     return this.publish.execute({
+      ...input,
+      origin: "restoration",
+      restoredFromRevisionId: input.revisionId,
       actorId: input.actorId,
       values: target.values,
-      expectedVersion: current.version,
-      justification: `Restore ${input.revisionId}`,
-      confirmedCritical: true,
+      expectedVersion: input.expectedVersion,
+      justification: input.justification,
+      confirmedCritical: input.confirmedCritical,
     });
   }
 }

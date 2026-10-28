@@ -132,3 +132,11 @@ Packages currently share version `1.0.0-alpha.1`, but the repository contains
 neither Semantic Release configuration nor evidence of independent versioning.
 Most publishable packages use `prepublishOnly` to build. Any stronger publication
 or SemVer policy needs a human decision and an ADR.
+
+## Authorized IAM contract migration
+
+For the IAM correction, the maintainer explicitly authorized these replacements: `EmailSender` → `VerificationEmailSender`; `PasswordPolicyValidator` → `PasswordValidation` with an explicitly supplied policy; `SecondFactorGate` → `BeginSecondFactorUseCase` application contract; and `IamPolicyProvider`/`PasswordPolicyProvider` → narrow capability and operation-scoped readers. `IamActorRole`/`IamAccountIdentityPolicy`/`IamCapability` consumers must use the corresponding explicit role, account-policy and capability contracts rather than importing the removed universal provider vocabulary.
+
+`createIam` callers now supply explicit account/session/password readers, second-factor handling and outbox dependencies; operation-aware account readers implement registration and sign-in projections. Adapter implementers must support conditional credential-use recording, identity replacement that preserves administration, and administrative-access queries. All in-repository implementations and doubles are migrated together. This is a targeted source-contract migration, not a new package publication or SemVer policy. Package identities and public subpaths remain unchanged.
+
+MFA challenge creation additionally requires the expected account session generation, while status consultation keeps its original input. Fresh-authentication results carry that generation to the configuration commit guard. These are explicit application contracts; they do not expose credentials or introduce a persistence framework into the core.

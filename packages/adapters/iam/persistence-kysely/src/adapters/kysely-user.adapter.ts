@@ -16,12 +16,24 @@ import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 import { UserMapper } from "#mappers/user.mapper";
 import type { IamDatabase } from "#persistence/schema";
 
+import {
+  currentAccessPolicy,
+  hasAdministrativeAccess,
+} from "./administrative-access.js";
+
 export class KyselyUserAdapter implements UserRepository, UserQueryRepository {
   constructor(
     private readonly db: Kysely<IamDatabase>,
     private readonly outbox?: OutboxWriter,
   ) {}
 
+  async hasOtherAdministrativeAccess(excluding: UserIdentifierValueObject) {
+    return hasAdministrativeAccess(
+      this.db,
+      await currentAccessPolicy(this.db),
+      excluding.value,
+    );
+  }
   async save(user: UserEntity): Promise<void> {
     const row = UserMapper.toPersistence(user);
 

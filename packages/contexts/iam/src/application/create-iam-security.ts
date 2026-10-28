@@ -76,7 +76,9 @@ export interface IamSecurityDependencies {
     AuthenticationPolicyReader &
     SessionPolicyReader &
     PasswordPolicyReader &
-    RecoveryPolicyReader;
+    RecoveryPolicyReader &
+    import("#authentication/authentication-policy.reader").SignInPolicyReader &
+    import("#accounts/account-policy.reader").AccountSecurityPolicyReader;
   configuration: ConfigurationStore;
   recovery: PasswordRecoveryStore;
   mfa: MfaStore;
@@ -107,6 +109,8 @@ export function createIamSecurity(d: IamSecurityDependencies) {
   const publish = new PublishSecurityConfigurationUseCase(
     authorization,
     d.configuration,
+    reauthentication,
+    d.events,
   );
   return {
     getCapabilities: new GetIamCapabilitiesUseCase(d.configuration),
@@ -123,6 +127,7 @@ export function createIamSecurity(d: IamSecurityDependencies) {
       authorization,
       d.configuration,
       publish,
+      d.events,
     ),
     requestRecovery: new RequestPasswordRecoveryUseCase(
       d.policies,
@@ -172,6 +177,7 @@ export function createIamSecurity(d: IamSecurityDependencies) {
       d.users,
       new IssueSession(d.sessions, d.policies, d.outbox),
       d.events,
+      d.policies,
     ),
     regenerateBackupCodes: new RegenerateMfaBackupCodesUseCase(
       reauthentication,

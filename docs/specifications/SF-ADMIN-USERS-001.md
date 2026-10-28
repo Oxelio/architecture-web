@@ -414,3 +414,7 @@ This specification does not include:
 - automatic pagination of every other collection;
 - a complete CQRS split;
 - creation of a distinct port for every repository method.
+
+## Administrative access preservation
+
+The project maintainer explicitly authorized the IAM correction to reject suspension or role removal that would eliminate the final usable administrative access path. The invariant is owned by [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md); this does not change self-administration restrictions or introduce a grace period. Concurrent actor authorization and access checks must use authoritative persisted state.

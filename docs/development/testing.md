@@ -134,3 +134,5 @@ docker compose -p iam-refactor-tests -f compose.iam-test.yml down
 ```
 
 The database name must start with `iam_refactor_test`. Every run creates a unique schema, migrates it, and removes only that schema. Redis uses generated test-account/session identifiers and clears only those owned keys; it never flushes a database. Both variables are required together. These checks cover publication races, single-use recovery, outbox rollback, session-version protection after cleanup failure, MFA attempts and backup-code consumption, single archive download, last-administrator deletion and policy snapshot consistency.
+
+The IAM correction extends the isolated suite with stale credential saves (including MFA), identity-bound recovery issuance in both orderings, stale MFA generations, unsafe publication/restoration, mixed administrator mutations, a real pre-refactor database upgrade, and publication inside actual registration/sign-in workflows. Fixtures use only their generated schemas and owned Redis keys. These scenarios must execute with both integration URLs; ordinary skipped runs provide no database evidence.

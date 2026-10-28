@@ -19,8 +19,9 @@ export class IssueSession {
       Parameters<typeof SessionEntity.createForUser>[0],
       "client" | "network"
     >,
+    capturedPolicy?: import("#domain/security-policy").SecurityPolicy["sessions"],
   ) {
-    const policy = await this.policies.getSessionPolicy();
+    const policy = capturedPolicy ?? (await this.policies.getSessionPolicy());
     const session = SessionEntity.createForUser({
       userId: user.identifier,
       userSessionVersion: user.sessionVersion,

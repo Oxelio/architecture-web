@@ -46,9 +46,25 @@ export class AssignUserRoleUseCase implements AssignUserRole {
     const result = await this.unitOfWork.executeForUser(
       userId.value,
       async ({ users }) => {
+        const actor = actorId.success
+          ? await users.findById(actorId.value)
+          : null;
+        if (!actor?.role.isAdmin() || !actor.status.isActive()) {
+          return Result.failure({
+            code: "administrator.unauthorized",
+          } as const);
+        }
         const user = await users.findById(userId.value);
         if (!user) {
           return Result.failure(AssignUserRoleErrorCodes.notFound);
+        }
+        if (
+          user.role.isAdmin() &&
+          user.status.isActive() &&
+          !role.value.isAdmin() &&
+          !(await users.hasOtherAdministrativeAccess(user.identifier))
+        ) {
+          return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
         }
         user.changeRole(
           role.value,

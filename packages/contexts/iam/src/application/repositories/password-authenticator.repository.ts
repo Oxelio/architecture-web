@@ -4,6 +4,12 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 export abstract class PasswordAuthenticatorRepository {
   abstract save(authenticator: PasswordAuthenticatorEntity): Promise<void>;
 
+  /** Records use only while the verified credential remains authoritative. */
+  abstract recordSuccessfulUse(
+    authenticator: PasswordAuthenticatorEntity,
+    usedAt: Date,
+  ): Promise<boolean>;
+
   abstract findForUser(
     userId: UserIdentifierValueObject,
   ): Promise<PasswordAuthenticatorEntity | null>;

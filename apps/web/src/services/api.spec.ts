@@ -6,9 +6,11 @@ import {
   changeEmail,
   changePassword,
   listUsers,
+  publishSecurityConfig,
   resendEmailVerification,
   revokeCurrentUserSession,
   revokeUserSession,
+  rollbackSecurityConfig,
   signIn,
   signOut,
   signUp,
@@ -134,6 +136,58 @@ describe("IAM API client", () => {
       emailVerified: "false",
       page: "2",
       pageSize: "25",
+    });
+  });
+  it("sends restoration version, reason and fresh proof only in the request body", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ data: { id: "published-revision", version: 8 } }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    const input = {
+      expectedVersion: 7,
+      justification: "Restore the reviewed revision",
+      confirmedCritical: true,
+      password: "test-password-proof",
+      mfaCode: "123456",
+    };
+    await rollbackSecurityConfig("revision-id", input);
+    const call = fetch.mock.calls[0];
+    if (!call) {
+      throw new Error("Missing request");
+    }
+    expect(String(call[0])).toMatch(
+      /\/iam\/admin\/security\/config\/revision-id\/rollback$/,
+    );
+    expect(String(call[0])).not.toContain(input.password);
+    expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual(input);
+    expect((call[1] as RequestInit).credentials).toBe("include");
+  });
+  it("keeps publication confirmation separate from its fresh authentication proof", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ data: { id: "published-revision", version: 8 } }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    await publishSecurityConfig({}, 3, "Reviewed change", true, {
+      password: "test-password-proof",
+      mfaCode: "123456",
+    });
+    const call = fetch.mock.calls[0];
+    if (!call) {
+      throw new Error("Missing request");
+    }
+    expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({
+      values: {},
+      expectedVersion: 3,
+      justification: "Reviewed change",
+      confirmedCritical: true,
+      password: "test-password-proof",
+      mfaCode: "123456",
     });
   });
 });

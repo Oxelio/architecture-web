@@ -5,3 +5,9 @@ export interface AuthenticationPolicyReader {
 export interface SessionPolicyReader {
   getSessionPolicy(): Promise<SecurityPolicy["sessions"]>;
 }
+
+export interface SignInPolicyReader {
+  getSignInPolicy(): Promise<
+    Pick<SecurityPolicy, "accounts" | "authentication" | "sessions">
+  >;
+}

@@ -2,10 +2,9 @@
 
 import { Result } from "@architecture/foundation";
 
-import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { RegistrationPolicyReader } from "#accounts/account-policy.reader";
 import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
 import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
-import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
 import type { PasswordValidation } from "#accounts/password-policy/password-validation";
 import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
@@ -32,14 +31,14 @@ export class SignUpUseCase {
     private readonly password: PasswordHasher,
     private readonly emailSender: VerificationEmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
-    private readonly policies: PasswordPolicyReader,
     private readonly passwordValidation: PasswordValidation,
     private readonly unitOfWork: IamUnitOfWork,
-    private readonly accountPolicies: AccountPolicyReader,
+    private readonly accountPolicies: RegistrationPolicyReader,
   ) {}
 
   async execute(payload: SignUpInput): Promise<SignUpOutput> {
-    const registrationPolicy = await this.accountPolicies.getAccountPolicy();
+    const captured = await this.accountPolicies.getRegistrationPolicy();
+    const registrationPolicy = captured.accounts;
     if (!registrationPolicy.publicRegistration) {
       return Result.failure(SignUpErrorCodes.featureDisabled);
     }
@@ -62,7 +61,7 @@ export class SignUpUseCase {
       return Result.failure(SignUpErrorCodes.userAlreadyExists);
     }
 
-    const policy = await this.policies.get("standard");
+    const policy = captured.password;
     const validation = await this.passwordValidation.validate(policy, {
       password: payload.password,
       confirmation: payload.passwordConfirmation,

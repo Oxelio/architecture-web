@@ -15,7 +15,7 @@ packages/
   tooling/{eslint-config,delivery-automation}/
 ```
 
-Package manifests and public exports define boundaries; directory grouping does not grant access to another context's internals. Domain/application packages expose separate public subpaths and keep their layers under `src/`. The physical grouping supersedes the previous flat topology recorded in ADR-0007.
+Package manifests and public exports define boundaries; directory grouping does not grant access to another context's internals. Domain/application packages expose separate public subpaths and keep their layers under `src/`. The physical grouping diverges from the accepted flat topology recorded in ADR-0007. No accepted successor is recorded; this current-state description does not change that decision.
 
 The API composition root explicitly instantiates adapters, initializes configuration, and builds `createIam` and `createIamSecurity`. No dependency-injection framework or service locator is involved. HTTP controllers call application contracts and map results to transport responses.
 
@@ -65,4 +65,4 @@ ESLint enforces targeted IAM domain/application and API transport boundaries. Ty
 
 Unit and HTTP suites cover policies, expected failures, dependency failures and controller ownership. An opt-in PostgreSQL/Redis suite covers important transaction races; its presence does not establish successful execution in an environment where Docker is unavailable. See [Testing](../development/testing.md).
 
-Remote compromise checking, password history, step-up configuration publication, exhaustive notification scenarios and deployment scheduling are not implemented by this refactoring.
+Remote compromise checking, password history, exhaustive notification scenarios and deployment scheduling are not implemented by this refactoring.

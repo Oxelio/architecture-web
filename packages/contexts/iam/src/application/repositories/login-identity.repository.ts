@@ -8,6 +8,9 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 
 export abstract class LoginIdentityRepository {
   abstract save(identity: LoginIdentityEntity): Promise<void>;
+  abstract replacePreservingAdministrativeAccess(
+    identity: LoginIdentityEntity,
+  ): Promise<boolean>;
 
   abstract findById(
     id: LoginIdentityIdentifierValueObject,

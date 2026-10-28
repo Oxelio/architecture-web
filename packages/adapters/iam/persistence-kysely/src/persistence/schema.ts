@@ -1,6 +1,6 @@
 // @file infrastructure/iam/persitence/kysely/src/persistence/schema.ts
 
-import type { Insertable, Selectable } from "kysely";
+import type { Generated, Insertable, Selectable } from "kysely";
 
 export interface IamDatabase {
   iam_users: IamUserTable;
@@ -29,6 +29,7 @@ export type IamUserRow = Selectable<IamUserTable>;
 export type NewIamUserRow = Insertable<IamUserTable>;
 
 export interface IamLoginIdentityTable {
+  generation: Generated<number>;
   id: string;
   user_id: string;
   kind: string;
@@ -68,6 +69,8 @@ export type IamEmailVerificationRow = Selectable<IamEmailVerificationTable>;
 export type NewIamEmailVerificationRow = Insertable<IamEmailVerificationTable>;
 
 export interface IamPasswordRecoveryTable {
+  login_identity_id: Generated<string | null>;
+  identity_generation: Generated<number | null>;
   id: string;
   user_id: string;
   token_hash: string;
@@ -97,6 +100,7 @@ export interface IamMfaBackupCodeTable {
 }
 
 export interface IamMfaChallengeTable {
+  user_session_version: Generated<number | null>;
   id: string;
   user_id: string;
   purpose: string;
@@ -108,6 +112,13 @@ export interface IamMfaChallengeTable {
 }
 
 export interface IamSecurityConfigRevisionTable {
+  representation_version: Generated<number>;
+  comparison_data: Generated<
+    { key: string; before: unknown; after: unknown }[] | null
+  >;
+  justification: Generated<string | null>;
+  origin: Generated<string | null>;
+  restored_from_revision_id: Generated<string | null>;
   id: string;
   version: number;
   status: string;
