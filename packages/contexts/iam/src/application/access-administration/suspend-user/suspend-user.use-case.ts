@@ -43,7 +43,7 @@ export class SuspendUserUseCase implements SuspendUser {
     const actorId = UserIdentifierValueObject.create(input.actorUserId);
     const result = await this.unitOfWork.executeForUser(
       userId.value,
-      async ({ users }) => {
+      async ({ users, userQueries }) => {
         const actor = actorId.success
           ? await users.findById(actorId.value)
           : null;
@@ -59,7 +59,7 @@ export class SuspendUserUseCase implements SuspendUser {
         if (
           user.role.isAdmin() &&
           user.status.isActive() &&
-          !(await users.hasOtherAdministrativeAccess(user.identifier))
+          !(await userQueries.hasOtherAdministrativeAccess(user.identifier))
         ) {
           return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
         }

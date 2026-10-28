@@ -35,7 +35,7 @@ describe("AssignUserRoleUseCase", () => {
       executeForUser: async (
         _id: UserIdentifierValueObject,
         work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: users } as never),
+      ) => work({ users: users, userQueries: users } as never),
     } as IamUnitOfWork).execute({
       actorUserId: administrator.identifier.value,
       userId: user.identifier.value,
@@ -54,7 +54,7 @@ describe("AssignUserRoleUseCase", () => {
       executeForUser: async (
         _id: UserIdentifierValueObject,
         work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: users } as never),
+      ) => work({ users: users, userQueries: users } as never),
     } as IamUnitOfWork).execute({
       actorUserId: administrator.identifier.value,
       userId: UserIdentifierValueObject.generate().value,
@@ -75,7 +75,7 @@ describe("AssignUserRoleUseCase", () => {
       executeForUser: async (
         _id: UserIdentifierValueObject,
         work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: users } as never),
+      ) => work({ users: users, userQueries: users } as never),
     } as IamUnitOfWork).execute({
       userId: administrator.identifier.value,
       actorUserId: administrator.identifier.value,

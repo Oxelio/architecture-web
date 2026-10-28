@@ -2,6 +2,7 @@ import type { EmailVerificationRepository } from "#repositories/email-verificati
 import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
 import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
 import type { UserRepository } from "#repositories/user.repository";
+import type { UserQueryRepository } from "#repositories/user-query.repository";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 export interface IamTransactionalRepositories {
@@ -9,6 +10,7 @@ export interface IamTransactionalRepositories {
   readonly loginIdentities: LoginIdentityRepository;
   readonly passwordAuthenticators: PasswordAuthenticatorRepository;
   readonly users: UserRepository;
+  readonly userQueries: UserQueryRepository;
 }
 
 /**

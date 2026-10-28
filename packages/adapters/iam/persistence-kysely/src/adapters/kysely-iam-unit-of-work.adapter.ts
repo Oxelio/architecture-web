@@ -50,6 +50,7 @@ export class KyselyIamUnitOfWorkAdapter extends IamUnitOfWork {
           .executeTakeFirst();
       }
       const outbox = this.createOutbox?.(transaction);
+      const users = new KyselyUserAdapter(transaction, outbox);
       return work({
         emailVerifications: new KyselyEmailVerificationAdapter(transaction),
         loginIdentities: new KyselyLoginIdentityAdapter(transaction, outbox),
@@ -57,7 +58,8 @@ export class KyselyIamUnitOfWorkAdapter extends IamUnitOfWork {
           transaction,
           outbox,
         ),
-        users: new KyselyUserAdapter(transaction, outbox),
+        users,
+        userQueries: users,
       });
     });
   }

@@ -17,9 +17,6 @@ import { ResolveSessionUseCase } from "./resolve-session.use-case.js";
 /* -------------------------------------------------------------------------- */
 
 class FakeUserPort implements UserRepository {
-  async hasOtherAdministrativeAccess() {
-    return true;
-  }
   private readonly users = new Map<string, UserEntity>();
 
   async save(user: UserEntity): Promise<void> {

@@ -1,3 +1,4 @@
+import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import type { UserRole } from "#value-objects/user-role.value-object";
 
 export interface UserAccountView {
@@ -35,6 +36,9 @@ export interface UserAdministrationOverview {
 }
 
 export abstract class UserQueryRepository {
+  abstract hasOtherAdministrativeAccess(
+    excluding: UserIdentifierValueObject,
+  ): Promise<boolean>;
   abstract findAccountById(userId: string): Promise<UserAccountView | null>;
   abstract search(criteria: UserSearchCriteria): Promise<UserSearchResult>;
   abstract getAdministrationOverview(): Promise<UserAdministrationOverview>;

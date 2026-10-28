@@ -45,7 +45,7 @@ export class AssignUserRoleUseCase implements AssignUserRole {
     const actorId = UserIdentifierValueObject.create(command.actorUserId);
     const result = await this.unitOfWork.executeForUser(
       userId.value,
-      async ({ users }) => {
+      async ({ users, userQueries }) => {
         const actor = actorId.success
           ? await users.findById(actorId.value)
           : null;
@@ -62,7 +62,7 @@ export class AssignUserRoleUseCase implements AssignUserRole {
           user.role.isAdmin() &&
           user.status.isActive() &&
           !role.value.isAdmin() &&
-          !(await users.hasOtherAdministrativeAccess(user.identifier))
+          !(await userQueries.hasOtherAdministrativeAccess(user.identifier))
         ) {
           return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
         }

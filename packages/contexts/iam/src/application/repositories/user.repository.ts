@@ -5,8 +5,5 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 
 export abstract class UserRepository {
   abstract save(user: UserEntity): Promise<void>;
-  abstract hasOtherAdministrativeAccess(
-    excluding: UserIdentifierValueObject,
-  ): Promise<boolean>;
   abstract findById(id: UserIdentifierValueObject): Promise<UserEntity | null>;
 }

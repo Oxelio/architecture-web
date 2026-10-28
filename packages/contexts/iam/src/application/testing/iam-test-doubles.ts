@@ -24,14 +24,6 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 export class InMemoryUserRepository extends UserRepository {
   readonly values = new Map<string, UserEntity>();
 
-  async hasOtherAdministrativeAccess(excluding: UserIdentifierValueObject) {
-    return [...this.values.values()].some(
-      (user) =>
-        user.identifier.value !== excluding.value &&
-        user.role.isAdmin() &&
-        user.status.isActive(),
-    );
-  }
   async save(user: UserEntity): Promise<void> {
     this.values.set(user.identifier.value, user);
   }
@@ -175,6 +167,10 @@ export class InMemoryIamUnitOfWork extends IamUnitOfWork {
   execute<T>(work: Parameters<IamUnitOfWork["execute"]>[0]): Promise<T> {
     return work({
       users: this.users,
+      userQueries: new InMemoryUserQueryRepository(
+        this.users,
+        this.loginIdentities,
+      ),
       loginIdentities: this.loginIdentities,
       passwordAuthenticators: this.passwordAuthenticators,
       emailVerifications: this.emailVerifications,
@@ -183,6 +179,15 @@ export class InMemoryIamUnitOfWork extends IamUnitOfWork {
 }
 
 export class InMemoryUserQueryRepository extends UserQueryRepository {
+  async hasOtherAdministrativeAccess(excluding: UserIdentifierValueObject) {
+    return [...this.users.values.values()].some(
+      (user) =>
+        user.identifier.value !== excluding.value &&
+        user.role.isAdmin() &&
+        user.status.isActive(),
+    );
+  }
+
   constructor(
     private readonly users: InMemoryUserRepository,
     private readonly identities: InMemoryLoginIdentityRepository,
