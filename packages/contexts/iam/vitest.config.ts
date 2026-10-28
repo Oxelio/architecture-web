@@ -32,9 +32,7 @@ export default defineConfig({
       "#access-administration": fileURLToPath(
         new URL("./src/application/access-administration", import.meta.url),
       ),
-      "#testing": fileURLToPath(
-        new URL("./src/application/testing", import.meta.url),
-      ),
+      "#test": fileURLToPath(new URL("./test/support", import.meta.url)),
     },
   },
   test: {

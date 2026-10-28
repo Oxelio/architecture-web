@@ -52,9 +52,8 @@
       "types": "./src/application/transactions/*.ts",
       "default": "./dist/application/transactions/*.js"
     },
-    "#testing/*": {
-      "types": "./src/application/testing/*.ts",
-      "default": "./dist/application/testing/*.js"
+    "#test/*": {
+      "types": "./test/support/*.ts"
     },
     "#application-result": {
       "types": "./src/application/application-result.ts",

@@ -3,13 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import {
   InMemoryEmailVerificationRepository,
-  InMemoryIamUnitOfWork,
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-  TestPolicies,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { InMemoryIamUnitOfWork } from "#test/in-memory-unit-of-work";
+import { testPasswordHash, TestPolicies } from "#test/test-policies";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";

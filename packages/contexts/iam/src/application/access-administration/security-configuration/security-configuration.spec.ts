@@ -7,7 +7,7 @@ import {
   parseSecurityPolicy,
 } from "#domain/security-policy";
 import { UserEntity } from "#entities/user.entity";
-import { InMemoryUserRepository } from "#testing/iam-test-doubles";
+import { InMemoryUserRepository } from "#test/in-memory-repositories";
 
 import type { ConfigurationStore } from "./configuration.store.js";
 import {

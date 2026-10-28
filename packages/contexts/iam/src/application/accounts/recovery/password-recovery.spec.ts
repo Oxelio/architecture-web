@@ -9,8 +9,8 @@ import {
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { testPasswordHash } from "#test/test-policies";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 

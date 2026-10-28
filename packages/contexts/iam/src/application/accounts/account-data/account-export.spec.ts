@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
-import { TestPolicies } from "#testing/iam-test-doubles";
+import { TestPolicies } from "#test/test-policies";
 
 import { RequestAccountExportUseCase } from "./account-export.use-cases.js";
 describe("account export orchestration", () => {

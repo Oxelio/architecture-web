@@ -5,12 +5,12 @@ import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.en
 import { UserEntity } from "#entities/user.entity";
 import {
   InMemoryEmailVerificationRepository,
-  InMemoryIamUnitOfWork,
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { InMemoryIamUnitOfWork } from "#test/in-memory-unit-of-work";
+import { testPasswordHash } from "#test/test-policies";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 
 import { ChangePasswordUseCase } from "./change-password.use-case.js";

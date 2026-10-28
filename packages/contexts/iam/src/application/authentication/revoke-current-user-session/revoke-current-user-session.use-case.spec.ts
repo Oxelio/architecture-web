@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import type { SessionRepository } from "#repositories/session.repository";
-import { TestPolicies } from "#testing/iam-test-doubles";
+import { TestPolicies } from "#test/test-policies";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { RevokeCurrentUserSessionUseCase } from "./revoke-current-user-session.use-case.js";

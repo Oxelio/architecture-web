@@ -6,7 +6,7 @@ import {
   InMemoryLoginIdentityRepository,
   InMemoryUserQueryRepository,
   InMemoryUserRepository,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
 
 import { ListUsersUseCase } from "./list-users.use-case.js";
 

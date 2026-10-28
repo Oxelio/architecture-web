@@ -5,7 +5,7 @@ import {
   InMemoryLoginIdentityRepository,
   InMemoryUserQueryRepository,
   InMemoryUserRepository,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
 
 import { GetUserAdministrationOverviewUseCase } from "./get-user-administration-overview.use-case.js";
 

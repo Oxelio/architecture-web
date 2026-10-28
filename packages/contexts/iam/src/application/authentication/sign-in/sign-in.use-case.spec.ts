@@ -9,9 +9,8 @@ import {
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-  TestPolicies,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { testPasswordHash, TestPolicies } from "#test/test-policies";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 
 import { SignInUseCase } from "./sign-in.use-case.js";

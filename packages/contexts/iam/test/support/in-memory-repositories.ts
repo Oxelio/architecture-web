@@ -1,6 +1,3 @@
-import type { OutboxWriter } from "@architecture/messaging/application";
-
-import { DEFAULT_SECURITY_POLICY } from "#domain/security-policy";
 import type { EmailVerificationEntity } from "#entities/email-verification.entity";
 import type { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
@@ -11,14 +8,12 @@ import { PasswordAuthenticatorRepository } from "#repositories/password-authenti
 import { UserRepository } from "#repositories/user.repository";
 import type { UserAccountView } from "#repositories/user-query.repository";
 import { UserQueryRepository } from "#repositories/user-query.repository";
-import { IamUnitOfWork } from "#transactions/iam-unit-of-work";
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import type {
   LoginIdentifierKind,
   LoginIdentifierValueObject,
 } from "#value-objects/login-identifier.value-object";
 import type { LoginIdentityIdentifierValueObject } from "#value-objects/login-identity-identifier.value-object";
-import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 export class InMemoryUserRepository extends UserRepository {
@@ -36,10 +31,13 @@ export class InMemoryUserRepository extends UserRepository {
 export class InMemoryLoginIdentityRepository extends LoginIdentityRepository {
   readonly values = new Map<string, LoginIdentityEntity>();
 
-  async replacePreservingAdministrativeAccess(identity: LoginIdentityEntity) {
+  async replacePreservingAdministrativeAccess(
+    identity: LoginIdentityEntity,
+  ): Promise<boolean> {
     await this.save(identity);
     return true;
   }
+
   async save(identity: LoginIdentityEntity): Promise<void> {
     this.values.set(identity.identifier.value, identity);
   }
@@ -146,53 +144,23 @@ export class InMemoryEmailVerificationRepository extends EmailVerificationReposi
   }
 }
 
-export class InMemoryIamUnitOfWork extends IamUnitOfWork {
-  executeForUser<T>(
-    _userId: UserIdentifierValueObject,
-    work: (
-      repositories: import("#transactions/iam-unit-of-work").IamTransactionalRepositories,
-    ) => Promise<T>,
-  ): Promise<T> {
-    return this.execute<T>(work);
-  }
+export class InMemoryUserQueryRepository extends UserQueryRepository {
   constructor(
-    readonly users: InMemoryUserRepository,
-    readonly loginIdentities: InMemoryLoginIdentityRepository,
-    readonly passwordAuthenticators: InMemoryPasswordAuthenticatorRepository,
-    readonly emailVerifications: InMemoryEmailVerificationRepository,
+    private readonly users: InMemoryUserRepository,
+    private readonly identities: InMemoryLoginIdentityRepository,
   ) {
     super();
   }
 
-  execute<T>(work: Parameters<IamUnitOfWork["execute"]>[0]): Promise<T> {
-    return work({
-      users: this.users,
-      userQueries: new InMemoryUserQueryRepository(
-        this.users,
-        this.loginIdentities,
-      ),
-      loginIdentities: this.loginIdentities,
-      passwordAuthenticators: this.passwordAuthenticators,
-      emailVerifications: this.emailVerifications,
-    }) as Promise<T>;
-  }
-}
-
-export class InMemoryUserQueryRepository extends UserQueryRepository {
-  async hasOtherAdministrativeAccess(excluding: UserIdentifierValueObject) {
+  async hasOtherAdministrativeAccess(
+    excluding: UserIdentifierValueObject,
+  ): Promise<boolean> {
     return [...this.users.values.values()].some(
       (user) =>
         user.identifier.value !== excluding.value &&
         user.role.isAdmin() &&
         user.status.isActive(),
     );
-  }
-
-  constructor(
-    private readonly users: InMemoryUserRepository,
-    private readonly identities: InMemoryLoginIdentityRepository,
-  ) {
-    super();
   }
 
   async findAccountById(userId: string): Promise<UserAccountView | null> {
@@ -225,7 +193,12 @@ export class InMemoryUserQueryRepository extends UserQueryRepository {
     return { users, total: users.length };
   }
 
-  async getAdministrationOverview() {
+  async getAdministrationOverview(): Promise<{
+    total: number;
+    active: number;
+    suspended: number;
+    administrators: number;
+  }> {
     const users = [...this.users.values.values()];
     return {
       total: users.length,
@@ -235,78 +208,3 @@ export class InMemoryUserQueryRepository extends UserQueryRepository {
     };
   }
 }
-
-export class TestPolicies {
-  constructor(
-    private readonly identifiers: readonly ("username" | "email")[] = [
-      "username",
-      "email",
-    ],
-    private readonly emailVerification = true,
-  ) {}
-
-  async getRegistrationPolicy() {
-    return {
-      accounts: await this.getAccountPolicy(),
-      password: await this.get(),
-    };
-  }
-  async getSignInPolicy() {
-    return {
-      accounts: await this.getAccountPolicy(),
-      authentication: await this.getAuthenticationPolicy(),
-      sessions: await this.getSessionPolicy(),
-    };
-  }
-  async getAccountSecurityPolicy() {
-    return {
-      accounts: await this.getAccountPolicy(),
-      authentication: await this.getAuthenticationPolicy(),
-    };
-  }
-  async getAccountPolicy() {
-    return {
-      ...DEFAULT_SECURITY_POLICY.accounts,
-      allowedLoginIdentifiers: [...this.identifiers],
-      emailVerification: this.emailVerification,
-    };
-  }
-
-  async get() {
-    return {
-      level: "standard" as const,
-      minLength: 8,
-      maxLength: 128,
-      minimumStrength: "too_weak" as const,
-      checkCommonPasswords: false,
-      checkCompromisedPasswords: false,
-      checkUserContext: false,
-      composition: {
-        requireUppercase: false,
-        requireLowercase: false,
-        requireNumber: false,
-        requireSpecialCharacter: false,
-      },
-      rejectCurrentPassword: false,
-    };
-  }
-
-  async getSessionPolicy() {
-    return { ...DEFAULT_SECURITY_POLICY.sessions, durationMinutes: 60 };
-  }
-  async getAuthenticationPolicy() {
-    return structuredClone(DEFAULT_SECURITY_POLICY.authentication);
-  }
-}
-
-export function testPasswordHash(value = "test-hash") {
-  const result = PasswordHashValueObject.create(value);
-  if (!result.success) {
-    throw new Error("Invalid test password hash");
-  }
-  return result.value;
-}
-
-export const discardOutbox: OutboxWriter = {
-  append: async () => undefined,
-};

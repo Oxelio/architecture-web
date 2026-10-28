@@ -2,10 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { isMfaChallengeUsable, isMfaEnrollmentUsable } from "#domain/mfa";
 import { UserEntity } from "#entities/user.entity";
-import {
-  InMemoryUserRepository,
-  TestPolicies,
-} from "#testing/iam-test-doubles";
+import { InMemoryUserRepository } from "#test/in-memory-repositories";
+import { TestPolicies } from "#test/test-policies";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 import {
