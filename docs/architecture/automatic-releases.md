@@ -42,8 +42,9 @@ connector; their absence is surfaced rather than inventing a competing tracker.
 The accepted plan resolves version ownership, source-only distribution, the
 explicit downgrade, HTTP compatibility, branch topology and release authority.
 No developer decision is required on these subjects. Implementation readiness:
-READY for this bounded implementation. Platform activation and human-supplied
-pre-merge validation remain transition prerequisites; no Project Status or merge
+READY for this bounded implementation. Platform activation and sufficient
+candidate-bound pre-merge validation remain transition prerequisites; automated
+evidence is authorized by the maintainer-accepted validation policy. No Project Status or merge
 authority is manufactured by this assessment.
 
 ## Verification and recovery
@@ -52,8 +53,10 @@ Tests cover policy examples, parser forms, no-release changes, unexpected
 prereleases, explicit first-stable authorization, source identity, deterministic
 archives, dependency preservation, tag-only remote pushes, partial publication
 and conflicting assets. Full repository checks and documentation links supplement
-targeted suites. Current pre-merge human validation ownership remains applicable;
-automated release validation is authorized only for the release boundary.
+targeted suites. The maintainer explicitly extended Work #58's accepted scope to
+permit sufficient automated pre-merge validation as well as automated release
+validation. Review acceptance, Work Merge Gate results and live Project Status
+must still be established independently.
 
 A tag and its immutable publication metadata identify the same candidate across
 reruns. Never move/delete tags or overwrite differing assets. Source/version

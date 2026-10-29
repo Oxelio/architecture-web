@@ -27,6 +27,11 @@ routine Human Release Approval is required. Work integration reviews and gates
 remain separate from release publication. The first `1.0.0` requires an explicit
 human maintainer request bound to an exact source SHA.
 
+The maintainer also explicitly accepted automated pre-merge validation. Successful
+candidate-bound checks may supply sufficient validation evidence without human
+re-execution under the [testing policy](../../development/testing.md). Applicable
+reviews, Work Merge Gate requirements and merge authority remain separate.
+
 Version the project as one coordinated unit. Published `vX.Y.Z` tags own released
 versions. Tracked manifests are development declarations; generate coordinated
 manifest versions in the attached source archive without release commits or

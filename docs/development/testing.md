@@ -57,16 +57,16 @@ A business change should run core tests, typechecks for affected packages,
 adapter tests, and consuming app tests/lint/build. A changed port or public
 export warrants full-workspace validation.
 
-## Human-supplied validation evidence
+## Candidate-bound validation evidence
 
-For the current human-directed delivery model, a human validator executes and
-supplies pre-merge validation evidence. GitHub Actions may provide supplementary
-check results, but it is not the validation authority and MUST NOT be required
-merely to regenerate evidence after every pushed Pull Request HEAD.
+Under the maintainer-accepted Work #58 policy, automated validation is sufficient
+pre-merge evidence when it covers the changed boundaries and risks. A human
+validator does not have to rerun successful automated checks. This authority is
+established by project policy, not by the existence of a green check alone.
 
-Human-supplied validation evidence SHOULD record:
+Validation evidence MUST record:
 
-- the human validator identity;
+- the workflow/run identity or human validator identity;
 - the exact candidate commit SHA and relevant Pull Request or ref;
 - the commands or checks executed;
 - the result of each command or check;
@@ -78,10 +78,19 @@ checks whose evidence could have been invalidated by that change, proportional
 to the affected boundaries and risks. Before merge, confirm that accepted
 validation evidence applies to the current candidate SHA.
 
-For Work integration, a future automated evidence mechanism may replace or reduce this human execution
-only after separate accepted project scope establishes its semantics and
-activation. Automated check success by itself does not establish validation
-sufficiency.
+The repository validation workflow supplies build, application and test
+typechecks, lint, tests, formatting, documentation-link checks and checker tests.
+Accept its successful result only for the current candidate SHA, with a run URL
+and the executed commands/results available in the logs. Failed, cancelled,
+missing or stale results are insufficient. Skipped optional integration tests
+provide no evidence for their boundaries; changes requiring database or other
+external-system validation still need that evidence, automated or human.
+
+The responsible review and validation activities assess scope and unresolved
+findings before the Work Merge Gate records validation sufficiency. Automation
+does not supply product/governance approvals, accept reviews, grant merge
+authority, establish Project Status or imply Work completion. These remain
+governed by the [delivery profile](../project/delivery-pipeline.md).
 
 ## Markdown links
 
@@ -106,8 +115,7 @@ pnpm docs:links
 
 A CI job that executes `pnpm docs:links` MUST checkout the Method submodule first.
 With `actions/checkout`, configure recursive submodule checkout or perform an
-equivalent explicit initialization before running the command. This requirement
-does not make GitHub Actions the validation authority.
+equivalent explicit initialization before running the command.
 
 Run `pnpm docs:links:test` for the controlled checker tests. They cover a valid
 relative link, a nonexistent target, an explicitly forbidden `docs/method/`
@@ -139,4 +147,4 @@ The IAM correction extends the isolated suite with stale credential saves (inclu
 
 ## Automatic release verification
 
-Release-boundary validation is automated under the accepted [delivery policy](../project/delivery-pipeline.md). It does not change pre-merge human validation authority. The release suite checks Conventional Commit rules, first-stable authority, isolated release-it generation, deterministic source archives, a real temporary bare Git remote, partial publication and checksum conflicts. Run `pnpm --filter @architecture/delivery-automation test src/release` for the targeted suite. A passing fixture does not prove live GitHub activation.
+Release-boundary validation is automated under the accepted [delivery policy](../project/delivery-pipeline.md). Pre-merge Work validation may also use the sufficient candidate-bound automated evidence described above. The release suite checks Conventional Commit rules, first-stable authority, isolated release-it generation, deterministic source archives, a real temporary bare Git remote, partial publication and checksum conflicts. Run `pnpm --filter @architecture/delivery-automation test src/release` for the targeted suite. A passing fixture does not prove live GitHub activation.

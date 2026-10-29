@@ -79,8 +79,12 @@ The maintainer explicitly accepted Work #58's complete implementation plan on
 2026-10-29. The accepted target authorizes a merge-commit transition PR preserving
 all selected `development` history and introducing this policy on `main`, without
 using the former staged-release/beta/Human Release Approval route. Ordinary PR
-review and human-supplied pre-merge validation remain prerequisites. This is a
-one-time policy transition, not permission to rewrite history or bypass checks.
+review and sufficient candidate-bound pre-merge validation remain prerequisites.
+The maintainer subsequently explicitly accepted automated pre-merge validation
+for this Work and ordinary Work integration, under the scope and evidence rules
+in [Testing and verification](../development/testing.md). Human re-execution is
+not required for checks sufficiently covered by successful automation. This is a
+one-time topology transition, not permission to rewrite history or bypass checks.
 
 Inventory remote and local divergence before transition. Delete `development`
 only after verifying that its tip is an ancestor of `main`; delete other branches
@@ -756,7 +760,9 @@ must pass build, application/test typechecks, lint, tests, formatting, documenta
 links and whitespace checks before artifact generation and publication.
 
 These automated checks are sufficient release-boundary evidence under this
-accepted policy. They do not replace human-supplied pre-merge Work validation.
+accepted policy. Pre-merge Work validation may also rely on sufficient automated
+candidate-bound evidence under [Testing and verification](../development/testing.md);
+the Work Merge Gate and applicable reviews/authority gates remain independent.
 
 Generate a deterministic versioned source archive, notes, source/version manifest
 and SHA256 checksums. Include the pinned Method sources. These are source
