@@ -1,6 +1,6 @@
 import { Result } from "@architecture/foundation";
 
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
 import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
@@ -15,15 +15,12 @@ import type {
 import { ListUserSessionsErrors } from "./list-user-sessions.errors.js";
 
 export class ListUserSessionsUseCase implements ListUserSessions {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
     private readonly policies: SessionPolicyReader,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(users);
-  }
+    private readonly authorizer: AdministratorAuthorizer,
+  ) {}
 
   async execute(input: ListUserSessionsInput): Promise<ListUserSessionsOutput> {
     const authorization = await this.authorizer.authorize(input.actorUserId);

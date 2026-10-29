@@ -1,5 +1,4 @@
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
-import type { UserRepository } from "#ports/user.repository";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { UserQueryRepository } from "#ports/user-query.repository";
 
 import type {
@@ -9,14 +8,10 @@ import type {
 } from "./get-user-administration-overview.contracts.js";
 
 export class GetUserAdministrationOverviewUseCase implements GetUserAdministrationOverview {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
-    users: UserRepository,
+    private readonly authorizer: AdministratorAuthorizer,
     private readonly userQuery: UserQueryRepository,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(users);
-  }
+  ) {}
 
   async execute(
     input: GetUserAdministrationOverviewInput,

@@ -2,10 +2,7 @@ import type { AuditApplication } from "@architecture/audit/application";
 import {
   type ConfigurationStore,
   createIam,
-  createIamSecurity,
   type IamApplication,
-  type IamSecurityApplication,
-  PasswordValidation,
   PublishedIamPolicies,
   type SecurityEventRecorder,
 } from "@architecture/iam/application";
@@ -59,7 +56,6 @@ export async function buildIamModule(
   },
 ): Promise<{
   iam: IamApplication;
-  security: IamSecurityApplication;
   configuration: ConfigurationStore;
   securityEvents: SecurityEventRecorder;
 }> {
@@ -81,19 +77,28 @@ export async function buildIamModule(
   const strength = new HeuristicPasswordStrengthEvaluator(),
     common = new LocalCommonPasswordChecker(),
     compromised = new LocalCompromisedPasswordChecker();
-  const security = createIamSecurity({
-    users,
-    identities,
-    passwords,
-    sessions,
-    hasher,
+  const iam = createIam({
+    userRepository: users,
+    userQueryRepository: users,
+    loginIdentityRepository: identities,
+    passwordAuthenticatorRepository: passwords,
+    sessionRepository: sessions,
+    passwordHasher: hasher,
     policies,
+    passwordStrengthEvaluator: strength,
+    commonPasswordChecker: common,
+    compromisedPasswordChecker: compromised,
+    emailSender: email,
+    emailVerificationRepository: new KyselyEmailVerificationAdapter(db),
+    rateLimiter: new RedisEmailVerificationRateLimitAdapter(redis),
+    emailVerificationTokenHasher:
+      new Sha256EmailVerificationTokenHasherAdapter(),
+    unitOfWork: new KyselyIamUnitOfWorkAdapter(db, createOutbox),
     configuration,
     recovery: new KyselyPasswordRecoveryAdapter(db, createOutbox),
     mfa: new KyselyMfaAdapter(db, createOutbox),
     exports: new KyselyAccountExportAdapter(db, createOutbox),
     deletions: new KyselyAccountDeletionAdapter(db, createOutbox),
-    validation: new PasswordValidation(strength, common, compromised),
     crypto: new NodeMfaCryptographyAdapter(options.encryptionKey),
     tokens: new NodeSecurityTokensAdapter(),
     mail: new AccountSecurityMailAdapter(
@@ -107,27 +112,5 @@ export async function buildIamModule(
     archive: new NodeAccountArchiveAdapter(),
     outbox,
   });
-  const iam = createIam({
-    userRepository: users,
-    userQueryRepository: users,
-    loginIdentityRepository: identities,
-    passwordAuthenticatorRepository: passwords,
-    sessionRepository: sessions,
-    passwordHasher: hasher,
-    accountPolicies: policies,
-    sessionPolicies: policies,
-    passwordPolicyReader: policies,
-    passwordStrengthEvaluator: strength,
-    commonPasswordChecker: common,
-    compromisedPasswordChecker: compromised,
-    emailSender: email,
-    emailVerificationRepository: new KyselyEmailVerificationAdapter(db),
-    rateLimiter: new RedisEmailVerificationRateLimitAdapter(redis),
-    emailVerificationTokenHasher:
-      new Sha256EmailVerificationTokenHasherAdapter(),
-    unitOfWork: new KyselyIamUnitOfWorkAdapter(db, createOutbox),
-    outbox,
-    beginSecondFactor: security.beginSecondFactor,
-  });
-  return { iam, security, configuration, securityEvents: events };
+  return { iam, configuration, securityEvents: events };
 }

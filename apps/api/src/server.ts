@@ -98,7 +98,7 @@ export async function buildServer() {
   });
 
   await app.register(authPlugin, {
-    resolveSession: container.iam.resolveSession,
+    resolveSession: container.iam.authentication.resolveSession,
     sessionCookieName: SESSION_COOKIE_NAME,
   });
 
@@ -123,7 +123,7 @@ export async function buildServer() {
   });
   await app.register(
     buildSecurityRoutes(
-      container.security,
+      container.iam,
       {
         name: SESSION_COOKIE_NAME,
         options: sessionCookieOptions,

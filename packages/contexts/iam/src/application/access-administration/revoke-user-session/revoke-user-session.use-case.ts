@@ -1,6 +1,6 @@
 import { Result } from "@architecture/foundation";
 
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
 import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
@@ -15,15 +15,12 @@ import type {
 import { RevokeUserSessionErrors } from "./revoke-user-session.errors.js";
 
 export class RevokeUserSessionUseCase implements RevokeUserSession {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
     private readonly policies: SessionPolicyReader,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(users);
-  }
+    private readonly authorizer: AdministratorAuthorizer,
+  ) {}
 
   async execute(
     input: RevokeUserSessionInput,

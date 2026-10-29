@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
 import type { SessionRepository } from "#ports/session.repository";
@@ -40,6 +41,7 @@ describe("ListUserSessionsUseCase", () => {
       users,
       sessions,
       new TestPolicies(),
+      new AdministratorAuthorizer(users),
     ).execute({
       actorUserId: administrator.identifier.value,
       userId: user.identifier.value,
@@ -81,6 +83,7 @@ describe("ListUserSessionsUseCase", () => {
         findActiveForUser: async () => [],
       } as unknown as SessionRepository,
       new TestPolicies(),
+      new AdministratorAuthorizer(users),
     ).execute({
       actorUserId: administrator.identifier.value,
       userId: "01900000-0000-7000-8000-000000000000",

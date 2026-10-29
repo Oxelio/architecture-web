@@ -351,7 +351,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     ).rejects.toBe(failure);
     expect(
       (
-        await module.iam.resolveSession.execute({
+        await module.iam.authentication.resolveSession.execute({
           sessionId: session.identifier.value,
         })
       ).success,
@@ -632,7 +632,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     try {
       app.setErrorHandler(errorHandler);
       await app.register(authPlugin, {
-        resolveSession: module.iam.resolveSession,
+        resolveSession: module.iam.authentication.resolveSession,
         sessionCookieName: "sid",
       });
       await app.register(buildIamRoutes(module.iam, cookie), {
@@ -640,7 +640,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       });
       await app.register(
         buildSecurityRoutes(
-          module.security,
+          module.iam,
           cookie,
           new AuditApplication(new KyselyAuditRepositoryAdapter(db as never)),
           module.configuration,
@@ -802,7 +802,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         kind: "email" as const,
         value: `${f.user.identifier.value}@example.test`,
       };
-      const attempt = module.iam.signIn.execute({
+      const attempt = module.iam.authentication.signIn.execute({
         login,
         password: "initial long account password",
       });
@@ -812,7 +812,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
           f.authenticator.revoke();
           await f.passwords.save(f.authenticator);
         } else if (kind === "change") {
-          const result = await module.iam.changePassword.execute({
+          const result = await module.iam.accounts.changePassword.execute({
             userId: f.user.identifier.value,
             currentPassword: "initial long account password",
             password: "a unique long replacement passphrase for testing",
@@ -843,7 +843,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         expect(after.revoked_at).toEqual(authoritative.revoked_at);
         expect(
           (
-            await module.iam.signIn.execute({
+            await module.iam.authentication.signIn.execute({
               login,
               password: "initial long account password",
             })
@@ -876,7 +876,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         await resume.wait;
         return accepted;
       });
-    const attempt = module.iam.signIn.execute({
+    const attempt = module.iam.authentication.signIn.execute({
       login: {
         kind: "email",
         value: `${f.user.identifier.value}@example.test`,
@@ -1010,11 +1010,11 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     const a = await account(true),
       b = await account(true);
     const results = await Promise.all([
-      module.iam.suspendUser.execute({
+      module.iam.administration.suspendUser.execute({
         actorUserId: a.user.identifier.value,
         userId: b.user.identifier.value,
       }),
-      module.iam.suspendUser.execute({
+      module.iam.administration.suspendUser.execute({
         actorUserId: b.user.identifier.value,
         userId: a.user.identifier.value,
       }),
@@ -1057,13 +1057,14 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
           .executeTakeFirstOrThrow()
       ).values,
     ).toEqual(legacy);
-    const restored = await module.security.restoreConfiguration.execute({
-      actorId: actor.user.identifier.value,
-      revisionId: current.id,
-      expectedVersion: current.version,
-      justification: "Restore compatible legacy configuration",
-      confirmedCritical: true,
-    });
+    const restored =
+      await module.iam.administration.restoreConfiguration.execute({
+        actorId: actor.user.identifier.value,
+        revisionId: current.id,
+        expectedVersion: current.version,
+        justification: "Restore compatible legacy configuration",
+        confirmedCritical: true,
+      });
     expect(restored.success).toBe(true);
     expect((await store.readPublished()).values.sessions.durationMinutes).toBe(
       137,
@@ -1109,7 +1110,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       value: `${randomUUID()}@example.test`,
     };
     try {
-      const result = await module.iam.signUp.execute({
+      const result = await module.iam.accounts.signUp.execute({
         login,
         password: "a sufficiently long registration passphrase",
         passwordConfirmation: "a sufficiently long registration passphrase",
@@ -1129,7 +1130,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       ).toBe("pending");
       expect(
         (
-          await module.iam.signUp.execute({
+          await module.iam.accounts.signUp.execute({
             login: { kind: "username", value: "fresh-registration" },
             password: "short",
             passwordConfirmation: "short",
@@ -1179,14 +1180,16 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       password: "initial long account password",
     };
     try {
-      const result = await module.iam.signIn.execute(input);
+      const result = await module.iam.authentication.signIn.execute(input);
       expect(result.success).toBe(true);
       if (result.success && result.value.sessionExpiresAt) {
         expect(
           result.value.sessionExpiresAt.getTime() - Date.now(),
         ).toBeGreaterThan(40000 * 60000);
       }
-      expect(await module.iam.signIn.execute(input)).toMatchObject({
+      expect(
+        await module.iam.authentication.signIn.execute(input),
+      ).toMatchObject({
         success: false,
         error: { code: "mfa.enrollment_required" },
       });
@@ -1384,7 +1387,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         now,
         scheduledFor: new Date(now.getTime() + 86400000),
       }),
-      module.iam.assignUserRole.execute({
+      module.iam.administration.assignUserRole.execute({
         actorUserId: a.user.identifier.value,
         userId: b.user.identifier.value,
         role: "user",
@@ -1450,7 +1453,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       }),
     ).toBeNull();
     expect(
-      await module.security.completeMfaSignIn.execute({
+      await module.iam.authentication.completeMfaSignIn.execute({
         challengeId: requiredFixture(challenge).id,
         code: "GENERATION-BACKUP",
       }),
@@ -1498,7 +1501,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         justification: "Concurrent access reduction",
         changedKeys: ["accounts.allowedLoginIdentifiers"],
       }),
-      module.iam.assignUserRole.execute({
+      module.iam.administration.assignUserRole.execute({
         actorUserId: a.user.identifier.value,
         userId: b.user.identifier.value,
         role: "user",
@@ -1550,13 +1553,13 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       confirmedCritical: false,
     };
     expect(
-      await module.security.restoreConfiguration.execute(input),
+      await module.iam.administration.restoreConfiguration.execute(input),
     ).toMatchObject({
       success: false,
       error: { code: "security_configuration.critical_confirmation_required" },
     });
     expect(
-      await module.security.restoreConfiguration.execute({
+      await module.iam.administration.restoreConfiguration.execute({
         ...input,
         confirmedCritical: true,
       }),
@@ -1571,7 +1574,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     });
     await new RedisSessionAdapter(redis).saveEnforcingMaximum(session, 10);
     expect(
-      await module.security.restoreConfiguration.execute({
+      await module.iam.administration.restoreConfiguration.execute({
         ...input,
         confirmedCritical: true,
         sessionId: session.identifier.value,
@@ -1652,22 +1655,24 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       ]),
     });
     expect((await store.readCenter()).published.values).toEqual(values);
-    const attempt = await module.iam.signIn.execute({
+    const attempt = await module.iam.authentication.signIn.execute({
       login: { kind: "username", value: login.value.value },
       password: "initial long account password",
     });
     if (!attempt.success || !("challengeId" in attempt.value)) {
       throw new Error("Expected protected administrator sign-in");
     }
-    const completed = await module.security.completeMfaSignIn.execute({
-      challengeId: attempt.value.challengeId,
-      code: "SAFE-ADMIN-BACKUP",
-    });
+    const completed = await module.iam.authentication.completeMfaSignIn.execute(
+      {
+        challengeId: attempt.value.challengeId,
+        code: "SAFE-ADMIN-BACKUP",
+      },
+    );
     expect(completed.success).toBe(true);
     if (completed.success) {
       expect(
         (
-          await module.iam.resolveSession.execute({
+          await module.iam.authentication.resolveSession.execute({
             sessionId: completed.value.sessionId,
           })
         ).success,

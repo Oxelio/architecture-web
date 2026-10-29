@@ -7,7 +7,6 @@ import {
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import type {
   IamApplication,
-  IamSecurityApplication,
   PublishedConfigurationReader,
   SecurityEventRecorder,
 } from "@architecture/iam/application";
@@ -42,7 +41,6 @@ import { createRedis } from "./redis.module.js";
 
 export interface ApplicationModule {
   readonly iam: IamApplication;
-  readonly security: IamSecurityApplication;
   readonly securityEvents: SecurityEventRecorder;
   readonly configuration: PublishedConfigurationReader;
   readonly audit: AuditApplication;

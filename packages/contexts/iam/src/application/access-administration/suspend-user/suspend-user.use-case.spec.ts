@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import { UserEntity } from "#entities/user.entity";
 import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import type { SessionRepository } from "#ports/session.repository";
@@ -41,12 +42,16 @@ describe("SuspendUserUseCase", () => {
     await userPort.save(administrator);
     actorUserId = administrator.identifier.value;
     sessionPort = { deleteAllForUser: vi.fn() } as unknown as SessionRepository;
-    useCase = new SuspendUserUseCase(userPort, sessionPort, {
-      executeForUser: async (
-        _id: UserIdentifierValueObject,
-        work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: userPort, userQueries: userPort } as never),
-    } as IamUnitOfWork);
+    useCase = new SuspendUserUseCase(
+      new AdministratorAuthorizer(userPort),
+      sessionPort,
+      {
+        executeForUser: async (
+          _id: UserIdentifierValueObject,
+          work: Parameters<IamUnitOfWork["execute"]>[0],
+        ) => work({ users: userPort, userQueries: userPort } as never),
+      } as IamUnitOfWork,
+    );
   });
 
   /* -------------------------------------------------- */

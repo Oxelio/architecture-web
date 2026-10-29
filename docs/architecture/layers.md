@@ -14,7 +14,7 @@ Domain code must not import application contracts, HTTP, database, cache, config
 
 Capabilities are `accounts`, `authentication` and `access-administration`. Readers, checks and outbound contracts live near their consumers. Shared aggregate repositories and transaction contracts remain explicit; there is no catch-all services directory.
 
-`createIam` and `createIamSecurity` only construct use cases from supplied dependencies. They do not resolve dependencies dynamically. Shared coordination is limited to genuine common behavior such as password validation, reauthentication and session issuance.
+`createIam` is the single public application composition entry point. It returns explicit `AccountsApplication`, `AuthenticationApplication` and `AdministrationApplication` interfaces through `accounts`, `authentication` and `administration`. It constructs use cases from supplied dependencies without runtime lookup. Password validation, factor verification, reauthentication, session issuance and configuration publication are shared within one application graph. The second-factor operation is connected to sign-in inside this factory; the API composition root supplies only the external ports and checks.
 
 Application use cases perform domain transitions, select policies explicitly and call application-owned ports. They never receive Kysely transactions, Redis clients, SMTP clients or Node cryptographic implementations. See [IAM security](iam-security.md) for concrete responsibilities and transaction boundaries.
 

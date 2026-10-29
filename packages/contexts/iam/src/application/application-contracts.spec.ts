@@ -4,19 +4,20 @@ import type { ResetRecoveredPasswordError } from "#accounts/reset-recovered-pass
 import type { SignUpError } from "#accounts/sign-up/sign-up.contracts";
 import type { PlainPasswordError } from "#value-objects/password-plain.value-object";
 
-import type { IamSecurityApplication } from "./create-iam-security.js";
+import type { IamApplication } from "./create-iam.js";
+type IamOperation = {
+  [K in keyof IamApplication]: IamApplication[K][keyof IamApplication[K]];
+}[keyof IamApplication];
 
-type SecurityOutput = Awaited<
-  ReturnType<IamSecurityApplication[keyof IamSecurityApplication]["execute"]>
->;
-type SecurityError = Extract<SecurityOutput, { success: false }>["error"];
+type IamOutput = Awaited<ReturnType<IamOperation["execute"]>>;
+type IamError = Extract<IamOutput, { success: false }>["error"];
 type HasClosedCodes<E extends { code: string }> = string extends E["code"]
   ? false
   : true;
 
 describe("public application error contracts", () => {
-  it("enumerates security and registration failures without widening to string", () => {
-    expectTypeOf<HasClosedCodes<SecurityError>>().toEqualTypeOf<true>();
+  it("enumerates application and registration failures without widening to string", () => {
+    expectTypeOf<HasClosedCodes<IamError>>().toEqualTypeOf<true>();
     expectTypeOf<HasClosedCodes<SignUpError>>().toEqualTypeOf<true>();
   });
 

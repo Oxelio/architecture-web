@@ -32,43 +32,57 @@ export function composeIamControllers(
   sessionCookie: SessionCookieOptions,
 ) {
   return {
-    signUp: createSignUpController(container.signUp),
+    signUp: createSignUpController(container.accounts.signUp),
     getPasswordPolicy: createGetPasswordPolicyController(
-      container.getPasswordPolicy,
+      container.accounts.getPasswordPolicy,
     ),
     evaluatePassword: createEvaluatePasswordController(
-      container.evaluatePassword,
+      container.accounts.evaluatePassword,
     ),
-    signIn: createSignInController(container.signIn, sessionCookie),
-    signOut: createSignOutController(container.signOut, sessionCookie),
+    signIn: createSignInController(
+      container.authentication.signIn,
+      sessionCookie,
+    ),
+    signOut: createSignOutController(
+      container.authentication.signOut,
+      sessionCookie,
+    ),
     getCurrentAccount: createGetCurrentAccountController(
-      container.getCurrentAccount,
+      container.accounts.getCurrentAccount,
     ),
     getUserAdministrationOverview:
       createGetUserAdministrationOverviewController(
-        container.getUserAdministrationOverview,
+        container.administration.getUserAdministrationOverview,
       ),
-    verifyEmail: createVerifyEmailController(container.verifyEmail),
+    verifyEmail: createVerifyEmailController(container.accounts.verifyEmail),
     resendEmailVerification: createResendEmailVerificationController(
-      container.resendEmailVerification,
+      container.accounts.resendEmailVerification,
     ),
-    changeEmail: createChangeEmailController(container.changeEmail),
-    changePassword: createChangePasswordController(container.changePassword),
-    activateUser: createActivateUserController(container.activateUser),
-    suspendUser: createSuspendUserController(container.suspendUser),
-    assignUserRole: createAssignUserRoleController(container.assignUserRole),
-    listUsers: createListUsersController(container.listUsers),
+    changeEmail: createChangeEmailController(container.accounts.changeEmail),
+    changePassword: createChangePasswordController(
+      container.accounts.changePassword,
+    ),
+    activateUser: createActivateUserController(
+      container.administration.activateUser,
+    ),
+    suspendUser: createSuspendUserController(
+      container.administration.suspendUser,
+    ),
+    assignUserRole: createAssignUserRoleController(
+      container.administration.assignUserRole,
+    ),
+    listUsers: createListUsersController(container.administration.listUsers),
     listUserSessions: createListUserSessionsController(
-      container.listUserSessions,
+      container.administration.listUserSessions,
     ),
     listCurrentUserSessions: createListCurrentUserSessionsController(
-      container.listCurrentUserSessions,
+      container.authentication.listCurrentUserSessions,
     ),
     revokeUserSession: createRevokeUserSessionController(
-      container.revokeUserSession,
+      container.administration.revokeUserSession,
     ),
     revokeCurrentUserSession: createRevokeCurrentUserSessionController(
-      container.revokeCurrentUserSession,
+      container.authentication.revokeCurrentUserSession,
       sessionCookie,
     ),
   };

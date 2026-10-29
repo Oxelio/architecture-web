@@ -343,16 +343,14 @@ export {
 // Composition
 // ============================================================
 
+export type { AdministrationApplication } from "./access-administration/access-administration.application.js";
+export type { AccountsApplication } from "./accounts/accounts.application.js";
+export type { AuthenticationApplication } from "./authentication/authentication.application.js";
 export {
   createIam,
   type IamApplication,
   type IamDependencies,
 } from "./create-iam.js";
-export {
-  createIamSecurity,
-  type IamSecurityApplication,
-  type IamSecurityDependencies,
-} from "./create-iam-security.js";
 
 // ============================================================
 // Public implementations and utilities

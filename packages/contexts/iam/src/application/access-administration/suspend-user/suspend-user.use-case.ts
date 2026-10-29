@@ -1,9 +1,8 @@
 import { Result } from "@architecture/foundation";
 
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import type { SessionRepository } from "#ports/session.repository";
-import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import type {
@@ -14,15 +13,11 @@ import type {
 import { SuspendUserErrors } from "./suspend-user.errors.js";
 
 export class SuspendUserUseCase implements SuspendUser {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
-    userPort: UserRepository,
+    private readonly authorizer: AdministratorAuthorizer,
     private readonly sessionPort: SessionRepository,
     private readonly unitOfWork: IamUnitOfWork,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(userPort);
-  }
+  ) {}
 
   async execute(input: SuspendUserInput): Promise<SuspendUserOutput> {
     const authorization = await this.authorizer.authorize(input.actorUserId);

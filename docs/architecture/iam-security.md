@@ -2,7 +2,9 @@
 
 ## Application responsibilities
 
-`packages/contexts/iam/src/application/create-iam.ts` builds the original account, session and administrator contracts. `create-iam-security.ts` builds configuration, recovery, MFA, account-data and maintenance contracts. These factories only compose use cases; they contain no workflow or runtime dependency lookup.
+`packages/contexts/iam/src/application/create-iam.ts` is the single public IAM application factory. It groups all 41 operation contracts by business capability: `accounts` owns account management, password policy, recovery, export, deletion and maintenance; `authentication` owns sign-in, MFA and sessions; `administration` owns account administration, capability consultation and security configuration. The factory only composes use cases; it contains no workflow or runtime dependency lookup.
+
+Each application graph constructs one password validator, factor verifier, reauthentication coordinator, session issuer, administrator authorizer and configuration publisher. Sign-in uses the same `beginSecondFactor` operation exposed by `authentication`; direct and MFA sign-in share session issuance. Account-data and configuration operations receive the same reauthentication coordinator, and restoration invokes the exposed configuration publisher. These direct references do not require capability factories to depend on one another. Policy readers remain operation-scoped at use-case boundaries, even though composition receives their intersection through one `policies` dependency. Concrete adapters and published-policy reader construction remain in the API composition root.
 
 | Responsibility                                                   | Owner                                                         |
 | ---------------------------------------------------------------- | ------------------------------------------------------------- |

@@ -1,7 +1,6 @@
 import { Result } from "@architecture/foundation";
 
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
-import type { UserRepository } from "#ports/user.repository";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { UserQueryRepository } from "#ports/user-query.repository";
 
 import {
@@ -16,14 +15,10 @@ import {
 } from "./list-users.contracts.js";
 
 export class ListUsersUseCase implements ListUsers {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
-    users: UserRepository,
+    private readonly authorizer: AdministratorAuthorizer,
     private readonly userQuery: UserQueryRepository,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(users);
-  }
+  ) {}
 
   async execute(input: ListUsersInput): Promise<ListUsersOutput> {
     const authorization = await this.authorizer.authorize(input.actorUserId);

@@ -9,7 +9,7 @@ const Result = {
     error,
   }),
 };
-import type { IamSecurityApplication } from "@architecture/iam/application";
+import type { IamApplication } from "@architecture/iam/application";
 
 import { errorHandler } from "#types/error-handler";
 
@@ -19,7 +19,7 @@ afterEach(async () => {
   await Promise.all(instances.splice(0).map((app) => app.close()));
 });
 async function server(
-  security: Partial<IamSecurityApplication>,
+  iam: { [K in keyof IamApplication]?: Partial<IamApplication[K]> },
   authenticated = true,
   role: "user" | "admin" = "user",
   audit: Partial<AuditApplication> = {},
@@ -40,7 +40,7 @@ async function server(
   });
   await app.register(
     buildSecurityRoutes(
-      security as IamSecurityApplication,
+      iam as IamApplication,
       { name: "sid", options: { httpOnly: true, path: "/", sameSite: "lax" } },
       audit as AuditApplication,
       {} as never,
@@ -54,6 +54,7 @@ describe("security HTTP application boundary", () => {
   // Compatibility expectations are independent of the production HTTP tables.
   const expectedFailures = [
     {
+      capability: "accounts",
       operation: "requestRecovery",
       method: "POST",
       url: "/recovery",
@@ -61,6 +62,7 @@ describe("security HTTP application boundary", () => {
       errors: [["email.invalid_format", 400]],
     },
     {
+      capability: "accounts",
       operation: "resetPassword",
       method: "POST",
       url: "/recovery/reset",
@@ -87,6 +89,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "authentication",
       operation: "completeMfaSignIn",
       method: "POST",
       url: "/mfa/challenge/verify",
@@ -98,6 +101,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "accounts",
       operation: "cancelDeletion",
       method: "POST",
       url: "/deletion/cancel",
@@ -112,6 +116,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "authentication",
       operation: "beginMfaEnrollment",
       method: "POST",
       url: "/me/mfa/enrollment",
@@ -125,6 +130,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "authentication",
       operation: "confirmMfaEnrollment",
       method: "POST",
       url: "/me/mfa/enrollment/confirm",
@@ -135,6 +141,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "authentication",
       operation: "activateMfa",
       method: "POST",
       url: "/me/mfa/enrollment/backup-codes/confirm",
@@ -145,6 +152,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "authentication",
       operation: "regenerateBackupCodes",
       method: "POST",
       url: "/me/mfa/backup-codes",
@@ -158,6 +166,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "authentication",
       operation: "disableMfa",
       method: "DELETE",
       url: "/me/mfa",
@@ -174,6 +183,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "accounts",
       operation: "requestExport",
       method: "POST",
       url: "/me/exports",
@@ -190,6 +200,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "accounts",
       operation: "downloadExport",
       method: "GET",
       url: "/me/exports/export-id/download",
@@ -197,6 +208,7 @@ describe("security HTTP application boundary", () => {
       errors: [["account_export.not_available", 404]],
     },
     {
+      capability: "accounts",
       operation: "requestDeletion",
       method: "POST",
       url: "/me/deletion",
@@ -220,6 +232,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "administration",
       operation: "getConfiguration",
       method: "GET",
       url: "/admin/security/config",
@@ -227,6 +240,7 @@ describe("security HTTP application boundary", () => {
       errors: [["administrator.unauthorized", 403]],
     },
     {
+      capability: "administration",
       operation: "previewConfiguration",
       method: "POST",
       url: "/admin/security/config/preview",
@@ -237,6 +251,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "administration",
       operation: "publishConfiguration",
       method: "PUT",
       url: "/admin/security/config",
@@ -257,6 +272,7 @@ describe("security HTTP application boundary", () => {
       ],
     },
     {
+      capability: "administration",
       operation: "restoreConfiguration",
       method: "POST",
       url: "/admin/security/config/revision-id/rollback",
@@ -285,9 +301,13 @@ describe("security HTTP application boundary", () => {
     ),
   )(
     "preserves $operation: $code -> $status",
-    async ({ operation, method, url, payload, code, status }) => {
+    async ({ capability, operation, method, url, payload, code, status }) => {
       const execute = vi.fn(async () => Result.failure({ code }));
-      const app = await server({ [operation]: { execute } }, true, "admin");
+      const app = await server(
+        { [capability]: { [operation]: { execute } } },
+        true,
+        "admin",
+      );
       const response = await app.inject({
         method,
         url,
@@ -311,8 +331,10 @@ describe("security HTTP application boundary", () => {
         error: { code },
       });
       const app = await server({
-        requestExport: { execute } as never,
-        requestDeletion: { execute } as never,
+        accounts: {
+          requestExport: { execute } as never,
+          requestDeletion: { execute } as never,
+        },
       });
       const response = await app.inject({
         method: "POST",
@@ -338,7 +360,11 @@ describe("security HTTP application boundary", () => {
     };
     const app = await server(
       {
-        getCapabilities: { execute: async () => Result.success(capabilities) },
+        administration: {
+          getCapabilities: {
+            execute: async () => Result.success(capabilities),
+          },
+        },
       },
       false,
     );
@@ -348,9 +374,11 @@ describe("security HTTP application boundary", () => {
   });
   it("preserves the enrollment-specific invalid-code status", async () => {
     const app = await server({
-      confirmMfaEnrollment: {
-        execute: async () => Result.failure({ code: "mfa.invalid_code" }),
-      } as never,
+      authentication: {
+        confirmMfaEnrollment: {
+          execute: async () => Result.failure({ code: "mfa.invalid_code" }),
+        } as never,
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -362,9 +390,11 @@ describe("security HTTP application boundary", () => {
   });
   it("presents a missing enrolled factor as a state conflict", async () => {
     const app = await server({
-      regenerateBackupCodes: {
-        execute: async () => Result.failure({ code: "mfa.not_enabled" }),
-      } as never,
+      authentication: {
+        regenerateBackupCodes: {
+          execute: async () => Result.failure({ code: "mfa.not_enabled" }),
+        } as never,
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -375,7 +405,9 @@ describe("security HTTP application boundary", () => {
   });
   it("uses the authenticated owner even when a body supplies a different userId", async () => {
     const execute = vi.fn(async () => Result.success(undefined)),
-      app = await server({ activateMfa: { execute } as never });
+      app = await server({
+        authentication: { activateMfa: { execute } as never },
+      });
     const response = await app.inject({
       method: "POST",
       url: "/me/mfa/enrollment/backup-codes/confirm",
@@ -394,16 +426,21 @@ describe("security HTTP application boundary", () => {
   });
   it("guards missing authenticated context at the controller boundary", async () => {
     const execute = vi.fn(),
-      app = await server({ getMfaStatus: { execute } as never }, false);
+      app = await server(
+        { authentication: { getMfaStatus: { execute } as never } },
+        false,
+      );
     const response = await app.inject({ url: "/me/mfa" });
     expect(response.statusCode).toBe(401);
     expect(execute).not.toHaveBeenCalled();
   });
   it("returns explicit password validation errors from recovery", async () => {
     const app = await server({
-      resetPassword: {
-        execute: async () => Result.failure({ code: "password.compromised" }),
-      } as never,
+      accounts: {
+        resetPassword: {
+          execute: async () => Result.failure({ code: "password.compromised" }),
+        } as never,
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -431,8 +468,10 @@ describe("security HTTP application boundary", () => {
     },
   ])("preserves $code and all diagnostic fields", async (error) => {
     const app = await server({
-      resetPassword: {
-        execute: async () => ({ success: false as const, error }),
+      accounts: {
+        resetPassword: {
+          execute: async () => ({ success: false as const, error }),
+        },
       },
     });
     const response = await app.inject({
@@ -453,14 +492,16 @@ describe("security HTTP application boundary", () => {
     "treats an out-of-contract result as a technical failure (%s)",
     async (code) => {
       const app = await server({
-        resetPassword: {
-          execute: async () =>
-            Result.failure({
-              code,
-              message: "private detail",
-              token: "private token",
-            }),
-        } as never,
+        accounts: {
+          resetPassword: {
+            execute: async () =>
+              Result.failure({
+                code,
+                message: "private detail",
+                token: "private token",
+              }),
+          } as never,
+        },
       });
       const response = await app.inject({
         method: "POST",
@@ -484,9 +525,11 @@ describe("security HTTP application boundary", () => {
 
   it("does not accept a failure result from an operation whose error type is never", async () => {
     const app = await server({
-      getMfaStatus: {
-        execute: async () => Result.failure({ code: "mfa.not_enabled" }),
-      } as never,
+      authentication: {
+        getMfaStatus: {
+          execute: async () => Result.failure({ code: "mfa.not_enabled" }),
+        } as never,
+      },
     });
     const response = await app.inject({ url: "/me/mfa" });
     expect(response.statusCode).toBe(500);
@@ -497,6 +540,7 @@ describe("security HTTP application boundary", () => {
 
   it.each([
     {
+      capability: "accounts",
       operation: "requestRecovery",
       value: undefined,
       status: 202,
@@ -508,18 +552,21 @@ describe("security HTTP application boundary", () => {
       },
     },
     {
+      capability: "accounts",
       operation: "resetPassword",
       value: undefined,
       status: 204,
       body: undefined,
     },
     {
+      capability: "accounts",
       operation: "cancelDeletion",
       value: undefined,
       status: 204,
       body: undefined,
     },
     {
+      capability: "authentication",
       operation: "beginMfaEnrollment",
       value: {
         secret: "setup",
@@ -538,6 +585,7 @@ describe("security HTTP application boundary", () => {
       },
     },
     {
+      capability: "authentication",
       operation: "confirmMfaEnrollment",
       value: { backupCodes: ["backup"], confirmationId: "confirmation" },
       status: 200,
@@ -546,12 +594,14 @@ describe("security HTTP application boundary", () => {
       },
     },
     {
+      capability: "accounts",
       operation: "requestExport",
       value: { id: "export-id", status: "ready" },
       status: 202,
       body: { data: { id: "export-id", status: "ready" } },
     },
     {
+      capability: "accounts",
       operation: "requestDeletion",
       value: { scheduledFor: "2026-11-29T12:00:00.000Z" },
       status: 202,
@@ -559,7 +609,7 @@ describe("security HTTP application boundary", () => {
     },
   ] as const)(
     "preserves the $operation success response",
-    async ({ operation, value, status, body }) => {
+    async ({ capability, operation, value, status, body }) => {
       const route = expectedFailures.find(
         (item) => item.operation === operation,
       );
@@ -567,7 +617,9 @@ describe("security HTTP application boundary", () => {
         throw new Error("Missing success route fixture");
       }
       const app = await server({
-        [operation]: { execute: async () => Result.success(value) },
+        [capability]: {
+          [operation]: { execute: async () => Result.success(value) },
+        },
       });
       const response = await app.inject({
         method: route.method,
@@ -591,7 +643,7 @@ describe("security HTTP application boundary", () => {
   it("preserves the ZIP body and download headers", async () => {
     const archive = new Uint8Array([80, 75, 3, 4, 0, 255]);
     const execute = vi.fn(async () => Result.success(archive));
-    const app = await server({ downloadExport: { execute } });
+    const app = await server({ accounts: { downloadExport: { execute } } });
     const response = await app.inject({
       url: "/me/exports/export-id/download",
     });
@@ -616,8 +668,10 @@ describe("security HTTP application boundary", () => {
       lowBackupCodes: false,
     };
     const app = await server({
-      getMfaStatus: { execute: async () => Result.success(status) },
-      listExports: { execute: async () => Result.success([]) },
+      authentication: {
+        getMfaStatus: { execute: async () => Result.success(status) },
+      },
+      accounts: { listExports: { execute: async () => Result.success([]) } },
     });
     const mfa = await app.inject({ url: "/me/mfa" });
     expect(mfa.statusCode).toBe(200);
@@ -631,7 +685,9 @@ describe("security HTTP application boundary", () => {
 
   it("keeps administrator guards ahead of application error presentation", async () => {
     const execute = vi.fn();
-    const app = await server({ getConfiguration: { execute } });
+    const app = await server({
+      administration: { getConfiguration: { execute } },
+    });
     const response = await app.inject({ url: "/admin/security/config" });
     expect(response.statusCode).toBe(403);
     expect(response.json()).toEqual({
@@ -644,8 +700,10 @@ describe("security HTTP application boundary", () => {
     const purge = vi.fn(async () => 3);
     const app = await server(
       {
-        maintainAccounts: {
-          execute: async () => Result.success({ deletedAccounts: 2 }),
+        accounts: {
+          maintainAccounts: {
+            execute: async () => Result.success({ deletedAccounts: 2 }),
+          },
         },
       },
       true,
@@ -677,11 +735,13 @@ describe("security HTTP application boundary", () => {
 
   it("does not convert an unexpected dependency failure into a business result", async () => {
     const app = await server({
-      resetPassword: {
-        execute: async () => {
-          throw new Error("storage failed");
-        },
-      } as never,
+      accounts: {
+        resetPassword: {
+          execute: async () => {
+            throw new Error("storage failed");
+          },
+        } as never,
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -700,14 +760,16 @@ describe("security HTTP application boundary", () => {
   });
   it("issues a protected cookie only after successful MFA completion", async () => {
     const app = await server({
-      completeMfaSignIn: {
-        execute: async () =>
-          Result.success({
-            sessionId: "credential",
-            sessionExpiresAt: new Date(Date.now() + 60000),
-            userId: "actor",
-          }),
-      } as never,
+      authentication: {
+        completeMfaSignIn: {
+          execute: async () =>
+            Result.success({
+              sessionId: "credential",
+              sessionExpiresAt: new Date(Date.now() + 60000),
+              userId: "actor",
+            }),
+        } as never,
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -720,7 +782,7 @@ describe("security HTTP application boundary", () => {
   });
   it("rejects malformed transport input without invoking the use case", async () => {
     const execute = vi.fn(),
-      app = await server({ resetPassword: { execute } as never });
+      app = await server({ accounts: { resetPassword: { execute } as never } });
     const response = await app.inject({
       method: "POST",
       url: "/recovery/reset",
@@ -731,7 +793,9 @@ describe("security HTTP application boundary", () => {
   });
   it("reports an invalid email when schema validation rejects a missing recovery address", async () => {
     const execute = vi.fn(),
-      app = await server({ requestRecovery: { execute } as never });
+      app = await server({
+        accounts: { requestRecovery: { execute } as never },
+      });
     const response = await app.inject({
       method: "POST",
       url: "/recovery",
@@ -745,10 +809,12 @@ describe("security HTTP application boundary", () => {
   });
   it("preserves the established recovery confirmation code", async () => {
     const app = await server({
-      resetPassword: {
-        execute: async () =>
-          Result.failure({ code: "password.confirmation_mismatch" }),
-      } as never,
+      accounts: {
+        resetPassword: {
+          execute: async () =>
+            Result.failure({ code: "password.confirmation_mismatch" }),
+        } as never,
+      },
     });
     const response = await app.inject({
       method: "POST",
@@ -767,12 +833,14 @@ describe("security HTTP application boundary", () => {
     "clears the MFA cookie only on successful deactivation (%s)",
     async (success) => {
       const app = await server({
-        disableMfa: {
-          execute: async () =>
-            success
-              ? Result.success(undefined)
-              : Result.failure({ code: "mfa.invalid_code" }),
-        } as never,
+        authentication: {
+          disableMfa: {
+            execute: async () =>
+              success
+                ? Result.success(undefined)
+                : Result.failure({ code: "mfa.invalid_code" }),
+          } as never,
+        },
       });
       const response = await app.inject({
         method: "DELETE",

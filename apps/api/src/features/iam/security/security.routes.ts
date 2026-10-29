@@ -3,7 +3,7 @@ import type {
   AuditEntry,
 } from "@architecture/audit/application";
 import type {
-  IamSecurityApplication,
+  IamApplication,
   PublishedConfigurationReader,
   SecurityEventRecorder,
 } from "@architecture/iam/application";
@@ -101,7 +101,7 @@ function auditResponse(entry: AuditEntry) {
 }
 
 export function buildSecurityRoutes(
-  security: IamSecurityApplication,
+  iam: IamApplication,
   cookie: SecurityCookie,
   audit: AuditApplication,
   configuration: PublishedConfigurationReader,
@@ -174,14 +174,18 @@ export function buildSecurityRoutes(
       return inheritedErrorHandler.call(this, error, request, reply);
     });
     app.get("/capabilities", async (_request, reply) =>
-      applicationResponse(reply, await security.getCapabilities.execute(), {}),
+      applicationResponse(
+        reply,
+        await iam.administration.getCapabilities.execute(),
+        {},
+      ),
     );
     const recovery = Type.Object({ email: Type.String() });
     app.post<{ Body: Static<typeof recovery> }>(
       "/recovery",
       { schema: { body: recovery } },
       async (request, reply) => {
-        const result = await security.requestRecovery.execute({
+        const result = await iam.accounts.requestRecovery.execute({
           email: request.body.email,
           context: requestContext(request),
         });
@@ -208,7 +212,7 @@ export function buildSecurityRoutes(
       "/recovery/reset",
       { schema: { body: reset } },
       async (request, reply) => {
-        const result = await security.resetPassword.execute({
+        const result = await iam.accounts.resetPassword.execute({
           ...request.body,
           context: requestContext(request),
         });
@@ -228,7 +232,7 @@ export function buildSecurityRoutes(
       "/mfa/challenge/verify",
       { schema: { body: challenge } },
       async (request, reply) => {
-        const result = await security.completeMfaSignIn.execute({
+        const result = await iam.authentication.completeMfaSignIn.execute({
           ...request.body,
           metadata: sessionMetadataFromRequest(request),
         });
@@ -261,7 +265,7 @@ export function buildSecurityRoutes(
       async (request, reply) =>
         applicationResponse(
           reply,
-          await security.cancelDeletion.execute({
+          await iam.accounts.cancelDeletion.execute({
             token: request.body.token,
             password: request.body.password,
             ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
@@ -281,7 +285,9 @@ export function buildSecurityRoutes(
         }
         return applicationResponse(
           reply,
-          await security.getMfaStatus.execute({ userId: auth.userId }),
+          await iam.authentication.getMfaStatus.execute({
+            userId: auth.userId,
+          }),
           {},
         );
       });
@@ -295,7 +301,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.beginMfaEnrollment.execute({
+            await iam.authentication.beginMfaEnrollment.execute({
               userId: auth.userId,
               sessionId: auth.sessionId,
               password: request.body.password,
@@ -316,7 +322,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.confirmMfaEnrollment.execute({
+            await iam.authentication.confirmMfaEnrollment.execute({
               userId: auth.userId,
               code: request.body.code,
             }),
@@ -339,7 +345,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.activateMfa.execute({
+            await iam.authentication.activateMfa.execute({
               ...request.body,
               userId: auth.userId,
             }),
@@ -362,7 +368,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.regenerateBackupCodes.execute({
+            await iam.authentication.regenerateBackupCodes.execute({
               userId: auth.userId,
               sessionId: auth.sessionId,
               password: request.body.password,
@@ -380,7 +386,7 @@ export function buildSecurityRoutes(
           if (!auth) {
             return reply;
           }
-          const result = await security.disableMfa.execute({
+          const result = await iam.authentication.disableMfa.execute({
             userId: auth.userId,
             sessionId: auth.sessionId,
             password: request.body.password,
@@ -402,7 +408,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.requestExport.execute({
+            await iam.accounts.requestExport.execute({
               userId: auth.userId,
               sessionId: auth.sessionId,
               password: request.body.password,
@@ -420,7 +426,7 @@ export function buildSecurityRoutes(
         }
         return applicationResponse(
           reply,
-          await security.listExports.execute({ userId: auth.userId }),
+          await iam.accounts.listExports.execute({ userId: auth.userId }),
           {},
         );
       });
@@ -433,7 +439,7 @@ export function buildSecurityRoutes(
           if (!auth) {
             return reply;
           }
-          const result = await security.downloadExport.execute({
+          const result = await iam.accounts.downloadExport.execute({
             userId: auth.userId,
             exportId: request.params.exportId,
           });
@@ -466,7 +472,7 @@ export function buildSecurityRoutes(
           if (!auth) {
             return reply;
           }
-          const result = await security.requestDeletion.execute({
+          const result = await iam.accounts.requestDeletion.execute({
             userId: auth.userId,
             sessionId: auth.sessionId,
             password: request.body.password,
@@ -536,7 +542,9 @@ export function buildSecurityRoutes(
         if (!auth) {
           return reply;
         }
-        const result = await security.getConfiguration.execute(auth.userId);
+        const result = await iam.administration.getConfiguration.execute(
+          auth.userId,
+        );
         if (!result.success) {
           return applicationResponse(
             reply,
@@ -583,7 +591,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.publishConfiguration.execute({
+            await iam.administration.publishConfiguration.execute({
               actorId: auth.userId,
               values: request.body.values,
               expectedVersion: request.body.expectedVersion,
@@ -610,7 +618,7 @@ export function buildSecurityRoutes(
           if (!auth) {
             return reply;
           }
-          const result = await security.previewConfiguration.execute({
+          const result = await iam.administration.previewConfiguration.execute({
             actorId: auth.userId,
             values: request.body.values,
           });
@@ -640,7 +648,7 @@ export function buildSecurityRoutes(
           }
           return applicationResponse(
             reply,
-            await security.restoreConfiguration.execute({
+            await iam.administration.restoreConfiguration.execute({
               actorId: auth.userId,
               revisionId: request.params.revisionId,
               expectedVersion: request.body.expectedVersion,
@@ -697,7 +705,7 @@ export function buildSecurityRoutes(
         if (!actor(request, reply)) {
           return reply;
         }
-        const result = await security.maintainAccounts.execute();
+        const result = await iam.accounts.maintainAccounts.execute();
         if (!result.success) {
           return applicationResponse(reply, result, {});
         }

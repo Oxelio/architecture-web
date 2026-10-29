@@ -1,8 +1,7 @@
 import { Result } from "@architecture/foundation";
 
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
-import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import type {
@@ -13,14 +12,10 @@ import type {
 import { ActivateUserErrors } from "./activate-user.contracts.js";
 
 export class ActivateUserUseCase implements ActivateUser {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
-    userPort: UserRepository,
+    private readonly authorizer: AdministratorAuthorizer,
     private readonly unitOfWork: IamUnitOfWork,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(userPort);
-  }
+  ) {}
 
   async execute(command: ActivateUserInput): Promise<ActivateUserOutput> {
     const authorization = await this.authorizer.authorize(command.actorUserId);

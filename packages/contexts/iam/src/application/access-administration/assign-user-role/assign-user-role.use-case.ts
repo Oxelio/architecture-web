@@ -1,8 +1,7 @@
 import { Result } from "@architecture/foundation";
 
-import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
-import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
@@ -14,14 +13,10 @@ import type {
 import { AssignUserRoleErrors } from "./assign-user-role.errors.js";
 
 export class AssignUserRoleUseCase implements AssignUserRole {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
-    userPort: UserRepository,
+    private readonly authorizer: AdministratorAuthorizer,
     private readonly unitOfWork: IamUnitOfWork,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(userPort);
-  }
+  ) {}
 
   async execute(command: AssignUserRoleInput): Promise<AssignUserRoleOutput> {
     const authorization = await this.authorizer.authorize(command.actorUserId);

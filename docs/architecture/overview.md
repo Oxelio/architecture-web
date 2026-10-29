@@ -17,7 +17,7 @@ packages/
 
 Package manifests and public exports define boundaries; directory grouping does not grant access to another context's internals. Domain/application packages expose separate public subpaths and keep their layers under `src/`. The physical grouping diverges from the accepted flat topology recorded in ADR-0007. No accepted successor is recorded; this current-state description does not change that decision.
 
-The API composition root explicitly instantiates adapters, initializes configuration, and builds `createIam` and `createIamSecurity`. No dependency-injection framework or service locator is involved. HTTP controllers call application contracts and map results to transport responses.
+The API composition root explicitly instantiates adapters, initializes configuration, and calls the single `createIam` application factory. No dependency-injection framework or service locator is involved. HTTP controllers call application contracts and map results to transport responses.
 
 ```mermaid
 flowchart LR
@@ -38,6 +38,8 @@ flowchart LR
 - `accounts`: registration, identities, verification, passwords, recovery, export and deletion;
 - `authentication`: sign-in, MFA, reauthentication, session issuance, resolution and management;
 - `access-administration`: account administration and security-configuration administration.
+
+The `IamApplication` contract exposes `accounts`, `authentication` and `administration` capability interfaces, with 16, 13 and 12 operations respectively. `administration` represents the existing `access-administration` capability. All operations retain their individual input, output and expected-failure contracts.
 
 Application-owned ports live near their capabilities. Shared aggregate command/query repositories and PostgreSQL transaction contracts remain explicit. There is no generic IAM `application/services` directory or API `SecurityService`.
 

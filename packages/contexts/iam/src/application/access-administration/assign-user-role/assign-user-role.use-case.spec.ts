@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import { UserEntity } from "#entities/user.entity";
 import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import type { UserRepository } from "#ports/user.repository";
@@ -31,12 +32,15 @@ describe("AssignUserRoleUseCase", () => {
     const user = UserEntity.create();
     await users.save(user);
 
-    const result = await new AssignUserRoleUseCase(users, {
-      executeForUser: async (
-        _id: UserIdentifierValueObject,
-        work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: users, userQueries: users } as never),
-    } as IamUnitOfWork).execute({
+    const result = await new AssignUserRoleUseCase(
+      new AdministratorAuthorizer(users),
+      {
+        executeForUser: async (
+          _id: UserIdentifierValueObject,
+          work: Parameters<IamUnitOfWork["execute"]>[0],
+        ) => work({ users: users, userQueries: users } as never),
+      } as IamUnitOfWork,
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: user.identifier.value,
       role: "admin",
@@ -50,12 +54,15 @@ describe("AssignUserRoleUseCase", () => {
     const users = new FakeUserRepository();
     const administrator = createAdministrator();
     await users.save(administrator);
-    const result = await new AssignUserRoleUseCase(users, {
-      executeForUser: async (
-        _id: UserIdentifierValueObject,
-        work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: users, userQueries: users } as never),
-    } as IamUnitOfWork).execute({
+    const result = await new AssignUserRoleUseCase(
+      new AdministratorAuthorizer(users),
+      {
+        executeForUser: async (
+          _id: UserIdentifierValueObject,
+          work: Parameters<IamUnitOfWork["execute"]>[0],
+        ) => work({ users: users, userQueries: users } as never),
+      } as IamUnitOfWork,
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: UserIdentifierValueObject.generate().value,
       role: "owner",
@@ -71,12 +78,15 @@ describe("AssignUserRoleUseCase", () => {
     const users = new FakeUserRepository();
     const administrator = createAdministrator();
     await users.save(administrator);
-    const result = await new AssignUserRoleUseCase(users, {
-      executeForUser: async (
-        _id: UserIdentifierValueObject,
-        work: Parameters<IamUnitOfWork["execute"]>[0],
-      ) => work({ users: users, userQueries: users } as never),
-    } as IamUnitOfWork).execute({
+    const result = await new AssignUserRoleUseCase(
+      new AdministratorAuthorizer(users),
+      {
+        executeForUser: async (
+          _id: UserIdentifierValueObject,
+          work: Parameters<IamUnitOfWork["execute"]>[0],
+        ) => work({ users: users, userQueries: users } as never),
+      } as IamUnitOfWork,
+    ).execute({
       userId: administrator.identifier.value,
       actorUserId: administrator.identifier.value,
       role: "user",

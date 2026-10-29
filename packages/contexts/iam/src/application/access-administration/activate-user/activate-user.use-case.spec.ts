@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import { UserEntity } from "#entities/user.entity";
 import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import type { UserRepository } from "#ports/user.repository";
@@ -35,7 +36,7 @@ describe("ActivateUserUseCase", () => {
     const administrator = createAdministrator();
     await userPort.save(administrator);
     actorUserId = administrator.identifier.value;
-    useCase = new ActivateUserUseCase(userPort, {
+    useCase = new ActivateUserUseCase(new AdministratorAuthorizer(userPort), {
       executeForUser: async (
         _id: UserIdentifierValueObject,
         work: Parameters<IamUnitOfWork["execute"]>[0],
