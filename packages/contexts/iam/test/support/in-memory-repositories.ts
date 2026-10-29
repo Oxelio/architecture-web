@@ -2,12 +2,14 @@ import type { EmailVerificationEntity } from "#entities/email-verification.entit
 import type { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
 import { UserEntity } from "#entities/user.entity";
-import { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import { UserRepository } from "#repositories/user.repository";
-import type { UserAccountView } from "#repositories/user-query.repository";
-import { UserQueryRepository } from "#repositories/user-query.repository";
+import { EmailVerificationRepository } from "#ports/email-verification.repository";
+import { LoginIdentityRepository } from "#ports/login-identity.repository";
+import { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
+import { UserRepository } from "#ports/user.repository";
+import {
+  UserAccountView,
+  UserQueryRepository,
+} from "#ports/user-query.repository";
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import type {
   LoginIdentifierKind,
