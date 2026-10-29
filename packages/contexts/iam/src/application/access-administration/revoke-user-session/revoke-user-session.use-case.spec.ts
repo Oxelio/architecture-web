@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { SessionEntity } from "#entities/session.entity";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { TestPolicies } from "#test/test-policies";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 

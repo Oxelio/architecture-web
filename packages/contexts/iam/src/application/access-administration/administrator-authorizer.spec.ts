@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { UserEntity } from "#entities/user.entity";
-import type { UserRepository } from "#repositories/user.repository";
+import type { UserRepository } from "#ports/user.repository";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 

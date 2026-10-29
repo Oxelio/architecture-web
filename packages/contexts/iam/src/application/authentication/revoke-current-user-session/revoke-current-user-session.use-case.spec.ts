@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
-import type { SessionRepository } from "#repositories/session.repository";
+import type { SessionRepository } from "#ports/session.repository";
 import { TestPolicies } from "#test/test-policies";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 

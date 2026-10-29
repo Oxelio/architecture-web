@@ -1,5 +1,5 @@
 import {
-  IamTransactionalRepositories,
+  type IamTransactionalRepositories,
   IamUnitOfWork,
 } from "#ports/iam-unit-of-work";
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";

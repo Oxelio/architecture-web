@@ -61,11 +61,11 @@ import {
   FactorVerification,
   Reauthentication,
 } from "#authentication/reauthentication";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 
-import type { LoginIdentityRepository } from "../../dist/application/ports/login-identity.repository.js";
-import type { PasswordAuthenticatorRepository } from "../../dist/application/ports/password-authenticator.repository.js";
-import type { SessionRepository } from "../../dist/application/ports/session.repository.js";
-import type { UserRepository } from "../../dist/application/ports/user.repository.js";
 export type { IamResult } from "./application-result.js";
 export interface IamSecurityDependencies {
   users: UserRepository;

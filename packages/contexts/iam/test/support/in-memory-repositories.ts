@@ -7,7 +7,7 @@ import { LoginIdentityRepository } from "#ports/login-identity.repository";
 import { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
 import { UserRepository } from "#ports/user.repository";
 import {
-  UserAccountView,
+  type UserAccountView,
   UserQueryRepository,
 } from "#ports/user-query.repository";
 import type { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
