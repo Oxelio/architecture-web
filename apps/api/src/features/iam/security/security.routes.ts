@@ -13,7 +13,29 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import type { AuthenticatedFastifyInstance } from "#app/auth";
 import { sessionMetadataFromRequest } from "#iam/sign-in/session-request-metadata";
+import type {
+  HttpErrorDefinitions,
+  HttpSuccessStatus,
+} from "#types/http.types";
 
+import {
+  ActivateMfaHttpErrors,
+  BeginMfaEnrollmentHttpErrors,
+  CancelAccountDeletionHttpErrors,
+  CompleteMfaSignInHttpErrors,
+  ConfirmMfaEnrollmentHttpErrors,
+  DisableMfaHttpErrors,
+  DownloadAccountExportHttpErrors,
+  GetSecurityConfigurationHttpErrors,
+  PreviewSecurityConfigurationHttpErrors,
+  PublishSecurityConfigurationHttpErrors,
+  RegenerateMfaBackupCodesHttpErrors,
+  RequestAccountDeletionHttpErrors,
+  RequestAccountExportHttpErrors,
+  RequestPasswordRecoveryHttpErrors,
+  ResetRecoveredPasswordHttpErrors,
+  RestoreSecurityConfigurationHttpErrors,
+} from "./security.http.js";
 import { SECURITY_CONFIG_CATALOG } from "./security-config.catalog.js";
 
 export interface SecurityCookie {
@@ -25,61 +47,21 @@ export function applicationResponse<T, E extends { readonly code: string }>(
   result:
     | { readonly success: true; readonly value: T }
     | { readonly success: false; readonly error: E },
-  status = 200,
-  errorStatuses: Readonly<Record<string, number>> = {},
+  errors: HttpErrorDefinitions<NoInfer<E["code"]>>,
+  status: HttpSuccessStatus = 200,
 ) {
   if (!result.success) {
-    const code = result.error.code;
+    const code: E["code"] = result.error.code;
+    if (!Object.hasOwn(errors, code)) {
+      throw new Error("Unexpected IAM application error");
+    }
     return reply
-      .status(errorStatuses[code] ?? errorStatus(code))
+      .status(errors[code].status)
       .send({ error: { ...result.error } });
   }
   return status === 204
     ? reply.status(204).send()
     : reply.status(status).send({ data: result.value });
-}
-function errorStatus(code: string) {
-  if (
-    ["administrator.unauthorized", "authorization.forbidden"].includes(code) ||
-    ["account_export.disabled", "account_deletion.disabled"].includes(code) ||
-    ["mfa.unavailable", "mfa.enrollment_required"].includes(code)
-  ) {
-    return 403;
-  }
-  if (
-    [
-      "authentication.unauthorized",
-      "authentication.invalid_credentials",
-      "authentication.recent_proof_required",
-      "mfa.invalid_challenge",
-      "mfa.invalid_code",
-    ].includes(code)
-  ) {
-    return 401;
-  }
-  if (
-    [
-      "account_export.not_available",
-      "security_configuration.revision_not_found",
-      "user.not_found",
-    ].includes(code)
-  ) {
-    return 404;
-  }
-  if (
-    [
-      "security_configuration.version_conflict",
-      "security_configuration.critical_confirmation_required",
-      "administrator.last_active_access",
-      "account.concurrent_modification",
-      "mfa.already_enabled",
-      "mfa.not_enabled",
-      "mfa.required_by_policy",
-    ].includes(code)
-  ) {
-    return 409;
-  }
-  return 400;
 }
 const authentication = Type.Object({
   password: Type.String({ maxLength: 1024 }),
@@ -192,7 +174,7 @@ export function buildSecurityRoutes(
       return inheritedErrorHandler.call(this, error, request, reply);
     });
     app.get("/capabilities", async (_request, reply) =>
-      applicationResponse(reply, await security.getCapabilities.execute()),
+      applicationResponse(reply, await security.getCapabilities.execute(), {}),
     );
     const recovery = Type.Object({ email: Type.String() });
     app.post<{ Body: Static<typeof recovery> }>(
@@ -210,7 +192,11 @@ export function buildSecurityRoutes(
                   "If the account is eligible, recovery instructions will be sent.",
               },
             })
-          : applicationResponse(reply, result);
+          : applicationResponse(
+              reply,
+              result,
+              RequestPasswordRecoveryHttpErrors,
+            );
       },
     );
     const reset = Type.Object({
@@ -226,7 +212,12 @@ export function buildSecurityRoutes(
           ...request.body,
           context: requestContext(request),
         });
-        return applicationResponse(reply, result, 204);
+        return applicationResponse(
+          reply,
+          result,
+          ResetRecoveredPasswordHttpErrors,
+          204,
+        );
       },
     );
     const challenge = Type.Object({
@@ -242,7 +233,11 @@ export function buildSecurityRoutes(
           metadata: sessionMetadataFromRequest(request),
         });
         if (!result.success) {
-          return applicationResponse(reply, result);
+          return applicationResponse(
+            reply,
+            result,
+            CompleteMfaSignInHttpErrors,
+          );
         }
         reply.setCookie(cookie.name, result.value.sessionId, {
           ...cookie.options,
@@ -271,6 +266,7 @@ export function buildSecurityRoutes(
             password: request.body.password,
             ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
           }),
+          CancelAccountDeletionHttpErrors,
           204,
         ),
     );
@@ -286,6 +282,7 @@ export function buildSecurityRoutes(
         return applicationResponse(
           reply,
           await security.getMfaStatus.execute({ userId: auth.userId }),
+          {},
         );
       });
       protectedApp.post<{ Body: AuthenticationBody }>(
@@ -303,6 +300,7 @@ export function buildSecurityRoutes(
               sessionId: auth.sessionId,
               password: request.body.password,
             }),
+            BeginMfaEnrollmentHttpErrors,
             201,
           );
         },
@@ -322,8 +320,8 @@ export function buildSecurityRoutes(
               userId: auth.userId,
               code: request.body.code,
             }),
+            ConfirmMfaEnrollmentHttpErrors,
             200,
-            { "mfa.invalid_code": 400 },
           );
         },
       );
@@ -345,6 +343,7 @@ export function buildSecurityRoutes(
               ...request.body,
               userId: auth.userId,
             }),
+            ActivateMfaHttpErrors,
             204,
           );
         },
@@ -369,6 +368,7 @@ export function buildSecurityRoutes(
               password: request.body.password,
               code: request.body.mfaCode,
             }),
+            RegenerateMfaBackupCodesHttpErrors,
           );
         },
       );
@@ -389,7 +389,7 @@ export function buildSecurityRoutes(
           if (result.success) {
             reply.clearCookie(cookie.name, cookie.options);
           }
-          return applicationResponse(reply, result, 204);
+          return applicationResponse(reply, result, DisableMfaHttpErrors, 204);
         },
       );
       protectedApp.post<{ Body: AuthenticationBody }>(
@@ -408,6 +408,7 @@ export function buildSecurityRoutes(
               password: request.body.password,
               ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
             }),
+            RequestAccountExportHttpErrors,
             202,
           );
         },
@@ -420,6 +421,7 @@ export function buildSecurityRoutes(
         return applicationResponse(
           reply,
           await security.listExports.execute({ userId: auth.userId }),
+          {},
         );
       });
       const exportParams = Type.Object({ exportId: Type.String() });
@@ -436,7 +438,11 @@ export function buildSecurityRoutes(
             exportId: request.params.exportId,
           });
           if (!result.success) {
-            return applicationResponse(reply, result);
+            return applicationResponse(
+              reply,
+              result,
+              DownloadAccountExportHttpErrors,
+            );
           }
           return reply
             .header("content-type", "application/zip")
@@ -470,7 +476,12 @@ export function buildSecurityRoutes(
           if (result.success) {
             reply.clearCookie(cookie.name, cookie.options);
           }
-          return applicationResponse(reply, result, 202);
+          return applicationResponse(
+            reply,
+            result,
+            RequestAccountDeletionHttpErrors,
+            202,
+          );
         },
       );
       protectedApp.get<{ Querystring: { page?: number; pageSize?: number } }>(
@@ -527,7 +538,11 @@ export function buildSecurityRoutes(
         }
         const result = await security.getConfiguration.execute(auth.userId);
         if (!result.success) {
-          return applicationResponse(reply, result);
+          return applicationResponse(
+            reply,
+            result,
+            GetSecurityConfigurationHttpErrors,
+          );
         }
         return reply.send({
           data: {
@@ -582,6 +597,7 @@ export function buildSecurityRoutes(
                 ? { mfaCode: request.body.mfaCode }
                 : {}),
             }),
+            PublishSecurityConfigurationHttpErrors,
           );
         },
       );
@@ -598,10 +614,11 @@ export function buildSecurityRoutes(
             actorId: auth.userId,
             values: request.body.values,
           });
-          if (!result.success) {
-            return applicationResponse(reply, result);
-          }
-          return applicationResponse(reply, result);
+          return applicationResponse(
+            reply,
+            result,
+            PreviewSecurityConfigurationHttpErrors,
+          );
         },
       );
       const revision = Type.Object({ revisionId: Type.String() });
@@ -637,6 +654,7 @@ export function buildSecurityRoutes(
                 ? { mfaCode: request.body.mfaCode }
                 : {}),
             }),
+            RestoreSecurityConfigurationHttpErrors,
           );
         },
       );
@@ -681,7 +699,7 @@ export function buildSecurityRoutes(
         }
         const result = await security.maintainAccounts.execute();
         if (!result.success) {
-          return applicationResponse(reply, result);
+          return applicationResponse(reply, result, {});
         }
         return reply.send({
           data: {
