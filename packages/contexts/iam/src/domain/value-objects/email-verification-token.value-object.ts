@@ -8,10 +8,11 @@ const EmailVerificationTokenErrors = {
   invalidUuid: {
     code: "email_verification_token.invalid_uuid",
   },
-  invalidVersion: (expected: number) => ({
-    code: "email_verification_token.invalid_version",
-    expected,
-  }),
+  invalidVersion: (expected: number) =>
+    ({
+      code: "email_verification_token.invalid_version",
+      expected,
+    }) as const,
 } as const;
 
 export type EmailVerificationTokenError = ValueOf<

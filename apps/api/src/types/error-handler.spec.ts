@@ -34,7 +34,7 @@ describe("errorHandler", () => {
     expect(response.status).toHaveBeenCalledWith(500);
     expect(response.send).toHaveBeenCalledWith({
       error: {
-        code: "INTERNAL_SERVER_ERROR",
+        code: "internal.unexpected_error",
         message: "Internal server error",
       },
     });
@@ -52,7 +52,7 @@ describe("errorHandler", () => {
     expect(response.status).toHaveBeenCalledWith(400);
     expect(response.send).toHaveBeenCalledWith({
       error: {
-        code: "FST_ERR_VALIDATION",
+        code: "request.validation_failed",
         message: "Invalid request",
       },
     });

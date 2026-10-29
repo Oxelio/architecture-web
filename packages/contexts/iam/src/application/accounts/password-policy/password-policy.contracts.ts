@@ -4,6 +4,8 @@ import type {
   PasswordStrength,
 } from "#domain/password-policy";
 
+import type { PasswordValidationError } from "./password-validation.js";
+
 export interface PublicPasswordPolicy {
   readonly level: PasswordSecurityLevel;
   readonly minLength: number;
@@ -30,7 +32,7 @@ export interface EvaluatePasswordInput {
 export interface PasswordEvaluation {
   readonly valid: boolean;
   readonly strength: PasswordStrength;
-  readonly errorCodes: readonly string[];
+  readonly errorCodes: readonly PasswordValidationError["code"][];
 }
 
 export interface EvaluatePassword {

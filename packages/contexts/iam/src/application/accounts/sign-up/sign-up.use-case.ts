@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/sign-up/sign-up.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { RegistrationPolicyReader } from "#accounts/account-policy.reader";
@@ -18,12 +16,12 @@ import { EmailVerificationTokenValueObject } from "#value-objects/email-verifica
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
-import { SignUpErrorCodes } from "./sign-up.codes.js";
 import type {
   SignUpInput,
   SignUpOutput,
   UserRegistration,
 } from "./sign-up.contracts.js";
+import { SignUpErrors } from "./sign-up.errors.js";
 
 export class SignUpUseCase {
   constructor(
@@ -40,12 +38,12 @@ export class SignUpUseCase {
     const captured = await this.accountPolicies.getRegistrationPolicy();
     const registrationPolicy = captured.accounts;
     if (!registrationPolicy.publicRegistration) {
-      return Result.failure(SignUpErrorCodes.featureDisabled);
+      return Result.failure(SignUpErrors.featureDisabled);
     }
     if (
       !registrationPolicy.allowedLoginIdentifiers.includes(payload.login.kind)
     ) {
-      return Result.failure(SignUpErrorCodes.loginIdentifierNotAllowed);
+      return Result.failure(SignUpErrors.loginIdentifierNotAllowed);
     }
     const login = LoginIdentifierValueObject.create(
       payload.login.kind,
@@ -58,7 +56,7 @@ export class SignUpUseCase {
       login.value,
     );
     if (existingIdentity) {
-      return Result.failure(SignUpErrorCodes.userAlreadyExists);
+      return Result.failure(SignUpErrors.userAlreadyExists);
     }
 
     const policy = captured.password;

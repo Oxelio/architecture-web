@@ -12,17 +12,17 @@ export const ListUsersHttpContract = {
   errors: {
     "users.invalid_page": {
       status: 400,
-      code: "INVALID_PAGE",
+      code: "users.invalid_page",
       message: "Page must be a strictly positive integer",
     },
     "users.invalid_page_size": {
       status: 400,
-      code: "INVALID_PAGE_SIZE",
+      code: "users.invalid_page_size",
       message: "Page size must be between 1 and 100",
     },
     "administrator.unauthorized": {
       status: 403,
-      code: "ADMINISTRATOR_UNAUTHORIZED",
+      code: "administrator.unauthorized",
       message: "Administrator privileges required",
     },
   },

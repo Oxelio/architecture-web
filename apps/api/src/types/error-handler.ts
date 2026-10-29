@@ -18,8 +18,10 @@ export function errorHandler(
   return reply.status(statusCode).send({
     error: {
       code: isServerError
-        ? "INTERNAL_SERVER_ERROR"
-        : (error.code ?? "BAD_REQUEST"),
+        ? "internal.unexpected_error"
+        : error.validation || error.code === "FST_ERR_VALIDATION"
+          ? "request.validation_failed"
+          : "request.invalid",
       message: isServerError ? "Internal server error" : error.message,
     },
   });

@@ -17,7 +17,9 @@ type SuspendUserHTTPRequest = AuthenticatedRequest<SuspendUserRoute>;
 export function createSuspendUserController(useCase: SuspendUser) {
   return async (request: SuspendUserHTTPRequest, reply: FastifyReply) => {
     if (!request.auth) {
-      return reply.status(401).send({ error: { code: "UNAUTHORIZED" } });
+      return reply
+        .status(401)
+        .send({ error: { code: "authentication.unauthorized" } });
     }
 
     const command: SuspendUserInput = {

@@ -96,10 +96,15 @@ const bounds: Record<string, readonly [number, number]> = {
   "audit.retentionDays": [30, 3650],
 };
 /** Validates a complete snapshot. No defaults are merged into published values. */
+export interface SecurityPolicyError {
+  readonly code: "security_configuration.invalid";
+}
+
 export function parseSecurityPolicy(
   input: unknown,
-): Result<SecurityPolicy, { code: "CONFIG_INVALID" }> {
-  const invalid = () => Result.failure({ code: "CONFIG_INVALID" } as const);
+): Result<SecurityPolicy, SecurityPolicyError> {
+  const invalid = () =>
+    Result.failure({ code: "security_configuration.invalid" } as const);
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return invalid();
   }

@@ -17,7 +17,7 @@ export const ResendEmailVerificationHttpContract = {
     "user.invalid_id": {
       status: 400,
 
-      code: "INVALID_USER_ID",
+      code: "user.invalid_id",
 
       message: "Invalid user identifier",
     },
@@ -25,15 +25,15 @@ export const ResendEmailVerificationHttpContract = {
     "user.not_found": {
       status: 404,
 
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
 
       message: "User not found",
     },
 
-    "user.email_already_verified": {
+    "email_verification.already_verified": {
       status: 409,
 
-      code: "EMAIL_ALREADY_VERIFIED",
+      code: "email_verification.already_verified",
 
       message: "Email already verified",
     },
@@ -41,7 +41,7 @@ export const ResendEmailVerificationHttpContract = {
     "email_verification.too_many_requests": {
       status: 429,
 
-      code: "TOO_MANY_REQUESTS",
+      code: "email_verification.too_many_requests",
 
       message: "Too many requests",
     },

@@ -50,10 +50,6 @@
     },
     "#test/*": {
       "types": "./test/support/*.ts"
-    },
-    "#application-result": {
-      "types": "./src/application/application-result.ts",
-      "default": "./dist/application/application-result.js"
     }
   },
   "exports": {

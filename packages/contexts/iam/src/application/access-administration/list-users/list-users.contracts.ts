@@ -39,20 +39,20 @@ export interface UserListPagination {
   readonly totalPages: number;
 }
 
-export interface ListUsersResult {
+export interface UserList {
   readonly users: readonly AdminUser[];
   readonly pagination: UserListPagination;
 }
 
-export const ListUsersErrorCodes = {
+export const ListUsersErrors = {
   invalidPage: { code: "users.invalid_page" },
   invalidPageSize: { code: "users.invalid_page_size" },
 } as const;
 
 export type ListUsersError =
   | AdministratorAuthorizationError
-  | (typeof ListUsersErrorCodes)[keyof typeof ListUsersErrorCodes];
-export type ListUsersOutput = Result<ListUsersResult, ListUsersError>;
+  | (typeof ListUsersErrors)[keyof typeof ListUsersErrors];
+export type ListUsersOutput = Result<UserList, ListUsersError>;
 
 export interface ListUsers {
   execute(input: ListUsersInput): Promise<ListUsersOutput>;

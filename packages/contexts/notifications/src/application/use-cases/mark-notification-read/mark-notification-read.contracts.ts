@@ -1,6 +1,9 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { MarkNotificationReadErrorCodes } from "./mark-notification-read.codes.js";
+export const MarkNotificationReadErrors = {
+  invalidId: { code: "notification.invalid_id" },
+  notFound: { code: "notification.not_found" },
+} as const;
 
 export interface MarkNotificationReadInput {
   readonly actorUserId: string;
@@ -8,7 +11,7 @@ export interface MarkNotificationReadInput {
 }
 
 export type MarkNotificationReadError = ValueOf<
-  typeof MarkNotificationReadErrorCodes
+  typeof MarkNotificationReadErrors
 >;
 export type MarkNotificationReadOutput = Result<
   void,

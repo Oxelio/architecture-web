@@ -3,7 +3,6 @@ import type {
   AuditEntry,
 } from "@architecture/audit/application";
 import type {
-  IamResult,
   IamSecurityApplication,
   PublishedConfigurationReader,
   SecurityEventRecorder,
@@ -21,9 +20,11 @@ export interface SecurityCookie {
   name: string;
   options: CookieSerializeOptions;
 }
-export function applicationResponse<T>(
+export function applicationResponse<T, E extends { readonly code: string }>(
   reply: FastifyReply,
-  result: IamResult<T>,
+  result:
+    | { readonly success: true; readonly value: T }
+    | { readonly success: false; readonly error: E },
   status = 200,
   errorStatuses: Readonly<Record<string, number>> = {},
 ) {
@@ -39,41 +40,41 @@ export function applicationResponse<T>(
 }
 function errorStatus(code: string) {
   if (
-    ["administrator.unauthorized", "FORBIDDEN"].includes(code) ||
-    code.endsWith("DISABLED") ||
-    ["MFA_UNAVAILABLE", "MFA_ENROLLMENT_REQUIRED"].includes(code)
+    ["administrator.unauthorized", "authorization.forbidden"].includes(code) ||
+    ["account_export.disabled", "account_deletion.disabled"].includes(code) ||
+    ["mfa.unavailable", "mfa.enrollment_required"].includes(code)
   ) {
     return 403;
   }
   if (
     [
-      "UNAUTHORIZED",
-      "INVALID_CREDENTIALS",
-      "RECENT_AUTHENTICATION_REQUIRED",
-      "MFA_CHALLENGE_INVALID",
-      "MFA_CODE_INVALID",
+      "authentication.unauthorized",
+      "authentication.invalid_credentials",
+      "authentication.recent_proof_required",
+      "mfa.invalid_challenge",
+      "mfa.invalid_code",
     ].includes(code)
   ) {
     return 401;
   }
   if (
     [
-      "EXPORT_NOT_AVAILABLE",
-      "CONFIG_REVISION_NOT_FOUND",
-      "USER_NOT_FOUND",
+      "account_export.not_available",
+      "security_configuration.revision_not_found",
+      "user.not_found",
     ].includes(code)
   ) {
     return 404;
   }
   if (
     [
-      "CONFIG_VERSION_CONFLICT",
-      "CONFIG_CRITICAL_CONFIRMATION_REQUIRED",
-      "LAST_ACTIVE_ADMIN",
-      "ACCOUNT_CONCURRENT_MODIFICATION",
-      "MFA_ALREADY_ENABLED",
-      "MFA_NOT_ENABLED",
-      "MFA_REQUIRED_BY_POLICY",
+      "security_configuration.version_conflict",
+      "security_configuration.critical_confirmation_required",
+      "administrator.last_active_access",
+      "account.concurrent_modification",
+      "mfa.already_enabled",
+      "mfa.not_enabled",
+      "mfa.required_by_policy",
     ].includes(code)
   ) {
     return 409;
@@ -87,7 +88,7 @@ const authentication = Type.Object({
 type AuthenticationBody = Static<typeof authentication>;
 function actor(request: FastifyRequest, reply: FastifyReply) {
   if (!request.auth) {
-    reply.status(401).send({ error: { code: "UNAUTHORIZED" } });
+    reply.status(401).send({ error: { code: "authentication.unauthorized" } });
     return null;
   }
   return request.auth;
@@ -155,20 +156,20 @@ export function buildSecurityRoutes(
           "",
         );
         const codes: Record<string, string> = {
-          "/recovery": "EMAIL_INVALID",
-          "/recovery/reset": "RECOVERY_REQUEST_INVALID",
-          "/mfa/challenge/verify": "MFA_CHALLENGE_INVALID",
-          "/deletion/cancel": "DELETION_CANCELLATION_INVALID",
-          "/me/mfa/enrollment": "PASSWORD_REQUIRED",
-          "/me/mfa/enrollment/confirm": "MFA_CODE_REQUIRED",
+          "/recovery": "email.invalid_format",
+          "/recovery/reset": "password_recovery.invalid_request",
+          "/mfa/challenge/verify": "mfa.invalid_challenge",
+          "/deletion/cancel": "account_deletion.invalid_cancellation_request",
+          "/me/mfa/enrollment": "password.empty",
+          "/me/mfa/enrollment/confirm": "mfa.code_required",
           "/me/mfa/enrollment/backup-codes/confirm":
-            "MFA_BACKUP_CODES_CONFIRMATION_REQUIRED",
-          "/me/mfa/backup-codes": "STRONG_AUTHENTICATION_REQUIRED",
-          "/me/mfa": "STRONG_AUTHENTICATION_REQUIRED",
-          "/me/exports": "PASSWORD_REQUIRED",
-          "/me/deletion": "DELETION_REQUEST_INVALID",
-          "/admin/security/config": "CONFIG_INVALID",
-          "/admin/security/config/preview": "CONFIG_INVALID",
+            "mfa.backup_codes_confirmation_required",
+          "/me/mfa/backup-codes": "authentication.strong_proof_required",
+          "/me/mfa": "authentication.strong_proof_required",
+          "/me/exports": "password.empty",
+          "/me/deletion": "account_deletion.invalid_request",
+          "/admin/security/config": "security_configuration.invalid",
+          "/admin/security/config/preview": "security_configuration.invalid",
         };
         let code = path ? codes[path] : undefined;
         const body = request.body as Record<string, unknown> | null;
@@ -181,8 +182,8 @@ export function buildSecurityRoutes(
         ) {
           code =
             body["password"] !== body["passwordConfirmation"]
-              ? "PASSWORD_CONFIRMATION_MISMATCH"
-              : "PASSWORD_POLICY_VIOLATION";
+              ? "password.confirmation_mismatch"
+              : "password.policy_violation";
         }
         if (code) {
           return reply.status(400).send({ error: { code } });
@@ -191,7 +192,7 @@ export function buildSecurityRoutes(
       return inheritedErrorHandler.call(this, error, request, reply);
     });
     app.get("/capabilities", async (_request, reply) =>
-      reply.send({ data: await security.getCapabilities.execute() }),
+      applicationResponse(reply, await security.getCapabilities.execute()),
     );
     const recovery = Type.Object({ email: Type.String() });
     app.post<{ Body: Static<typeof recovery> }>(
@@ -225,26 +226,6 @@ export function buildSecurityRoutes(
           ...request.body,
           context: requestContext(request),
         });
-        if (
-          !result.success &&
-          result.error.code === "password.confirmation_mismatch"
-        ) {
-          return reply
-            .status(400)
-            .send({ error: { code: "PASSWORD_CONFIRMATION_MISMATCH" } });
-        }
-        if (
-          !result.success &&
-          [
-            "password.empty",
-            "password.too_short",
-            "password.too_long",
-          ].includes(result.error.code)
-        ) {
-          return reply
-            .status(400)
-            .send({ error: { code: "PASSWORD_POLICY_VIOLATION" } });
-        }
         return applicationResponse(reply, result, 204);
       },
     );
@@ -342,7 +323,7 @@ export function buildSecurityRoutes(
               code: request.body.code,
             }),
             200,
-            { MFA_CODE_INVALID: 400 },
+            { "mfa.invalid_code": 400 },
           );
         },
       );
@@ -514,7 +495,7 @@ export function buildSecurityRoutes(
           ) {
             return reply
               .status(403)
-              .send({ error: { code: "AUDIT_CONSULTATION_DISABLED" } });
+              .send({ error: { code: "audit_consultation.disabled" } });
           }
           return reply.send({
             data: (
@@ -534,7 +515,9 @@ export function buildSecurityRoutes(
       admin.addHook("preValidation", authenticate);
       admin.addHook("preValidation", async (request, reply) => {
         if (request.auth?.role !== "admin") {
-          return reply.status(403).send({ error: { code: "FORBIDDEN" } });
+          return reply
+            .status(403)
+            .send({ error: { code: "authorization.forbidden" } });
         }
       });
       admin.get("/admin/security/config", async (request, reply) => {

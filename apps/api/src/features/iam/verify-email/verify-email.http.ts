@@ -14,18 +14,18 @@ export const VerifyEmailHttpContract = {
   },
 
   errors: {
-    "token.invalid": {
+    "email_verification.invalid_token": {
       status: 400,
 
-      code: "TOKEN_INVALID",
+      code: "email_verification.invalid_token",
 
       message: "Invalid token",
     },
 
-    "token.expired": {
+    "email_verification.expired_token": {
       status: 400,
 
-      code: "TOKEN_EXPIRED",
+      code: "email_verification.expired_token",
 
       message: "Token expired",
     },
@@ -33,7 +33,7 @@ export const VerifyEmailHttpContract = {
     "user.not_found": {
       status: 404,
 
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
 
       message: "User not found",
     },

@@ -14,20 +14,20 @@ export const SignInHttpContract = {
   },
 
   errors: {
-    MFA_CHALLENGE_INVALID: {
+    "mfa.invalid_challenge": {
       status: 401,
-      code: "MFA_CHALLENGE_INVALID",
+      code: "mfa.invalid_challenge",
       message: "Invalid MFA challenge",
     },
-    MFA_ENROLLMENT_REQUIRED: {
+    "mfa.enrollment_required": {
       status: 403,
-      code: "MFA_ENROLLMENT_REQUIRED",
+      code: "mfa.enrollment_required",
       message: "MFA enrollment required",
     },
-    "user.invalid_credentials": {
+    "authentication.invalid_credentials": {
       status: 401,
 
-      code: "INVALID_CREDENTIALS",
+      code: "authentication.invalid_credentials",
 
       message: "Invalid credentials",
     },
@@ -35,7 +35,7 @@ export const SignInHttpContract = {
     "user.suspended": {
       status: 403,
 
-      code: "USER_SUSPENDED",
+      code: "user.suspended",
 
       message: "User suspended",
     },

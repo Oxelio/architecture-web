@@ -14,18 +14,17 @@ export interface HttpError {
   };
 }
 
-export interface HttpErrorDefinition {
+export interface HttpErrorDefinition<TCode extends string = string> {
   readonly status: HttpErrorStatus;
 
-  readonly code: string;
+  readonly code: TCode;
 
   readonly message?: string;
 }
 
-export type HttpErrorDefinitions<TErrorCode extends string> = Record<
-  TErrorCode,
-  HttpErrorDefinition
->;
+export type HttpErrorDefinitions<TErrorCode extends string> = {
+  readonly [TCode in TErrorCode]: HttpErrorDefinition<TCode>;
+};
 
 export type HttpSuccessStatus = 200 | 201 | 202 | 204;
 
@@ -50,7 +49,7 @@ export interface HttpContract<
   TErrorCode extends string,
   TSuccessCode extends string,
 > {
-  readonly errors: Record<TErrorCode, HttpErrorDefinition>;
+  readonly errors: HttpErrorDefinitions<TErrorCode>;
 
   readonly success: Record<TSuccessCode, HttpSuccessDefinition>;
   /* Maybe to add in futur

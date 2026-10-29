@@ -1,15 +1,14 @@
-// @file bounded-contexts/iam/domain/value-objects/status.value-object.ts
-
 import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const StatusErrors = {
   empty: {
     code: "status.empty",
   },
-  invalid: (value: string) => ({
-    code: "status.invalid",
-    value,
-  }),
+  invalid: (value: string) =>
+    ({
+      code: "status.invalid",
+      value,
+    }) as const,
 } as const;
 
 export type StatusError = ValueOf<typeof StatusErrors>;

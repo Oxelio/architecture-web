@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/resend-email-verification/resend-email-verification.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { EmailVerificationRateLimiter } from "#accounts/email-verification/email-verification-rate-limiter.port";
@@ -13,12 +11,12 @@ import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ResendEmailVerificationErrorCodes } from "./resend-email-verification.codes.js";
 import type {
   ResendEmailVerification,
   ResendEmailVerificationInput,
   ResendEmailVerificationOutput,
 } from "./resend-email-verification.contracts.js";
+import { ResendEmailVerificationErrors } from "./resend-email-verification.errors.js";
 
 export class ResendEmailVerificationUseCase implements ResendEmailVerification {
   constructor(
@@ -35,12 +33,12 @@ export class ResendEmailVerificationUseCase implements ResendEmailVerification {
   ): Promise<ResendEmailVerificationOutput> {
     const userValueObject = UserIdentifierValueObject.create(payload.userId);
     if (!userValueObject.success) {
-      return Result.failure(ResendEmailVerificationErrorCodes.invalidId);
+      return Result.failure(ResendEmailVerificationErrors.invalidId);
     }
 
     const user = await this.user.findById(userValueObject.value);
     if (!user) {
-      return Result.failure(ResendEmailVerificationErrorCodes.userNotFound);
+      return Result.failure(ResendEmailVerificationErrors.userNotFound);
     }
 
     const identity = await this.loginIdentities.findForUser(
@@ -48,15 +46,15 @@ export class ResendEmailVerificationUseCase implements ResendEmailVerification {
       "email",
     );
     if (!identity) {
-      return Result.failure(ResendEmailVerificationErrorCodes.userNotFound);
+      return Result.failure(ResendEmailVerificationErrors.userNotFound);
     }
     if (identity.isVerified) {
-      return Result.failure(ResendEmailVerificationErrorCodes.alreadyVerified);
+      return Result.failure(ResendEmailVerificationErrors.alreadyVerified);
     }
 
     const allowed = await this.rateLimiter.isAllowed(user.identifier);
     if (!allowed) {
-      return Result.failure(ResendEmailVerificationErrorCodes.tooManyRequests);
+      return Result.failure(ResendEmailVerificationErrors.tooManyRequests);
     }
 
     const token = EmailVerificationTokenValueObject.generate();

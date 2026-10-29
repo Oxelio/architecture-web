@@ -45,10 +45,56 @@ async function server(
   return app;
 }
 describe("security HTTP application boundary", () => {
+  it.each([
+    ["/me/exports", "account_export.disabled"],
+    ["/me/deletion", "account_deletion.disabled"],
+  ] as const)(
+    "keeps disabled operations forbidden at %s",
+    async (url, code) => {
+      const execute = async () => ({
+        success: false as const,
+        error: { code },
+      });
+      const app = await server({
+        requestExport: { execute } as never,
+        requestDeletion: { execute } as never,
+      });
+      const response = await app.inject({
+        method: "POST",
+        url,
+        payload: { password: "password", confirmation: "DELETE" },
+      });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toEqual({ error: { code } });
+    },
+  );
+
+  it("keeps the public capabilities envelope when the application returns a typed result", async () => {
+    const capabilities = {
+      publicRegistration: true,
+      allowedLoginIdentifiers: ["email" as const],
+      emailVerification: true,
+      emailChange: true,
+      sessionManagement: true,
+      recovery: true,
+      mfa: true,
+      accountExport: true,
+      accountDeletion: true,
+    };
+    const app = await server(
+      {
+        getCapabilities: { execute: async () => Result.success(capabilities) },
+      },
+      false,
+    );
+    const response = await app.inject({ url: "/capabilities" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: capabilities });
+  });
   it("preserves the enrollment-specific invalid-code status", async () => {
     const app = await server({
       confirmMfaEnrollment: {
-        execute: async () => Result.failure({ code: "MFA_CODE_INVALID" }),
+        execute: async () => Result.failure({ code: "mfa.invalid_code" }),
       } as never,
     });
     const response = await app.inject({
@@ -57,12 +103,12 @@ describe("security HTTP application boundary", () => {
       payload: { code: "123456" },
     });
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toEqual({ error: { code: "MFA_CODE_INVALID" } });
+    expect(response.json()).toEqual({ error: { code: "mfa.invalid_code" } });
   });
   it("presents a missing enrolled factor as a state conflict", async () => {
     const app = await server({
       regenerateBackupCodes: {
-        execute: async () => Result.failure({ code: "MFA_NOT_ENABLED" }),
+        execute: async () => Result.failure({ code: "mfa.not_enabled" }),
       } as never,
     });
     const response = await app.inject({
@@ -119,6 +165,22 @@ describe("security HTTP application boundary", () => {
     });
     expect(response.body).not.toContain("confidential-token");
   });
+  it("preserves the specific password length failure and its diagnostic fields", async () => {
+    const error = { code: "password.too_short" as const, actual: 3, min: 12 };
+    const app = await server({
+      resetPassword: {
+        execute: async () => ({ success: false as const, error }),
+      },
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/recovery/reset",
+      payload: { token: "token", password: "abc", passwordConfirmation: "abc" },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error });
+  });
+
   it("does not convert an unexpected dependency failure into a business result", async () => {
     const app = await server({
       resetPassword: {
@@ -138,7 +200,7 @@ describe("security HTTP application boundary", () => {
     });
     expect(response.statusCode).toBe(500);
     expect(response.json()).toMatchObject({
-      error: { code: "INTERNAL_SERVER_ERROR" },
+      error: { code: "internal.unexpected_error" },
     });
     expect(response.body).not.toContain("storage failed");
   });
@@ -173,7 +235,7 @@ describe("security HTTP application boundary", () => {
     expect(response.statusCode).toBe(400);
     expect(execute).not.toHaveBeenCalled();
   });
-  it("preserves EMAIL_INVALID when schema validation rejects a missing recovery address", async () => {
+  it("reports an invalid email when schema validation rejects a missing recovery address", async () => {
     const execute = vi.fn(),
       app = await server({ requestRecovery: { execute } as never });
     const response = await app.inject({
@@ -182,7 +244,9 @@ describe("security HTTP application boundary", () => {
       payload: {},
     });
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toEqual({ error: { code: "EMAIL_INVALID" } });
+    expect(response.json()).toEqual({
+      error: { code: "email.invalid_format" },
+    });
     expect(execute).not.toHaveBeenCalled();
   });
   it("preserves the established recovery confirmation code", async () => {
@@ -202,7 +266,7 @@ describe("security HTTP application boundary", () => {
       },
     });
     expect(response.json()).toEqual({
-      error: { code: "PASSWORD_CONFIRMATION_MISMATCH" },
+      error: { code: "password.confirmation_mismatch" },
     });
   });
   it.each([true, false])(
@@ -213,7 +277,7 @@ describe("security HTTP application boundary", () => {
           execute: async () =>
             success
               ? Result.success(undefined)
-              : Result.failure({ code: "MFA_CODE_INVALID" }),
+              : Result.failure({ code: "mfa.invalid_code" }),
         } as never,
       });
       const response = await app.inject({
@@ -230,19 +294,23 @@ describe("security HTTP application boundary", () => {
     },
   );
   it.each([
-    ["POST", "/mfa/challenge/verify", "MFA_CHALLENGE_INVALID"],
-    ["POST", "/deletion/cancel", "DELETION_CANCELLATION_INVALID"],
-    ["POST", "/me/mfa/enrollment", "PASSWORD_REQUIRED"],
-    ["POST", "/me/mfa/enrollment/confirm", "MFA_CODE_REQUIRED"],
+    ["POST", "/mfa/challenge/verify", "mfa.invalid_challenge"],
+    [
+      "POST",
+      "/deletion/cancel",
+      "account_deletion.invalid_cancellation_request",
+    ],
+    ["POST", "/me/mfa/enrollment", "password.empty"],
+    ["POST", "/me/mfa/enrollment/confirm", "mfa.code_required"],
     [
       "POST",
       "/me/mfa/enrollment/backup-codes/confirm",
-      "MFA_BACKUP_CODES_CONFIRMATION_REQUIRED",
+      "mfa.backup_codes_confirmation_required",
     ],
-    ["POST", "/me/mfa/backup-codes", "STRONG_AUTHENTICATION_REQUIRED"],
-    ["DELETE", "/me/mfa", "STRONG_AUTHENTICATION_REQUIRED"],
-    ["POST", "/me/exports", "PASSWORD_REQUIRED"],
-    ["POST", "/me/deletion", "DELETION_REQUEST_INVALID"],
+    ["POST", "/me/mfa/backup-codes", "authentication.strong_proof_required"],
+    ["DELETE", "/me/mfa", "authentication.strong_proof_required"],
+    ["POST", "/me/exports", "password.empty"],
+    ["POST", "/me/deletion", "account_deletion.invalid_request"],
   ] as const)(
     "preserves missing-field business errors for %s %s",
     async (method, url, code) => {

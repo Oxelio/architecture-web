@@ -112,7 +112,7 @@ export function SignUpPage() {
       setTimeout(() => navigate("/signin", { replace: true }), 2500);
     } catch (error) {
       setServerError(
-        error instanceof Error && error.message === "USER_ALREADY_EXISTS"
+        error instanceof Error && error.message === "user.already_exists"
           ? "accountAlreadyExists"
           : "generic",
       );

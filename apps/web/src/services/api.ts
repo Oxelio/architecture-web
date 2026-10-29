@@ -530,7 +530,9 @@ export async function getCurrentUser() {
   } catch (error) {
     if (
       error instanceof Error &&
-      ["UNAUTHORIZED", "FORBIDDEN"].includes(error.message)
+      ["authentication.unauthorized", "authorization.forbidden"].includes(
+        error.message,
+      )
     ) {
       return null;
     }

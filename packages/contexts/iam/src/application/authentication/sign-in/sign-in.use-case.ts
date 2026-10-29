@@ -1,10 +1,8 @@
-// @file bounded-contexts/iam/application/use-cases/sign-in/sign-in.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { SignInPolicyReader } from "#authentication/authentication-policy.reader";
+import type { BeginSecondFactor } from "#authentication/begin-second-factor/begin-second-factor.contracts";
 import type { IssueSession } from "#authentication/issue-session";
-import type { BeginSecondFactorUseCase } from "#authentication/mfa/mfa.use-cases";
 import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import type { LoginIdentityRepository } from "#ports/login-identity.repository";
 import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
@@ -12,13 +10,13 @@ import type { UserRepository } from "#ports/user.repository";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
-import { SignInErrorCodes } from "./sign-in.codes.js";
 import type {
   AuthenticationSession,
   SignIn,
   SignInInput,
   SignInOutput,
 } from "./sign-in.contracts.js";
+import { SignInErrors } from "./sign-in.contracts.js";
 
 export class SignInUseCase implements SignIn {
   constructor(
@@ -27,7 +25,7 @@ export class SignInUseCase implements SignIn {
     private readonly passwordAuthenticators: PasswordAuthenticatorRepository,
     private readonly password: PasswordHasher,
     private readonly policies: SignInPolicyReader,
-    private readonly secondFactor: Pick<BeginSecondFactorUseCase, "execute">,
+    private readonly secondFactor: BeginSecondFactor,
     private readonly issueSession: IssueSession,
   ) {}
 
@@ -36,7 +34,7 @@ export class SignInUseCase implements SignIn {
     const { allowedLoginIdentifiers } = captured.accounts;
     if (!allowedLoginIdentifiers.includes(payload.login.kind)) {
       await this.password.fakeVerify();
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const login = LoginIdentifierValueObject.create(
@@ -44,19 +42,19 @@ export class SignInUseCase implements SignIn {
       payload.login.value,
     );
     if (!login.success) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
     if (!password.success) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const identity = await this.loginIdentities.findByLogin(login.value);
     if (!identity || !identity.isUsable) {
       await this.password.fakeVerify(); // Timing attack prevention
 
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const user = await this.user.findById(identity.userId);
@@ -65,7 +63,7 @@ export class SignInUseCase implements SignIn {
       : null;
     if (!user || !authenticator || authenticator.isRevoked) {
       await this.password.fakeVerify();
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const passwordVerified = await this.password.verify(
@@ -73,7 +71,7 @@ export class SignInUseCase implements SignIn {
       authenticator.passwordHash,
     );
     if (!passwordVerified) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     if (
@@ -82,11 +80,11 @@ export class SignInUseCase implements SignIn {
         new Date(),
       ))
     ) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     if (!user.status.isActive()) {
-      return Result.failure(SignInErrorCodes.userSuspended);
+      return Result.failure(SignInErrors.userSuspended);
     }
 
     const challenge = await this.secondFactor.execute({

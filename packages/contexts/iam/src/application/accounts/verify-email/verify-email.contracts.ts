@@ -1,15 +1,14 @@
-// @file bounded-contexts/iam/application/use-cases/verify-email/verify-email.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { VerifyEmailErrorCodes } from "./verify-email.codes.js";
+import type { VerifyEmailErrors } from "./verify-email.errors.js";
 
-export type VerifyEmailError = ValueOf<typeof VerifyEmailErrorCodes>;
+export type VerifyEmailError = ValueOf<typeof VerifyEmailErrors>;
 
 export interface VerifyEmailInput {
   token: string;
 }
 
-export type VerifyEmailOutput = Result<undefined, VerifyEmailError>;
+export type VerifyEmailOutput = Result<void, VerifyEmailError>;
 
 export interface VerifyEmail {
   execute(command: VerifyEmailInput): Promise<VerifyEmailOutput>;

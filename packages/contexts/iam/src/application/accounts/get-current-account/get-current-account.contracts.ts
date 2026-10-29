@@ -1,11 +1,16 @@
-// @file bounded-contexts/iam/application/use-cases/get-current-account/get-current-account.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { GetCurrentAccountErrorCodes } from "./get-current-account.codes.js";
+export const GetCurrentAccountErrors = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
 
-export type GetCurrentAccountError = ValueOf<
-  typeof GetCurrentAccountErrorCodes
->;
+  notFound: {
+    code: "user.not_found",
+  },
+} as const;
+
+export type GetCurrentAccountError = ValueOf<typeof GetCurrentAccountErrors>;
 
 export interface GetCurrentAccountInput {
   readonly actorUserId: string;

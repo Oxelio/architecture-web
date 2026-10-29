@@ -7,7 +7,7 @@ import type { UserQueryRepository } from "#ports/user-query.repository";
 import {
   type AdminUser,
   type ListUsers,
-  ListUsersErrorCodes,
+  ListUsersErrors,
   type ListUsersInput,
   type ListUsersOutput,
   USER_LIST_DEFAULT_PAGE,
@@ -34,14 +34,14 @@ export class ListUsersUseCase implements ListUsers {
     const page = input.page ?? USER_LIST_DEFAULT_PAGE;
     const pageSize = input.pageSize ?? USER_LIST_DEFAULT_PAGE_SIZE;
     if (!Number.isInteger(page) || page < 1) {
-      return Result.failure(ListUsersErrorCodes.invalidPage);
+      return Result.failure(ListUsersErrors.invalidPage);
     }
     if (
       !Number.isInteger(pageSize) ||
       pageSize < 1 ||
       pageSize > USER_LIST_MAX_PAGE_SIZE
     ) {
-      return Result.failure(ListUsersErrorCodes.invalidPageSize);
+      return Result.failure(ListUsersErrors.invalidPageSize);
     }
 
     const normalizedSearch = input.search?.trim();

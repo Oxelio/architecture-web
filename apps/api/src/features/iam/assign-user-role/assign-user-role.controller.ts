@@ -15,7 +15,9 @@ type AssignUserRoleHTTPRequest = AuthenticatedRequest<AssignUserRoleRoute>;
 export function createAssignUserRoleController(useCase: AssignUserRole) {
   return async (request: AssignUserRoleHTTPRequest, reply: FastifyReply) => {
     if (!request.auth) {
-      return reply.status(401).send({ error: { code: "UNAUTHORIZED" } });
+      return reply
+        .status(401)
+        .send({ error: { code: "authentication.unauthorized" } });
     }
 
     const command: AssignUserRoleInput = {

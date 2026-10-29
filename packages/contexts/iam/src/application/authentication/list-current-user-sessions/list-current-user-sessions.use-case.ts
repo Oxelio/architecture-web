@@ -5,13 +5,13 @@ import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ListCurrentUserSessionsErrorCodes } from "./list-current-user-sessions.codes.js";
 import type {
   CurrentUserSession,
   ListCurrentUserSessions,
   ListCurrentUserSessionsInput,
   ListCurrentUserSessionsOutput,
 } from "./list-current-user-sessions.contracts.js";
+import { ListCurrentUserSessionsErrors } from "./list-current-user-sessions.errors.js";
 
 export class ListCurrentUserSessionsUseCase implements ListCurrentUserSessions {
   constructor(
@@ -24,15 +24,15 @@ export class ListCurrentUserSessionsUseCase implements ListCurrentUserSessions {
     input: ListCurrentUserSessionsInput,
   ): Promise<ListCurrentUserSessionsOutput> {
     if (!(await this.policies.getSessionPolicy()).userManagement) {
-      return Result.failure(ListCurrentUserSessionsErrorCodes.featureDisabled);
+      return Result.failure(ListCurrentUserSessionsErrors.featureDisabled);
     }
     const actorId = UserIdentifierValueObject.create(input.actorUserId);
     if (!actorId.success) {
-      return Result.failure(ListCurrentUserSessionsErrorCodes.invalidActorId);
+      return Result.failure(ListCurrentUserSessionsErrors.invalidActorId);
     }
 
     if (!(await this.users.findById(actorId.value))) {
-      return Result.failure(ListCurrentUserSessionsErrorCodes.userNotFound);
+      return Result.failure(ListCurrentUserSessionsErrors.userNotFound);
     }
 
     const sessions = await this.sessions.findActiveForUser(actorId.value);

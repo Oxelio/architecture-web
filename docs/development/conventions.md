@@ -7,6 +7,19 @@
 - Classes use PascalCase; functions and properties use camelCase.
 - A use case exposes an explicit application contract and a use-case
   implementation.
+- Group callable application operations by capability and then by business
+  action, for example `authentication/begin-mfa-enrollment/`. Use
+  `<action>.contracts.ts` and `<action>.use-case.ts`; export the action interface
+  separately from its `<Action>UseCase` implementation. Composition returns
+  application interfaces rather than inferred concrete classes.
+- Name application input, outcome, and expected failure types `<Action>Input`,
+  `<Action>Output`, and `<Action>Error`. An output that models expected failures
+  uses `Result<Value, Error>`; a no-value success uses `void`. A named successful
+  payload uses business vocabulary rather than another `Result` suffix.
+- Name catalogs of error objects `<Action>Errors`. Keep a small catalog with its
+  contract; extract `<action>.errors.ts` when the catalog warrants a separate
+  module. `.codes.ts`, `ErrorCodes`, and `ErrorsCodes` are not preferred names
+  for catalogs containing `{ code: ... }` objects.
 - Technical implementations end in `Adapter` and name their technology when
   that distinction is useful.
 - Tests are colocated as `*.spec.ts` or `*.spec.tsx`.
@@ -18,6 +31,25 @@
 Expected business errors **MUST** be values with a stable code returned through
 an explicit application result contract. Application contracts carry no HTTP
 status. The API maps business outcomes to transport semantics.
+
+Codes use a lowercase semantic namespace and a snake-case reason, such as
+`authentication.invalid_credentials`, `mfa.invalid_challenge`, or
+`account_export.disabled`. Prefer a capability-specific reason to a generic
+`feature.disabled` or `token.invalid`. Different operations may expose the same
+code when the meaning is the same.
+
+Each fallible operation declares a closed union of expected errors, including
+errors propagated from shared application checks or the domain. Do not widen an
+application error contract to `{ code: string }`. Error factories must preserve
+literal code types, including when returning metadata such as `actual` and `max`.
+Read-only evaluations returning a list of validation codes use the same closed
+vocabulary.
+
+HTTP preserves application error codes and chooses the appropriate status and
+response shape. Its typed mapping must cover the operation's error union and
+must not rename codes to a parallel uppercase vocabulary. Schema-validation
+errors belong to the transport boundary; unexpected server failures use
+`internal.unexpected_error` without exposing internal details.
 
 Unexpected database, cache, network, or programming failures **MUST NOT** be
 invented as business errors. They remain technical failures unless an explicit

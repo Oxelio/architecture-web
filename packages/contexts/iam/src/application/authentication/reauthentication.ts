@@ -1,7 +1,6 @@
 import { Result } from "@architecture/foundation";
 
 import type { SecurityTokens } from "#accounts/security-effects";
-import type { IamResult } from "#application-result";
 import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
 import type { SessionRepository } from "#ports/session.repository";
@@ -12,6 +11,14 @@ import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-
 
 import type { AuthenticationPolicyReader } from "./authentication-policy.reader.js";
 import type { MfaCryptography, MfaStore } from "./mfa/mfa.ports.js";
+import {
+  type FactorVerificationError,
+  FactorVerificationErrors,
+  type PasswordAuthenticationError,
+  ReauthenticationErrors,
+  type RecentAuthenticationError,
+  type StrongAuthenticationError,
+} from "./reauthentication.contracts.js";
 
 export class FactorVerification {
   constructor(
@@ -23,10 +30,10 @@ export class FactorVerification {
     userId: string,
     code: string,
     challengeId?: string,
-  ): Promise<IamResult<"totp" | "backup_code">> {
+  ): Promise<Result<"totp" | "backup_code", FactorVerificationError>> {
     const credential = await this.store.credential(userId);
     if (!credential?.enabledAt) {
-      return Result.failure({ code: "MFA_NOT_ENABLED" } as const);
+      return Result.failure(FactorVerificationErrors.notEnabled);
     }
     const normalized = code.replace(/[\s-]/g, "").toUpperCase();
     const counter = /^\d{6}$/.test(normalized)
@@ -45,9 +52,11 @@ export class FactorVerification {
     });
     return method
       ? Result.success(method)
-      : Result.failure({
-          code: challengeId ? "MFA_CHALLENGE_INVALID" : "MFA_CODE_INVALID",
-        } as const);
+      : Result.failure(
+          challengeId
+            ? FactorVerificationErrors.invalidChallenge
+            : FactorVerificationErrors.invalidCode,
+        );
   }
 }
 /** Shared application checks for operations requiring fresh proof of account control. */
@@ -61,11 +70,14 @@ export class Reauthentication {
     private readonly mfa: MfaStore,
     private readonly factor: FactorVerification,
   ) {}
-  async password(userId: string, password: string): Promise<IamResult<void>> {
+  async password(
+    userId: string,
+    password: string,
+  ): Promise<Result<void, PasswordAuthenticationError>> {
     const id = UserIdentifierValueObject.create(userId),
       plain = PasswordPlainValueObject.create(password);
     if (!id.success || !plain.success) {
-      return Result.failure({ code: "INVALID_CREDENTIALS" } as const);
+      return Result.failure(ReauthenticationErrors.invalidCredentials);
     }
     const credential = await this.passwords.findForUser(id.value);
     if (
@@ -73,7 +85,7 @@ export class Reauthentication {
       credential.isRevoked ||
       !(await this.hasher.verify(plain.value, credential.passwordHash))
     ) {
-      return Result.failure({ code: "INVALID_CREDENTIALS" } as const);
+      return Result.failure(ReauthenticationErrors.invalidCredentials);
     }
     return Result.success(undefined);
   }
@@ -82,13 +94,11 @@ export class Reauthentication {
     sessionId: string,
     password: string,
     capturedPolicy?: import("#domain/security-policy").SecurityPolicy["authentication"],
-  ): Promise<IamResult<number>> {
+  ): Promise<Result<number, RecentAuthenticationError>> {
     const id = SessionIdentifierValueObject.create(sessionId),
       userIdentifier = UserIdentifierValueObject.create(userId);
     if (!id.success || !userIdentifier.success) {
-      return Result.failure({
-        code: "RECENT_AUTHENTICATION_REQUIRED",
-      } as const);
+      return Result.failure(ReauthenticationErrors.recentProofRequired);
     }
     const session = await this.sessions.findById(id.value),
       user = await this.users.findById(userIdentifier.value),
@@ -104,9 +114,7 @@ export class Reauthentication {
       Date.now() - session.createdAt.getTime() >
         policy.recentAuthenticationMinutes * 60000
     ) {
-      return Result.failure({
-        code: "RECENT_AUTHENTICATION_REQUIRED",
-      } as const);
+      return Result.failure(ReauthenticationErrors.recentProofRequired);
     }
     const verified = await this.password(userId, password);
     return verified.success
@@ -119,7 +127,7 @@ export class Reauthentication {
     password: string,
     code?: string,
     capturedPolicy?: import("#domain/security-policy").SecurityPolicy["authentication"],
-  ): Promise<IamResult<number>> {
+  ): Promise<Result<number, StrongAuthenticationError>> {
     const recent = await this.recent(
       userId,
       sessionId,
@@ -131,7 +139,7 @@ export class Reauthentication {
     }
     if ((await this.mfa.credential(userId))?.enabledAt) {
       if (!code) {
-        return Result.failure({ code: "MFA_CODE_REQUIRED" } as const);
+        return Result.failure(ReauthenticationErrors.codeRequired);
       }
       const factor = await this.factor.verify(userId, code);
       if (!factor.success) {

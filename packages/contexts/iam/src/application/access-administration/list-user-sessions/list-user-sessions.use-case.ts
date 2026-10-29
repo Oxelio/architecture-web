@@ -6,13 +6,13 @@ import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
 import type {
   AdministeredUserSession,
   ListUserSessions,
   ListUserSessionsInput,
   ListUserSessionsOutput,
 } from "./list-user-sessions.contracts.js";
+import { ListUserSessionsErrors } from "./list-user-sessions.errors.js";
 
 export class ListUserSessionsUseCase implements ListUserSessions {
   private readonly authorizer: AdministratorAuthorizer;
@@ -32,15 +32,15 @@ export class ListUserSessionsUseCase implements ListUserSessions {
     }
 
     if (!(await this.policies.getSessionPolicy()).userManagement) {
-      return Result.failure(ListUserSessionsErrorCodes.featureDisabled);
+      return Result.failure(ListUserSessionsErrors.featureDisabled);
     }
     const userId = UserIdentifierValueObject.create(input.userId);
     if (!userId.success) {
-      return Result.failure(ListUserSessionsErrorCodes.invalidUserId);
+      return Result.failure(ListUserSessionsErrors.invalidUserId);
     }
 
     if (!(await this.users.findById(userId.value))) {
-      return Result.failure(ListUserSessionsErrorCodes.userNotFound);
+      return Result.failure(ListUserSessionsErrors.userNotFound);
     }
 
     const sessions = await this.sessions.findActiveForUser(userId.value);

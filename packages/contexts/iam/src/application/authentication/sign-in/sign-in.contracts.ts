@@ -1,7 +1,19 @@
-// @file bounded-contexts/iam/application/use-cases/sign-in/sign-in.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
+import type { BeginSecondFactorError } from "#authentication/begin-second-factor/begin-second-factor.contracts";
 import type { SessionClient, SessionNetwork } from "#entities/session.entity";
+import type { LoginIdentifierKind } from "#value-objects/login-identifier.value-object";
+
+export const SignInErrors = {
+  invalidCredentials: {
+    code: "authentication.invalid_credentials",
+  },
+
+  userSuspended: {
+    code: "user.suspended",
+  },
+} as const;
+
 export interface SecondFactorChallenge {
   readonly mfaRequired: true;
   readonly userId: string;
@@ -10,13 +22,8 @@ export interface SecondFactorChallenge {
   readonly challengeId: string;
   readonly expiresAt: Date;
 }
-import type { LoginIdentifierKind } from "#value-objects/login-identifier.value-object";
 
-import type { SignInErrorCodes } from "./sign-in.codes.js";
-
-export type SignInError =
-  | ValueOf<typeof SignInErrorCodes>
-  | { readonly code: "MFA_CHALLENGE_INVALID" | "MFA_ENROLLMENT_REQUIRED" };
+export type SignInError = ValueOf<typeof SignInErrors> | BeginSecondFactorError;
 
 export interface SignInInput {
   login: {

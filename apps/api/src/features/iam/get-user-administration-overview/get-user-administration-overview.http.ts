@@ -12,7 +12,7 @@ export const GetUserAdministrationOverviewHttpContract = {
   errors: {
     "administrator.unauthorized": {
       status: 403,
-      code: "ADMINISTRATOR_UNAUTHORIZED",
+      code: "administrator.unauthorized",
       message: "Administrator privileges required",
     },
   },

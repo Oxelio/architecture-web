@@ -6,12 +6,12 @@ import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
-import { AssignUserRoleErrorCodes } from "./assign-user-role.codes.js";
 import type {
   AssignUserRole,
   AssignUserRoleInput,
   AssignUserRoleOutput,
 } from "./assign-user-role.contracts.js";
+import { AssignUserRoleErrors } from "./assign-user-role.errors.js";
 
 export class AssignUserRoleUseCase implements AssignUserRole {
   private readonly authorizer: AdministratorAuthorizer;
@@ -31,10 +31,10 @@ export class AssignUserRoleUseCase implements AssignUserRole {
 
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure(AssignUserRoleErrorCodes.invalidId);
+      return Result.failure(AssignUserRoleErrors.invalidId);
     }
     if (command.actorUserId === userId.value.value) {
-      return Result.failure(AssignUserRoleErrorCodes.selfOperation);
+      return Result.failure(AssignUserRoleErrors.selfOperation);
     }
 
     const role = UserRoleValueObject.create(command.role);
@@ -56,7 +56,7 @@ export class AssignUserRoleUseCase implements AssignUserRole {
         }
         const user = await users.findById(userId.value);
         if (!user) {
-          return Result.failure(AssignUserRoleErrorCodes.notFound);
+          return Result.failure(AssignUserRoleErrors.notFound);
         }
         if (
           user.role.isAdmin() &&
@@ -64,7 +64,9 @@ export class AssignUserRoleUseCase implements AssignUserRole {
           !role.value.isAdmin() &&
           !(await userQueries.hasOtherAdministrativeAccess(user.identifier))
         ) {
-          return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
+          return Result.failure({
+            code: "administrator.last_active_access",
+          } as const);
         }
         user.changeRole(
           role.value,

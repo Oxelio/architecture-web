@@ -106,6 +106,13 @@ Application contracts use business language. Transport conventions such as
 `data`, `meta`, HTTP status, headers, and cookies remain at the transport
 boundary.
 
+Use one action directory with `<action>.contracts.ts` and
+`<action>.use-case.ts`. The contract defines the action interface and its input,
+output, and expected errors; small `<Action>Errors` catalogs can stay there.
+Extract `<action>.errors.ts` when that improves readability. Follow the
+[error and naming conventions](conventions.md) rather than creating a fixed
+number of files for every action.
+
 Expected business outcomes use typed result/error contracts. Infrastructure
 failures must not be disguised as business errors without an explicit policy.
 
@@ -146,6 +153,10 @@ IAM security operations follow this same boundary. Their Node and cross-context 
 
 Create or update transport contracts, controllers/presenters, route schemas,
 and UI clients without leaking domain entities across the boundary.
+
+Preserve the application error vocabulary in HTTP mappings and update client
+code comparisons whenever an error code changes. Mappings are exhaustive for
+the declared application errors; unexpected failures remain technical failures.
 
 A new route **MUST** define TypeBox schemas for body, params, query, and
 responses where applicable. User-owned routes derive identity from authenticated

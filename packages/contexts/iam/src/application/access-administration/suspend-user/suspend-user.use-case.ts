@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/suspend-user/suspend-user.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
@@ -8,12 +6,12 @@ import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { SuspendUserErrorCodes } from "./suspend-user.codes.js";
 import type {
   SuspendUser,
   SuspendUserInput,
   SuspendUserOutput,
 } from "./suspend-user.contracts.js";
+import { SuspendUserErrors } from "./suspend-user.errors.js";
 
 export class SuspendUserUseCase implements SuspendUser {
   private readonly authorizer: AdministratorAuthorizer;
@@ -34,10 +32,10 @@ export class SuspendUserUseCase implements SuspendUser {
 
     const userId = UserIdentifierValueObject.create(input.userId);
     if (!userId.success) {
-      return Result.failure(SuspendUserErrorCodes.invalidId);
+      return Result.failure(SuspendUserErrors.invalidId);
     }
     if (input.actorUserId === userId.value.value) {
-      return Result.failure(SuspendUserErrorCodes.selfOperation);
+      return Result.failure(SuspendUserErrors.selfOperation);
     }
 
     const actorId = UserIdentifierValueObject.create(input.actorUserId);
@@ -54,14 +52,16 @@ export class SuspendUserUseCase implements SuspendUser {
         }
         const user = await users.findById(userId.value);
         if (!user) {
-          return Result.failure(SuspendUserErrorCodes.notFound);
+          return Result.failure(SuspendUserErrors.notFound);
         }
         if (
           user.role.isAdmin() &&
           user.status.isActive() &&
           !(await userQueries.hasOtherAdministrativeAccess(user.identifier))
         ) {
-          return Result.failure({ code: "LAST_ACTIVE_ADMIN" } as const);
+          return Result.failure({
+            code: "administrator.last_active_access",
+          } as const);
         }
         user.suspend(actorId.success ? actorId.value : undefined);
         await users.save(user);

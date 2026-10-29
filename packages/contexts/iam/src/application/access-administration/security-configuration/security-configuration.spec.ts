@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import { GetSecurityConfigurationUseCase } from "#access-administration/get-security-configuration/get-security-configuration.use-case";
+import { PreviewSecurityConfigurationUseCase } from "#access-administration/preview-security-configuration/preview-security-configuration.use-case";
+import { PublishSecurityConfigurationUseCase } from "#access-administration/publish-security-configuration/publish-security-configuration.use-case";
 import {
   DEFAULT_SECURITY_POLICY,
   parseSecurityPolicy,
@@ -10,11 +13,6 @@ import { UserEntity } from "#entities/user.entity";
 import { InMemoryUserRepository } from "#test/in-memory-repositories";
 
 import type { ConfigurationStore } from "./configuration.store.js";
-import {
-  GetSecurityConfigurationUseCase,
-  PreviewSecurityConfigurationUseCase,
-  PublishSecurityConfigurationUseCase,
-} from "./security-configuration.use-cases.js";
 async function fixture(admin = true) {
   const users = new InMemoryUserRepository(),
     actor = admin ? createAdministrator() : UserEntity.create();
@@ -113,7 +111,7 @@ describe("security configuration administration", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "CONFIG_CRITICAL_CONFIRMATION_REQUIRED" },
+      error: { code: "security_configuration.critical_confirmation_required" },
     });
     expect(f.store.publish).not.toHaveBeenCalled();
   });
@@ -133,7 +131,7 @@ describe("security configuration administration", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "CONFIG_VERSION_CONFLICT" },
+      error: { code: "security_configuration.version_conflict" },
     });
   });
   it("does not relabel persistence failures as business refusals", async () => {
@@ -178,7 +176,7 @@ describe("security configuration administration", () => {
     values.passwords.privilegedMinLength++;
     const strong = vi.fn(async () => ({
       success: false as const,
-      error: { code: "RECENT_AUTHENTICATION_REQUIRED" as const },
+      error: { code: "authentication.recent_proof_required" as const },
     }));
     const result = await new PublishSecurityConfigurationUseCase(
       f.authorization,
@@ -194,7 +192,7 @@ describe("security configuration administration", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "RECENT_AUTHENTICATION_REQUIRED" },
+      error: { code: "authentication.recent_proof_required" },
     });
     expect(strong).toHaveBeenCalledOnce();
     expect(f.store.publish).not.toHaveBeenCalled();

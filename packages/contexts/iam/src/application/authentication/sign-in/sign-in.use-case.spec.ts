@@ -97,7 +97,7 @@ describe("SignInUseCase", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "user.invalid_credentials" },
+      error: { code: "authentication.invalid_credentials" },
     });
     expect(password.fakeVerify).toHaveBeenCalledOnce();
   });
@@ -111,7 +111,7 @@ describe("SignInUseCase", () => {
 
     expect(result).toEqual({
       success: false,
-      error: { code: "user.invalid_credentials" },
+      error: { code: "authentication.invalid_credentials" },
     });
     expect(password.fakeVerify).toHaveBeenCalledOnce();
     expect(password.verify).not.toHaveBeenCalled();

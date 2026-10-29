@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { RequestAccountExportUseCase } from "#accounts/request-account-export/request-account-export.use-case";
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
 import { TestPolicies } from "#test/test-policies";
-
-import { RequestAccountExportUseCase } from "./account-export.use-cases.js";
 describe("account export orchestration", () => {
   it("records failed generation and propagates the original technical failure", async () => {
     const failure = new Error("database unavailable"),

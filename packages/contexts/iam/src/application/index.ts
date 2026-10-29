@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/index.ts
-
 // ============================================================
 // Use Cases
 // ============================================================
@@ -35,7 +33,7 @@ export type {
   ListUsersError,
   ListUsersInput,
   ListUsersOutput,
-  ListUsersResult,
+  UserList,
   UserListPagination,
 } from "./access-administration/list-users/list-users.contracts.js";
 export type {
@@ -140,9 +138,43 @@ export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 // Ports
 export {
   type AdministratorAuthorizationError,
-  AdministratorAuthorizationErrorCodes,
+  AdministratorAuthorizationErrors,
   AdministratorAuthorizer,
 } from "./access-administration/administrator-authorizer.js";
+export type {
+  GetIamCapabilities,
+  GetIamCapabilitiesError,
+  GetIamCapabilitiesOutput,
+} from "./access-administration/get-iam-capabilities/get-iam-capabilities.contracts.js";
+export { GetIamCapabilitiesUseCase } from "./access-administration/get-iam-capabilities/get-iam-capabilities.use-case.js";
+export type {
+  GetSecurityConfiguration,
+  GetSecurityConfigurationError,
+  GetSecurityConfigurationInput,
+  GetSecurityConfigurationOutput,
+} from "./access-administration/get-security-configuration/get-security-configuration.contracts.js";
+export { GetSecurityConfigurationUseCase } from "./access-administration/get-security-configuration/get-security-configuration.use-case.js";
+export type {
+  PreviewSecurityConfiguration,
+  PreviewSecurityConfigurationError,
+  PreviewSecurityConfigurationInput,
+  PreviewSecurityConfigurationOutput,
+} from "./access-administration/preview-security-configuration/preview-security-configuration.contracts.js";
+export { PreviewSecurityConfigurationUseCase } from "./access-administration/preview-security-configuration/preview-security-configuration.use-case.js";
+export type {
+  PublishSecurityConfiguration,
+  PublishSecurityConfigurationError,
+  PublishSecurityConfigurationInput,
+  PublishSecurityConfigurationOutput,
+} from "./access-administration/publish-security-configuration/publish-security-configuration.contracts.js";
+export { PublishSecurityConfigurationUseCase } from "./access-administration/publish-security-configuration/publish-security-configuration.use-case.js";
+export type {
+  RestoreSecurityConfiguration,
+  RestoreSecurityConfigurationError,
+  RestoreSecurityConfigurationInput,
+  RestoreSecurityConfigurationOutput,
+} from "./access-administration/restore-security-configuration/restore-security-configuration.contracts.js";
+export { RestoreSecurityConfigurationUseCase } from "./access-administration/restore-security-configuration/restore-security-configuration.use-case.js";
 export type {
   ConfigurationRevision,
   ConfigurationStore,
@@ -153,7 +185,6 @@ export type {
   StoredConfigurationRevision,
 } from "./access-administration/security-configuration/configuration.store.js";
 export { PublishedIamPolicies } from "./access-administration/security-configuration/published-iam-policies.js";
-export * from "./access-administration/security-configuration/security-configuration.use-cases.js";
 export type {
   AccountArchiveBuilder,
   AccountAuditData,
@@ -162,16 +193,41 @@ export type {
   AccountExportView,
   DeletionRequest,
 } from "./accounts/account-data/account-data.ports.js";
-export * from "./accounts/account-data/account-deletion.use-cases.js";
-export * from "./accounts/account-data/account-export.use-cases.js";
 export type { AccountPolicyReader } from "./accounts/account-policy.reader.js";
 export type {
   AccountSecurityPolicyReader,
   RegistrationPolicyReader,
 } from "./accounts/account-policy.reader.js";
+export type {
+  CancelAccountDeletion,
+  CancelAccountDeletionError,
+  CancelAccountDeletionInput,
+  CancelAccountDeletionOutput,
+} from "./accounts/cancel-account-deletion/cancel-account-deletion.contracts.js";
+export { CancelAccountDeletionUseCase } from "./accounts/cancel-account-deletion/cancel-account-deletion.use-case.js";
+export type {
+  DownloadAccountExport,
+  DownloadAccountExportError,
+  DownloadAccountExportInput,
+  DownloadAccountExportOutput,
+} from "./accounts/download-account-export/download-account-export.contracts.js";
+export { DownloadAccountExportUseCase } from "./accounts/download-account-export/download-account-export.use-case.js";
 export { EmailVerificationRateLimiter } from "./accounts/email-verification/email-verification-rate-limiter.port.js";
 export { EmailVerificationTokenHasher } from "./accounts/email-verification/email-verification-token-hasher.port.js";
 export { VerificationEmailSender } from "./accounts/email-verification/verification-email-sender.port.js";
+export type {
+  ListAccountExports,
+  ListAccountExportsError,
+  ListAccountExportsInput,
+  ListAccountExportsOutput,
+} from "./accounts/list-account-exports/list-account-exports.contracts.js";
+export { ListAccountExportsUseCase } from "./accounts/list-account-exports/list-account-exports.use-case.js";
+export type {
+  MaintainIamAccounts,
+  MaintainIamAccountsError,
+  MaintainIamAccountsOutput,
+} from "./accounts/maintain-iam-accounts/maintain-iam-accounts.contracts.js";
+export { MaintainIamAccountsUseCase } from "./accounts/maintain-iam-accounts/maintain-iam-accounts.use-case.js";
 export {
   CommonPasswordChecker,
   CompromisedPasswordChecker,
@@ -191,8 +247,35 @@ export type {
   PasswordRecoveryStore,
   RecoveryCommit,
 } from "./accounts/recovery/password-recovery.store.js";
-export * from "./accounts/recovery/password-recovery.use-cases.js";
 export type { RecoveryPolicyReader } from "./accounts/recovery/recovery-policy.reader.js";
+export type {
+  RequestAccountDeletion,
+  RequestAccountDeletionError,
+  RequestAccountDeletionInput,
+  RequestAccountDeletionOutput,
+} from "./accounts/request-account-deletion/request-account-deletion.contracts.js";
+export { RequestAccountDeletionUseCase } from "./accounts/request-account-deletion/request-account-deletion.use-case.js";
+export type {
+  RequestAccountExport,
+  RequestAccountExportError,
+  RequestAccountExportInput,
+  RequestAccountExportOutput,
+} from "./accounts/request-account-export/request-account-export.contracts.js";
+export { RequestAccountExportUseCase } from "./accounts/request-account-export/request-account-export.use-case.js";
+export type {
+  RequestPasswordRecovery,
+  RequestPasswordRecoveryError,
+  RequestPasswordRecoveryInput,
+  RequestPasswordRecoveryOutput,
+} from "./accounts/request-password-recovery/request-password-recovery.contracts.js";
+export { RequestPasswordRecoveryUseCase } from "./accounts/request-password-recovery/request-password-recovery.use-case.js";
+export type {
+  ResetRecoveredPassword,
+  ResetRecoveredPasswordError,
+  ResetRecoveredPasswordInput,
+  ResetRecoveredPasswordOutput,
+} from "./accounts/reset-recovered-password/reset-recovered-password.contracts.js";
+export { ResetRecoveredPasswordUseCase } from "./accounts/reset-recovered-password/reset-recovered-password.use-case.js";
 export type {
   AccountSecurityMail,
   RecoveryOriginLimiter,
@@ -201,26 +284,86 @@ export type {
   SecurityTokens,
 } from "./accounts/security-effects.js";
 export type {
+  ActivateMfa,
+  ActivateMfaError,
+  ActivateMfaInput,
+  ActivateMfaOutput,
+} from "./authentication/activate-mfa/activate-mfa.contracts.js";
+export { ActivateMfaUseCase } from "./authentication/activate-mfa/activate-mfa.use-case.js";
+export type {
   AuthenticationPolicyReader,
   SessionPolicyReader,
 } from "./authentication/authentication-policy.reader.js";
 export type { SignInPolicyReader } from "./authentication/authentication-policy.reader.js";
+export type {
+  BeginMfaEnrollment,
+  BeginMfaEnrollmentError,
+  BeginMfaEnrollmentInput,
+  BeginMfaEnrollmentOutput,
+} from "./authentication/begin-mfa-enrollment/begin-mfa-enrollment.contracts.js";
+export { BeginMfaEnrollmentUseCase } from "./authentication/begin-mfa-enrollment/begin-mfa-enrollment.use-case.js";
+export type {
+  BeginSecondFactor,
+  BeginSecondFactorError,
+  BeginSecondFactorInput,
+  BeginSecondFactorOutput,
+} from "./authentication/begin-second-factor/begin-second-factor.contracts.js";
+export { BeginSecondFactorUseCase } from "./authentication/begin-second-factor/begin-second-factor.use-case.js";
+export type {
+  CompleteMfaSignIn,
+  CompleteMfaSignInError,
+  CompleteMfaSignInInput,
+  CompleteMfaSignInOutput,
+} from "./authentication/complete-mfa-sign-in/complete-mfa-sign-in.contracts.js";
+export { CompleteMfaSignInUseCase } from "./authentication/complete-mfa-sign-in/complete-mfa-sign-in.use-case.js";
+export type {
+  ConfirmMfaEnrollment,
+  ConfirmMfaEnrollmentError,
+  ConfirmMfaEnrollmentInput,
+  ConfirmMfaEnrollmentOutput,
+} from "./authentication/confirm-mfa-enrollment/confirm-mfa-enrollment.contracts.js";
+export { ConfirmMfaEnrollmentUseCase } from "./authentication/confirm-mfa-enrollment/confirm-mfa-enrollment.use-case.js";
+export type {
+  DisableMfa,
+  DisableMfaError,
+  DisableMfaInput,
+  DisableMfaOutput,
+} from "./authentication/disable-mfa/disable-mfa.contracts.js";
+export { DisableMfaUseCase } from "./authentication/disable-mfa/disable-mfa.use-case.js";
+export type {
+  GetMfaStatus,
+  GetMfaStatusError,
+  GetMfaStatusInput,
+  GetMfaStatusOutput,
+} from "./authentication/get-mfa-status/get-mfa-status.contracts.js";
+export { GetMfaStatusUseCase } from "./authentication/get-mfa-status/get-mfa-status.use-case.js";
 export { IssueSession } from "./authentication/issue-session.js";
 export { MAX_ACTIVE_SESSIONS_PER_USER } from "./authentication/issue-session.js";
 export type {
   MfaCryptography,
   MfaStore,
 } from "./authentication/mfa/mfa.ports.js";
-export * from "./authentication/mfa/mfa.use-cases.js";
 export { PasswordHasher } from "./authentication/password/password-hasher.port.js";
+export type {
+  FactorVerificationError,
+  PasswordAuthenticationError,
+  RecentAuthenticationError,
+  StrongAuthenticationError,
+} from "./authentication/reauthentication.contracts.js";
 export {
   FactorVerification,
   Reauthentication,
 } from "./authentication/reauthentication.js";
+export type {
+  RegenerateMfaBackupCodes,
+  RegenerateMfaBackupCodesError,
+  RegenerateMfaBackupCodesInput,
+  RegenerateMfaBackupCodesOutput,
+} from "./authentication/regenerate-mfa-backup-codes/regenerate-mfa-backup-codes.contracts.js";
+export { RegenerateMfaBackupCodesUseCase } from "./authentication/regenerate-mfa-backup-codes/regenerate-mfa-backup-codes.use-case.js";
 export type { SecondFactorChallenge } from "./authentication/sign-in/sign-in.contracts.js";
 export {
   createIamSecurity,
-  type IamResult,
   type IamSecurityApplication,
   type IamSecurityDependencies,
 } from "./create-iam-security.js";

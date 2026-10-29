@@ -60,7 +60,7 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
 
     if (!sessionId) {
       return reply.status(401).send({
-        error: { code: "UNAUTHORIZED" },
+        error: { code: "authentication.unauthorized" },
       });
     }
 
@@ -70,7 +70,7 @@ const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
 
     if (!result.success) {
       return reply.status(401).send({
-        error: { code: "UNAUTHORIZED" },
+        error: { code: "authentication.unauthorized" },
       });
     }
 

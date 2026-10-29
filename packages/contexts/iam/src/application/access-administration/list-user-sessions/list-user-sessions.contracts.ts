@@ -2,7 +2,7 @@ import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 
-import type { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
+import type { ListUserSessionsErrors } from "./list-user-sessions.errors.js";
 
 export interface ListUserSessionsInput {
   readonly actorUserId: string;
@@ -35,7 +35,7 @@ export interface AdministeredUserSession {
 }
 
 export type ListUserSessionsError =
-  ValueOf<typeof ListUserSessionsErrorCodes> | AdministratorAuthorizationError;
+  ValueOf<typeof ListUserSessionsErrors> | AdministratorAuthorizationError;
 export type ListUserSessionsOutput = Result<
   readonly AdministeredUserSession[],
   ListUserSessionsError

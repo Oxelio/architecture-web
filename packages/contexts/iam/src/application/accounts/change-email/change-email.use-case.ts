@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/change-email/change-email.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { AccountPolicyReader } from "#accounts/account-policy.reader";
@@ -15,12 +13,12 @@ import { EmailVerificationTokenValueObject } from "#value-objects/email-verifica
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ChangeEmailErrorsCodes } from "./change-email.codes.js";
 import type {
   ChangeEmail,
   ChangeEmailInput,
   ChangeEmailOutput,
 } from "./change-email.contracts.js";
+import { ChangeEmailErrors } from "./change-email.errors.js";
 
 export class ChangeEmailUseCase implements ChangeEmail {
   constructor(
@@ -35,11 +33,11 @@ export class ChangeEmailUseCase implements ChangeEmail {
   async execute(command: ChangeEmailInput): Promise<ChangeEmailOutput> {
     const accountPolicy = await this.policies.getAccountPolicy();
     if (!accountPolicy.emailChange) {
-      return Result.failure(ChangeEmailErrorsCodes.featureDisabled);
+      return Result.failure(ChangeEmailErrors.featureDisabled);
     }
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure(ChangeEmailErrorsCodes.invalidId);
+      return Result.failure(ChangeEmailErrors.invalidId);
     }
 
     const email = EmailValueObject.create(command.email);
@@ -53,12 +51,12 @@ export class ChangeEmailUseCase implements ChangeEmail {
     }
     const existing = await this.loginIdentities.findByLogin(login.value);
     if (existing && existing.userId.value !== userId.value.value) {
-      return Result.failure(ChangeEmailErrorsCodes.userAlreadyExists);
+      return Result.failure(ChangeEmailErrors.userAlreadyExists);
     }
 
     const user = await this.userPort.findById(userId.value);
     if (!user) {
-      return Result.failure(ChangeEmailErrorsCodes.notFound);
+      return Result.failure(ChangeEmailErrors.notFound);
     }
 
     const currentIdentity = await this.loginIdentities.findForUser(
@@ -112,7 +110,7 @@ export class ChangeEmailUseCase implements ChangeEmail {
       },
     );
     if (!committed) {
-      return Result.failure(ChangeEmailErrorsCodes.lastActiveAdministrator);
+      return Result.failure(ChangeEmailErrors.lastActiveAdministrator);
     }
     if (token) {
       await this.emailSender.sendVerificationEmail(email.value, token.value);

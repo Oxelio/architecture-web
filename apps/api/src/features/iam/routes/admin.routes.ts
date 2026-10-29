@@ -34,7 +34,7 @@ export function registerAdminRoutes(controllers: IamControllers) {
     app.addHook("preHandler", async (request, reply) => {
       if (request.auth?.role !== "admin") {
         return reply.status(403).send({
-          error: { code: "FORBIDDEN" },
+          error: { code: "authorization.forbidden" },
         });
       }
     });

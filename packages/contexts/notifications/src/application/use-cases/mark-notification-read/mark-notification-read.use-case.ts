@@ -3,12 +3,12 @@ import { Result } from "@architecture/foundation";
 import { NotificationIdentifierValueObject } from "#domain/index";
 import type { NotificationRepository } from "#repositories/notification.repository";
 
-import { MarkNotificationReadErrorCodes } from "./mark-notification-read.codes.js";
 import type {
   MarkNotificationRead,
   MarkNotificationReadInput,
   MarkNotificationReadOutput,
 } from "./mark-notification-read.contracts.js";
+import { MarkNotificationReadErrors } from "./mark-notification-read.contracts.js";
 
 export class MarkNotificationReadUseCase implements MarkNotificationRead {
   constructor(private readonly repository: NotificationRepository) {}
@@ -20,14 +20,14 @@ export class MarkNotificationReadUseCase implements MarkNotificationRead {
       input.notificationId,
     );
     if (!identifier.success) {
-      return Result.failure(MarkNotificationReadErrorCodes.invalidId);
+      return Result.failure(MarkNotificationReadErrors.invalidId);
     }
     const notification = await this.repository.findByIdForRecipient(
       identifier.value.value,
       input.actorUserId,
     );
     if (!notification) {
-      return Result.failure(MarkNotificationReadErrorCodes.notFound);
+      return Result.failure(MarkNotificationReadErrors.notFound);
     }
     if (notification.markRead()) {
       await this.repository.save(notification);

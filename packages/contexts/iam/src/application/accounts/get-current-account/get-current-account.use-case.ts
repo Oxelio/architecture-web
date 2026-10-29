@@ -1,17 +1,15 @@
-// @file bounded-contexts/iam/application/use-cases/get-current-account/get-current-account.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { UserQueryRepository } from "#ports/user-query.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { GetCurrentAccountErrorCodes } from "./get-current-account.codes.js";
 import type {
   CurrentAccount,
   GetCurrentAccount,
   GetCurrentAccountInput,
   GetCurrentAccountOutput,
 } from "./get-current-account.contracts.js";
+import { GetCurrentAccountErrors } from "./get-current-account.contracts.js";
 
 export class GetCurrentAccountUseCase implements GetCurrentAccount {
   constructor(private readonly user: UserQueryRepository) {}
@@ -23,12 +21,12 @@ export class GetCurrentAccountUseCase implements GetCurrentAccount {
       payload.actorUserId,
     );
     if (!userIdentifier.success) {
-      return Result.failure(GetCurrentAccountErrorCodes.invalidId);
+      return Result.failure(GetCurrentAccountErrors.invalidId);
     }
 
     const user = await this.user.findAccountById(userIdentifier.value.value);
     if (!user) {
-      return Result.failure(GetCurrentAccountErrorCodes.notFound);
+      return Result.failure(GetCurrentAccountErrors.notFound);
     }
 
     const data: CurrentAccount = {

@@ -44,9 +44,9 @@ export function RecoveryPage() {
           ? t(`passwordFeedback.${code.slice(9)}`, {
               defaultValue: t("passwordFeedback.invalid"),
             })
-          : code === "RECOVERY_TOKEN_INVALID"
+          : code === "password_recovery.invalid_token"
             ? t("passwordFeedback.recovery_invalid")
-            : code === "EMAIL_INVALID"
+            : code === "email.invalid_format"
               ? t("auth.invalidEmail")
               : t("passwordFeedback.unavailable"),
       );

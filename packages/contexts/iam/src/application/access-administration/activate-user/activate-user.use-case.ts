@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/activate-user/activate-user.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
@@ -7,12 +5,12 @@ import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ActivateUserErrorsCodes } from "./activate-user.codes.js";
 import type {
   ActivateUser,
   ActivateUserInput,
   ActivateUserOutput,
 } from "./activate-user.contracts.js";
+import { ActivateUserErrors } from "./activate-user.contracts.js";
 
 export class ActivateUserUseCase implements ActivateUser {
   private readonly authorizer: AdministratorAuthorizer;
@@ -32,7 +30,7 @@ export class ActivateUserUseCase implements ActivateUser {
 
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure(ActivateUserErrorsCodes.invalidId);
+      return Result.failure(ActivateUserErrors.invalidId);
     }
 
     const actorId = UserIdentifierValueObject.create(command.actorUserId);
@@ -41,7 +39,7 @@ export class ActivateUserUseCase implements ActivateUser {
       async ({ users }) => {
         const user = await users.findById(userId.value);
         if (!user) {
-          return Result.failure(ActivateUserErrorsCodes.notFound);
+          return Result.failure(ActivateUserErrors.notFound);
         }
         user.activate(actorId.success ? actorId.value : undefined);
         await users.save(user);

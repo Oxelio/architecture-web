@@ -5,7 +5,7 @@ import { createHttpErrorMapper } from "./create-http-error-mapper.js";
 describe("createHttpErrorMapper", () => {
   const mapError = createHttpErrorMapper({
     "user.not_found": {
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
       status: 404,
       message: "User not found",
     },
@@ -14,7 +14,7 @@ describe("createHttpErrorMapper", () => {
   it("maps known application errors", () => {
     expect(mapError({ code: "user.not_found" })).toEqual({
       status: 404,
-      body: { error: { code: "USER_NOT_FOUND", message: "User not found" } },
+      body: { error: { code: "user.not_found", message: "User not found" } },
     });
   });
 
@@ -22,7 +22,10 @@ describe("createHttpErrorMapper", () => {
     expect(mapError({ code: "unexpected" })).toEqual({
       status: 500,
       body: {
-        error: { code: "INTERNAL_SERVER_ERROR", message: "Unexpected error" },
+        error: {
+          code: "internal.unexpected_error",
+          message: "Unexpected error",
+        },
       },
     });
   });

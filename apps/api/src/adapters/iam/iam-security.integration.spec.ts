@@ -1188,7 +1188,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       }
       expect(await module.iam.signIn.execute(input)).toMatchObject({
         success: false,
-        error: { code: "MFA_ENROLLMENT_REQUIRED" },
+        error: { code: "mfa.enrollment_required" },
       });
     } finally {
       verification.mockRestore();
@@ -1456,7 +1456,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       }),
     ).toMatchObject({
       success: false,
-      error: { code: "MFA_CHALLENGE_INVALID" },
+      error: { code: "mfa.invalid_challenge" },
     });
     expect(
       (
@@ -1553,7 +1553,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       await module.security.restoreConfiguration.execute(input),
     ).toMatchObject({
       success: false,
-      error: { code: "CONFIG_CRITICAL_CONFIRMATION_REQUIRED" },
+      error: { code: "security_configuration.critical_confirmation_required" },
     });
     expect(
       await module.security.restoreConfiguration.execute({
@@ -1562,7 +1562,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       }),
     ).toMatchObject({
       success: false,
-      error: { code: "RECENT_AUTHENTICATION_REQUIRED" },
+      error: { code: "authentication.recent_proof_required" },
     });
     const session = SessionEntity.createForUser({
       userId: f.user.identifier,
@@ -1577,7 +1577,10 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         sessionId: session.identifier.value,
         password: "initial long account password",
       }),
-    ).toMatchObject({ success: false, error: { code: "LAST_ACTIVE_ADMIN" } });
+    ).toMatchObject({
+      success: false,
+      error: { code: "administrator.last_active_access" },
+    });
     const center = await store.readCenter();
     expect(center.published.id).toBe(current.id);
     expect(center.revisions[0]).toMatchObject({

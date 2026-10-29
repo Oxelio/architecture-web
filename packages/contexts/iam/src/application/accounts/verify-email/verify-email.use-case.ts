@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/verify-email/verify-email.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
@@ -8,11 +6,11 @@ import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import type { LoginIdentityRepository } from "#ports/login-identity.repository";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 
-import { VerifyEmailErrorCodes } from "./verify-email.codes.js";
 import type {
   VerifyEmailInput,
   VerifyEmailOutput,
 } from "./verify-email.contracts.js";
+import { VerifyEmailErrors } from "./verify-email.errors.js";
 
 export class VerifyEmailUseCase {
   constructor(
@@ -25,25 +23,25 @@ export class VerifyEmailUseCase {
   async execute(command: VerifyEmailInput): Promise<VerifyEmailOutput> {
     const token = EmailVerificationTokenValueObject.create(command.token);
     if (!token.success) {
-      return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
+      return Result.failure(VerifyEmailErrors.tokenInvalid);
     }
 
     const tokenHash = await this.tokenHasher.hash(token.value);
     const verification = await this.emailVerification.findByToken(tokenHash);
     if (!verification || verification.isUsed || verification.isInvalidated) {
-      return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
+      return Result.failure(VerifyEmailErrors.tokenInvalid);
     }
 
     const now = new Date();
     if (verification.isExpiredAt(now)) {
-      return Result.failure(VerifyEmailErrorCodes.tokenExpired);
+      return Result.failure(VerifyEmailErrors.tokenExpired);
     }
 
     const identity = await this.loginIdentities.findById(
       verification.loginIdentityId,
     );
     if (!identity) {
-      return Result.failure(VerifyEmailErrorCodes.userNotFound);
+      return Result.failure(VerifyEmailErrors.userNotFound);
     }
 
     const consumed = await this.unitOfWork.executeForUser(
@@ -66,7 +64,7 @@ export class VerifyEmailUseCase {
       },
     );
     if (!consumed) {
-      return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
+      return Result.failure(VerifyEmailErrors.tokenInvalid);
     }
 
     return Result.success(undefined);

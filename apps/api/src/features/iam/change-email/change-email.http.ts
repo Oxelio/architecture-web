@@ -13,15 +13,15 @@ export const ChangeEmailHttpContract = {
   },
 
   errors: {
-    LAST_ACTIVE_ADMIN: {
+    "administrator.last_active_access": {
       status: 409,
-      code: "LAST_ACTIVE_ADMIN",
+      code: "administrator.last_active_access",
       message: "Preserve another valid administrator access path",
     },
-    "feature.disabled": {
+    "email_change.disabled": {
       status: 403,
 
-      code: "FEATURE_DISABLED",
+      code: "email_change.disabled",
 
       message: "Email change is disabled",
     },
@@ -29,7 +29,7 @@ export const ChangeEmailHttpContract = {
     "email.empty": {
       status: 400,
 
-      code: "EMAIL_REQUIRED",
+      code: "email.empty",
 
       message: "Email is required",
     },
@@ -37,7 +37,7 @@ export const ChangeEmailHttpContract = {
     "email.invalid_format": {
       status: 400,
 
-      code: "EMAIL_INVALID",
+      code: "email.invalid_format",
 
       message: "Invalid email format",
     },
@@ -45,7 +45,7 @@ export const ChangeEmailHttpContract = {
     "email.too_long": {
       status: 400,
 
-      code: "EMAIL_TOO_LONG",
+      code: "email.too_long",
 
       message: "Email is too long",
     },
@@ -53,7 +53,7 @@ export const ChangeEmailHttpContract = {
     "user.invalid_id": {
       status: 400,
 
-      code: "INVALID_USER_ID",
+      code: "user.invalid_id",
 
       message: "Invalid user identifier",
     },
@@ -61,7 +61,7 @@ export const ChangeEmailHttpContract = {
     "user.not_found": {
       status: 404,
 
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
 
       message: "User not found",
     },
@@ -69,7 +69,7 @@ export const ChangeEmailHttpContract = {
     "user.already_exists": {
       status: 409,
 
-      code: "USER_ALREADY_EXISTS",
+      code: "user.already_exists",
 
       message: "User already exists",
     },

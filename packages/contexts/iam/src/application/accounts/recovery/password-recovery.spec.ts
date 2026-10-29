@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { PasswordValidation } from "#accounts/password-policy/password-validation";
+import { ResetRecoveredPasswordUseCase } from "#accounts/reset-recovered-password/reset-recovered-password.use-case";
 import { createPasswordPolicy } from "#domain/password-policy";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
@@ -15,7 +16,6 @@ import { LoginIdentifierValueObject } from "#value-objects/login-identifier.valu
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 import type { PasswordRecoveryStore } from "./password-recovery.store.js";
-import { ResetRecoveredPasswordUseCase } from "./password-recovery.use-cases.js";
 async function fixture(admin = false) {
   const users = new InMemoryUserRepository(),
     passwords = new InMemoryPasswordAuthenticatorRepository(),
@@ -152,7 +152,7 @@ describe("recovered password replacement", () => {
     expect(await f.useCase.execute(f.input)).toEqual(expired);
     expect(expired).toEqual({
       success: false,
-      error: { code: "RECOVERY_TOKEN_INVALID" },
+      error: { code: "password_recovery.invalid_token" },
     });
   });
   it("propagates checker failure without changing account state", async () => {

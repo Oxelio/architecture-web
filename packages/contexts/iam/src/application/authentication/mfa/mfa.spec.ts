@@ -1,16 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { BeginSecondFactorUseCase } from "#authentication/begin-second-factor/begin-second-factor.use-case";
+import { ConfirmMfaEnrollmentUseCase } from "#authentication/confirm-mfa-enrollment/confirm-mfa-enrollment.use-case";
+import { DisableMfaUseCase } from "#authentication/disable-mfa/disable-mfa.use-case";
 import { isMfaChallengeUsable, isMfaEnrollmentUsable } from "#domain/mfa";
 import { UserEntity } from "#entities/user.entity";
 import { InMemoryUserRepository } from "#test/in-memory-repositories";
 import { TestPolicies } from "#test/test-policies";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
-
-import {
-  BeginSecondFactorUseCase,
-  ConfirmMfaEnrollmentUseCase,
-  DisableMfaUseCase,
-} from "./mfa.use-cases.js";
 describe("MFA application boundaries", () => {
   it("requires enrollment for the authoritative privileged role", async () => {
     const users = new InMemoryUserRepository(),
@@ -40,7 +37,7 @@ describe("MFA application boundaries", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "MFA_ENROLLMENT_REQUIRED" },
+      error: { code: "mfa.enrollment_required" },
     });
     expect(store.beginChallenge).not.toHaveBeenCalled();
   });
@@ -72,7 +69,7 @@ describe("MFA application boundaries", () => {
     ).execute({ userId: "actor", code: "123456" });
     expect(result).toEqual({
       success: false,
-      error: { code: "MFA_ENROLLMENT_INVALID" },
+      error: { code: "mfa.invalid_enrollment" },
     });
     expect(store.confirmEnrollment).toHaveBeenCalledWith(
       expect.objectContaining({ backupHashes: ["hash:ABCDEFGH"] }),
@@ -107,7 +104,7 @@ describe("MFA application boundaries", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "MFA_REQUIRED_BY_POLICY" },
+      error: { code: "mfa.required_by_policy" },
     });
     expect(factor.verify).not.toHaveBeenCalled();
   });

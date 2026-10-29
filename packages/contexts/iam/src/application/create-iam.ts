@@ -46,10 +46,10 @@ import { SignUpUseCase } from "#accounts/sign-up/sign-up.use-case";
 import type { VerifyEmail } from "#accounts/verify-email/verify-email.contracts";
 import { VerifyEmailUseCase } from "#accounts/verify-email/verify-email.use-case";
 import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import type { BeginSecondFactor } from "#authentication/begin-second-factor/begin-second-factor.contracts";
 import { IssueSession } from "#authentication/issue-session";
 import type { ListCurrentUserSessions } from "#authentication/list-current-user-sessions/list-current-user-sessions.contracts";
 import { ListCurrentUserSessionsUseCase } from "#authentication/list-current-user-sessions/list-current-user-sessions.use-case";
-import type { BeginSecondFactorUseCase } from "#authentication/mfa/mfa.use-cases";
 import { PasswordHasher } from "#authentication/password/password-hasher.port";
 import type { ResolveSession } from "#authentication/resolve-session/resolve-session.contracts";
 import { ResolveSessionUseCase } from "#authentication/resolve-session/resolve-session.use-case";
@@ -88,7 +88,7 @@ export interface IamDependencies {
   emailVerificationTokenHasher: EmailVerificationTokenHasher;
   unitOfWork: IamUnitOfWork;
   outbox: OutboxWriter;
-  beginSecondFactor: Pick<BeginSecondFactorUseCase, "execute">;
+  beginSecondFactor: BeginSecondFactor;
 }
 
 export interface IamApplication {

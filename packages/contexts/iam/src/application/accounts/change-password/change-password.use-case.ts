@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/application/use-cases/change-password/change-password.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
 import type { PasswordPolicyReader } from "#accounts/password-policy/password-policy.reader";
@@ -14,12 +12,12 @@ import type { UserRepository } from "#ports/user.repository";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ChangePasswordErrorsCodes } from "./change-password.codes.js";
 import type {
   ChangePassword,
   ChangePasswordInput,
   ChangePasswordOutput,
 } from "./change-password.contracts.js";
+import { ChangePasswordErrors } from "./change-password.errors.js";
 
 export class ChangePasswordUseCase implements ChangePassword {
   constructor(
@@ -36,19 +34,19 @@ export class ChangePasswordUseCase implements ChangePassword {
   async execute(payload: ChangePasswordInput): Promise<ChangePasswordOutput> {
     const userId = UserIdentifierValueObject.create(payload.userId);
     if (!userId.success) {
-      return Result.failure(ChangePasswordErrorsCodes.invalidId);
+      return Result.failure(ChangePasswordErrors.invalidId);
     }
 
     const user = await this.userPort.findById(userId.value);
     if (!user) {
-      return Result.failure(ChangePasswordErrorsCodes.notFound);
+      return Result.failure(ChangePasswordErrors.notFound);
     }
 
     const authenticator = await this.passwordAuthenticators.findForUser(
       user.identifier,
     );
     if (!authenticator || authenticator.isRevoked) {
-      return Result.failure(ChangePasswordErrorsCodes.currentPasswordInvalid);
+      return Result.failure(ChangePasswordErrors.currentPasswordInvalid);
     }
 
     const currentPassword = PasswordPlainValueObject.create(
@@ -61,7 +59,7 @@ export class ChangePasswordUseCase implements ChangePassword {
         authenticator.passwordHash,
       ))
     ) {
-      return Result.failure(ChangePasswordErrorsCodes.currentPasswordInvalid);
+      return Result.failure(ChangePasswordErrors.currentPasswordInvalid);
     }
 
     const policy = await this.policies.get(
@@ -95,7 +93,7 @@ export class ChangePasswordUseCase implements ChangePassword {
         authenticator.passwordHash,
       ))
     ) {
-      return Result.failure(ChangePasswordErrorsCodes.reused);
+      return Result.failure(ChangePasswordErrors.reused);
     }
 
     const hashed = await this.passwordHasher.hash(password.value);
@@ -114,9 +112,7 @@ export class ChangePasswordUseCase implements ChangePassword {
           !currentUser.role.equals(user.role) ||
           !currentAuthenticator.passwordHash.equals(authenticator.passwordHash)
         ) {
-          return Result.failure(
-            ChangePasswordErrorsCodes.currentPasswordInvalid,
-          );
+          return Result.failure(ChangePasswordErrors.currentPasswordInvalid);
         }
         currentAuthenticator.changePassword(hashed);
         currentUser.invalidateSessions();
