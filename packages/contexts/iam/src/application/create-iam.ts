@@ -14,7 +14,10 @@ import type { RevokeUserSession } from "#access-administration/revoke-user-sessi
 import { RevokeUserSessionUseCase } from "#access-administration/revoke-user-session/revoke-user-session.use-case";
 import type { SuspendUser } from "#access-administration/suspend-user/suspend-user.contracts";
 import { SuspendUserUseCase } from "#access-administration/suspend-user/suspend-user.use-case";
-import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type {
+  AccountPolicyReader,
+  RegistrationPolicyReader,
+} from "#accounts/account-policy.reader";
 import type { ChangeEmail } from "#accounts/change-email/change-email.contracts";
 import { ChangeEmailUseCase } from "#accounts/change-email/change-email.use-case";
 import type { ChangePassword } from "#accounts/change-password/change-password.contracts";
@@ -45,7 +48,10 @@ import type { SignUp } from "#accounts/sign-up/sign-up.contracts";
 import { SignUpUseCase } from "#accounts/sign-up/sign-up.use-case";
 import type { VerifyEmail } from "#accounts/verify-email/verify-email.contracts";
 import { VerifyEmailUseCase } from "#accounts/verify-email/verify-email.use-case";
-import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import type {
+  SessionPolicyReader,
+  SignInPolicyReader,
+} from "#authentication/authentication-policy.reader";
 import type { BeginSecondFactor } from "#authentication/begin-second-factor/begin-second-factor.contracts";
 import { IssueSession } from "#authentication/issue-session";
 import type { ListCurrentUserSessions } from "#authentication/list-current-user-sessions/list-current-user-sessions.contracts";
@@ -75,8 +81,8 @@ export interface IamDependencies {
   sessionRepository: SessionRepository;
   passwordHasher: PasswordHasher;
   accountPolicies: AccountPolicyReader &
-    import("#accounts/account-policy.reader").RegistrationPolicyReader &
-    import("#authentication/authentication-policy.reader").SignInPolicyReader;
+    RegistrationPolicyReader &
+    SignInPolicyReader;
   sessionPolicies: SessionPolicyReader;
   passwordPolicyReader: PasswordPolicyReader;
   passwordStrengthEvaluator: PasswordStrengthEvaluator;

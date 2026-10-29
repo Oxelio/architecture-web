@@ -18,7 +18,10 @@ import type {
   AccountDeletionStore,
   AccountExportStore,
 } from "#accounts/account-data/account-data.ports";
-import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type {
+  AccountPolicyReader,
+  AccountSecurityPolicyReader,
+} from "#accounts/account-policy.reader";
 import type { CancelAccountDeletion } from "#accounts/cancel-account-deletion/cancel-account-deletion.contracts";
 import { CancelAccountDeletionUseCase } from "#accounts/cancel-account-deletion/cancel-account-deletion.use-case";
 import type { DownloadAccountExport } from "#accounts/download-account-export/download-account-export.contracts";
@@ -50,6 +53,7 @@ import { ActivateMfaUseCase } from "#authentication/activate-mfa/activate-mfa.us
 import type {
   AuthenticationPolicyReader,
   SessionPolicyReader,
+  SignInPolicyReader,
 } from "#authentication/authentication-policy.reader";
 import type { BeginMfaEnrollment } from "#authentication/begin-mfa-enrollment/begin-mfa-enrollment.contracts";
 import { BeginMfaEnrollmentUseCase } from "#authentication/begin-mfa-enrollment/begin-mfa-enrollment.use-case";
@@ -88,8 +92,8 @@ export interface IamSecurityDependencies {
     SessionPolicyReader &
     PasswordPolicyReader &
     RecoveryPolicyReader &
-    import("#authentication/authentication-policy.reader").SignInPolicyReader &
-    import("#accounts/account-policy.reader").AccountSecurityPolicyReader;
+    SignInPolicyReader &
+    AccountSecurityPolicyReader;
   configuration: ConfigurationStore;
   recovery: PasswordRecoveryStore;
   mfa: MfaStore;
