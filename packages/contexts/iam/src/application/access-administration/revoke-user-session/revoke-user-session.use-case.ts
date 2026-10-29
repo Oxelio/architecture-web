@@ -1,27 +1,26 @@
 import { Result } from "@architecture/foundation";
 
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { RevokeUserSessionErrorCodes } from "./revoke-user-session.codes.js";
 import type {
   RevokeUserSession,
   RevokeUserSessionInput,
   RevokeUserSessionOutput,
 } from "./revoke-user-session.contracts.js";
+import { RevokeUserSessionErrors } from "./revoke-user-session.errors.js";
 
 export class RevokeUserSessionUseCase implements RevokeUserSession {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(users);
-  }
+    private readonly policies: SessionPolicyReader,
+    private readonly authorizer: AdministratorAuthorizer,
+  ) {}
 
   async execute(
     input: RevokeUserSessionInput,
@@ -31,12 +30,15 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
       return authorization;
     }
 
+    if (!(await this.policies.getSessionPolicy()).userManagement) {
+      return Result.failure(RevokeUserSessionErrors.featureDisabled);
+    }
     const userId = UserIdentifierValueObject.create(input.userId);
     if (!userId.success) {
-      return Result.failure(RevokeUserSessionErrorCodes.invalidUserId);
+      return Result.failure(RevokeUserSessionErrors.invalidUserId);
     }
     if (!(await this.users.findById(userId.value))) {
-      return Result.failure(RevokeUserSessionErrorCodes.userNotFound);
+      return Result.failure(RevokeUserSessionErrors.userNotFound);
     }
 
     if (!input.sessionId) {
@@ -46,11 +48,11 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
 
     const sessionId = SessionIdentifierValueObject.create(input.sessionId);
     if (!sessionId.success) {
-      return Result.failure(RevokeUserSessionErrorCodes.invalidSessionId);
+      return Result.failure(RevokeUserSessionErrors.invalidSessionId);
     }
     const session = await this.sessions.findById(sessionId.value);
     if (!session || !session.userId.equals(userId.value)) {
-      return Result.failure(RevokeUserSessionErrorCodes.sessionNotFound);
+      return Result.failure(RevokeUserSessionErrors.sessionNotFound);
     }
 
     await this.sessions.delete(sessionId.value);

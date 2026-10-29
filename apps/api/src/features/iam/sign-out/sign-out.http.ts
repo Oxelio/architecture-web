@@ -17,7 +17,7 @@ export const SignOutHttpContract = {
     "session.invalid_id": {
       status: 400,
 
-      code: "INVALID_SESSION_ID",
+      code: "session.invalid_id",
 
       message: "Invalid session identifier",
     },

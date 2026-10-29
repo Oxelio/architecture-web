@@ -22,6 +22,37 @@ const getInitialLanguage = (): Language => {
 const resources = {
   fr: {
     translation: {
+      securityConfig: {
+        stepUp: "Modifications critiques et restauration",
+        justification: "Motif",
+        password: "Mot de passe actuel",
+        mfaCode: "Code MFA, si activé",
+        confirm: "Confirmer la modification critique",
+        notRecorded: "Non enregistré",
+      },
+      passwordFeedback: {
+        empty: "Saisissez un mot de passe.",
+        confirmation_mismatch:
+          "La confirmation ne correspond pas au mot de passe.",
+        too_short: "Le mot de passe est trop court.",
+        too_long: "Le mot de passe est trop long.",
+        too_common: "Ce mot de passe est trop courant.",
+        compromised:
+          "Ce mot de passe figure dans des données compromises. Choisissez-en un autre.",
+        contextual:
+          "Le mot de passe contient des informations liées au compte.",
+        too_weak: "Choisissez un mot de passe plus robuste.",
+        reused: "Le nouveau mot de passe doit être différent du précédent.",
+        uppercase_required: "Une majuscule est requise.",
+        lowercase_required: "Une minuscule est requise.",
+        number_required: "Un chiffre est requis.",
+        special_character_required: "Un caractère spécial est requis.",
+        invalid: "Le mot de passe ne respecte pas la politique applicable.",
+        recovery_invalid: "Ce lien de récupération est invalide ou a expiré.",
+        unavailable: "L’opération est momentanément indisponible. Réessayez.",
+        privileged:
+          "Des exigences supplémentaires peuvent s’appliquer aux comptes privilégiés.",
+      },
       common: {
         loading: "Chargement...",
         email: "Email",
@@ -300,6 +331,35 @@ const resources = {
   },
   en: {
     translation: {
+      securityConfig: {
+        stepUp: "Critical changes and restoration",
+        justification: "Reason",
+        password: "Current password",
+        mfaCode: "MFA code, when enabled",
+        confirm: "Confirm the critical change",
+        notRecorded: "Not recorded",
+      },
+      passwordFeedback: {
+        empty: "Enter a password.",
+        confirmation_mismatch: "Password confirmation does not match.",
+        too_short: "The password is too short.",
+        too_long: "The password is too long.",
+        too_common: "This password is too common.",
+        compromised:
+          "This password appears in compromised data. Choose another one.",
+        contextual: "The password contains account-specific information.",
+        too_weak: "Choose a stronger password.",
+        reused: "The new password must differ from the previous one.",
+        uppercase_required: "An uppercase character is required.",
+        lowercase_required: "A lowercase character is required.",
+        number_required: "A number is required.",
+        special_character_required: "A special character is required.",
+        invalid: "The password does not meet the applicable policy.",
+        recovery_invalid: "This recovery link is invalid or has expired.",
+        unavailable:
+          "The operation is temporarily unavailable. Please try again.",
+        privileged: "Additional requirements may apply to privileged accounts.",
+      },
       common: {
         loading: "Loading...",
         email: "Email",

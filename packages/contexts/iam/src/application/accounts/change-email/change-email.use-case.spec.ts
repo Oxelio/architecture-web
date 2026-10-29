@@ -4,12 +4,12 @@ import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { UserEntity } from "#entities/user.entity";
 import {
   InMemoryEmailVerificationRepository,
-  InMemoryIamUnitOfWork,
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  TestPolicyProvider,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { InMemoryIamUnitOfWork } from "#test/in-memory-unit-of-work";
+import { TestPolicies } from "#test/test-policies";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 
@@ -34,7 +34,7 @@ describe("ChangeEmailUseCase", () => {
     sender.sendVerificationEmail.mockReset().mockResolvedValue(undefined);
   });
 
-  function useCase(policy = new TestPolicyProvider()) {
+  function useCase(policy = new TestPolicies()) {
     return new ChangeEmailUseCase(
       users,
       identities,
@@ -95,7 +95,7 @@ describe("ChangeEmailUseCase", () => {
   it("makes email immediately usable when verification is disabled", async () => {
     const user = UserEntity.create();
     await users.save(user);
-    await useCase(new TestPolicyProvider(["email"], false)).execute({
+    await useCase(new TestPolicies(["email"], false)).execute({
       userId: user.identifier.value,
       email: "user@example.com",
     });

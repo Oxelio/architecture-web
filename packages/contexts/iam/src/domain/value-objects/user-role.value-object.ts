@@ -2,7 +2,7 @@ import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const UserRoleErrors = {
   empty: { code: "user_role.empty" },
-  invalid: (value: string) => ({ code: "user_role.invalid", value }),
+  invalid: (value: string) => ({ code: "user_role.invalid", value }) as const,
 } as const;
 
 export type UserRoleError = ValueOf<typeof UserRoleErrors>;

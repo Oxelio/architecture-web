@@ -1,13 +1,19 @@
-// @file bounded-contexts/iam/application/use-cases/activate-user/activate-user.types.ts
-
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 
-import type { ActivateUserErrorsCodes } from "./activate-user.codes.js";
+export const ActivateUserErrors = {
+  invalidId: {
+    code: "user.invalid_id",
+  },
+
+  notFound: {
+    code: "user.not_found",
+  },
+} as const;
 
 export type ActivateUserError =
-  ValueOf<typeof ActivateUserErrorsCodes> | AdministratorAuthorizationError;
+  ValueOf<typeof ActivateUserErrors> | AdministratorAuthorizationError;
 
 export interface ActivateUserInput {
   readonly actorUserId: string;

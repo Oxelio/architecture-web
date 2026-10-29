@@ -14,34 +14,49 @@ export const SignUpHttpContract = {
   },
 
   errors: {
-    "email.empty": {
+    "login_identifier.empty": {
       status: 400,
 
-      code: "EMAIL_REQUIRED",
+      code: "login_identifier.empty",
 
-      message: "Email is required",
+      message: "Login identifier is required",
     },
 
-    "email.invalid_format": {
+    "login_identifier.invalid_email": {
       status: 400,
 
-      code: "EMAIL_INVALID",
+      code: "login_identifier.invalid_email",
 
       message: "Invalid email format",
     },
 
-    "email.too_long": {
+    "login_identifier.invalid_username": {
       status: 400,
 
-      code: "EMAIL_TOO_LONG",
+      code: "login_identifier.invalid_username",
 
-      message: "Email is too long",
+      message: "Invalid username",
     },
 
+    "login_identifier.invalid_kind": {
+      status: 400,
+      code: "login_identifier.invalid_kind",
+      message: "Unknown login identifier kind",
+    },
+    "login_identifier.not_allowed": {
+      status: 400,
+      code: "login_identifier.not_allowed",
+      message: "Login identifier kind is not allowed",
+    },
+    "registration.disabled": {
+      status: 403,
+      code: "registration.disabled",
+      message: "Registration is disabled",
+    },
     "password.empty": {
       status: 400,
 
-      code: "PASSWORD_REQUIRED",
+      code: "password.empty",
 
       message: "Password is required",
     },
@@ -49,75 +64,75 @@ export const SignUpHttpContract = {
     "password.too_short": {
       status: 400,
 
-      code: "PASSWORD_TOO_SHORT",
+      code: "password.too_short",
 
       message: "Password is too short",
     },
 
     "password.too_long": {
       status: 400,
-      code: "PASSWORD_TOO_LONG",
+      code: "password.too_long",
       message: "Password is too long",
     },
 
     "password.confirmation_mismatch": {
       status: 400,
-      code: "PASSWORD_CONFIRMATION_MISMATCH",
+      code: "password.confirmation_mismatch",
       message: "Password confirmation does not match",
     },
 
     "password.too_common": {
       status: 400,
-      code: "PASSWORD_TOO_COMMON",
+      code: "password.too_common",
       message: "Password is too common",
     },
 
     "password.compromised": {
       status: 400,
-      code: "PASSWORD_COMPROMISED",
+      code: "password.compromised",
       message: "Password appears in a known data breach",
     },
 
     "password.contextual": {
       status: 400,
-      code: "PASSWORD_CONTEXTUAL",
+      code: "password.contextual",
       message: "Password contains account information",
     },
 
     "password.too_weak": {
       status: 400,
-      code: "PASSWORD_TOO_WEAK",
+      code: "password.too_weak",
       message: "Password does not meet the required strength",
     },
 
     "password.uppercase_required": {
       status: 400,
-      code: "PASSWORD_UPPERCASE_REQUIRED",
+      code: "password.uppercase_required",
       message: "Password must contain an uppercase letter",
     },
 
     "password.lowercase_required": {
       status: 400,
-      code: "PASSWORD_LOWERCASE_REQUIRED",
+      code: "password.lowercase_required",
       message: "Password must contain a lowercase letter",
     },
 
     "password.number_required": {
       status: 400,
-      code: "PASSWORD_NUMBER_REQUIRED",
+      code: "password.number_required",
       message: "Password must contain a number",
     },
 
     "password.special_character_required": {
       status: 400,
-      code: "PASSWORD_SPECIAL_CHARACTER_REQUIRED",
+      code: "password.special_character_required",
       message: "Password must contain a special character",
     },
 
     "user.already_exists": {
       status: 409,
 
-      code: "USER_ALREADY_EXISTS",
+      code: "user.already_exists",
 
       message: "User already exists",
     },

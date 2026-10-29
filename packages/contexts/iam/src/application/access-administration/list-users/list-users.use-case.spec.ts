@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import { UserEntity } from "#entities/user.entity";
 import {
   InMemoryLoginIdentityRepository,
   InMemoryUserQueryRepository,
   InMemoryUserRepository,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
 
 import { ListUsersUseCase } from "./list-users.use-case.js";
 
@@ -18,7 +19,7 @@ describe("ListUsersUseCase", () => {
     await users.save(administrator);
     await users.save(UserEntity.create());
     const result = await new ListUsersUseCase(
-      users,
+      new AdministratorAuthorizer(users),
       new InMemoryUserQueryRepository(users, identities),
     ).execute({ actorUserId: administrator.identifier.value });
 

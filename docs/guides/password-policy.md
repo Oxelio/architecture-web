@@ -1,74 +1,37 @@
 # Password policy
 
-## Architecture
+## Domain and application
 
-The policy is centralized in the `iam` core and is independent from HTTP,
-Zod, and hashing implementations. `PasswordPolicyValidator` receives ports for
-strength evaluation, common-password detection, and compromised-password
-detection. The API currently composes a heuristic evaluator and two small,
-replaceable local lists.
+`PasswordPolicy` expresses requirements independently of providers and storage. Its factory validates finite integer bounds, supported strengths, boolean switches and composition values, then freezes the policy and nested composition. `evaluatePasswordRules` evaluates pure rules; `selectPasswordPolicyProfile` maps the authoritative account role to the standard or privileged profile.
 
-The plaintext password value object intentionally remains permissive so
-existing accounts can still authenticate. The active policy applies only when
-a password is created or replaced.
+`PasswordPolicyReader.get(profile)` returns one coherent immutable policy. `FixedPasswordPolicyReader` supports isolated composition and tests. `PublishedIamPolicies` projects a complete published configuration revision. Consuming use cases read once and pass the policy to `PasswordValidation`, which coordinates strength, common-password and compromised-password ports without reading configuration.
 
-Length is measured in **Unicode code points**. Values are never normalized,
-trimmed, or truncated. Spaces, Unicode, and passphrases are accepted.
+Length is measured in Unicode code points. Passwords are not trimmed, normalized or truncated. The plaintext value object enforces representation safety rather than the current creation policy; existing passwords are not reevaluated at sign-in.
 
-## Levels and defaults
+## Profiles and defaults
 
-| Level                |                   Minimum | Minimum strength |
-| -------------------- | ------------------------: | ---------------- |
-| `standard`           |                        12 | `weak`           |
-| `elevated` (default) |                        15 | `acceptable`     |
-| `critical`           |                        20 | `strong`         |
-| `custom`             | configurable, based on 15 | configurable     |
+| Profile    | Default level | Minimum | Maximum | Minimum strength |
+| ---------- | ------------- | ------: | ------: | ---------------- |
+| standard   | elevated      |      15 |     128 | acceptable       |
+| privileged | critical      |      20 |     128 | strong           |
 
-The default maximum is 128 and cannot be configured below 64. Composition
-requirements are disabled by default. Administrator password changes use the
-`critical` level by default.
+The independent `standard` level preset has a minimum of 12 and `weak` strength. Custom levels use explicitly configured requirements. Composition is optional and disabled by default. Policy maximums accept at least 64 code points and remain compatible with the plaintext representation bound.
 
-## Configuration
+Sign-up, public policy consultation and public evaluation use the standard profile. Authenticated changes and recovery use the persisted role, never a client-supplied role. Recovery now applies the complete validation mechanism, including compromised/common checks and configured current-password rejection. It preserves suspension, verification and MFA state and does not create a session.
 
-The latest published security-centre revision is the sole policy source.
-`SecurityService` implements `IamPolicyProvider` and builds the standard or
-privileged policy used by `PasswordPolicyValidator` on demand.
+## Configuration and transport
 
-The versioned schema in `apps/api/src/security/security-policy.ts` defines
-levels, lengths, checks, and composition rules. Previous `PASSWORD_*` startup
-variables have been removed. Sign-up, authenticated change, the public
-contract, and evaluation now use the same persisted revision. Recovery still
-validates inside `SecurityService` and must move to the shared validator to
-cover checks beyond length.
+The latest published PostgreSQL revision controls new operations. Startup initializes configuration explicitly; there is no implicit environment override or per-step reload. Administrative consumption and publication use different application contracts.
 
-## HTTP contracts
+- `GET /v1/iam/password-policy` returns public standard requirements.
+- `POST /v1/iam/password-policy/evaluate` returns validity, strength and stable error codes.
+- Sign-up, password change and recovery reset require exact password confirmation.
+- Authenticated changes additionally verify the current password before checking the replacement.
 
-- `GET /v1/iam/password-policy` exposes public requirements;
-- `POST /v1/iam/password-policy/evaluate` returns `valid`, a stable
-  strength category, and error codes without returning the password;
-- sign-up requires `password` and `passwordConfirmation`;
-- password change requires `currentPassword`, `password`, and
-  `passwordConfirmation`.
+Expected password failures use `password.*` codes, including `password.compromised`, `password.too_common`, `password.too_weak`, `password.contextual` and `password.reused`. A checker outage is a technical failure; it does not silently allow a password or become a policy violation.
 
-The new required fields are breaking changes to both previous write contracts.
+## Technical limits
 
-## Hashing and compatibility
+Composition selects Argon2id and small replaceable local checking lists. Their presence is not a comprehensive compromise dataset. No remote checker or remote-outage fallback is composed. Password history and invitation/admin password-definition journeys remain absent. Rate limiting of public evaluation and authenticated change remains a deployment concern.
 
-The API uses Argon2id. The bcrypt adapter now SHA-256 prehashes new values and
-marks them with `bcrypt-sha256:` to prevent bcrypt's 72-byte truncation. It
-retains a verification path for unmarked legacy bcrypt hashes. Existing
-passwords are not reevaluated at sign-in.
-
-## Current limitations
-
-The reset flow applies dynamic length bounds only and does
-not call `PasswordPolicyValidator`. Invitation, activation-with-password, and
-administrative password-definition flows remain absent.
-
-Password history is not represented in persistence; only reuse of the current
-password is rejected. Embedded local lists are a minimal fallback. Sensitive
-deployments should inject a maintained dataset or privacy-preserving service.
-No remote service is currently composed, so no remote outage strategy applies.
-
-Rate limiting for password changes and public evaluation remains a deployment
-gateway or proxy responsibility and is not duplicated in `iam`.
+Persisted hash verification remains owned by the selected hashing adapter. This refactoring removes obsolete application contracts and forwarding APIs, rather than invalidating stored credentials.

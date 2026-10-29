@@ -5,12 +5,12 @@ import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.en
 import { UserEntity } from "#entities/user.entity";
 import {
   InMemoryEmailVerificationRepository,
-  InMemoryIamUnitOfWork,
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { InMemoryIamUnitOfWork } from "#test/in-memory-unit-of-work";
+import { testPasswordHash } from "#test/test-policies";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 
 import { ChangePasswordUseCase } from "./change-password.use-case.js";
@@ -22,7 +22,7 @@ describe("ChangePasswordUseCase", () => {
   const verifications = new InMemoryEmailVerificationRepository();
   const hasher = { verify: vi.fn(), hash: vi.fn() };
   const sessions = { deleteAllForUser: vi.fn() };
-  const policy = { validate: vi.fn(), getPublicPolicy: vi.fn() };
+  const policy = { validate: vi.fn(), get: vi.fn() };
 
   beforeEach(() => {
     users.values.clear();
@@ -32,7 +32,7 @@ describe("ChangePasswordUseCase", () => {
     hasher.hash.mockReset().mockResolvedValue(testPasswordHash("new-hash"));
     sessions.deleteAllForUser.mockReset().mockResolvedValue(undefined);
     policy.validate.mockReset().mockResolvedValue({ errors: [] });
-    policy.getPublicPolicy.mockReset().mockResolvedValue({
+    policy.get.mockReset().mockResolvedValue({
       rejectCurrentPassword: false,
     });
   });
@@ -94,6 +94,11 @@ describe("ChangePasswordUseCase", () => {
       (await authenticators.findForUser(user.identifier))?.passwordHash.value,
     ).toBe("new-hash");
     expect(sessions.deleteAllForUser).toHaveBeenCalledWith(user.identifier);
+    expect(policy.get).toHaveBeenCalledExactlyOnceWith("standard");
+    expect(policy.validate).toHaveBeenCalledWith(
+      expect.objectContaining({ rejectCurrentPassword: false }),
+      expect.objectContaining({ password: "new-password-value" }),
+    );
   });
 
   it("rejects an invalid current password", async () => {

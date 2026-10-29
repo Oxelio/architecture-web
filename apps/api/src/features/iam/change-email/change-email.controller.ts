@@ -21,7 +21,7 @@ export function createChangeEmailController(useCase: ChangeEmail) {
     if (!auth) {
       return reply.status(401).send({
         error: {
-          code: "UNAUTHORIZED",
+          code: "authentication.unauthorized",
           message: "Authentication required",
         },
       });

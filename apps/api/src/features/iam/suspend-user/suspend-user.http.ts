@@ -14,15 +14,20 @@ export const SuspendUserHttpContract = {
   },
 
   errors: {
+    "administrator.last_active_access": {
+      status: 409,
+      code: "administrator.last_active_access",
+      message: "Preserve another valid administrator access path",
+    },
     "administrator.unauthorized": {
       status: 403,
-      code: "ADMINISTRATOR_UNAUTHORIZED",
+      code: "administrator.unauthorized",
       message: "Administrator privileges required",
     },
     "user.invalid_id": {
       status: 400,
 
-      code: "INVALID_USER_ID",
+      code: "user.invalid_id",
 
       message: "Invalid user identifier",
     },
@@ -30,7 +35,7 @@ export const SuspendUserHttpContract = {
     "user.not_found": {
       status: 404,
 
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
 
       message: "User not found",
     },
@@ -38,7 +43,7 @@ export const SuspendUserHttpContract = {
     "user.self_administration_forbidden": {
       status: 409,
 
-      code: "SELF_ADMINISTRATION_FORBIDDEN",
+      code: "user.self_administration_forbidden",
 
       message: "Administrators cannot suspend their own account",
     },

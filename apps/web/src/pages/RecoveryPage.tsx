@@ -1,12 +1,24 @@
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { requestAccountRecovery, resetRecoveredPassword } from "#services/api";
+import {
+  getPasswordPolicy,
+  requestAccountRecovery,
+  resetRecoveredPassword,
+} from "#services/api";
 
 export function RecoveryPage() {
+  const { t } = useTranslation();
   const [parameters] = useSearchParams();
   const token = parameters.get("token");
+  const policy = useQuery({
+    queryKey: ["password-policy"],
+    queryFn: getPasswordPolicy,
+    enabled: Boolean(token),
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -26,7 +38,18 @@ export function RecoveryPage() {
       }
       setState("success");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "UNKNOWN_ERROR");
+      const code = caught instanceof Error ? caught.message : "UNKNOWN_ERROR";
+      setError(
+        code.startsWith("password.")
+          ? t(`passwordFeedback.${code.slice(9)}`, {
+              defaultValue: t("passwordFeedback.invalid"),
+            })
+          : code === "password_recovery.invalid_token"
+            ? t("passwordFeedback.recovery_invalid")
+            : code === "email.invalid_format"
+              ? t("auth.invalidEmail")
+              : t("passwordFeedback.unavailable"),
+      );
       setState("error");
     }
   };
@@ -90,6 +113,15 @@ export function RecoveryPage() {
           )}
           {state === "error" ? (
             <p className="text-sm text-rose-300">{error}</p>
+          ) : null}
+          {token && policy.data ? (
+            <p className="text-sm text-slate-400">
+              {t("auth.passwordPolicyHint", {
+                min: policy.data.minLength,
+                max: policy.data.maxLength,
+              })}{" "}
+              {t("passwordFeedback.privileged")}
+            </p>
           ) : null}
           <button
             type="button"

@@ -1,155 +1,70 @@
 # Architecture overview
 
-This document describes the architecture currently implemented in the
-repository. Durable target constraints are owned by
-[Architecture principles](../project/architecture-principles.md), and changes
-follow the [delivery pipeline](../project/delivery-pipeline.md). Historical
-exceptions described here are not implicit templates for new features.
+This document describes the implemented architecture. See [Architecture principles](../project/architecture-principles.md), [Dependency rules](dependency-rules.md), and [IAM security](iam-security.md) for responsibilities and consistency guarantees.
 
-## Project purpose
+## Workspace and composition
 
-Architecture Web is a reference identity-management application: sign-up,
-sign-in, email verification, profile, administration, sessions, recovery, MFA,
-auditing, export, and account deletion. The IAM package keeps its rules
-independent from Fastify, React, PostgreSQL, Redis, and email providers. The
-newer security vertical is orchestrated in the API and is a documented
-exception to this separation.
-
-The repository uses a modular architecture inspired by ports and adapters. No
-dependency-injection framework is used: implementations are assembled
-explicitly inside the API.
-
-The bounded context is named **IAM** (`Identity and Access Management`). Its
-core package is split into three internal capabilities:
-
-- `accounts`: account, email address, verification, and password;
-- `authentication`: sign-in, resolution, and personal sessions;
-- `access-administration`: paginated consultation, global indicators, roles,
-  lifecycle, and administered sessions.
-
-`apps/api/src/security` adds recovery, MFA, audit, configuration, export, and
-deletion across those capabilities. Account status (`active`, `suspended`, or
-`pending_deletion`) remains independent from email verification.
-
-## Monorepo map
-
-Every direct child of `packages/` is a workspace package root. Cohesive bounded-
-context packages keep their domain and application layers below `src/`; technical
-adapters and repository tooling use separate direct package roots.
+Architecture Web is a modular identity-management reference application. Workspace discovery groups actual packages by responsibility:
 
 ```text
-apps/
-├── api/                                      HTTP interface and composition
-└── web/                                      React interface
+apps/{api,web}/
 packages/
-├── audit/                                    Audit domain + application
-│   └── src/{domain,application}/
-├── audit-persistence-kysely/                 Audit PostgreSQL persistence
-├── delivery-automation/                      private delivery tooling
-├── eslint-config/                            shared ESLint rules
-├── foundation/                               modelling primitives
-├── iam/                                      IAM domain + application
-│   └── src/{domain,application}/
-├── iam-email-nodemailer/                     Nodemailer email adapter
-├── iam-email-postmark/                       Postmark email adapter
-├── iam-email-verification-sha256/            verification-token hashing
-├── iam-password-argon2/                      Argon2 password hashing
-├── iam-password-bcrypt/                      bcrypt password hashing
-├── iam-persistence-kysely/                   IAM PostgreSQL persistence
-├── iam-session-redis/                        sessions and rate limiting
-├── messaging/                                Messaging domain + application
-│   └── src/{domain,application}/
-├── messaging-persistence-kysely/             PostgreSQL outbox persistence
-├── notifications/                            Notifications domain + application
-│   └── src/{domain,application}/
-├── notifications-delivery-nodemailer/        SMTP notification delivery
-├── notifications-delivery-slack-webhook/     Slack webhook delivery
-├── notifications-delivery-sms-webhook/       SMS webhook delivery
-├── notifications-persistence-kysely/         Notifications PostgreSQL persistence
-└── notifications-recipient-iam-kysely/       IAM-backed recipient directory
+  contexts/{iam,audit,messaging,notifications}/
+  adapters/<context>/<technology>/
+  shared/foundation/
+  tooling/{eslint-config,delivery-automation}/
 ```
 
-Package names and public exports are owned by their manifests. Physical package
-roots no longer encode a nested `core`/`infrastructure` workspace hierarchy;
-architectural responsibility remains expressed by package ownership, internal
-`src/domain` and `src/application` layers where applicable, and dependency
-rules.
+Package manifests and public exports define boundaries; directory grouping does not grant access to another context's internals. Domain/application packages expose separate public subpaths and keep their layers under `src/`. The physical grouping diverges from the accepted flat topology recorded in ADR-0007. No accepted successor is recorded; this current-state description does not change that decision.
 
-## Main flow
+The API composition root explicitly instantiates adapters, initializes configuration, and calls the single `createIam` application factory. No dependency-injection framework or service locator is involved. HTTP controllers call application contracts and map results to transport responses.
 
 ```mermaid
 flowchart LR
-    Browser[React application] -->|HTTP JSON + sid cookie| API[Fastify API]
-    API -->|application contract| UC[IAM use cases]
-    UC --> Domain[Entities and value objects]
-    UC --> Ports[Application ports]
-    Kysely[Kysely adapter] -. implements .-> Ports
-    Redis[Redis adapter] -. implements .-> Ports
-    Crypto[Hashing adapters] -. implements .-> Ports
-    Mail[Email adapters] -. implements .-> Ports
-    API -->|composes| Kysely
-    API -->|composes| Redis
-    API -->|composes| Crypto
-    API -->|composes| Mail
-    API --> Security[hybrid SecurityService]
-    Security -->|direct queries| Kysely
-    Security --> Redis
-    Security -. implements .-> Gate[SecondFactorGate]
-    UC --> Gate
+    Web[React client] --> HTTP[Fastify controllers and presenters]
+    HTTP --> Application[IAM application use cases]
+    Application --> Domain[IAM domain]
+    Application --> Ports[Capability application ports]
+    Adapters[Kysely, Redis, hashing, mail and Node adapters] -. implements .-> Ports
+    Composition[API composition root] --> Application
+    Composition --> Adapters
+    Adapters --> Outbox[Transactional outbox]
+    Outbox --> Audit[Audit application]
+    Outbox --> Notifications[Notifications application]
 ```
 
-A request reaches a Fastify route. The controller maps HTTP data to a use-case
-input. The use case validates and orchestrates the domain and calls ports only.
-Technical adapters implement those ports. A presenter maps the application
-`Result` to an HTTP status and body. Routes under `apps/api/src/security` use a
-second path: they call `SecurityService` directly, and that service uses Kysely
-and maps `SecurityError` at the HTTP boundary.
+## IAM capabilities
 
-## Intended properties
+- `accounts`: registration, identities, verification, passwords, recovery, export and deletion;
+- `authentication`: sign-in, MFA, reauthentication, session issuance, resolution and management;
+- `access-administration`: account administration and security-configuration administration.
 
-- IAM rules remain testable without network or database access.
-- A technical provider can be replaced at the composition point.
-- Business and HTTP contracts are explicit and evolve separately.
-- The domain controls the creation and validity of its values.
-- Expected errors are typed values; unexpected failures remain exceptions
-  handled at the HTTP boundary.
+The `IamApplication` contract exposes `accounts`, `authentication` and `administration` capability interfaces, with 16, 13 and 12 operations respectively. `administration` represents the existing `access-administration` capability. All operations retain their individual input, output and expected-failure contracts.
 
-## Aggregates and consistency
+Application-owned ports live near their capabilities. Shared aggregate command/query repositories and PostgreSQL transaction contracts remain explicit. There is no generic IAM `application/services` directory or API `SecurityService`.
 
-Foundation defines `AggregateRoot` as a semantic specialization of `Entity`.
-The IAM bounded context declares three single-entity aggregates:
+Pure password requirements, policy selection and lifecycle predicates belong to the domain. Configuration retrieval, external password checks, and workflow coordination remain separate application responsibilities. Audit, Messaging and Notifications are autonomous contexts connected through public contracts.
 
-- `UserEntity` for identity, credentials, role, and status;
-- `SessionEntity` for the lifecycle of a Redis session;
-- `EmailVerificationEntity` for a verification token and its state.
+## Aggregate and consistency boundaries
 
-Aggregates reference each other by identifier and are not loaded as a `User`
-object graph. Commands that change `UserEntity` and
-`EmailVerificationEntity` in PostgreSQL use `IamUnitOfWork`, implemented by a
-Kysely transaction. Session creation and enforcement of the per-user limit are
-atomic in Redis.
+IAM has five existing aggregate roots:
 
-IAM aggregates now record Domain Events. PostgreSQL adapters translate them
-into integration events and place them in an outbox within the IAM
-transaction. A worker delivers them to the Audit and Notifications bounded
-contexts with retries and idempotent consumption.
+- `UserEntity`: account status, role and session version;
+- `LoginIdentityEntity`: account lookup identifiers and verification state;
+- `PasswordAuthenticatorEntity`: password derivative and authenticator lifecycle;
+- `EmailVerificationEntity`: a token targeting one login identity;
+- `SessionEntity`: session lifecycle in Redis.
 
-Email containing the plain verification token deliberately remains in the
-post-commit application flow and is not placed in the generic outbox.
+They reference each other by identifier. [ADR-0004](decisions/0004-aggregates-and-consistency.md), [ADR-0005](decisions/0005-domain-events-messaging.md), and [ADR-0006](decisions/0006-iam-account-identities-and-authenticators.md) explain these boundaries.
 
-## Observed trade-offs
+PostgreSQL transactions coordinate account, authenticator, identity, recovery, MFA and operation-specific state. Recovery, MFA, configuration, export and deletion adapters provide explicit atomic capabilities rather than exposing Kysely to application code. Their durable events are appended to the transaction's outbox.
 
-- `packages/iam` contains domain and application in one package, with separate
-  public subpath exports and internal layers below `src/`.
-- The API depends on both core packages and adapters. This is intentional in the
-  composition root, where concrete details must be known.
-- HTTP contracts (`*.http.ts`, `*.route-options.ts`) are separate from
-  application contracts (`*.contracts.ts`). This adds files but prevents HTTP
-  from becoming the business contract.
-- Architecture ESLint rules are currently warnings limited to parent imports.
-  Some boundaries therefore rely on documented convention and review.
-- `SecurityService` mixes application orchestration and technical access inside
-  `apps/api`. No ADR establishes whether this exception is durable.
-- The configuration catalog contains represented but unused options. The
-  [security guide](../guides/account-security.md) separates effective settings
-  from visible-only settings.
+Redis session creation enforces the ten-session maximum atomically. Password replacement and relevant security changes increment the PostgreSQL account's session version before Redis cleanup; resolution rejects a stale version. PostgreSQL, Redis, Audit operations and SMTP do not form a distributed transaction.
+
+## Verification limits
+
+ESLint enforces targeted IAM domain/application and API transport boundaries. TypeScript, package exports, tests and review cover the remaining contracts. Restrictions are deliberately narrower than the complete normative matrix.
+
+Unit and HTTP suites cover policies, expected failures, dependency failures and controller ownership. An opt-in PostgreSQL/Redis suite covers important transaction races; its presence does not establish successful execution in an environment where Docker is unavailable. See [Testing](../development/testing.md).
+
+Remote compromise checking, password history, exhaustive notification scenarios and deployment scheduling are not implemented by this refactoring.

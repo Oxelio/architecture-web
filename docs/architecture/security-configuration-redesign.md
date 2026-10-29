@@ -32,19 +32,19 @@ presented as implemented behaviour.
 The scope includes the security configuration centre, its consumers, and
 configurable rules currently held by domain objects or technical components.
 
-The “observed facts” below describe the redesign baseline. Current progress is:
+The “observed facts” below are historical baseline evidence, not the current implementation. Current ownership, atomic publication and remaining limitations are described in [IAM security](iam-security.md). Current progress is:
 
-| Workstream                       | Current state                                                         |
-| -------------------------------- | --------------------------------------------------------------------- |
-| typed form and catalog           | implemented; email verification explicitly read-only                  |
-| single password policy           | implemented through `IamPolicyProvider`; recovery remains length-only |
-| injected session duration        | implemented for direct sign-in and MFA completion                     |
-| single validation schema         | implemented in `security-policy.ts`                                   |
-| capabilities inside use cases    | implemented for sign-up, email change, and personal sessions          |
-| public capability contract       | implemented at `GET /v1/iam/capabilities`                             |
-| strengthened publication         | reason, preview, confirmation, and restoration implemented            |
-| step-up reauthentication         | pending                                                               |
-| multi-instance propagation state | pending                                                               |
+| Workstream                       | Current state                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| typed form and catalog           | implemented; email verification consumed by registration and identity replacement          |
+| single password policy           | implemented through operation-scoped projections and shared validation, including recovery |
+| injected session duration        | implemented by shared application session issuance                                         |
+| single validation schema         | owned by the IAM domain configuration parser                                               |
+| capabilities inside use cases    | implemented for sign-up, email change, and personal sessions                               |
+| public capability contract       | implemented at `GET /v1/iam/capabilities`                                                  |
+| strengthened publication         | reason, preview, confirmation, and restoration implemented                                 |
+| step-up reauthentication         | implemented for critical publication and restoration                                       |
+| multi-instance propagation state | pending                                                                                    |
 
 ## Assessment
 
@@ -210,3 +210,15 @@ The redesign is complete when administrators no longer edit JSON, no editable
 option lacks a consumer, and one coherent policy revision controls each
 operation. Entities and value objects retain their own invariants without
 choosing configurable functional parameters.
+
+## IAM correction context manifest
+
+**Classification:** Defect Correction, Complex; security, concurrency, migration and public compatibility. **Context:** resolved for implementation; operational Work identity/Project Status activation for this correction is unavailable. Issue #44 remains discovery context, not an implementation Work State owner.
+
+**Authority:** project method profile and the pinned Method gitlink own governance; architecture principles, dependency rules and ADR-0004/0005/0006 own boundaries; the applicable password, recovery, MFA, account-data and security-configuration specifications own behavior. ADR-0007 retains its accepted target despite the current grouped implementation. This design and the review are working context, not substitute functional approval.
+
+**Human decisions for this correction:** preserve the final administrator access path across suspension and role removal; allow the specifically inventoried IAM package-contract migration; capture configuration per use-case execution, including nested calls, with later MFA confirmation starting a new execution. No general package-versioning policy, MFA grace period or new recovery journey is authorized.
+
+**Evidence:** the IAM core, Kysely adapters, HTTP contracts and the disposable PostgreSQL/Redis suite. Excluded scope includes the separate session bearer/reference redesign, package relocation and deployment scheduling. Review perspectives remain separate from implementation and human validation.
+
+**Implementation sequence:** conditional credential bookkeeping and proof generation binding; identity-bound recovery; serialized administrative invariants; historical decoding and immutable metadata; workflow projections; step-up and transport/client migration; focused and workspace validation. See [IAM security](iam-security.md) for current guarantees and remaining acceptance gaps.

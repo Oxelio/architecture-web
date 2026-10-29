@@ -16,8 +16,8 @@ import {
 } from "./auth.js";
 import { buildApplicationModule } from "./composition-root/application.module.js";
 import { buildIamRoutes } from "./features/iam/routes/index.js";
+import { buildSecurityRoutes } from "./features/iam/security/security.routes.js";
 import { buildNotificationRoutes } from "./notifications/notification.routes.js";
-import { buildSecurityRoutes } from "./security/security.routes.js";
 import { errorHandler } from "./types/error-handler.js";
 
 const apiVersion = `v${pkg.version.split(".")[0]}`;
@@ -59,24 +59,8 @@ export async function buildServer() {
   // =========================
   // Composition Root (DI)
   // =========================
-  const container = buildApplicationModule();
+  const container = await buildApplicationModule();
   const sessionCookieOptions = buildSessionCookieOptions();
-
-  app.addHook("preHandler", async (request, reply) => {
-    const path = request.url.split("?")[0] ?? request.url;
-    const policy = await container.security.policy();
-    const disabled =
-      (request.method === "POST" &&
-        path.endsWith("/iam/signup") &&
-        !policy.accounts.publicRegistration) ||
-      (request.method === "PATCH" &&
-        path.endsWith("/iam/me/email") &&
-        !policy.accounts.emailChange) ||
-      (path.includes("/sessions") && !policy.sessions.userManagement);
-    if (disabled) {
-      return reply.status(403).send({ error: { code: "FEATURE_DISABLED" } });
-    }
-  });
 
   app.addHook("onResponse", async (request, reply) => {
     const path = request.url.split("?")[0] ?? request.url;
@@ -88,7 +72,7 @@ export async function buildServer() {
       return;
     }
     try {
-      await container.security.audit(
+      await container.securityEvents.record(
         type,
         reply.statusCode < 400 ? "success" : "denied",
         {
@@ -114,7 +98,7 @@ export async function buildServer() {
   });
 
   await app.register(authPlugin, {
-    resolveSession: container.iam.resolveSession,
+    resolveSession: container.iam.authentication.resolveSession,
     sessionCookieName: SESSION_COOKIE_NAME,
   });
 
@@ -138,10 +122,16 @@ export async function buildServer() {
     prefix: `/${apiVersion}/notifications`,
   });
   await app.register(
-    buildSecurityRoutes(container.security, {
-      name: SESSION_COOKIE_NAME,
-      options: sessionCookieOptions,
-    }),
+    buildSecurityRoutes(
+      container.iam,
+      {
+        name: SESSION_COOKIE_NAME,
+        options: sessionCookieOptions,
+      },
+      container.audit,
+      container.configuration,
+      container.securityEvents,
+    ),
     { prefix: `/${apiVersion}/iam` },
   );
 

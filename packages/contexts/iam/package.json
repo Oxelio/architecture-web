@@ -40,25 +40,16 @@
       "types": "./src/application/access-administration/*.ts",
       "default": "./dist/application/access-administration/*.js"
     },
-    "#services/*": {
-      "types": "./src/application/services/*.ts",
-      "default": "./dist/application/services/*.js"
-    },
     "#events/*": {
       "types": "./src/application/events/*.ts",
       "default": "./dist/application/events/*.js"
     },
-    "#repositories/*": {
-      "types": "./src/application/repositories/*.ts",
-      "default": "./dist/application/repositories/*.js"
+    "#ports/*": {
+      "types": "./src/application/ports/*.ts",
+      "default": "./dist/application/ports/*.js"
     },
-    "#transactions/*": {
-      "types": "./src/application/transactions/*.ts",
-      "default": "./dist/application/transactions/*.js"
-    },
-    "#testing/*": {
-      "types": "./src/application/testing/*.ts",
-      "default": "./dist/application/testing/*.js"
+    "#test/*": {
+      "types": "./test/support/*.ts"
     }
   },
   "exports": {
@@ -74,7 +65,6 @@
   "dependencies": {
     "@architecture/foundation": "workspace:*",
     "@architecture/messaging": "workspace:*",
-    "ioredis": "^5.11.1",
     "uuid": "^14.0.1"
   },
   "devDependencies": {

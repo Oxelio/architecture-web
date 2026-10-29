@@ -1,47 +1,43 @@
-// @file bounded-contexts/iam/application/use-cases/change-email/change-email.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
+import type { AccountPolicyReader } from "#accounts/account-policy.reader";
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import type { EmailSender } from "#services/email-sender.service";
-import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ChangeEmailErrorsCodes } from "./change-email.codes.js";
 import type {
   ChangeEmail,
   ChangeEmailInput,
   ChangeEmailOutput,
 } from "./change-email.contracts.js";
+import { ChangeEmailErrors } from "./change-email.errors.js";
 
 export class ChangeEmailUseCase implements ChangeEmail {
   constructor(
     private readonly userPort: UserRepository,
     private readonly loginIdentities: LoginIdentityRepository,
-    private readonly emailSender: EmailSender,
+    private readonly emailSender: VerificationEmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
     private readonly unitOfWork: IamUnitOfWork,
-    private readonly policyProvider?: IamPolicyProvider,
+    private readonly policies: AccountPolicyReader,
   ) {}
 
   async execute(command: ChangeEmailInput): Promise<ChangeEmailOutput> {
-    if (
-      this.policyProvider &&
-      !(await this.policyProvider.isCapabilityEnabled("accounts.emailChange"))
-    ) {
-      return Result.failure(ChangeEmailErrorsCodes.featureDisabled);
+    const accountPolicy = await this.policies.getAccountPolicy();
+    if (!accountPolicy.emailChange) {
+      return Result.failure(ChangeEmailErrors.featureDisabled);
     }
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure(ChangeEmailErrorsCodes.invalidId);
+      return Result.failure(ChangeEmailErrors.invalidId);
     }
 
     const email = EmailValueObject.create(command.email);
@@ -55,12 +51,12 @@ export class ChangeEmailUseCase implements ChangeEmail {
     }
     const existing = await this.loginIdentities.findByLogin(login.value);
     if (existing && existing.userId.value !== userId.value.value) {
-      return Result.failure(ChangeEmailErrorsCodes.userAlreadyExists);
+      return Result.failure(ChangeEmailErrors.userAlreadyExists);
     }
 
     const user = await this.userPort.findById(userId.value);
     if (!user) {
-      return Result.failure(ChangeEmailErrorsCodes.notFound);
+      return Result.failure(ChangeEmailErrors.notFound);
     }
 
     const currentIdentity = await this.loginIdentities.findForUser(
@@ -71,18 +67,16 @@ export class ChangeEmailUseCase implements ChangeEmail {
       return Result.success(undefined);
     }
 
-    const verificationRequired = await this.policyProvider?.isCapabilityEnabled(
-      "accounts.emailVerification",
-    );
+    const verificationRequired = accountPolicy.emailVerification;
     const identity =
       currentIdentity ??
       LoginIdentityEntity.create({
         userId: user.identifier,
         login: login.value,
-        verificationRequired: verificationRequired ?? true,
+        verificationRequired: verificationRequired,
       });
     if (currentIdentity) {
-      identity.replace(login.value, verificationRequired ?? true);
+      identity.replace(login.value, verificationRequired);
     }
 
     const token =
@@ -98,15 +92,26 @@ export class ChangeEmailUseCase implements ChangeEmail {
         })
       : null;
 
-    await this.unitOfWork.execute(
+    const committed = await this.unitOfWork.executeForUser(
+      user.identifier,
       async ({ emailVerifications, loginIdentities }) => {
-        await loginIdentities.save(identity);
+        if (
+          !(await loginIdentities.replacePreservingAdministrativeAccess(
+            identity,
+          ))
+        ) {
+          return false;
+        }
         await emailVerifications.invalidatePreviousFor(identity.identifier);
         if (verification) {
           await emailVerifications.save(verification);
         }
+        return true;
       },
     );
+    if (!committed) {
+      return Result.failure(ChangeEmailErrors.lastActiveAdministrator);
+    }
     if (token) {
       await this.emailSender.sendVerificationEmail(email.value, token.value);
     }

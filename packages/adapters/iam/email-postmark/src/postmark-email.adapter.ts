@@ -1,10 +1,10 @@
 // @file infrastructure/iam/email/postmark/src/postmark-email.adapter.ts
 
-import type { EmailSender } from "@architecture/iam/application";
+import type { VerificationEmailSender } from "@architecture/iam/application";
 import type { EmailValueObject } from "@architecture/iam/domain";
 import { ServerClient } from "postmark";
 
-export class PostmarkEmailSenderAdapter implements EmailSender {
+export class PostmarkEmailSenderAdapter implements VerificationEmailSender {
   private readonly client: ServerClient;
   private readonly fromAddress: string;
   private readonly verificationUrl: string;

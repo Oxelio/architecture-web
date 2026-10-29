@@ -9,7 +9,7 @@ import { InvalidPersistenceDataError } from "#errors/invalid-persistence-data.er
 import type { IamLoginIdentityRow } from "#persistence/schema";
 
 export const LoginIdentityMapper = {
-  toDomain(row: IamLoginIdentityRow): LoginIdentityEntity {
+  toDomain(row: Omit<IamLoginIdentityRow, "generation">): LoginIdentityEntity {
     const identifier = LoginIdentityIdentifierValueObject.create(row.id);
     const userId = UserIdentifierValueObject.create(row.user_id);
     const login = LoginIdentifierValueObject.create(
@@ -56,7 +56,9 @@ export const LoginIdentityMapper = {
     });
   },
 
-  toPersistence(identity: LoginIdentityEntity): IamLoginIdentityRow {
+  toPersistence(
+    identity: LoginIdentityEntity,
+  ): Omit<IamLoginIdentityRow, "generation"> {
     return {
       id: identity.identifier.value,
       user_id: identity.userId.value,

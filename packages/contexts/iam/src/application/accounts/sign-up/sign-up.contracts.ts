@@ -1,20 +1,19 @@
-// @file bounded-contexts/iam/application/use-cases/sign-up/sign-up.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { PasswordValidationError } from "#services/password-policy-validator.service";
+import type { PasswordValidationError } from "#accounts/password-policy/password-validation";
 import type {
   LoginIdentifierError,
   LoginIdentifierKind,
 } from "#value-objects/login-identifier.value-object";
 import type { PlainPasswordError } from "#value-objects/password-plain.value-object";
 
-import type { SignUpErrorCodes } from "./sign-up.codes.js";
+import type { SignUpErrors } from "./sign-up.errors.js";
 
 export type SignUpError =
   | LoginIdentifierError
   | PlainPasswordError
   | PasswordValidationError
-  | ValueOf<typeof SignUpErrorCodes>;
+  | ValueOf<typeof SignUpErrors>;
 
 export interface SignUpInput {
   login: {

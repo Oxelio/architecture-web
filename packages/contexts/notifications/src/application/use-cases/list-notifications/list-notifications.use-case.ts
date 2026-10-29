@@ -2,12 +2,12 @@ import { Result } from "@architecture/foundation";
 
 import type { NotificationRepository } from "#repositories/notification.repository";
 
-import { ListNotificationsErrorCodes } from "./list-notifications.codes.js";
 import type {
   ListNotifications,
   ListNotificationsInput,
   ListNotificationsOutput,
 } from "./list-notifications.contracts.js";
+import { ListNotificationsErrors } from "./list-notifications.contracts.js";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 25;
@@ -22,14 +22,14 @@ export class ListNotificationsUseCase implements ListNotifications {
     const page = input.page ?? DEFAULT_PAGE;
     const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
     if (!Number.isSafeInteger(page) || page < 1) {
-      return Result.failure(ListNotificationsErrorCodes.invalidPage);
+      return Result.failure(ListNotificationsErrors.invalidPage);
     }
     if (
       !Number.isSafeInteger(pageSize) ||
       pageSize < 1 ||
       pageSize > MAX_PAGE_SIZE
     ) {
-      return Result.failure(ListNotificationsErrorCodes.invalidPageSize);
+      return Result.failure(ListNotificationsErrors.invalidPageSize);
     }
     const notifications = await this.repository.list(
       input.actorUserId,

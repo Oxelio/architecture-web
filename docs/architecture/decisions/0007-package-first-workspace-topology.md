@@ -1,5 +1,7 @@
 # ADR-0007 — Package-first workspace topology
 
+> Current applicability: this accepted decision has no accepted successor in the repository. The grouped workspace described in [Architecture overview](../overview.md) diverges from its flat-topology target. The implementation difference does not supersede the maintainer acceptance recorded below.
+
 **Status:** Accepted
 **Content status:** Canonical
 **Document type:** Architecture Decision Record

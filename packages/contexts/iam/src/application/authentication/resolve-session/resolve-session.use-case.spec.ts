@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import { UserEntity } from "#entities/user.entity";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
 import { StatusValueObject } from "#value-objects/status.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";

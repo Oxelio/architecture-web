@@ -17,7 +17,7 @@ export const ChangePasswordHttpContract = {
     "password.empty": {
       status: 400,
 
-      code: "PASSWORD_REQUIRED",
+      code: "password.empty",
 
       message: "Password is required",
     },
@@ -25,87 +25,87 @@ export const ChangePasswordHttpContract = {
     "password.too_short": {
       status: 400,
 
-      code: "PASSWORD_TOO_SHORT",
+      code: "password.too_short",
 
       message: "Password is too short",
     },
 
     "password.too_long": {
       status: 400,
-      code: "PASSWORD_TOO_LONG",
+      code: "password.too_long",
       message: "Password is too long",
     },
 
     "password.confirmation_mismatch": {
       status: 400,
-      code: "PASSWORD_CONFIRMATION_MISMATCH",
+      code: "password.confirmation_mismatch",
       message: "Password confirmation does not match",
     },
 
     "password.too_common": {
       status: 400,
-      code: "PASSWORD_TOO_COMMON",
+      code: "password.too_common",
       message: "Password is too common",
     },
 
     "password.compromised": {
       status: 400,
-      code: "PASSWORD_COMPROMISED",
+      code: "password.compromised",
       message: "Password appears in a known data breach",
     },
 
     "password.contextual": {
       status: 400,
-      code: "PASSWORD_CONTEXTUAL",
+      code: "password.contextual",
       message: "Password contains account information",
     },
 
     "password.too_weak": {
       status: 400,
-      code: "PASSWORD_TOO_WEAK",
+      code: "password.too_weak",
       message: "Password does not meet the required strength",
     },
 
     "password.uppercase_required": {
       status: 400,
-      code: "PASSWORD_UPPERCASE_REQUIRED",
+      code: "password.uppercase_required",
       message: "Password must contain an uppercase letter",
     },
 
     "password.lowercase_required": {
       status: 400,
-      code: "PASSWORD_LOWERCASE_REQUIRED",
+      code: "password.lowercase_required",
       message: "Password must contain a lowercase letter",
     },
 
     "password.number_required": {
       status: 400,
-      code: "PASSWORD_NUMBER_REQUIRED",
+      code: "password.number_required",
       message: "Password must contain a number",
     },
 
     "password.special_character_required": {
       status: 400,
-      code: "PASSWORD_SPECIAL_CHARACTER_REQUIRED",
+      code: "password.special_character_required",
       message: "Password must contain a special character",
     },
 
     "password.current_invalid": {
       status: 400,
-      code: "PASSWORD_CURRENT_INVALID",
+      code: "password.current_invalid",
       message: "Current password is invalid",
     },
 
     "password.reused": {
       status: 400,
-      code: "PASSWORD_REUSED",
+      code: "password.reused",
       message: "New password must differ from the current password",
     },
 
     "user.invalid_id": {
       status: 400,
 
-      code: "INVALID_USER_ID",
+      code: "user.invalid_id",
 
       message: "Invalid user identifier",
     },
@@ -113,7 +113,7 @@ export const ChangePasswordHttpContract = {
     "user.not_found": {
       status: 404,
 
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
 
       message: "User not found",
     },

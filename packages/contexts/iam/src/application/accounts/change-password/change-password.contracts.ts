@@ -1,15 +1,14 @@
-// @file bounded-contexts/iam/application/use-cases/change-password/change-password.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { PasswordValidationError } from "#services/password-policy-validator.service";
+import type { PasswordValidationError } from "#accounts/password-policy/password-validation";
 import type { PlainPasswordError } from "#value-objects/password-plain.value-object";
 
-import type { ChangePasswordErrorsCodes } from "./change-password.codes.js";
+import type { ChangePasswordErrors } from "./change-password.errors.js";
 
 export type ChangePasswordError =
   | PlainPasswordError
   | PasswordValidationError
-  | ValueOf<typeof ChangePasswordErrorsCodes>;
+  | ValueOf<typeof ChangePasswordErrors>;
 
 export interface ChangePasswordInput {
   userId: string;
@@ -18,7 +17,7 @@ export interface ChangePasswordInput {
   passwordConfirmation: string;
 }
 
-export type ChangePasswordOutput = Result<undefined, ChangePasswordError>;
+export type ChangePasswordOutput = Result<void, ChangePasswordError>;
 
 export interface ChangePassword {
   execute(command: ChangePasswordInput): Promise<ChangePasswordOutput>;

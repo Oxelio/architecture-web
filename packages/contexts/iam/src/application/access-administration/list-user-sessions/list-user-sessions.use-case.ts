@@ -1,27 +1,26 @@
 import { Result } from "@architecture/foundation";
 
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
-import { ListUserSessionsErrorCodes } from "./list-user-sessions.codes.js";
 import type {
   AdministeredUserSession,
   ListUserSessions,
   ListUserSessionsInput,
   ListUserSessionsOutput,
 } from "./list-user-sessions.contracts.js";
+import { ListUserSessionsErrors } from "./list-user-sessions.errors.js";
 
 export class ListUserSessionsUseCase implements ListUserSessions {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
     private readonly users: UserRepository,
     private readonly sessions: SessionRepository,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(users);
-  }
+    private readonly policies: SessionPolicyReader,
+    private readonly authorizer: AdministratorAuthorizer,
+  ) {}
 
   async execute(input: ListUserSessionsInput): Promise<ListUserSessionsOutput> {
     const authorization = await this.authorizer.authorize(input.actorUserId);
@@ -29,13 +28,16 @@ export class ListUserSessionsUseCase implements ListUserSessions {
       return authorization;
     }
 
+    if (!(await this.policies.getSessionPolicy()).userManagement) {
+      return Result.failure(ListUserSessionsErrors.featureDisabled);
+    }
     const userId = UserIdentifierValueObject.create(input.userId);
     if (!userId.success) {
-      return Result.failure(ListUserSessionsErrorCodes.invalidUserId);
+      return Result.failure(ListUserSessionsErrors.invalidUserId);
     }
 
     if (!(await this.users.findById(userId.value))) {
-      return Result.failure(ListUserSessionsErrorCodes.userNotFound);
+      return Result.failure(ListUserSessionsErrors.userNotFound);
     }
 
     const sessions = await this.sessions.findActiveForUser(userId.value);

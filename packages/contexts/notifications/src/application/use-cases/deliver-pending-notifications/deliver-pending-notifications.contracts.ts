@@ -1,13 +1,15 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { DeliverPendingNotificationsErrorCodes } from "./deliver-pending-notifications.codes.js";
+export const DeliverPendingNotificationsErrors = {
+  invalidLimit: { code: "notifications.invalid_delivery_limit" },
+} as const;
 
 export interface DeliverPendingNotificationsInput {
   readonly limit?: number;
 }
 
 export type DeliverPendingNotificationsError = ValueOf<
-  typeof DeliverPendingNotificationsErrorCodes
+  typeof DeliverPendingNotificationsErrors
 >;
 export type DeliverPendingNotificationsOutput = Result<
   number,

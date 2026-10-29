@@ -1,15 +1,18 @@
-// @file bounded-contexts/iam/application/use-cases/sign-out/sign-out.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { SignOutErrorCodes } from "./sign-out.codes.js";
+export const SignOutErrors = {
+  invalidSessionId: {
+    code: "session.invalid_id",
+  },
+} as const;
 
 export interface SignOutInput {
   sessionId: string;
 }
 
-export type SignOutError = ValueOf<typeof SignOutErrorCodes>;
+export type SignOutError = ValueOf<typeof SignOutErrors>;
 
-export type SignOutOutput = Result<undefined, SignOutError>;
+export type SignOutOutput = Result<void, SignOutError>;
 
 export interface SignOut {
   execute(command: SignOutInput): Promise<SignOutOutput>;

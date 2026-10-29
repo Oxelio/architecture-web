@@ -1,11 +1,14 @@
-// @file bounded-contexts/iam/application/use-cases/resolve-session/resolve-session.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { UserRole } from "#value-objects/user-role.value-object";
 
-import type { ResolveSessionErrorCodes } from "./resolve-session.codes.js";
+export const ResolveSessionErrors = {
+  unauthorized: {
+    code: "session.unauthorized",
+  },
+} as const;
 
-export type ResolveSessionError = ValueOf<typeof ResolveSessionErrorCodes>;
+export type ResolveSessionError = ValueOf<typeof ResolveSessionErrors>;
 export interface ResolveSessionInput {
   sessionId: string;
 }

@@ -6,7 +6,7 @@ import {
   InMemoryLoginIdentityRepository,
   InMemoryUserQueryRepository,
   InMemoryUserRepository,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 
 import { GetCurrentAccountUseCase } from "./get-current-account.use-case.js";

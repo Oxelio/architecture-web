@@ -1,6 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { RevokeCurrentUserSessionErrorCodes } from "./revoke-current-user-session.codes.js";
+import type { RevokeCurrentUserSessionErrors } from "./revoke-current-user-session.errors.js";
 
 export interface RevokeCurrentUserSessionInput {
   readonly actorUserId: string;
@@ -8,7 +8,7 @@ export interface RevokeCurrentUserSessionInput {
 }
 
 export type RevokeCurrentUserSessionError = ValueOf<
-  typeof RevokeCurrentUserSessionErrorCodes
+  typeof RevokeCurrentUserSessionErrors
 >;
 export type RevokeCurrentUserSessionOutput = Result<
   void,

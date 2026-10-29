@@ -1,4 +1,7 @@
-import type { SessionClient, SessionNetwork } from "@architecture/iam/domain";
+import type {
+  SessionClient,
+  SessionNetwork,
+} from "@architecture/iam/application";
 import type { FastifyRequest } from "fastify";
 
 const VERSION_PATTERN = /(\d+(?:[._]\d+){0,3})/;

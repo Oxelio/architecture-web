@@ -1,6 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { ListCurrentUserSessionsErrorCodes } from "./list-current-user-sessions.codes.js";
+import type { ListCurrentUserSessionsErrors } from "./list-current-user-sessions.errors.js";
 
 export interface ListCurrentUserSessionsInput {
   readonly actorUserId: string;
@@ -34,7 +34,7 @@ export interface CurrentUserSession {
 }
 
 export type ListCurrentUserSessionsError = ValueOf<
-  typeof ListCurrentUserSessionsErrorCodes
+  typeof ListCurrentUserSessionsErrors
 >;
 export type ListCurrentUserSessionsOutput = Result<
   readonly CurrentUserSession[],

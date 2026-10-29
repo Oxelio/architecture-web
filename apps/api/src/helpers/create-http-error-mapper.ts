@@ -14,7 +14,7 @@ export function createHttpErrorMapper<TErrorCode extends string>(
         status: 500,
         body: {
           error: {
-            code: "INTERNAL_SERVER_ERROR",
+            code: "internal.unexpected_error",
             message: "Unexpected error",
           },
         },

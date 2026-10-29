@@ -1,8 +1,8 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { AdministratorAuthorizationError } from "#services/administrator-authorizer.service";
+import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 
-import type { RevokeUserSessionErrorCodes } from "./revoke-user-session.codes.js";
+import type { RevokeUserSessionErrors } from "./revoke-user-session.errors.js";
 
 export interface RevokeUserSessionInput {
   readonly actorUserId: string;
@@ -11,7 +11,7 @@ export interface RevokeUserSessionInput {
 }
 
 export type RevokeUserSessionError =
-  ValueOf<typeof RevokeUserSessionErrorCodes> | AdministratorAuthorizationError;
+  ValueOf<typeof RevokeUserSessionErrors> | AdministratorAuthorizationError;
 export type RevokeUserSessionOutput = Result<void, RevokeUserSessionError>;
 
 export interface RevokeUserSession {

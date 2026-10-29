@@ -2,7 +2,10 @@ import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { NotificationSeverity } from "#domain/index";
 
-import type { ListNotificationsErrorCodes } from "./list-notifications.codes.js";
+export const ListNotificationsErrors = {
+  invalidPage: { code: "notifications.invalid_page" },
+  invalidPageSize: { code: "notifications.invalid_page_size" },
+} as const;
 
 export interface ListNotificationsInput {
   readonly actorUserId: string;
@@ -21,9 +24,7 @@ export interface NotificationListItem {
   readonly readAt: Date | null;
 }
 
-export type ListNotificationsError = ValueOf<
-  typeof ListNotificationsErrorCodes
->;
+export type ListNotificationsError = ValueOf<typeof ListNotificationsErrors>;
 export type ListNotificationsOutput = Result<
   readonly NotificationListItem[],
   ListNotificationsError

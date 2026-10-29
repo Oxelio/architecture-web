@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/domain/value-objects/session-identifier.value-object.ts
-
 import { Identifier, Result, type ValueOf } from "@architecture/foundation";
 import { v7 as uuid, validate, version } from "uuid";
 
@@ -10,10 +8,11 @@ const SessionIdentifierErrors = {
   invalidUuid: {
     code: "session_identifier.invalid_uuid",
   },
-  invalidVersion: (expected: number) => ({
-    code: "session_identifier.invalid_version",
-    expected,
-  }),
+  invalidVersion: (expected: number) =>
+    ({
+      code: "session_identifier.invalid_version",
+      expected,
+    }) as const,
 } as const;
 
 export type SessionIdentifierError = ValueOf<typeof SessionIdentifierErrors>;

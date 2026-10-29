@@ -1,20 +1,25 @@
-// @file apps/api/src/composition-root/iam.module.ts
-
+import type { AuditApplication } from "@architecture/audit/application";
 import {
+  type ConfigurationStore,
   createIam,
   type IamApplication,
-  type IamDependencies,
-  type IamPolicyProvider,
-  type SecondFactorGate,
+  PublishedIamPolicies,
+  type SecurityEventRecorder,
 } from "@architecture/iam/application";
-import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
+import type { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
 import { Sha256EmailVerificationTokenHasherAdapter } from "@architecture/iam-email-verification-sha256";
 import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
 import {
+  type IamDatabase,
+  KyselyAccountDeletionAdapter,
+  KyselyAccountExportAdapter,
   KyselyEmailVerificationAdapter,
   KyselyIamUnitOfWorkAdapter,
   KyselyLoginIdentityAdapter,
+  KyselyMfaAdapter,
   KyselyPasswordAuthenticatorAdapter,
+  KyselyPasswordRecoveryAdapter,
+  KyselySecurityConfigurationAdapter,
   KyselyUserAdapter,
 } from "@architecture/iam-persistence-kysely";
 import {
@@ -23,9 +28,14 @@ import {
 } from "@architecture/iam-session-redis";
 import type { OutboxWriter } from "@architecture/messaging/application";
 import { KyselyOutboxWriterAdapter } from "@architecture/messaging-persistence-kysely";
-import { Redis } from "ioredis";
+import type { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 
+import { AccountSecurityMailAdapter } from "#adapters/iam/account-security-mail.adapter";
+import { AuditSecurityEventsAdapter } from "#adapters/iam/audit-security-events.adapter";
+import { NodeAccountArchiveAdapter } from "#adapters/iam/node-account-archive.adapter";
+import { NodeMfaCryptographyAdapter } from "#adapters/iam/node-mfa-cryptography.adapter";
+import { NodeSecurityTokensAdapter } from "#adapters/iam/node-security-tokens.adapter";
 import {
   HeuristicPasswordStrengthEvaluator,
   LocalCommonPasswordChecker,
@@ -33,65 +43,74 @@ import {
 } from "#adapters/local-password-security.adapter";
 
 import type { AppDatabase } from "./database.module.js";
-
-function buildIamDependencies(
-  db: Kysely<AppDatabase>,
+export async function buildIamModule(
+  database: Kysely<AppDatabase>,
   redis: Redis,
-  policyProvider: IamDependencies["policyProvider"],
-  emailSender: NodemailerEmailSenderAdapter,
+  email: NodemailerEmailSenderAdapter,
   outbox: OutboxWriter,
-): IamDependencies {
-  return {
-    passwordHasher: new Argon2PasswordHasherAdapter(),
-    policyProvider,
-    passwordStrengthEvaluator: new HeuristicPasswordStrengthEvaluator(),
-    commonPasswordChecker: new LocalCommonPasswordChecker(),
-    compromisedPasswordChecker: new LocalCompromisedPasswordChecker(),
+  audit: AuditApplication,
+  options: {
+    encryptionKey: string;
+    recoveryUrl: string;
+    deletionCancellationUrl: string;
+  },
+): Promise<{
+  iam: IamApplication;
+  configuration: ConfigurationStore;
+  securityEvents: SecurityEventRecorder;
+}> {
+  const db = database as unknown as Kysely<IamDatabase>;
+  const createOutbox = (transaction: Kysely<IamDatabase>) =>
+    new KyselyOutboxWriterAdapter(transaction as never);
+  const configuration = new KyselySecurityConfigurationAdapter(
+    db,
+    createOutbox,
+  );
+  await configuration.initialize();
+  const policies = new PublishedIamPolicies(configuration),
+    events = new AuditSecurityEventsAdapter(audit, configuration);
+  const users = new KyselyUserAdapter(db, outbox),
+    identities = new KyselyLoginIdentityAdapter(db, outbox),
+    passwords = new KyselyPasswordAuthenticatorAdapter(db, outbox),
+    sessions = new RedisSessionAdapter(redis),
+    hasher = new Argon2PasswordHasherAdapter();
+  const strength = new HeuristicPasswordStrengthEvaluator(),
+    common = new LocalCommonPasswordChecker(),
+    compromised = new LocalCompromisedPasswordChecker();
+  const iam = createIam({
+    userRepository: users,
+    userQueryRepository: users,
+    loginIdentityRepository: identities,
+    passwordAuthenticatorRepository: passwords,
+    sessionRepository: sessions,
+    passwordHasher: hasher,
+    policies,
+    passwordStrengthEvaluator: strength,
+    commonPasswordChecker: common,
+    compromisedPasswordChecker: compromised,
+    emailSender: email,
+    emailVerificationRepository: new KyselyEmailVerificationAdapter(db),
+    rateLimiter: new RedisEmailVerificationRateLimitAdapter(redis),
     emailVerificationTokenHasher:
       new Sha256EmailVerificationTokenHasherAdapter(),
-
-    userRepository: new KyselyUserAdapter(db as never),
-    userQueryRepository: new KyselyUserAdapter(db as never),
-    loginIdentityRepository: new KyselyLoginIdentityAdapter(db as never),
-    passwordAuthenticatorRepository: new KyselyPasswordAuthenticatorAdapter(
-      db as never,
+    unitOfWork: new KyselyIamUnitOfWorkAdapter(db, createOutbox),
+    configuration,
+    recovery: new KyselyPasswordRecoveryAdapter(db, createOutbox),
+    mfa: new KyselyMfaAdapter(db, createOutbox),
+    exports: new KyselyAccountExportAdapter(db, createOutbox),
+    deletions: new KyselyAccountDeletionAdapter(db, createOutbox),
+    crypto: new NodeMfaCryptographyAdapter(options.encryptionKey),
+    tokens: new NodeSecurityTokensAdapter(),
+    mail: new AccountSecurityMailAdapter(
+      email,
+      options.recoveryUrl,
+      options.deletionCancellationUrl,
     ),
-
-    emailVerificationRepository: new KyselyEmailVerificationAdapter(
-      db as never,
-    ),
-
-    unitOfWork: new KyselyIamUnitOfWorkAdapter(
-      db as never,
-      (transaction) => new KyselyOutboxWriterAdapter(transaction as never),
-    ),
+    events,
+    origins: events,
+    audit: events,
+    archive: new NodeAccountArchiveAdapter(),
     outbox,
-
-    sessionRepository: new RedisSessionAdapter(redis),
-
-    rateLimiter: new RedisEmailVerificationRateLimitAdapter(redis),
-
-    emailSender,
-  };
-}
-
-export function buildIamModule(
-  db: Kysely<AppDatabase>,
-  redis: Redis,
-  security: SecondFactorGate & IamPolicyProvider,
-  emailSender: NodemailerEmailSenderAdapter,
-  outbox: OutboxWriter,
-): IamApplication {
-  const dependencies = buildIamDependencies(
-    db,
-    redis,
-    security,
-    emailSender,
-    outbox,
-  );
-
-  return createIam({
-    ...dependencies,
-    secondFactorGate: security,
   });
+  return { iam, configuration, securityEvents: events };
 }

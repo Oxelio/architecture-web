@@ -3,12 +3,12 @@ import { Result } from "@architecture/foundation";
 import type { NotificationRepository } from "#repositories/notification.repository";
 import type { NotificationDelivery } from "#services/notification-delivery.service";
 
-import { DeliverPendingNotificationsErrorCodes } from "./deliver-pending-notifications.codes.js";
 import type {
   DeliverPendingNotifications,
   DeliverPendingNotificationsInput,
   DeliverPendingNotificationsOutput,
 } from "./deliver-pending-notifications.contracts.js";
+import { DeliverPendingNotificationsErrors } from "./deliver-pending-notifications.contracts.js";
 
 export class DeliverPendingNotificationsUseCase implements DeliverPendingNotifications {
   constructor(
@@ -21,7 +21,7 @@ export class DeliverPendingNotificationsUseCase implements DeliverPendingNotific
   ): Promise<DeliverPendingNotificationsOutput> {
     const limit = input.limit ?? 50;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
-      return Result.failure(DeliverPendingNotificationsErrorCodes.invalidLimit);
+      return Result.failure(DeliverPendingNotificationsErrors.invalidLimit);
     }
     const notifications = await this.repository.claimDeliveries(limit);
     let deliveryCount = 0;

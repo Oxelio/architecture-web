@@ -7,6 +7,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "#application-result": fileURLToPath(
+        new URL("./src/application/application-result.ts", import.meta.url),
+      ),
       "#domain": fileURLToPath(new URL("./src/domain", import.meta.url)),
       "#entities": fileURLToPath(
         new URL("./src/domain/entities", import.meta.url),
@@ -14,11 +17,8 @@ export default defineConfig({
       "#value-objects": fileURLToPath(
         new URL("./src/domain/value-objects", import.meta.url),
       ),
-      "#repositories": fileURLToPath(
-        new URL("./src/application/repositories", import.meta.url),
-      ),
-      "#services": fileURLToPath(
-        new URL("./src/application/services", import.meta.url),
+      "#ports": fileURLToPath(
+        new URL("./src/application/ports", import.meta.url),
       ),
       "#accounts": fileURLToPath(
         new URL("./src/application/accounts", import.meta.url),
@@ -29,9 +29,7 @@ export default defineConfig({
       "#access-administration": fileURLToPath(
         new URL("./src/application/access-administration", import.meta.url),
       ),
-      "#testing": fileURLToPath(
-        new URL("./src/application/testing", import.meta.url),
-      ),
+      "#test": fileURLToPath(new URL("./test/support", import.meta.url)),
     },
   },
   test: {

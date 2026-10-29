@@ -23,7 +23,7 @@ detailed in [ADR-0005](0005-domain-events-messaging.md).
 The separation between accounts, login identities, and authenticators is
 detailed in
 [ADR-0006](0006-iam-account-identities-and-authenticators.md).
-The accepted package-first workspace topology is detailed in
+The accepted flat package-topology decision, currently diverged from by the grouped implementation, and its rationale are detailed in
 [ADR-0007](0007-package-first-workspace-topology.md).
 
 ### ADR-0001 — Technology-independent IAM core
@@ -64,6 +64,4 @@ choice is made:
 - whether packages are published outside the monorepo;
 - shared or independent versioning;
 - automated enforcement of all dependency rules;
-- keeping `SecurityService` in the API or extracting dedicated use cases and
-  adapters;
 - the scheduling strategy for security maintenance.

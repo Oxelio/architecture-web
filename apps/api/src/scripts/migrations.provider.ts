@@ -4,7 +4,10 @@ import { auditMigrations } from "@architecture/audit-persistence-kysely";
 import {
   iamAggregateConsistencyMigrations,
   iamAuthenticationMigrations,
+  iamAuthenticationProofMigrations,
+  iamConfigurationVersionMigrations,
   iamEmailVerificationMigrations,
+  iamSecurityInvariantMigrations,
   iamSecurityMigrations,
   iamUserMigrations,
 } from "@architecture/iam-persistence-kysely";
@@ -19,6 +22,9 @@ export const getAllMigrations = (): Record<string, Migration> => {
     ...iamSecurityMigrations,
     ...iamAggregateConsistencyMigrations,
     ...iamAuthenticationMigrations,
+    ...iamAuthenticationProofMigrations,
+    ...iamConfigurationVersionMigrations,
+    ...iamSecurityInvariantMigrations,
     ...messagingMigrations,
     ...auditMigrations,
     ...notificationMigrations,

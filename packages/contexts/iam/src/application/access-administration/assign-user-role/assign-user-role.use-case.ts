@@ -1,27 +1,22 @@
 import { Result } from "@architecture/foundation";
 
-import type { UserRepository } from "#repositories/user.repository";
-import { AdministratorAuthorizer } from "#services/administrator-authorizer.service";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
-import { AssignUserRoleErrorCodes } from "./assign-user-role.codes.js";
 import type {
   AssignUserRole,
   AssignUserRoleInput,
   AssignUserRoleOutput,
 } from "./assign-user-role.contracts.js";
+import { AssignUserRoleErrors } from "./assign-user-role.errors.js";
 
 export class AssignUserRoleUseCase implements AssignUserRole {
-  private readonly authorizer: AdministratorAuthorizer;
-
   constructor(
-    private readonly userPort: UserRepository,
-    private readonly unitOfWork?: IamUnitOfWork,
-  ) {
-    this.authorizer = new AdministratorAuthorizer(userPort);
-  }
+    private readonly authorizer: AdministratorAuthorizer,
+    private readonly unitOfWork: IamUnitOfWork,
+  ) {}
 
   async execute(command: AssignUserRoleInput): Promise<AssignUserRoleOutput> {
     const authorization = await this.authorizer.authorize(command.actorUserId);
@@ -31,10 +26,10 @@ export class AssignUserRoleUseCase implements AssignUserRole {
 
     const userId = UserIdentifierValueObject.create(command.userId);
     if (!userId.success) {
-      return Result.failure(AssignUserRoleErrorCodes.invalidId);
+      return Result.failure(AssignUserRoleErrors.invalidId);
     }
     if (command.actorUserId === userId.value.value) {
-      return Result.failure(AssignUserRoleErrorCodes.selfOperation);
+      return Result.failure(AssignUserRoleErrors.selfOperation);
     }
 
     const role = UserRoleValueObject.create(command.role);
@@ -42,19 +37,43 @@ export class AssignUserRoleUseCase implements AssignUserRole {
       return Result.failure(role.error);
     }
 
-    const user = await this.userPort.findById(userId.value);
-    if (!user) {
-      return Result.failure(AssignUserRoleErrorCodes.notFound);
-    }
-
     const actorId = UserIdentifierValueObject.create(command.actorUserId);
-    user.changeRole(role.value, actorId.success ? actorId.value : undefined);
-    if (this.unitOfWork) {
-      await this.unitOfWork.execute(({ users }) => users.save(user));
-    } else {
-      await this.userPort.save(user);
+    const result = await this.unitOfWork.executeForUser(
+      userId.value,
+      async ({ users, userQueries }) => {
+        const actor = actorId.success
+          ? await users.findById(actorId.value)
+          : null;
+        if (!actor?.role.isAdmin() || !actor.status.isActive()) {
+          return Result.failure({
+            code: "administrator.unauthorized",
+          } as const);
+        }
+        const user = await users.findById(userId.value);
+        if (!user) {
+          return Result.failure(AssignUserRoleErrors.notFound);
+        }
+        if (
+          user.role.isAdmin() &&
+          user.status.isActive() &&
+          !role.value.isAdmin() &&
+          !(await userQueries.hasOtherAdministrativeAccess(user.identifier))
+        ) {
+          return Result.failure({
+            code: "administrator.last_active_access",
+          } as const);
+        }
+        user.changeRole(
+          role.value,
+          actorId.success ? actorId.value : undefined,
+        );
+        await users.save(user);
+        return Result.success(undefined);
+      },
+    );
+    if (!result.success) {
+      return result;
     }
-
     return Result.success(undefined);
   }
 }

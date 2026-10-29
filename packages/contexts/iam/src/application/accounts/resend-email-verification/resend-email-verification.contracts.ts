@@ -1,10 +1,9 @@
-// @file bounded-contexts/iam/application/use-cases/resend-email-verification/resend-email-verification.types.ts
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { ResendEmailVerificationErrorCodes } from "./resend-email-verification.codes.js";
+import type { ResendEmailVerificationErrors } from "./resend-email-verification.errors.js";
 
 export type ResendEmailVerificationError = ValueOf<
-  typeof ResendEmailVerificationErrorCodes
+  typeof ResendEmailVerificationErrors
 >;
 
 export interface ResendEmailVerificationInput {

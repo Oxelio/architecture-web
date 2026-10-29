@@ -1,18 +1,16 @@
-// @file bounded-contexts/iam/application/use-cases/verify-email/verify-email.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
-import type { EmailVerificationRepository } from "#repositories/email-verification.repository";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import type { EmailVerificationRepository } from "#ports/email-verification.repository";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 
-import { VerifyEmailErrorCodes } from "./verify-email.codes.js";
 import type {
   VerifyEmailInput,
   VerifyEmailOutput,
 } from "./verify-email.contracts.js";
+import { VerifyEmailErrors } from "./verify-email.errors.js";
 
 export class VerifyEmailUseCase {
   constructor(
@@ -25,40 +23,48 @@ export class VerifyEmailUseCase {
   async execute(command: VerifyEmailInput): Promise<VerifyEmailOutput> {
     const token = EmailVerificationTokenValueObject.create(command.token);
     if (!token.success) {
-      return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
+      return Result.failure(VerifyEmailErrors.tokenInvalid);
     }
 
     const tokenHash = await this.tokenHasher.hash(token.value);
     const verification = await this.emailVerification.findByToken(tokenHash);
     if (!verification || verification.isUsed || verification.isInvalidated) {
-      return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
+      return Result.failure(VerifyEmailErrors.tokenInvalid);
     }
 
     const now = new Date();
     if (verification.isExpiredAt(now)) {
-      return Result.failure(VerifyEmailErrorCodes.tokenExpired);
+      return Result.failure(VerifyEmailErrors.tokenExpired);
     }
 
     const identity = await this.loginIdentities.findById(
       verification.loginIdentityId,
     );
     if (!identity) {
-      return Result.failure(VerifyEmailErrorCodes.userNotFound);
+      return Result.failure(VerifyEmailErrors.userNotFound);
     }
 
-    identity.verify();
-    const consumed = await this.unitOfWork.execute(
+    const consumed = await this.unitOfWork.executeForUser(
+      identity.userId,
       async ({ emailVerifications, loginIdentities }) => {
-        const tokenConsumed = await emailVerifications.consume(tokenHash, now);
+        const current = await loginIdentities.findById(identity.identifier);
+        if (!current || !current.login.equals(identity.login)) {
+          return false;
+        }
+        const tokenConsumed = await emailVerifications.consume(
+          tokenHash,
+          new Date(),
+        );
         if (!tokenConsumed) {
           return false;
         }
-        await loginIdentities.save(identity);
+        current.verify();
+        await loginIdentities.save(current);
         return true;
       },
     );
     if (!consumed) {
-      return Result.failure(VerifyEmailErrorCodes.tokenInvalid);
+      return Result.failure(VerifyEmailErrors.tokenInvalid);
     }
 
     return Result.success(undefined);

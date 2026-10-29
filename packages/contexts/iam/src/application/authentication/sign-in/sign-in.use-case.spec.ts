@@ -1,5 +1,7 @@
+import { Result } from "@architecture/foundation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { IssueSession } from "#authentication/issue-session";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
 import { UserEntity } from "#entities/user.entity";
@@ -7,9 +9,8 @@ import {
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-  TestPolicyProvider,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { testPasswordHash, TestPolicies } from "#test/test-policies";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 
 import { SignInUseCase } from "./sign-in.use-case.js";
@@ -61,14 +62,17 @@ describe("SignInUseCase", () => {
     return { user, identity, authenticator };
   }
 
-  function useCase(policy = new TestPolicyProvider()) {
+  function useCase(policy = new TestPolicies()) {
     return new SignInUseCase(
       users,
       identities,
       authenticators,
       password as never,
-      sessions as never,
       policy,
+      { execute: async () => Result.success(null) },
+      new IssueSession(sessions as never, policy, {
+        append: async () => undefined,
+      }),
     );
   }
 
@@ -93,21 +97,21 @@ describe("SignInUseCase", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "user.invalid_credentials" },
+      error: { code: "authentication.invalid_credentials" },
     });
     expect(password.fakeVerify).toHaveBeenCalledOnce();
   });
 
   it("rejects a login kind disabled by the account identity policy", async () => {
     await account("email", "user@example.com");
-    const result = await useCase(new TestPolicyProvider(["username"])).execute({
+    const result = await useCase(new TestPolicies(["username"])).execute({
       login: { kind: "email", value: "user@example.com" },
       password: "password",
     });
 
     expect(result).toEqual({
       success: false,
-      error: { code: "user.invalid_credentials" },
+      error: { code: "authentication.invalid_credentials" },
     });
     expect(password.fakeVerify).toHaveBeenCalledOnce();
     expect(password.verify).not.toHaveBeenCalled();

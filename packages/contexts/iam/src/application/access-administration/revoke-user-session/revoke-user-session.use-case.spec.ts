@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import { SessionEntity } from "#entities/session.entity";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
+import { TestPolicies } from "#test/test-policies";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { RevokeUserSessionUseCase } from "./revoke-user-session.use-case.js";
@@ -29,7 +31,12 @@ describe("RevokeUserSessionUseCase", () => {
       delete: deleteSession,
     } as unknown as SessionRepository;
 
-    const result = await new RevokeUserSessionUseCase(users, sessions).execute({
+    const result = await new RevokeUserSessionUseCase(
+      users,
+      sessions,
+      new TestPolicies(),
+      new AdministratorAuthorizer(users),
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: userId.value,
       sessionId: session.identifier.value,
@@ -59,7 +66,12 @@ describe("RevokeUserSessionUseCase", () => {
       delete: deleteSession,
     } as unknown as SessionRepository;
 
-    const result = await new RevokeUserSessionUseCase(users, sessions).execute({
+    const result = await new RevokeUserSessionUseCase(
+      users,
+      sessions,
+      new TestPolicies(),
+      new AdministratorAuthorizer(users),
+    ).execute({
       actorUserId: administrator.identifier.value,
       userId: userId.value,
       sessionId: otherSession.identifier.value,
@@ -86,6 +98,13 @@ describe("RevokeUserSessionUseCase", () => {
       {
         deleteAllForUser: deleteAll,
       } as unknown as SessionRepository,
+      new TestPolicies(),
+      new AdministratorAuthorizer({
+        findById: async (id: UserIdentifierValueObject) =>
+          id.equals(administrator.identifier)
+            ? administrator
+            : { identifier: userId },
+      } as unknown as UserRepository),
     );
 
     expect(

@@ -10,19 +10,24 @@ export const ListUserSessionsHttpContract = {
     },
   },
   errors: {
+    "session_management.disabled": {
+      status: 403,
+      code: "session_management.disabled",
+      message: "Session management disabled",
+    },
     "administrator.unauthorized": {
       status: 403,
-      code: "ADMINISTRATOR_UNAUTHORIZED",
+      code: "administrator.unauthorized",
       message: "Administrator privileges required",
     },
     "user.invalid_id": {
       status: 400,
-      code: "INVALID_USER_ID",
+      code: "user.invalid_id",
       message: "Invalid user identifier",
     },
     "user.not_found": {
       status: 404,
-      code: "USER_NOT_FOUND",
+      code: "user.not_found",
       message: "User not found",
     },
   },

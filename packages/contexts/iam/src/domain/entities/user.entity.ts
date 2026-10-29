@@ -87,6 +87,23 @@ export class UserEntity extends AggregateRoot<UserProperties> {
     this.touch();
   }
 
+  requestDeletion(): void {
+    this.properties.status = StatusValueObject.pendingDeletion();
+    this.invalidateSessions();
+  }
+
+  cancelDeletion(previousStatus: string): void {
+    if (!this.properties.status.isPendingDeletion()) {
+      throw new Error("Only a pending deletion can be cancelled");
+    }
+    const restored = StatusValueObject.create(previousStatus);
+    if (!restored.success || restored.value.isPendingDeletion()) {
+      throw new Error("Invalid status before account deletion");
+    }
+    this.properties.status = restored.value;
+    this.touch();
+  }
+
   changeRole(
     newRole: UserRoleValueObject,
     actorId?: UserIdentifierValueObject,

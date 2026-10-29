@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { createAdministrator } from "#access-administration/administrator.fixture";
+import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import {
   InMemoryLoginIdentityRepository,
   InMemoryUserQueryRepository,
   InMemoryUserRepository,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
 
 import { GetUserAdministrationOverviewUseCase } from "./get-user-administration-overview.use-case.js";
 
@@ -15,7 +16,7 @@ describe("GetUserAdministrationOverviewUseCase", () => {
     const administrator = createAdministrator();
     await users.save(administrator);
     const useCase = new GetUserAdministrationOverviewUseCase(
-      users,
+      new AdministratorAuthorizer(users),
       new InMemoryUserQueryRepository(
         users,
         new InMemoryLoginIdentityRepository(),

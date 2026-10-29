@@ -3,13 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import {
   InMemoryEmailVerificationRepository,
-  InMemoryIamUnitOfWork,
   InMemoryLoginIdentityRepository,
   InMemoryPasswordAuthenticatorRepository,
   InMemoryUserRepository,
-  testPasswordHash,
-  TestPolicyProvider,
-} from "#testing/iam-test-doubles";
+} from "#test/in-memory-repositories";
+import { InMemoryIamUnitOfWork } from "#test/in-memory-unit-of-work";
+import { testPasswordHash, TestPolicies } from "#test/test-policies";
 import { EmailVerificationTokenHashValueObject } from "#value-objects/email-verification-token-hash.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
@@ -38,7 +37,7 @@ describe("SignUpUseCase", () => {
     sender.sendVerificationEmail.mockReset();
   });
 
-  function useCase(policy = new TestPolicyProvider()) {
+  function useCase(policy = new TestPolicies()) {
     return new SignUpUseCase(
       identities,
       { hash: vi.fn().mockResolvedValue(testPasswordHash()) } as never,
@@ -86,7 +85,7 @@ describe("SignUpUseCase", () => {
   });
 
   it("rejects an identifier kind disabled by policy", async () => {
-    const result = await useCase(new TestPolicyProvider(["username"])).execute({
+    const result = await useCase(new TestPolicies(["username"])).execute({
       login: { kind: "email", value: "user@example.com" },
       password: "correct horse battery staple",
       passwordConfirmation: "correct horse battery staple",

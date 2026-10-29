@@ -1,29 +1,22 @@
-// @file bounded-contexts/iam/application/use-cases/sign-in/sign-in.use-case.ts
-
 import { Result } from "@architecture/foundation";
-import type { OutboxWriter } from "@architecture/messaging/application";
 
-import { SessionEntity } from "#entities/session.entity";
-import { toIamIntegrationEvent } from "#events/iam-integration-event";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { PasswordAuthenticatorRepository } from "#repositories/password-authenticator.repository";
-import type { SessionRepository } from "#repositories/session.repository";
-import type { UserRepository } from "#repositories/user.repository";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
-import type { PasswordHasher } from "#services/password-hasher.service";
-import type { SecondFactorGate } from "#services/second-factor-gate.service";
+import type { SignInPolicyReader } from "#authentication/authentication-policy.reader";
+import type { BeginSecondFactor } from "#authentication/begin-second-factor/begin-second-factor.contracts";
+import type { IssueSession } from "#authentication/issue-session";
+import type { PasswordHasher } from "#authentication/password/password-hasher.port";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
+import type { UserRepository } from "#ports/user.repository";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
-import { SignInErrorCodes } from "./sign-in.codes.js";
 import type {
   AuthenticationSession,
   SignIn,
   SignInInput,
   SignInOutput,
 } from "./sign-in.contracts.js";
-
-export const MAX_ACTIVE_SESSIONS_PER_USER = 10;
+import { SignInErrors } from "./sign-in.contracts.js";
 
 export class SignInUseCase implements SignIn {
   constructor(
@@ -31,19 +24,17 @@ export class SignInUseCase implements SignIn {
     private readonly loginIdentities: LoginIdentityRepository,
     private readonly passwordAuthenticators: PasswordAuthenticatorRepository,
     private readonly password: PasswordHasher,
-    private readonly session: SessionRepository,
-    private readonly policyProvider: IamPolicyProvider,
-    private readonly secondFactor?: SecondFactorGate,
-    private readonly outbox?: OutboxWriter,
+    private readonly policies: SignInPolicyReader,
+    private readonly secondFactor: BeginSecondFactor,
+    private readonly issueSession: IssueSession,
   ) {}
 
   async execute(payload: SignInInput): Promise<SignInOutput> {
-    const allowedLoginIdentifiers: readonly ("username" | "email")[] = (
-      await this.policyProvider.getAccountIdentityPolicy?.()
-    )?.allowedLoginIdentifiers ?? ["email"];
+    const captured = await this.policies.getSignInPolicy();
+    const { allowedLoginIdentifiers } = captured.accounts;
     if (!allowedLoginIdentifiers.includes(payload.login.kind)) {
       await this.password.fakeVerify();
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const login = LoginIdentifierValueObject.create(
@@ -51,19 +42,19 @@ export class SignInUseCase implements SignIn {
       payload.login.value,
     );
     if (!login.success) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const password = PasswordPlainValueObject.create(payload.password);
     if (!password.success) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const identity = await this.loginIdentities.findByLogin(login.value);
     if (!identity || !identity.isUsable) {
       await this.password.fakeVerify(); // Timing attack prevention
 
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const user = await this.user.findById(identity.userId);
@@ -72,7 +63,7 @@ export class SignInUseCase implements SignIn {
       : null;
     if (!user || !authenticator || authenticator.isRevoked) {
       await this.password.fakeVerify();
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
     const passwordVerified = await this.password.verify(
@@ -80,49 +71,38 @@ export class SignInUseCase implements SignIn {
       authenticator.passwordHash,
     );
     if (!passwordVerified) {
-      return Result.failure(SignInErrorCodes.invalidCredentials);
+      return Result.failure(SignInErrors.invalidCredentials);
     }
 
-    authenticator.recordSuccessfulUse();
-    await this.passwordAuthenticators.save(authenticator);
+    if (
+      !(await this.passwordAuthenticators.recordSuccessfulUse(
+        authenticator,
+        new Date(),
+      ))
+    ) {
+      return Result.failure(SignInErrors.invalidCredentials);
+    }
 
     if (!user.status.isActive()) {
-      return Result.failure(SignInErrorCodes.userSuspended);
+      return Result.failure(SignInErrors.userSuspended);
     }
 
-    const challenge = await this.secondFactor?.beginSignIn(
-      user.identifier.value,
-    );
-    if (challenge) {
-      return Result.success(challenge);
-    }
-
-    const sessionDurationMinutes =
-      await this.policyProvider.getSessionDurationMinutes();
-    const sessionEntity = SessionEntity.createForUser({
-      userId: user.identifier,
-      userSessionVersion: user.sessionVersion,
-      expiresAt: new Date(Date.now() + sessionDurationMinutes * 60_000),
-      ...(payload.client ? { client: payload.client } : {}),
-      ...(payload.network ? { network: payload.network } : {}),
-    });
-
-    await this.session.saveEnforcingMaximum(
-      sessionEntity,
-      MAX_ACTIVE_SESSIONS_PER_USER,
-    );
-    if (this.outbox) {
-      await this.outbox.append(
-        sessionEntity.pullDomainEvents().map(toIamIntegrationEvent),
-      );
-    }
-
-    const data: AuthenticationSession = {
+    const challenge = await this.secondFactor.execute({
       userId: user.identifier.value,
-      sessionId: sessionEntity.identifier.value,
-      sessionExpiresAt: sessionEntity.expiresAt,
-    };
-
+      expectedSessionVersion: user.sessionVersion,
+      policy: captured.authentication,
+    });
+    if (!challenge.success) {
+      return challenge;
+    }
+    if (challenge.value) {
+      return Result.success(challenge.value);
+    }
+    const data: AuthenticationSession = await this.issueSession.issue(
+      user,
+      payload,
+      captured.sessions,
+    );
     return Result.success(data);
   }
 }

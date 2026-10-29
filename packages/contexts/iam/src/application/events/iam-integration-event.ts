@@ -10,13 +10,19 @@ export function toIamIntegrationEvent(event: DomainEvent): IntegrationEvent {
     typeof event.payload["userId"] === "string"
       ? event.payload["userId"]
       : undefined;
+  // Session identifiers are currently bearer credentials. Cross-context
+  // consumers need the account fact, never the session authentication secret.
+  const sessionStarted = event.type === "iam.session-started";
+  if (sessionStarted && !userId) {
+    throw new Error("Session-started events require an account identifier");
+  }
   return {
     eventId: event.eventId,
     topic: event.type,
-    version: 1,
-    aggregateId: event.aggregateId,
+    version: sessionStarted ? 2 : 1,
+    aggregateId: sessionStarted ? (userId as string) : event.aggregateId,
     occurredAt: event.occurredAt,
-    payload: event.payload,
+    payload: sessionStarted ? { userId } : event.payload,
     context: {
       actorType: actorId ? "administrator" : "user",
       ...(actorId ? { actorId } : userId ? { actorId: userId } : {}),

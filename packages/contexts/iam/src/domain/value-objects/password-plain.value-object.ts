@@ -1,5 +1,3 @@
-// @file bounded-contexts/iam/domain/value-objects/password-plain.value-object.ts
-
 import { Result, ValueObject, type ValueOf } from "@architecture/foundation";
 
 const PlainPasswordErrors = {
@@ -7,11 +5,12 @@ const PlainPasswordErrors = {
     code: "password.empty",
   },
 
-  tooLong: (actual: number, max: number) => ({
-    code: "password.too_long",
-    actual,
-    max,
-  }),
+  tooLong: (actual: number, max: number) =>
+    ({
+      code: "password.too_long",
+      actual,
+      max,
+    }) as const,
 } as const;
 
 export type PlainPasswordError = ValueOf<typeof PlainPasswordErrors>;

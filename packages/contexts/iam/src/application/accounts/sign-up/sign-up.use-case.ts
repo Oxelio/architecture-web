@@ -1,58 +1,49 @@
-// @file bounded-contexts/iam/application/use-cases/sign-up/sign-up.use-case.ts
-
 import { Result } from "@architecture/foundation";
 
+import type { RegistrationPolicyReader } from "#accounts/account-policy.reader";
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
+import type { PasswordValidation } from "#accounts/password-policy/password-validation";
+import type { PasswordHasher } from "#authentication/password/password-hasher.port";
 import { EmailVerificationEntity } from "#entities/email-verification.entity";
 import { LoginIdentityEntity } from "#entities/login-identity.entity";
 import { PasswordAuthenticatorEntity } from "#entities/password-authenticator.entity";
 import { UserEntity } from "#entities/user.entity";
-import type { LoginIdentityRepository } from "#repositories/login-identity.repository";
-import type { EmailSender } from "#services/email-sender.service";
-import type { EmailVerificationTokenHasher } from "#services/email-verification-token-hasher.service";
-import type { IamPolicyProvider } from "#services/iam-policy-provider.service";
-import type { PasswordHasher } from "#services/password-hasher.service";
-import type { PasswordPolicyValidator } from "#services/password-policy-validator.service";
-import type { IamUnitOfWork } from "#transactions/iam-unit-of-work";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
 import { EmailValueObject } from "#value-objects/email.value-object";
 import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
 import { PasswordPlainValueObject } from "#value-objects/password-plain.value-object";
 
-import { SignUpErrorCodes } from "./sign-up.codes.js";
 import type {
   SignUpInput,
   SignUpOutput,
   UserRegistration,
 } from "./sign-up.contracts.js";
+import { SignUpErrors } from "./sign-up.errors.js";
 
 export class SignUpUseCase {
   constructor(
     private readonly loginIdentities: LoginIdentityRepository,
     private readonly password: PasswordHasher,
-    private readonly emailSender: EmailSender,
+    private readonly emailSender: VerificationEmailSender,
     private readonly tokenHasher: EmailVerificationTokenHasher,
-    private readonly passwordPolicy: PasswordPolicyValidator,
+    private readonly passwordValidation: PasswordValidation,
     private readonly unitOfWork: IamUnitOfWork,
-    private readonly policyProvider: IamPolicyProvider,
+    private readonly accountPolicies: RegistrationPolicyReader,
   ) {}
 
   async execute(payload: SignUpInput): Promise<SignUpOutput> {
-    if (
-      !(await this.policyProvider.isCapabilityEnabled(
-        "accounts.publicRegistration",
-      ))
-    ) {
-      return Result.failure(SignUpErrorCodes.featureDisabled);
+    const captured = await this.accountPolicies.getRegistrationPolicy();
+    const registrationPolicy = captured.accounts;
+    if (!registrationPolicy.publicRegistration) {
+      return Result.failure(SignUpErrors.featureDisabled);
     }
-    const registrationPolicy =
-      (await this.policyProvider.getAccountIdentityPolicy?.()) ?? {
-        allowedLoginIdentifiers: ["email"] as const,
-        requireEmailVerification: true,
-      };
     if (
       !registrationPolicy.allowedLoginIdentifiers.includes(payload.login.kind)
     ) {
-      return Result.failure(SignUpErrorCodes.loginIdentifierNotAllowed);
+      return Result.failure(SignUpErrors.loginIdentifierNotAllowed);
     }
     const login = LoginIdentifierValueObject.create(
       payload.login.kind,
@@ -65,15 +56,17 @@ export class SignUpUseCase {
       login.value,
     );
     if (existingIdentity) {
-      return Result.failure(SignUpErrorCodes.userAlreadyExists);
+      return Result.failure(SignUpErrors.userAlreadyExists);
     }
 
-    const validation = await this.passwordPolicy.validate({
+    const policy = captured.password;
+    const validation = await this.passwordValidation.validate(policy, {
       password: payload.password,
       confirmation: payload.passwordConfirmation,
-      ...(login.value.kind === "email"
-        ? { context: { email: login.value.value } }
-        : {}),
+      context:
+        login.value.kind === "email"
+          ? { email: login.value.value }
+          : { username: login.value.value },
     });
     const firstValidationError = validation.errors[0];
     if (firstValidationError) {
@@ -91,7 +84,7 @@ export class SignUpUseCase {
     const identity = LoginIdentityEntity.create({
       userId: user.identifier,
       login: login.value,
-      verificationRequired: registrationPolicy.requireEmailVerification,
+      verificationRequired: registrationPolicy.emailVerification,
     });
     const authenticator = PasswordAuthenticatorEntity.create({
       userId: user.identifier,
