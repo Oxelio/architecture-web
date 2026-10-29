@@ -285,7 +285,7 @@ describe("resolveWorkIntegrationPr", () => {
         return jsonResponse({
           number: 13,
           state: "open",
-          base: { ref: "development" },
+          base: { ref: "main" },
           head: {
             ref: "technical/agent-aware-delivery-activation",
             repo: { full_name: "Oxelio/Architecture-Web" },
@@ -296,7 +296,7 @@ describe("resolveWorkIntegrationPr", () => {
         return jsonResponse({
           number: 8,
           state: "closed",
-          base: { ref: "development" },
+          base: { ref: "main" },
           head: { ref: "old", repo: { full_name: "Oxelio/Architecture-Web" } },
         });
       }
@@ -316,7 +316,7 @@ describe("resolveWorkIntegrationPr", () => {
       pullRequest: {
         number: 13,
         headRef: "technical/agent-aware-delivery-activation",
-        baseRef: "development",
+        baseRef: "main",
       },
     });
   });
@@ -354,7 +354,7 @@ describe("resolveWorkIntegrationPr", () => {
       return jsonResponse({
         number,
         state: "open",
-        base: { ref: "development" },
+        base: { ref: "main" },
         head: {
           ref: `technical/work-${number}`,
           repo: { full_name: "Oxelio/Architecture-Web" },
@@ -428,7 +428,7 @@ describe("readTaskDispatchCandidate", () => {
         return jsonResponse({
           number: 13,
           state: "open",
-          base: { ref: "development" },
+          base: { ref: "main" },
           head: {
             ref: "technical/agent-aware-delivery-activation",
             repo: { full_name: "Oxelio/Architecture-Web" },

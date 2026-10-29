@@ -28,7 +28,7 @@ function pr(
     number: 13,
     state: overrides.state ?? "open",
     merged: overrides.merged ?? false,
-    base: { ref: "development" },
+    base: { ref: "main" },
     head: {
       ref: overrides.headRef ?? "technical/work-9",
       sha,
@@ -90,7 +90,7 @@ describe("readAuthorizedWorkIntegrationTarget", () => {
         pullRequestNumber: 13,
         headRef: "technical/work-9",
         headSha: "sha-1",
-        baseRef: "development",
+        baseRef: "main",
       },
     });
   });
@@ -145,7 +145,7 @@ describe("verifyAuthorizedWorkIntegrationTarget", () => {
           pullRequestNumber: 13,
           headRef: "technical/work-9",
           headSha: "sha-1",
-          baseRef: "development",
+          baseRef: "main",
         },
         fetchImpl: targetFetch("sha-1"),
       }),
@@ -163,7 +163,7 @@ describe("verifyAuthorizedWorkIntegrationTarget", () => {
           pullRequestNumber: 13,
           headRef: "technical/work-9",
           headSha: "sha-1",
-          baseRef: "development",
+          baseRef: "main",
         },
         fetchImpl: targetFetch("sha-2"),
       }),

@@ -78,7 +78,7 @@ checks whose evidence could have been invalidated by that change, proportional
 to the affected boundaries and risks. Before merge, confirm that accepted
 validation evidence applies to the current candidate SHA.
 
-A future automated evidence mechanism may replace or reduce this human execution
+For Work integration, a future automated evidence mechanism may replace or reduce this human execution
 only after separate accepted project scope establishes its semantics and
 activation. Automated check success by itself does not establish validation
 sufficiency.
@@ -136,3 +136,7 @@ docker compose -p iam-refactor-tests -f compose.iam-test.yml down
 The database name must start with `iam_refactor_test`. Every run creates a unique schema, migrates it, and removes only that schema. Redis uses generated test-account/session identifiers and clears only those owned keys; it never flushes a database. Both variables are required together. These checks cover publication races, single-use recovery, outbox rollback, session-version protection after cleanup failure, MFA attempts and backup-code consumption, single archive download, last-administrator deletion and policy snapshot consistency.
 
 The IAM correction extends the isolated suite with stale credential saves (including MFA), identity-bound recovery issuance in both orderings, stale MFA generations, unsafe publication/restoration, mixed administrator mutations, a real pre-refactor database upgrade, and publication inside actual registration/sign-in workflows. Fixtures use only their generated schemas and owned Redis keys. These scenarios must execute with both integration URLs; ordinary skipped runs provide no database evidence.
+
+## Automatic release verification
+
+Release-boundary validation is automated under the accepted [delivery policy](../project/delivery-pipeline.md). It does not change pre-merge human validation authority. The release suite checks Conventional Commit rules, first-stable authority, isolated release-it generation, deterministic source archives, a real temporary bare Git remote, partial publication and checksum conflicts. Run `pnpm --filter @architecture/delivery-automation test src/release` for the targeted suite. A passing fixture does not prove live GitHub activation.

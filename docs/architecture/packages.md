@@ -128,10 +128,13 @@ silently normalized.
 
 ## Versioning and publication
 
-Packages currently share version `1.0.0-alpha.1`, but the repository contains
-neither Semantic Release configuration nor evidence of independent versioning.
-Most publishable packages use `prepublishOnly` to build. Any stronger publication
-or SemVer policy needs a human decision and an ADR.
+[ADR-0008](decisions/0008-main-only-automatic-releases.md) adopts one coordinated
+project version. Tracked manifests declare development baseline `0.1.0` after the
+explicit migration from `1.0.0-alpha.1`; published `vX.Y.Z` tags own released
+versions. The attached source archive stamps every workspace manifest and
+preserves `workspace:*`. No independent package or registry publication is active.
+HTTP contract `v1` remains independent from project SemVer. See the
+[delivery policy](../project/delivery-pipeline.md) and [release guide](../development/releases.md).
 
 ## Authorized IAM contract migration
 

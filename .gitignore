@@ -5,3 +5,5 @@ dist
 !.env.example
 coverage
 .npmrc
+release-output
+release-plan.json

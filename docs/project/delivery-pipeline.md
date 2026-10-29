@@ -6,6 +6,10 @@
 >
 > **Domain:** Delivery / Architecture
 
+> Work #58's explicitly accepted policy becomes effective when integrated through
+> its history-preserving transition PR. Platform enforcement/publication activation
+> still requires separate verification; document presence does not prove it.
+
 ## 1. Purpose
 
 Architecture Web adopts the generic [Software Engineering Method](../../external/software-engineering-method/README.md).
@@ -43,7 +47,7 @@ Task identity                    -> GitHub Sub-issue
 Task parent relationship         -> GitHub native Sub-issue relationship
 Task execution context           -> Task Sub-issue
 Task completion                  -> GitHub Sub-issue open/closed state
-Release candidate/promotion      -> top-level GitHub Issue representing Release Work
+Release identity / traceability   -> GitHub Release and attached release manifest
 Delivery ordering                -> GitHub Project
 Implementation/review vehicle    -> Pull Request
 ```
@@ -55,42 +59,34 @@ that is assigned to another canonical owner.
 
 ### Repository branch policy
 
-Architecture Web uses `main` as the repository's default reference branch and
-`development` as its integration branch.
+`main` is the only permanent branch, repository default and integration target.
+Ordinary Work uses temporary branches from `main` and integrates through a Work
+Integration Pull Request. Delete a completed branch after its work is conserved.
+No permanent `development`, staged `release/*` or environment branch is required.
 
-The repository branch topology MUST preserve shared Git ancestry between these
-branches:
+The Work Merge Gate, repository merge permissions, reviews and pre-merge
+validation remain applicable. A merge is not Work completion. Source integration
+is distinct from automatic source release publication and from deployment.
 
-- `development` MUST descend from `main`;
-- ordinary implementation and governance work SHOULD be performed on dedicated
-  Work branches created from `development`;
-- completed ordinary Work branches SHOULD be integrated into `development`
-  through a Work Integration Pull Request;
-- the normal beta/stable release path MUST use a short-lived `release/*`
-  candidate branch rather than treating direct `development -> main` promotion
-  as the ordinary release path;
-- release-candidate correction Work SHOULD target the authorized `release/*`
-  branch and MUST be reconciled into `development` no later than release
-  completion when the correction must survive the release;
-- stable promotion from `release/*` to `main` MUST use the Release Promotion
-  Gate and the repository's authorized merge process;
-- after stable promotion, `main` MUST be synchronized back into `development`
-  before ordinary integration continues when needed to restore the shared
-  ancestry invariant;
-- `main` and `development` MUST NOT be rewritten, replaced, or recreated in a
-  way that breaks their shared ancestry as an ordinary implementation action.
+Do not force-update or replace `main` or discard unique commits during transition.
+A history rewrite still requires separate explicit human governance authority.
+Future environments may consume different immutable SHA/tag identities from the
+same branch; their activation does not require adding permanent branches.
 
-Any intentionally supported direct-promotion or emergency path MUST be defined
-explicitly and MUST NOT silently bypass the Release Promotion Gate.
+#### Accepted transition from the previous topology
 
-A force update, history rewrite, branch replacement, or other operation that
-can materially alter the shared history of `main` or `development` is a
-**Material Governance Change**. It requires explicit human authorization before
-execution and MUST include sufficient preservation, rollback, and validation
-measures for the affected history.
+The maintainer explicitly accepted Work #58's complete implementation plan on
+2026-10-29. The accepted target authorizes a merge-commit transition PR preserving
+all selected `development` history and introducing this policy on `main`, without
+using the former staged-release/beta/Human Release Approval route. Ordinary PR
+review and human-supplied pre-merge validation remain prerequisites. This is a
+one-time policy transition, not permission to rewrite history or bypass checks.
 
-Tool capability to create, update, delete, or force-update a Git ref does not
-grant authority to perform such an operation.
+Inventory remote and local divergence before transition. Delete `development`
+only after verifying that its tip is an ancestor of `main`; delete other branches
+only when their work is conserved. Surface unmerged work instead of deleting it.
+The source-release workflow becomes available after normal integration; verify
+its live behavior before claiming activation. No deployment is part of this Work.
 
 ### External-owner activation
 
@@ -518,15 +514,13 @@ or AI authority policy.
 
 ### Work Integration Branch and Pull Request
 
-Meaningful repository Work SHOULD use one primary Work Integration Branch and
-one Work Integration Pull Request per repository integration target. Ordinary
-Work normally branches from `development`; release-candidate correction Work may
-target an authorized `release/*` branch.
+Meaningful repository Work SHOULD use one primary temporary Work Integration Branch and
+one Work Integration Pull Request per repository integration target. Ordinary Work branches from `main` and targets `main`.
 
 A Task MAY use its own branch when useful, but its integration target is the Work
 Integration Branch. Task-level integration MUST NOT bypass Work-level review,
 validation, or merge requirements by merging partial governed Work directly to
-`development` or another governed integration target.
+`main` or another governed integration target established by accepted policy.
 
 The Work Integration Pull Request MAY remain Draft during `Implementing`.
 
@@ -556,10 +550,7 @@ It may pass only when:
 A passing Work Merge Gate does not grant automatic merge authority and does not
 imply `Done`. Post-merge synchronization or validation evidence may remain.
 
-The Work Merge Gate governs ordinary Work Integration Pull Requests and
-release-candidate correction Work targeting `release/*`. It does **not** govern
-the Release Work's `release/* -> main` promotion Pull Request, which is protected
-by the distinct Release Promotion Gate.
+The Work Merge Gate governs Work Integration Pull Requests into `main`. Automatic release publication has its own candidate-bound checks described in section 13.
 
 ## 9. Work closure and non-completion dispositions
 
@@ -670,7 +661,7 @@ Automation MUST NOT blindly:
 - change Priority as a substitute for delivery authority;
 - let an execution agent self-assign or silently substitute its `agent:*` route;
 - accept a target ref solely from untrusted agent output;
-- treat Work Merge Gate or Release Promotion Gate success as automatic merge
+- treat Work Merge Gate or automatic publication check success as automatic merge
   authority.
 
 ## 12. Agent execution security and deterministic control plane
@@ -693,7 +684,7 @@ applicable policy permits it.
 The delivery control plane MUST deterministically apply established policy for
 Work dispatch eligibility, dependencies, WIP, routing validation, target-ref
 validation, lifecycle-transition validity, Work Merge Gate evaluation, and
-Release Promotion Gate prerequisites. Human Task selection remains governed by
+automatic release publication prerequisites. Human Task selection remains governed by
 the authorized Task plan and Task dependencies rather than an autonomous
 control-plane dispatch protocol.
 
@@ -707,135 +698,94 @@ The branch owning a scheduled workflow does not own application branch semantics
 The control plane MUST select or validate an explicit authorized target ref before
 dispatch, and MUST NOT accept the target ref solely from untrusted agent output.
 A stable default-branch control plane may therefore coordinate authorized Work on
-`development`, `release/*`, or another explicitly permitted target without
+`main` or an authorized temporary Work branch without
 creating a permanent branch solely for scheduling.
 
 Exact runtime, secret storage, token issuance, model, reasoning effort, sandbox,
 workflow syntax, and publisher implementation belong to Technical Design.
 
-## 13. Release governance
+## 13. Automatic coordinated source releases
 
-Branches and deployment environments are distinct delivery concepts. The normal
-staged topology is:
+### Authority and ownership
 
-```text
-branches:      development    release/*    main
-environments:  alpha          beta         production
-promotion:     development -> alpha
-               release/*   -> beta
-               main        -> production
-```
+The maintainer accepted automatic routine releases in Work #58 on 2026-10-29.
+GitHub Releases and attached manifests own release identity and publication
+traceability after separate activation verification. No per-release Release Work
+Issue, beta deployment, environment approval or Human Release Approval is
+required. The former Release Promotion Gate and staged promotion route are
+superseded. Normal development Issues and their Work/Task governance remain.
 
-A permanent `staging` branch SHOULD NOT be introduced solely to represent the
-beta environment. Release branches MUST remain short-lived.
+The first `1.0.0` is the sole release-specific human decision: a human maintainer
+with current maintain/admin authority explicitly requests it through the release
+workflow on `main`, identifying the exact expected SHA. Bots, generic commit
+markers, merge capability and automatic breaking-change analysis do not supply
+this decision. The originating human dispatch is retained in release metadata;
+validation and publication then proceed automatically.
 
-### Release Work
+### Version policy
 
-A staged release MUST have one identifiable Release Work as its operational
-coordination owner. Release Work is a normal Method Work, not a new Work Type.
-For a pure operational promotion preserving already-authorized behavior,
-`Technical Change` with the `operational` Change Characteristic is the expected
-classification; Workflow Depth remains risk-based.
+Use one coordinated project version and `vX.Y.Z` tags. Published tags own release
+versions. Tracked manifests are development declarations; generated source
+archives stamp all discovered workspace manifests and preserve `workspace:*`.
+The accepted initial migration is `1.0.0-alpha.1` to `0.1.0`, with no implied tag
+or publication. Do not normalize other prerelease bases without an explicit
+migration decision. No independent package or npm registry publishing is active.
 
-The Release Work SHOULD reference the release branch/ref, candidate commit/ref,
-artifact identity when applicable, included Work/release scope, beta validation
-evidence, Human Release Approval result, and production promotion/deployment
-evidence. These are operational references only; Release Work MUST NOT duplicate
-or replace product, architecture, implementation, or validation truth.
+Analyze all commits since the preceding release tag through the selected SHA and
+apply the maximum impact once:
 
-Release-candidate corrections SHOULD use authorized Work/Task branches targeting
-the release branch. Corrections that must survive the release MUST be reconciled
-into `development` no later than release completion.
+| Commit                                 | Before 1.0.0 | From 1.0.0 onward |
+| -------------------------------------- | ------------ | ----------------- |
+| `fix:`                                 | PATCH        | PATCH             |
+| `feat:`                                | MINOR        | MINOR             |
+| `!` or `BREAKING CHANGE`               | MINOR        | MAJOR             |
+| Other types without breaking semantics | No release   | No release        |
 
-### V1 Release Work route
+Without a prior tag, releasing history bootstraps to `0.1.0`. Non-releasing
+history alone does not create a release. Automatic analysis cannot produce the
+first `1.0.0`; only the explicit first-stable request can do so. Alpha/beta/rc
+suffixes are not used in V1. HTTP contract versions remain independent of project
+SemVer; release automation must preserve existing `/v1` URLs.
 
-```text
-Idea
--> Preparing            release scope/candidate plan, Tasks when needed, Readiness
--> Ready
--> Implementing         create candidate, build artifact, deploy beta
--> Validating           collect/evaluate beta evidence
--> Awaiting Approval    Human Release Approval
--> Implementing         promote approved candidate to main/production and synchronize
--> Validating           production/promotion/synchronization evidence
--> Done
-```
+### Candidate validation and automatic publication
 
-If beta validation fails or the candidate changes materially, the Work returns
-to the activity/state authorized to correct it, then repeats applicable
-validation and Human Release Approval. The post-approval transition may return
-directly to `Implementing` because promotion scope was prepared before initial
-Readiness; if approval or a discovered change introduces new scope, design, risk,
-or execution decisions, normal upstream return and Readiness rules apply.
+A push to `main` triggers version planning against an immutable selected main
+SHA. PRs, temporary branches and tags cannot trigger publication. A no-release
+plan or already-published candidate causes no publication mutation. A candidate
+must pass build, application/test typechecks, lint, tests, formatting, documentation
+links and whitespace checks before artifact generation and publication.
 
-### Candidate identity and artifact promotion
+These automated checks are sufficient release-boundary evidence under this
+accepted policy. They do not replace human-supplied pre-merge Work validation.
 
-The release process SHOULD preserve the identity of the candidate that received
-beta validation and Human Release Approval. Promoting the same immutable artifact
-from beta to production is preferred.
+Generate a deterministic versioned source archive, notes, source/version manifest
+and SHA256 checksums. Include the pinned Method sources. These are source
+artifacts, not executable distributions or deployment evidence. Raw GitHub source
+archives retain the original tracked development declarations.
 
-If Technical Design requires a rebuild, it MUST define immutable source identity,
-the reproducibility/equivalence guarantee, and validation evidence sufficient to
-treat the rebuilt artifact as the approved candidate. A rebuild MUST NOT silently
-substitute a materially different artifact. A material candidate source or
-artifact change after approval invalidates the previous Human Release Approval.
+The privileged publisher must revalidate the source, version plan, first-stable
+request when applicable, checksums and remote identities. Create the tag on the
+validated source commit, then publish the GitHub Release. Never create a release
+commit, push a branch, merge a PR or mutate Work Issues as a publication effect.
 
-### Human Release Authority and Human Release Approval
+### Permissions, concurrency and recovery
 
-V1 defines **Human Release Approval** as a project-specific human-only Authority
-Gate for stable release promotion.
+Validation/generation jobs use read credentials. A separate publisher uses only
+the repository permissions needed for tags and Releases, plus read access to its
+workflow/authorization evidence. Run trusted control code; do not execute
+candidate lifecycle scripts with publication credentials. Respect actual platform
+protections and report unavailable enforcement rather than bypassing it.
 
-For V1, Human Release Authority is held by a **human Architecture Web maintainer
-explicitly acting as Human Release Authority for the identified candidate**.
-Repository maintainer status is the eligibility basis chosen by project
-governance; GitHub write, merge, review, environment, or deployment capability
-does not by itself prove that Human Release Approval was exercised.
+Serialize publication. Complete a tagged missing/draft release before selecting
+a newer candidate. Preserve immutable plan metadata in the annotated tag so
+reruns can reproduce artifacts. Identical tags/assets are reused; differing
+source targets, metadata or asset bytes block publication. Do not move/delete
+tags or overwrite assets. A failed validation produces no tag or Release.
 
-The approval decision MUST be explicit and candidate-specific. Delegating the
-technical act of merge or deployment does not delegate Human Release Authority
-unless a later accepted governance rule explicitly defines such delegation.
-
-Human Release Approval:
-
-- applies to one identified release candidate;
-- requires sufficient beta validation evidence;
-- authorizes promotion of that candidate toward `main` and production;
-- does not itself merge a Pull Request or execute deployment;
-- MUST be renewed if the approved candidate changes materially.
-
-AI MAY prepare evidence, assess readiness, recommend approval, and record an
-already-existing human decision when project policy permits. AI MUST NOT execute
-Human Release Approval.
-
-The approval record MUST be attributable to a human Architecture Web maintainer
-explicitly acting as Human Release Authority, identify the Release Work and
-approved candidate source/ref, and identify the candidate artifact when artifact
-identity is part of the release guarantee. Generic or stale approval MUST NOT
-satisfy the gate.
-
-The concrete GitHub recording/enforcement mechanism belongs to activation or
-Technical Design and does not change the semantic authority owner.
-
-### Release Promotion Gate
-
-The Release Promotion Gate is distinct from the Work Merge Gate and protects the
-normal `release/* -> main` promotion. It may pass only when:
-
-- the Release Work and candidate are identifiable;
-- required beta evidence is sufficient;
-- Human Release Approval exists for the current candidate;
-- applicable repository checks/protections pass;
-- no release blocker or unresolved out-of-authority Working Decision remains.
-
-A PR review, environment approval, deployment status, or platform protection MAY
-record or enforce parts of this contract, but platform capability does not become
-semantic release authority. The promotion Pull Request MUST reference its Release
-Work. Passing the Release Promotion Gate does not grant automatic merge authority
-unless a separate accepted project policy explicitly grants it.
-
-After stable promotion, `main` MUST be synchronized back into `development` when
-needed before ordinary integration continues so the shared-ancestry invariant is
-restored.
+The [release guide](../development/releases.md) owns operational commands and
+recovery instructions; [ADR-0008](../architecture/decisions/0008-main-only-automatic-releases.md)
+owns structural rationale. Hosting, deployment and environments require separate
+accepted scope and activation; they are not prerequisites for source releases.
 
 ## 14. Runtime neutrality and activation
 
@@ -852,10 +802,10 @@ and verification. This includes, where applicable:
 - Task dependency mappings;
 - routing visibility/filtering in Project views;
 - Work Merge Gate required checks/rulesets;
-- Release Work operational mapping;
+- GitHub Release / release-manifest operational mapping;
 - `alpha`, `beta`, and `production` environment configuration;
-- Human Release Approval recording;
-- Release Promotion Gate enforcement;
+- first-stable human dispatch recording;
+- automatic release publication enforcement;
 - privileged publisher / Project credentials;
 - selected runtime adapters.
 

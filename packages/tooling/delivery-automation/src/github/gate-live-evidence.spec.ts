@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  readReleasePromotionTarget,
-  readWorkMergeGateLiveEvidence,
-} from "./gate-live-evidence.js";
+import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 
 const repository = "Oxelio/Architecture-Web";
 const repositoryUrl = `https://api.github.com/repos/${repository}`;
@@ -82,7 +79,7 @@ describe("readWorkMergeGateLiveEvidence", () => {
           state: "open",
           merged: false,
           mergeable: true,
-          base: { ref: "development" },
+          base: { ref: "main" },
           head: {
             ref: "technical/agent-aware-delivery-activation",
             sha: headSha,
@@ -120,7 +117,7 @@ describe("readWorkMergeGateLiveEvidence", () => {
         pullRequestNumber: 13,
         headRef: "technical/agent-aware-delivery-activation",
         headSha,
-        baseRef: "development",
+        baseRef: "main",
       },
     });
   });
@@ -152,147 +149,5 @@ describe("readWorkMergeGateLiveEvidence", () => {
     });
 
     expect(fetchImpl).not.toHaveBeenCalled();
-  });
-});
-
-describe("readReleasePromotionTarget", () => {
-  it("selects the single same-repository release branch PR targeting main", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/issues/20")) {
-        return json({ number: 20, state: "open" });
-      }
-      if (url.includes("/issues/20/timeline")) {
-        return json([
-          {
-            event: "cross-referenced",
-            source: {
-              issue: {
-                number: 30,
-                repository_url: repositoryUrl,
-                pull_request: {},
-              },
-            },
-          },
-        ]);
-      }
-      if (url.endsWith("/pulls/30")) {
-        return json({
-          number: 30,
-          state: "open",
-          merged: false,
-          base: { ref: "main" },
-          head: {
-            ref: "release/1.2.3",
-            sha: headSha,
-            repo: { full_name: repository },
-          },
-        });
-      }
-      throw new Error(`Unexpected URL ${url}`);
-    });
-
-    await expect(
-      readReleasePromotionTarget({
-        repository,
-        releaseWorkNumber: 20,
-        repositoryToken: "repo-token",
-        artifactIdentity: "artifact-123",
-        fetchImpl,
-      }),
-    ).resolves.toEqual({
-      status: "selected",
-      target: {
-        pullRequestNumber: 30,
-        candidate: {
-          sourceRef: "release/1.2.3",
-          sourceSha: headSha,
-          artifactIdentity: "artifact-123",
-        },
-      },
-    });
-  });
-
-  it("rejects a cross-reference from another repository even when the PR number collides", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/issues/20")) {
-        return json({ number: 20, state: "open" });
-      }
-      if (url.includes("/issues/20/timeline")) {
-        return json([
-          {
-            event: "cross-referenced",
-            source: {
-              issue: {
-                number: 30,
-                repository_url: "https://api.github.com/repos/Other/Repository",
-                pull_request: {},
-              },
-            },
-          },
-        ]);
-      }
-      if (url.endsWith("/pulls/30")) {
-        throw new Error(
-          "cross-repository PR number must not be resolved locally",
-        );
-      }
-      throw new Error(`Unexpected URL ${url}`);
-    });
-
-    await expect(
-      readReleasePromotionTarget({
-        repository,
-        releaseWorkNumber: 20,
-        repositoryToken: "repo-token",
-        artifactIdentity: null,
-        fetchImpl,
-      }),
-    ).resolves.toEqual({ status: "unavailable" });
-  });
-
-  it("rejects a closed Release Work before resolving promotion PRs", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/issues/20")) {
-        return json({ number: 20, state: "closed" });
-      }
-      throw new Error(`Unexpected URL ${url}`);
-    });
-
-    await expect(
-      readReleasePromotionTarget({
-        repository,
-        releaseWorkNumber: 20,
-        repositoryToken: "repo-token",
-        artifactIdentity: null,
-        fetchImpl,
-      }),
-    ).resolves.toEqual({ status: "unavailable" });
-
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-  });
-
-  it("rejects a pull request number used as Release Work identity", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/issues/20")) {
-        return json({ number: 20, state: "open", pull_request: {} });
-      }
-      throw new Error(`Unexpected URL ${url}`);
-    });
-
-    await expect(
-      readReleasePromotionTarget({
-        repository,
-        releaseWorkNumber: 20,
-        repositoryToken: "repo-token",
-        artifactIdentity: null,
-        fetchImpl,
-      }),
-    ).resolves.toEqual({ status: "unavailable" });
-
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

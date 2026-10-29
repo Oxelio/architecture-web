@@ -68,3 +68,7 @@ ESLint enforces targeted IAM domain/application and API transport boundaries. Ty
 Unit and HTTP suites cover policies, expected failures, dependency failures and controller ownership. An opt-in PostgreSQL/Redis suite covers important transaction races; its presence does not establish successful execution in an environment where Docker is unavailable. See [Testing](../development/testing.md).
 
 Remote compromise checking, password history, exhaustive notification scenarios and deployment scheduling are not implemented by this refactoring.
+
+## Source delivery
+
+[ADR-0008](decisions/0008-main-only-automatic-releases.md) defines the accepted target of coordinated source releases from the sole permanent `main` branch. The repository implements release tooling for tag-owned versions and stamped source archives; the history-preserving transition and live publication activation require separate verification. The [delivery policy](../project/delivery-pipeline.md) distinguishes automatic publication from Work review and deployment.

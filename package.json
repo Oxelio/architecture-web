@@ -1,7 +1,7 @@
 {
   "name": "architecture-web",
   "private": true,
-  "version": "1.0.0-alpha.1",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "docs:links": "node scripts/check-markdown-links.mjs",
-    "docs:links:test": "node --test scripts/check-markdown-links.test.mjs"
+    "docs:links:test": "node --test scripts/check-markdown-links.test.mjs",
+    "release:plan": "pnpm --filter @architecture/delivery-automation release:plan"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,ts,tsx}": [
@@ -42,5 +43,8 @@
     "lint-staged": "^17.2.0",
     "prettier": "^3.9.6",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": "^24.15.0 || ^26.8.1"
   }
 }

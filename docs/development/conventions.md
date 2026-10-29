@@ -125,9 +125,13 @@ method rules in implementation notes merely for convenience.
 
 ## Commits and versions
 
-Commitlint enforces Conventional Commits. Changes **SHOULD** form coherent units
-such as `feat(iam): ...` or `docs(architecture): ...`.
+Commitlint checks Conventional Commits using the locked workspace dependency.
+Use coherent changes such as `feat(iam): ...` or `docs(architecture): ...`.
+Squash PR titles must preserve the intended semantic impact; breaking changes
+should use `!` or preserve their `BREAKING CHANGE` footer in the final commit.
 
-Manifest alpha versions do not establish a publication policy. Without
-repository automation or an accepted ADR, do not claim that Semantic Release,
-independent versioning, or inter-package SemVer guarantees are active.
+The [delivery profile](../project/delivery-pipeline.md) owns version rules and
+release authority. Use the [release guide](releases.md) for read-only planning,
+first-stable requests and recovery. Published tags own versions; tracked
+manifests are development declarations. Do not manually publish packages or
+introduce independent versions as an implementation convenience.

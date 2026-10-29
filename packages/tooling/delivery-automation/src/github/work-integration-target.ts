@@ -55,7 +55,7 @@ function repositoryApiUrl(repository: string): string {
 }
 
 function isAllowedBase(baseRef: string): boolean {
-  return baseRef === "development" || baseRef.startsWith("release/");
+  return baseRef === "main";
 }
 
 function isAllowedWorkHead(headRef: string): boolean {

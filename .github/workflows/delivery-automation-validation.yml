@@ -3,7 +3,7 @@ name: Delivery Automation Validation
 on:
   pull_request:
     branches:
-      - development
+      - main
     types:
       - ready_for_review
     paths:
@@ -11,7 +11,7 @@ on:
       - ".github/workflows/**"
       - "docs/architecture/agent-aware-delivery-activation.md"
       - "docs/project/delivery-pipeline.md"
-      - "packages/delivery-automation/**"
+      - "packages/tooling/delivery-automation/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -29,12 +29,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
+          submodules: recursive
           persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "24"
+          node-version-file: .nvmrc
 
       - name: Set up pnpm
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
@@ -46,6 +48,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Preview release version without publishing
+        run: pnpm release:plan
 
       - name: Typecheck
         run: pnpm typecheck
@@ -161,6 +166,12 @@ jobs:
 
       - name: Check formatting
         run: pnpm format:check
+
+      - name: Check documentation links
+        run: pnpm docs:links
+
+      - name: Test documentation link validation
+        run: pnpm docs:links:test
 
       - name: Check whitespace errors
         run: git diff --check

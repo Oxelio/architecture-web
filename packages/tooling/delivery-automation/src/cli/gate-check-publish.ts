@@ -10,7 +10,7 @@ interface GateCheckPayload {
 }
 
 interface GateEvaluationEnvelope {
-  readonly gate: "work-merge" | "release-promotion";
+  readonly gate: "work-merge";
   readonly check: GateCheckPayload;
   readonly result: unknown;
   readonly context: unknown;
@@ -18,7 +18,6 @@ interface GateEvaluationEnvelope {
 
 const checkNameByGate = {
   "work-merge": "Architecture Web / Work Merge Gate",
-  "release-promotion": "Architecture Web / Release Promotion Gate",
 } as const;
 
 function parseEnvelope(encoded: string): GateEvaluationEnvelope {
@@ -36,7 +35,7 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   }
   const record = value as Record<string, unknown>;
   const gate = record["gate"];
-  if (gate !== "work-merge" && gate !== "release-promotion") {
+  if (gate !== "work-merge") {
     throw new Error("Gate evaluation envelope has an invalid gate kind");
   }
 

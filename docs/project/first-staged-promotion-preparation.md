@@ -1,5 +1,7 @@
 # First staged promotion preparation
 
+> Current applicability: Work #58 and [ADR-0008](../architecture/decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination described here. This document retains historical rationale only for those subjects; current policy is owned by the delivery profile. Non-release Work/Task semantics remain applicable where consistent with current policy.
+
 > **Content status:** Proposed
 >
 > **Document type:** Release Preparation Plan

@@ -20,7 +20,7 @@ import { buildSecurityRoutes } from "./features/iam/security/security.routes.js"
 import { buildNotificationRoutes } from "./notifications/notification.routes.js";
 import { errorHandler } from "./types/error-handler.js";
 
-const apiVersion = `v${pkg.version.split(".")[0]}`;
+const apiVersion = "v1";
 
 export async function buildServer() {
   const app = Fastify({

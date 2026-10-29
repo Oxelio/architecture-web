@@ -62,6 +62,10 @@ listed here. Explore them first and create an ADR if/when an explicit structural
 choice is made:
 
 - whether packages are published outside the monorepo;
-- shared or independent versioning;
+
 - automated enforcement of all dependency rules;
 - the scheduling strategy for security maintenance.
+
+## ADR-0008 — Main-only automatic coordinated releases
+
+[ADR-0008](0008-main-only-automatic-releases.md) records the accepted main-only topology, tag-owned coordinated versions, generated source artifacts and independent HTTP contract version.

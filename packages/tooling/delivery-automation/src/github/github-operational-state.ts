@@ -545,7 +545,7 @@ async function readTaskParentState(input: {
 }
 
 function isAllowedIntegrationBase(baseRef: string): boolean {
-  return baseRef === "development" || baseRef.startsWith("release/");
+  return baseRef === "main";
 }
 
 export async function resolveWorkIntegrationPr(input: {

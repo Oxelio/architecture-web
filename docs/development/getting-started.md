@@ -2,12 +2,11 @@
 
 ## Prerequisites
 
-- a Node.js version compatible with TypeScript 5.9 and Vite 8;
-- pnpm `11.15.1`, as declared at the root;
+- Node.js `26.8.1`, selected by `.nvmrc` (engine-compatible Node 24 starts at 24.15.0);
+- pnpm `12.15.0`, as declared by root `packageManager`;
 - Docker Compose for PostgreSQL, Redis, and Mailpit, or equivalent services.
 
-The repository does not declare an exact Node version. Check dependency engine
-requirements before standardizing one in documentation or CI.
+CI reads `.nvmrc`; use root `packageManager` for locked dependency installation.
 
 ## Install
 
