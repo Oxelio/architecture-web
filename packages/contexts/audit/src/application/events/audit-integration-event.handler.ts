@@ -1,0 +1,63 @@
+import type { IntegrationEventHandler } from "@architecture/messaging/application";
+import type { IntegrationEvent } from "@architecture/messaging/domain";
+
+import type { AuditRecorder } from "../audit.contracts.js";
+
+export const IAM_AUDITED_TOPICS = [
+  "iam.user-registered",
+  "iam.user-email-changed",
+  "iam.user-password-changed",
+  "iam.user-role-changed",
+  "iam.user-suspended",
+  "iam.user-activated",
+  "iam.user-email-verified",
+  "iam.session-started",
+  "security.config.published",
+  "account.recovery.completed",
+  "mfa.activated",
+  "mfa.disabled",
+  "mfa.backup_codes.regenerated",
+  "mfa.backup_code.used",
+  "account.export.generated",
+  "account.export.downloaded",
+  "account.deletion.requested",
+  "account.deletion.cancelled",
+  "account.deletion.executed",
+] as const;
+
+export class AuditIntegrationEventHandler implements IntegrationEventHandler {
+  readonly topics = IAM_AUDITED_TOPICS;
+
+  constructor(
+    private readonly audit: AuditRecorder,
+    private readonly retention: { getRetentionDays(): Promise<number> },
+  ) {}
+
+  async handle(event: IntegrationEvent): Promise<void> {
+    const actorType =
+      event.context["actorType"] === "administrator"
+        ? "administrator"
+        : event.context["actorType"] === "system"
+          ? "system"
+          : event.context["actorType"] === "anonymous"
+            ? "anonymous"
+            : "user";
+    return this.audit.record({
+      id: event.eventId,
+      type: event.topic,
+      occurredAt: event.occurredAt,
+      result: "success",
+      context: {
+        actorType,
+        ...(typeof event.context["actorId"] === "string"
+          ? { actorId: event.context["actorId"] }
+          : {}),
+        ...(typeof event.context["subjectId"] === "string"
+          ? { subjectId: event.context["subjectId"] }
+          : {}),
+      },
+      metadata: event.payload,
+      retentionDays: await this.retention.getRetentionDays(),
+    });
+  }
+}

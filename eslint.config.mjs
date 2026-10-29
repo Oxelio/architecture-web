@@ -1,14 +1,6 @@
-// @ts-check
+import base from "@architecture/eslint-config";
+import architecture from "@architecture/eslint-config/architecture";
+import node from "@architecture/eslint-config/node";
+import react from "@architecture/eslint-config/react-vite";
 
-import js from "@eslint/js";
-import { defineConfig } from "eslint/config";
-import tseslint from "typescript-eslint";
-import eslintConfigPrettier from "eslint-config-prettier/flat";
-
-const baseConfig = defineConfig(
-  js.configs.recommended,
-  tseslint.configs.strict,
-  tseslint.configs.stylistic,
-);
-
-export default [...baseConfig, eslintConfigPrettier];
+export default [...base, ...node, ...react, ...architecture];

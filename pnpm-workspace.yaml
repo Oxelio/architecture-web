@@ -1,0 +1,11 @@
+packages:
+  - "apps/*"
+  - "packages/contexts/*"
+  - "packages/adapters/*/*"
+  - "packages/shared/*"
+  - "packages/tooling/*"
+
+allowBuilds:
+  argon2: true
+  bcrypt: true
+  esbuild: true

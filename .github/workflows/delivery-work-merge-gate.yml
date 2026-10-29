@@ -1,0 +1,191 @@
+name: Delivery Work Merge Gate Publisher
+
+on:
+  workflow_dispatch:
+    inputs:
+      work_number:
+        description: Owning Work issue number.
+        required: true
+        type: string
+      required_tasks_acceptable:
+        description: Established Task disposition result.
+        required: true
+        type: boolean
+        default: false
+      tasks_evidence_ref:
+        description: Reference proving the Task disposition result when true.
+        required: false
+        type: string
+      applicable_reviews_accepted:
+        description: Established applicable review acceptance result.
+        required: true
+        type: boolean
+        default: false
+      reviews_evidence_ref:
+        description: Reference proving applicable review acceptance when true.
+        required: false
+        type: string
+      validation_sufficient:
+        description: Established validation sufficiency result.
+        required: true
+        type: boolean
+        default: false
+      validation_evidence_ref:
+        description: Reference proving validation sufficiency when true.
+        required: false
+        type: string
+      prior_authority_gates_satisfied:
+        description: Established prior authority-gate result.
+        required: true
+        type: boolean
+        default: false
+      authority_evidence_ref:
+        description: Reference proving prior authority gates when true.
+        required: false
+        type: string
+      working_decisions_resolved:
+        description: Established Working Decision resolution result.
+        required: true
+        type: boolean
+        default: false
+      working_decisions_evidence_ref:
+        description: Reference proving Working Decision resolution when true.
+        required: false
+        type: string
+      repository_checks_satisfied:
+        description: Established repository-check result excluding this gate.
+        required: true
+        type: boolean
+        default: false
+      repository_checks_evidence_ref:
+        description: Reference proving repository checks when true.
+        required: false
+        type: string
+
+concurrency:
+  group: delivery-work-merge-gate-${{ inputs.work_number }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: Evaluate Work Merge Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      gate_result: ${{ steps.evaluate.outputs.gate_result }}
+    steps:
+      - name: Validate trusted control ref
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "TRUSTED_CONTROL_REF_REQUIRED: dispatch this publisher with ref=main" >&2
+            exit 1
+          fi
+
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Evaluate trusted gate evidence
+        id: evaluate
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN }}
+          WORK_NUMBER: ${{ inputs.work_number }}
+          REQUIRED_TASKS_ACCEPTABLE: ${{ inputs.required_tasks_acceptable }}
+          TASKS_EVIDENCE_REF: ${{ inputs.tasks_evidence_ref }}
+          APPLICABLE_REVIEWS_ACCEPTED: ${{ inputs.applicable_reviews_accepted }}
+          REVIEWS_EVIDENCE_REF: ${{ inputs.reviews_evidence_ref }}
+          VALIDATION_SUFFICIENT: ${{ inputs.validation_sufficient }}
+          VALIDATION_EVIDENCE_REF: ${{ inputs.validation_evidence_ref }}
+          PRIOR_AUTHORITY_GATES_SATISFIED: ${{ inputs.prior_authority_gates_satisfied }}
+          AUTHORITY_EVIDENCE_REF: ${{ inputs.authority_evidence_ref }}
+          WORKING_DECISIONS_RESOLVED: ${{ inputs.working_decisions_resolved }}
+          WORKING_DECISIONS_EVIDENCE_REF: ${{ inputs.working_decisions_evidence_ref }}
+          REPOSITORY_CHECKS_SATISFIED: ${{ inputs.repository_checks_satisfied }}
+          REPOSITORY_CHECKS_EVIDENCE_REF: ${{ inputs.repository_checks_evidence_ref }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ARCHITECTURE_WEB_PROJECTS_TOKEN}" ]]; then
+            echo "ARCHITECTURE_WEB_PROJECTS_TOKEN is required" >&2
+            exit 1
+          fi
+
+          pnpm --filter @architecture/delivery-automation gate:work-merge:evaluate \
+            > gate-result.json
+
+          echo "gate_result=$(base64 -w0 gate-result.json)" >> "${GITHUB_OUTPUT}"
+          echo "## Work Merge Gate evaluation" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+          cat gate-result.json >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
+
+  publish:
+    name: Publish Work Merge Gate check
+    needs: evaluate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish evaluated check
+        shell: bash
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GATE_RESULT_B64: ${{ needs.evaluate.outputs.gate_result }}
+        run: |
+          set +e
+          pnpm --filter @architecture/delivery-automation gate:check:publish \
+            | tee gate-publication.json
+          status=${PIPESTATUS[0]}
+          set -e
+
+          echo "## Work Merge Gate publication" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+          cat gate-publication.json >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
+
+          exit "${status}"

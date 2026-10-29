@@ -1,0 +1,107 @@
+name: Delivery Coordinator Dry Run
+
+# Work #9 keeps coordinator observation provider-neutral. There is intentionally
+# no scheduled route-specific execution until Research #14 selects an executor
+# profile and its scheduling policy. Manual workflow_dispatch is operational only
+# after this workflow path exists on the repository default branch.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Coordinator observation mode.
+        required: true
+        type: choice
+        default: ready-queue
+        options:
+          - ready-queue
+          - task-dispatch
+      executor_route:
+        description: Explicit activated agent:* route to observe. No production route is implied by Work #9.
+        required: true
+        type: string
+      work_number:
+        description: Owning Work number for task-dispatch mode.
+        required: false
+        type: string
+      task_number:
+        description: Task/Sub-issue number for task-dispatch mode.
+        required: false
+        type: string
+  pull_request:
+    branches:
+      - main
+    types:
+      - ready_for_review
+    paths:
+      - ".github/delivery-automation.json"
+      - ".github/workflows/delivery-coordinator-dry-run.yml"
+      - "packages/tooling/delivery-automation/**"
+      - "pnpm-lock.yaml"
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: delivery-coordinator-dry-run
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    name: Observe deterministic delivery state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Set up pnpm
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Observe coordinator decision
+        shell: bash
+        env:
+          ARCHITECTURE_WEB_PROJECTS_TOKEN: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN || '' }}
+          COORDINATOR_MODE: ${{ inputs.mode || 'ready-queue' }}
+          WORK_NUMBER: ${{ inputs.work_number || '' }}
+          TASK_NUMBER: ${{ inputs.task_number || '' }}
+          EXECUTOR_ROUTE: ${{ inputs.executor_route || '' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          (
+            cd packages/tooling/delivery-automation
+            pnpm exec tsx src/cli/coordinator-dry-run.ts
+          ) | tee coordinator-result.json
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [[ "${status}" -eq 2 ]]; then
+            echo "### Coordinator observation: blocked (fail-closed)" >> "${GITHUB_STEP_SUMMARY}"
+            echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+            cat coordinator-result.json >> "${GITHUB_STEP_SUMMARY}"
+            echo '```' >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          if [[ "${status}" -ne 0 ]]; then
+            exit "${status}"
+          fi
+
+          echo "### Coordinator observation" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```json' >> "${GITHUB_STEP_SUMMARY}"
+          cat coordinator-result.json >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"

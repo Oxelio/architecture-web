@@ -1,0 +1,103 @@
+import { Result } from "@architecture/foundation";
+
+import type { EmailVerificationRateLimiter } from "#accounts/email-verification/email-verification-rate-limiter.port";
+import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
+import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
+import { EmailVerificationEntity } from "#entities/email-verification.entity";
+import type { IamUnitOfWork } from "#ports/iam-unit-of-work";
+import type { LoginIdentityRepository } from "#ports/login-identity.repository";
+import type { UserRepository } from "#ports/user.repository";
+import { EmailValueObject } from "#value-objects/email.value-object";
+import { EmailVerificationTokenValueObject } from "#value-objects/email-verification-token.value-object";
+import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
+import type {
+  ResendEmailVerification,
+  ResendEmailVerificationInput,
+  ResendEmailVerificationOutput,
+} from "./resend-email-verification.contracts.js";
+import { ResendEmailVerificationErrors } from "./resend-email-verification.errors.js";
+
+export class ResendEmailVerificationUseCase implements ResendEmailVerification {
+  constructor(
+    private readonly user: UserRepository,
+    private readonly loginIdentities: LoginIdentityRepository,
+    private readonly emailSender: VerificationEmailSender,
+    private readonly rateLimiter: EmailVerificationRateLimiter,
+    private readonly tokenHasher: EmailVerificationTokenHasher,
+    private readonly unitOfWork: IamUnitOfWork,
+  ) {}
+
+  async execute(
+    payload: ResendEmailVerificationInput,
+  ): Promise<ResendEmailVerificationOutput> {
+    const userValueObject = UserIdentifierValueObject.create(payload.userId);
+    if (!userValueObject.success) {
+      return Result.failure(ResendEmailVerificationErrors.invalidId);
+    }
+
+    const user = await this.user.findById(userValueObject.value);
+    if (!user) {
+      return Result.failure(ResendEmailVerificationErrors.userNotFound);
+    }
+
+    const identity = await this.loginIdentities.findForUser(
+      user.identifier,
+      "email",
+    );
+    if (!identity) {
+      return Result.failure(ResendEmailVerificationErrors.userNotFound);
+    }
+    if (identity.isVerified) {
+      return Result.failure(ResendEmailVerificationErrors.alreadyVerified);
+    }
+
+    const allowed = await this.rateLimiter.isAllowed(user.identifier);
+    if (!allowed) {
+      return Result.failure(ResendEmailVerificationErrors.tooManyRequests);
+    }
+
+    const token = EmailVerificationTokenValueObject.generate();
+    const tokenHash = await this.tokenHasher.hash(token);
+
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+    const verification = EmailVerificationEntity.create({
+      userId: user.identifier,
+      loginIdentityId: identity.identifier,
+      tokenHash,
+      expiresAt,
+    });
+
+    const issued = await this.unitOfWork.executeForUser(
+      user.identifier,
+      async ({ emailVerifications, loginIdentities }) => {
+        const current = await loginIdentities.findById(identity.identifier);
+        if (
+          !current ||
+          current.isVerified ||
+          !current.login.equals(identity.login) ||
+          current.updatedAt.getTime() !== identity.updatedAt.getTime()
+        ) {
+          return false;
+        }
+        await emailVerifications.invalidatePreviousFor(identity.identifier);
+        await emailVerifications.save(verification);
+        return true;
+      },
+    );
+    if (!issued) {
+      return Result.success(undefined);
+    }
+
+    const email = EmailValueObject.create(identity.login.value);
+    if (!email.success) {
+      throw new Error("An email identity must contain a valid email");
+    }
+    await this.emailSender.sendVerificationEmail(email.value, token.value);
+
+    await this.rateLimiter.recordSuccess(user.identifier);
+
+    return Result.success(undefined);
+  }
+}

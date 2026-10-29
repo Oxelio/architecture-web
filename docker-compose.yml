@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:18.4-alpine3.24
+    container_name: architecture-web-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: architecture
+      POSTGRES_USER: architecture
+      POSTGRES_PASSWORD: architecture
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U architecture -d architecture"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.8.1-alpine3.23
+    container_name: architecture-web-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: architecture-web-api:latest
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: architecture-web-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      # localhost is served over HTTP; set this to true behind HTTPS in production.
+      COOKIE_SECURE: "false"
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: architecture
+      DATABASE_USER: architecture
+      DATABASE_PASSWORD: architecture
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      WEB_ORIGIN: http://localhost:5173
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: user
+      SMTP_PASSWORD: user
+      SMTP_FROM_ADDRESS: no-reply@architecture.local
+      # Complete web URL; the page forwards the token to the API.
+      SMTP_VERIFY_URL: http://localhost:5173/verify
+      SMTP_RECOVERY_URL: http://localhost:5173/recovery
+      SMTP_DELETION_CANCELLATION_URL: http://localhost:5173/cancel-deletion
+      # Replace in every non-local deployment; rotating this key requires a
+      # controlled MFA secret migration.
+      SECURITY_ENCRYPTION_KEY: local-development-key-change-me-32chars
+    ports:
+      - "3000:3000"
+
+  web:
+    image: architecture-web-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: architecture-web-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+    ports:
+      - "5173:8080"
+
+  mailpit:
+    image: axllent/mailpit:v1.30.5
+    container_name: architecture-web-mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # UI web
+
+volumes:
+  postgres-data:
+  redis-data:

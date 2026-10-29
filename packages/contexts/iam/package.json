@@ -1,0 +1,79 @@
+{
+  "name": "@architecture/iam",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "prepublishOnly": "pnpm build"
+  },
+  "imports": {
+    "#domain/*": {
+      "types": "./src/domain/*.ts",
+      "default": "./dist/domain/*.js"
+    },
+    "#entities/*": {
+      "types": "./src/domain/entities/*.ts",
+      "default": "./dist/domain/entities/*.js"
+    },
+    "#value-objects/*": {
+      "types": "./src/domain/value-objects/*.ts",
+      "default": "./dist/domain/value-objects/*.js"
+    },
+    "#accounts/*": {
+      "types": "./src/application/accounts/*.ts",
+      "default": "./dist/application/accounts/*.js"
+    },
+    "#authentication/*": {
+      "types": "./src/application/authentication/*.ts",
+      "default": "./dist/application/authentication/*.js"
+    },
+    "#access-administration/*": {
+      "types": "./src/application/access-administration/*.ts",
+      "default": "./dist/application/access-administration/*.js"
+    },
+    "#events/*": {
+      "types": "./src/application/events/*.ts",
+      "default": "./dist/application/events/*.js"
+    },
+    "#ports/*": {
+      "types": "./src/application/ports/*.ts",
+      "default": "./dist/application/ports/*.js"
+    },
+    "#test/*": {
+      "types": "./test/support/*.ts"
+    }
+  },
+  "exports": {
+    "./domain": {
+      "types": "./dist/domain/index.d.ts",
+      "default": "./dist/domain/index.js"
+    },
+    "./application": {
+      "types": "./dist/application/index.d.ts",
+      "default": "./dist/application/index.js"
+    }
+  },
+  "dependencies": {
+    "@architecture/foundation": "workspace:*",
+    "@architecture/messaging": "workspace:*",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@architecture/eslint-config": "workspace:*",
+    "@types/node": "^25.9.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

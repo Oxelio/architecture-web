@@ -1,0 +1,75 @@
+import { Result } from "@architecture/foundation";
+
+import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
+import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import type { SessionRepository } from "#ports/session.repository";
+import type { UserRepository } from "#ports/user.repository";
+import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
+
+import type {
+  AdministeredUserSession,
+  ListUserSessions,
+  ListUserSessionsInput,
+  ListUserSessionsOutput,
+} from "./list-user-sessions.contracts.js";
+import { ListUserSessionsErrors } from "./list-user-sessions.errors.js";
+
+export class ListUserSessionsUseCase implements ListUserSessions {
+  constructor(
+    private readonly users: UserRepository,
+    private readonly sessions: SessionRepository,
+    private readonly policies: SessionPolicyReader,
+    private readonly authorizer: AdministratorAuthorizer,
+  ) {}
+
+  async execute(input: ListUserSessionsInput): Promise<ListUserSessionsOutput> {
+    const authorization = await this.authorizer.authorize(input.actorUserId);
+    if (!authorization.success) {
+      return authorization;
+    }
+
+    if (!(await this.policies.getSessionPolicy()).userManagement) {
+      return Result.failure(ListUserSessionsErrors.featureDisabled);
+    }
+    const userId = UserIdentifierValueObject.create(input.userId);
+    if (!userId.success) {
+      return Result.failure(ListUserSessionsErrors.invalidUserId);
+    }
+
+    if (!(await this.users.findById(userId.value))) {
+      return Result.failure(ListUserSessionsErrors.userNotFound);
+    }
+
+    const sessions = await this.sessions.findActiveForUser(userId.value);
+    return Result.success(
+      sessions.map((session): AdministeredUserSession => ({
+        sessionId: session.identifier.value,
+        createdAt: session.createdAt.toISOString(),
+        lastActivityAt: session.lastActivityAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        client: {
+          type: session.client?.type ?? "unknown",
+          name: session.client?.name ?? null,
+          version: session.client?.version ?? null,
+          deviceType: session.client?.deviceType ?? "unknown",
+          operatingSystem: session.client?.operatingSystem
+            ? {
+                name: session.client.operatingSystem.name,
+                version: session.client.operatingSystem.version ?? null,
+              }
+            : null,
+        },
+        network: {
+          ipAddress: session.network?.ipAddress ?? null,
+          location: session.network?.location
+            ? {
+                country: session.network.location.country,
+                region: session.network.location.region ?? null,
+                city: session.network.location.city ?? null,
+              }
+            : null,
+        },
+      })),
+    );
+  }
+}

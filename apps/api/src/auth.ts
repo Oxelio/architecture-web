@@ -1,0 +1,83 @@
+// @file apps/api/src/auth.ts
+
+import type { ResolveSession } from "@architecture/iam/application";
+import fastifyCookie, { type CookieSerializeOptions } from "@fastify/cookie";
+import type {
+  FastifyInstance,
+  FastifyPluginAsync,
+  preHandlerHookHandler,
+} from "fastify";
+import fp from "fastify-plugin";
+
+export const SESSION_COOKIE_NAME = "sid";
+
+export interface AuthenticatedContext {
+  userId: string;
+  sessionId: string;
+  role: "user" | "admin";
+}
+
+export interface AuthenticatedFastifyInstance extends FastifyInstance {
+  authenticate: preHandlerHookHandler;
+}
+
+declare module "fastify" {
+  interface FastifyRequest {
+    auth: AuthenticatedContext | null;
+  }
+
+  interface FastifyInstance {
+    authenticate: preHandlerHookHandler;
+  }
+}
+
+interface AuthPluginOptions {
+  resolveSession: ResolveSession;
+  sessionCookieName: string;
+}
+
+export function buildSessionCookieOptions(): CookieSerializeOptions {
+  const isProduction = process.env["NODE_ENV"] === "production";
+  const isSecure =
+    process.env["COOKIE_SECURE"] === "true" ||
+    (isProduction && process.env["COOKIE_SECURE"] !== "false");
+
+  return {
+    httpOnly: true,
+    path: "/",
+    sameSite: isSecure ? "none" : "lax",
+    secure: isSecure,
+  };
+}
+
+const plugin: FastifyPluginAsync<AuthPluginOptions> = async (app, opts) => {
+  await app.register(fastifyCookie);
+
+  app.decorateRequest("auth", null);
+
+  app.decorate("authenticate", async (request, reply) => {
+    const sessionId = request.cookies[opts.sessionCookieName];
+
+    if (!sessionId) {
+      return reply.status(401).send({
+        error: { code: "authentication.unauthorized" },
+      });
+    }
+
+    const result = await opts.resolveSession.execute({
+      sessionId,
+    });
+
+    if (!result.success) {
+      return reply.status(401).send({
+        error: { code: "authentication.unauthorized" },
+      });
+    }
+
+    request.auth = result.value;
+  });
+};
+
+export const authPlugin = fp(plugin, {
+  name: "auth",
+});

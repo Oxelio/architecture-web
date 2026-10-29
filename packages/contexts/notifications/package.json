@@ -1,0 +1,74 @@
+{
+  "name": "@architecture/notifications",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/application/index.js",
+  "types": "./dist/application/index.d.ts",
+  "imports": {
+    "#domain/*": {
+      "types": "./src/domain/*.ts",
+      "default": "./dist/domain/*.js"
+    },
+    "#entities/*": {
+      "types": "./src/domain/entities/*.ts",
+      "default": "./dist/domain/entities/*.js"
+    },
+    "#value-objects/*": {
+      "types": "./src/domain/value-objects/*.ts",
+      "default": "./dist/domain/value-objects/*.js"
+    },
+    "#application/*": {
+      "types": "./src/application/*.ts",
+      "default": "./dist/application/*.js"
+    },
+    "#policies/*": {
+      "types": "./src/application/policies/*.ts",
+      "default": "./dist/application/policies/*.js"
+    },
+    "#repositories/*": {
+      "types": "./src/application/repositories/*.ts",
+      "default": "./dist/application/repositories/*.js"
+    },
+    "#services/*": {
+      "types": "./src/application/services/*.ts",
+      "default": "./dist/application/services/*.js"
+    },
+    "#use-cases/*": {
+      "types": "./src/application/use-cases/*.ts",
+      "default": "./dist/application/use-cases/*.js"
+    }
+  },
+  "exports": {
+    "./domain": {
+      "types": "./dist/domain/index.d.ts",
+      "default": "./dist/domain/index.js"
+    },
+    "./application": {
+      "types": "./dist/application/index.d.ts",
+      "default": "./dist/application/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@architecture/foundation": "workspace:*",
+    "@architecture/messaging": "workspace:*"
+  },
+  "devDependencies": {
+    "@architecture/eslint-config": "workspace:*",
+    "@types/node": "^25.9.5",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
