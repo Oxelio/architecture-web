@@ -41,6 +41,7 @@ async function up(db: Kysely<NotificationDatabase>): Promise<void> {
     .addColumn("attempts", "integer", (column) => column.defaultTo(0).notNull())
     .addColumn("available_at", "timestamptz", (column) => column.notNull())
     .addColumn("claimed_at", "timestamptz")
+    .addColumn("claim_token", "uuid")
     .addColumn("sent_at", "timestamptz")
     .addColumn("last_error", "text")
     .addUniqueConstraint("notification_delivery_unique", [

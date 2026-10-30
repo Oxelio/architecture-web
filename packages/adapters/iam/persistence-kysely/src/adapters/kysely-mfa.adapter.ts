@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { MfaStore } from "@architecture/iam/application";
+import { createIamSecurityEvent } from "@architecture/iam/application";
 import {
   isMfaChallengeUsable,
   isMfaEnrollmentUsable,
@@ -21,7 +22,6 @@ import {
   currentAccessPolicy,
   lockAdministrativeAccess,
 } from "./administrative-access.js";
-import { appendIamSecurityEvent } from "./iam-security-event.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 
 function credential(row: IamMfaSettingTable): MfaCredential {
@@ -266,11 +266,14 @@ export class KyselyMfaAdapter implements MfaStore {
         .where("user_id", "=", account.id)
         .execute();
       await new KyselyUserAdapter(trx, this.outbox(trx)).save(input.user);
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "mfa.activated",
-        account.id,
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "mfa.activated",
+          userId: account.id,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+        }),
+      ]);
       return true;
     });
   }
@@ -410,19 +413,12 @@ export class KyselyMfaAdapter implements MfaStore {
       }
       if (method === "backup_code") {
         await this.outbox(trx).append([
-          {
+          createIamSecurityEvent({
+            type: "mfa.backup_code.used",
+            userId: input.userId,
             eventId: randomUUID(),
-            topic: "mfa.backup_code.used",
-            version: 1,
-            aggregateId: input.userId,
             occurredAt: input.now,
-            payload: { userId: input.userId },
-            context: {
-              actorType: "user",
-              actorId: input.userId,
-              subjectId: input.userId,
-            },
-          },
+          }),
         ]);
       }
       return method;
@@ -445,11 +441,14 @@ export class KyselyMfaAdapter implements MfaStore {
         return false;
       }
       await this.backupCodes(trx, userId, hashes, now);
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "mfa.backup_codes.regenerated",
-        userId,
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "mfa.backup_codes.regenerated",
+          userId: userId,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+        }),
+      ]);
       return true;
     });
   }
@@ -484,11 +483,14 @@ export class KyselyMfaAdapter implements MfaStore {
         .where("consumed_at", "is", null)
         .execute();
       await new KyselyUserAdapter(trx, this.outbox(trx)).save(user);
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "mfa.disabled",
-        account.id,
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "mfa.disabled",
+          userId: account.id,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+        }),
+      ]);
       return true;
     });
   }

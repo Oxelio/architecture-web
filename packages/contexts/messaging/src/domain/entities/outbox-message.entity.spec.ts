@@ -16,7 +16,7 @@ describe("OutboxMessageEntity", () => {
         context: {},
       },
       status: "processing",
-      attempts: 0,
+      attempts: 1,
       availableAt: now,
       claimedAt: now,
       publishedAt: null,

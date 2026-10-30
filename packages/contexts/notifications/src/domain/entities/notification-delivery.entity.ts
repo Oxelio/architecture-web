@@ -87,11 +87,13 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
   claim(now = new Date()): boolean {
     if (
       !["pending", "failed"].includes(this.properties.status) ||
+      this.properties.attempts >= MAX_DELIVERY_ATTEMPTS ||
       this.properties.availableAt.getTime() > now.getTime()
     ) {
       return false;
     }
     this.properties.status = "processing";
+    this.properties.attempts += 1;
     this.properties.claimedAt = now;
     return true;
   }
@@ -110,7 +112,6 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
     if (this.properties.status !== "processing") {
       throw new Error("Only a claimed notification delivery can fail");
     }
-    this.properties.attempts += 1;
     this.properties.status =
       this.properties.attempts >= MAX_DELIVERY_ATTEMPTS
         ? "dead_letter"

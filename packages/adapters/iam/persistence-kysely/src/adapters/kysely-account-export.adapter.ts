@@ -1,10 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import type { AccountExportStore } from "@architecture/iam/application";
+import { createIamSecurityEvent } from "@architecture/iam/application";
 import type { OutboxWriter } from "@architecture/messaging/application";
 import type { Kysely } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";
-
-import { appendIamSecurityEvent } from "./iam-security-event.js";
 export class KyselyAccountExportAdapter implements AccountExportStore {
   constructor(
     private readonly db: Kysely<IamDatabase>,
@@ -121,13 +122,15 @@ export class KyselyAccountExportAdapter implements AccountExportStore {
         .where("status", "=", "pending")
         .returning("user_id")
         .executeTakeFirstOrThrow();
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "account.export.generated",
-        row.user_id,
-        "system",
-        { exportId: id },
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "account.export.generated",
+          userId: row.user_id,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+          exportId: id,
+        }),
+      ]);
     });
   }
   async fail(id: string, now: Date) {
@@ -191,13 +194,15 @@ export class KyselyAccountExportAdapter implements AccountExportStore {
         })
         .where("id", "=", id)
         .execute();
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "account.export.downloaded",
-        userId,
-        "user",
-        { exportId: id },
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "account.export.downloaded",
+          userId: userId,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+          exportId: id,
+        }),
+      ]);
       return new Uint8Array(row.archive);
     });
   }

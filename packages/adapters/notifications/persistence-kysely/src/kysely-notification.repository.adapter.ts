@@ -1,9 +1,14 @@
-import { NotificationRepository } from "@architecture/notifications/application";
-import type { NotificationEntity } from "@architecture/notifications/domain";
-import type { Kysely } from "kysely";
+import { randomUUID } from "node:crypto";
 
 import {
-  claimableNotificationRowsToEntities,
+  type ClaimedNotificationDelivery,
+  NotificationRepository,
+} from "@architecture/notifications/application";
+import type { NotificationEntity } from "@architecture/notifications/domain";
+import { type Kysely, sql } from "kysely";
+
+import {
+  claimableNotificationRowToEntity,
   notificationRowToEntity,
 } from "./notification.mapper.js";
 import type { NotificationDatabase } from "./schema.js";
@@ -52,6 +57,7 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
             attempts: delivery.attempts,
             available_at: delivery.availableAt,
             claimed_at: delivery.claimedAt,
+            claim_token: null,
             sent_at: delivery.sentAt,
             last_error: delivery.lastError,
           } as never)
@@ -79,33 +85,49 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
     return row ? notificationRowToEntity(row) : null;
   }
 
-  async save(notification: NotificationEntity): Promise<void> {
-    await this.db.transaction().execute(async (transaction) => {
-      await transaction
-        .updateTable("notifications")
-        .set({
-          read_at: notification.readAt,
-          archived_at: notification.archivedAt,
-        })
-        .where("id", "=", notification.identifier.value)
-        .where("recipient_id", "=", notification.recipientId)
-        .execute();
-      for (const delivery of notification.deliveries) {
-        await transaction
-          .updateTable("notification_deliveries")
-          .set({
-            status: delivery.status,
-            attempts: delivery.attempts,
-            available_at: delivery.availableAt,
-            claimed_at: delivery.claimedAt,
-            sent_at: delivery.sentAt,
-            last_error: delivery.lastError,
-          })
-          .where("id", "=", delivery.identifier.value)
-          .where("notification_id", "=", notification.identifier.value)
-          .execute();
-      }
-    });
+  async saveState(notification: NotificationEntity): Promise<void> {
+    await this.db
+      .updateTable("notifications")
+      .set({
+        read_at: notification.readAt,
+        archived_at: notification.archivedAt,
+      })
+      .where("id", "=", notification.identifier.value)
+      .where("recipient_id", "=", notification.recipientId)
+      .execute();
+  }
+
+  async finalizeDelivery({
+    notification,
+    delivery,
+    claimToken,
+  }: ClaimedNotificationDelivery): Promise<boolean> {
+    if (!["sent", "failed", "dead_letter"].includes(delivery.status)) {
+      throw new Error("Only a completed delivery attempt can be finalized");
+    }
+    const result = await this.db
+      .updateTable("notification_deliveries")
+      .set({
+        status: delivery.status,
+        attempts: delivery.attempts,
+        available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(${delivery.attempts}, 10))) * interval '1 second'`,
+        claimed_at: null,
+        claim_token: null,
+        sent_at:
+          delivery.status === "sent" ? sql<Date>`clock_timestamp()` : null,
+        last_error: delivery.lastError,
+      })
+      .where("id", "=", delivery.identifier.value)
+      .where("notification_id", "=", notification.identifier.value)
+      .where("status", "=", "processing")
+      .where("claim_token", "=", claimToken)
+      .where(
+        "claimed_at",
+        ">",
+        sql<Date>`clock_timestamp() - interval '5 minutes'`,
+      )
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) === 1;
   }
 
   async list(
@@ -146,20 +168,28 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
       .execute();
   }
 
-  async claimDeliveries(limit: number): Promise<NotificationEntity[]> {
+  async recoverStaleDeliveries(): Promise<void> {
+    await this.db
+      .updateTable("notification_deliveries")
+      .set({
+        status: sql`case when attempts >= 10 then 'dead_letter' else 'failed' end`,
+        claimed_at: null,
+        claim_token: null,
+        available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(attempts, 10))) * interval '1 second'`,
+        last_error: "Processing claim expired",
+      })
+      .where("status", "=", "processing")
+      .where(
+        "claimed_at",
+        "<=",
+        sql<Date>`clock_timestamp() - interval '5 minutes'`,
+      )
+      .execute();
+  }
+
+  async claimDelivery(): Promise<ClaimedNotificationDelivery | null> {
     return this.db.transaction().execute(async (transaction) => {
-      const now = new Date();
-      await transaction
-        .updateTable("notification_deliveries")
-        .set({
-          status: "failed",
-          claimed_at: null,
-          available_at: now,
-        })
-        .where("status", "=", "processing")
-        .where("claimed_at", "<", new Date(now.getTime() - 5 * 60_000))
-        .execute();
-      const rows = await transaction
+      const row = await transaction
         .selectFrom("notification_deliveries")
         .innerJoin(
           "notifications",
@@ -189,33 +219,43 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
           "notification_deliveries.last_error",
         ])
         .where("notification_deliveries.status", "in", ["pending", "failed"])
-        .where("notification_deliveries.available_at", "<=", now)
+        .where(
+          "notification_deliveries.available_at",
+          "<=",
+          sql<Date>`clock_timestamp()`,
+        )
+        .where("notification_deliveries.attempts", "<", 10)
         .orderBy("notification_deliveries.available_at", "asc")
-        .limit(limit)
-        .forUpdate()
+        .orderBy("notification_deliveries.id", "asc")
+        .limit(1)
+        .forUpdate("notification_deliveries")
         .skipLocked()
-        .execute();
-      const notifications = claimableNotificationRowsToEntities(rows);
-      const deliveries = notifications.flatMap(
-        (notification) => notification.deliveries,
-      );
-      for (const delivery of deliveries) {
-        if (!delivery.claim(now)) {
-          throw new Error("A selected notification delivery cannot be claimed");
-        }
+        .executeTakeFirst();
+      if (!row) {
+        return null;
       }
-      if (deliveries.length > 0) {
-        await transaction
-          .updateTable("notification_deliveries")
-          .set({ status: "processing", claimed_at: now })
-          .where(
-            "id",
-            "in",
-            deliveries.map((delivery) => delivery.identifier.value),
-          )
-          .execute();
+      const claimToken = randomUUID();
+      const claimed = await transaction
+        .updateTable("notification_deliveries")
+        .set({
+          status: "processing",
+          claimed_at: sql<Date>`clock_timestamp()`,
+          claim_token: claimToken,
+          attempts: row.attempts + 1,
+        })
+        .where("id", "=", row.delivery_id)
+        .returning(["claimed_at", "attempts"])
+        .executeTakeFirstOrThrow();
+      const notification = claimableNotificationRowToEntity({
+        ...row,
+        ...claimed,
+        status: "processing",
+      });
+      const delivery = notification.deliveries[0];
+      if (!delivery) {
+        throw new Error("Missing claimed delivery");
       }
-      return notifications;
+      return { notification, delivery, claimToken };
     });
   }
 }

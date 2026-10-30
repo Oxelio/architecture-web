@@ -27,14 +27,20 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
 
   async handle(event: IntegrationEvent): Promise<void> {
     const policy = notificationPolicies[event.topic];
+    if (!policy) {
+      return;
+    }
+    if (event.version !== (event.topic === "iam.session-started" ? 2 : 1)) {
+      throw new Error("Unsupported notification event version");
+    }
     const subjectId =
       typeof event.payload["userId"] === "string"
         ? event.payload["userId"]
         : typeof event.context["subjectId"] === "string"
           ? event.context["subjectId"]
           : undefined;
-    if (!policy || !subjectId) {
-      return;
+    if (!subjectId?.trim()) {
+      throw new Error("Invalid notification event subject");
     }
 
     const recipient = await this.directory.findUser(subjectId);

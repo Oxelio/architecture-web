@@ -34,6 +34,35 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
   ) {}
 
   async handle(event: IntegrationEvent): Promise<void> {
+    if (!this.topics.some((topic) => topic === event.topic)) {
+      return;
+    }
+    const version = event.topic === "iam.session-started" ? 2 : 1;
+    if (event.version !== version) {
+      throw new Error("Unsupported audit event version");
+    }
+    if (event.topic === "security.config.published") {
+      if (
+        !Number.isSafeInteger(event.payload["version"]) ||
+        !Array.isArray(event.payload["changedKeys"]) ||
+        !event.payload["changedKeys"].every(
+          (key: unknown) => typeof key === "string",
+        ) ||
+        typeof event.payload["justification"] !== "string"
+      ) {
+        throw new Error("Invalid configuration event");
+      }
+    } else {
+      const subject =
+        event.payload[
+          event.topic === "account.deletion.executed"
+            ? "pseudonymousSubject"
+            : "userId"
+        ];
+      if (typeof subject !== "string" || !subject.trim()) {
+        throw new Error("Invalid audit event subject");
+      }
+    }
     const actorType =
       event.context["actorType"] === "administrator"
         ? "administrator"

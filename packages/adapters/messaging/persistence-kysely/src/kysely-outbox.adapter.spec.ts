@@ -17,6 +17,7 @@ describe("outboxRowToEntity", () => {
       attempts: 0,
       available_at: occurredAt,
       claimed_at: occurredAt,
+      claim_token: "claim-1",
       published_at: null,
       last_error: null,
     });

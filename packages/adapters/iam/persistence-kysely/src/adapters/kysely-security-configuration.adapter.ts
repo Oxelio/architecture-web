@@ -4,6 +4,7 @@ import type {
   ConfigurationRevision,
   ConfigurationStore,
 } from "@architecture/iam/application";
+import { createIamSecurityEvent } from "@architecture/iam/application";
 import {
   changedPolicyKeys,
   DEFAULT_SECURITY_POLICY,
@@ -242,23 +243,16 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
         .returningAll()
         .executeTakeFirstOrThrow();
       await this.outbox(trx).append([
-        {
+        createIamSecurityEvent({
+          type: "security.config.published",
           eventId: randomUUID(),
-          topic: "security.config.published",
-          version: 1,
-          aggregateId: id,
           occurredAt: now,
-          payload: {
-            version: row.version,
-            changedKeys,
-            justification: input.justification,
-          },
-          context: {
-            actorType: "administrator",
-            actorId: input.actorId,
-            subjectId: input.actorId,
-          },
-        },
+          revisionId: id,
+          actorId: input.actorId,
+          version: row.version,
+          changedKeys,
+          justification: input.justification,
+        }),
       ]);
       return this.revision(row);
     });

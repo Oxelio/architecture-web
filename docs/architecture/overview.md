@@ -61,6 +61,16 @@ PostgreSQL transactions coordinate account, authenticator, identity, recovery, M
 
 Redis session creation enforces the ten-session maximum atomically. Password replacement and relevant security changes increment the PostgreSQL account's session version before Redis cleanup; resolution rejects a stale version. PostgreSQL, Redis, Audit operations and SMTP do not form a distributed transaction.
 
+Outbox and notification delivery workers claim one item immediately before
+processing it. PostgreSQL timestamps and claim tokens fence finalization after
+expiry or reassignment; abandoned attempts count toward the ten-attempt limit.
+Delivery persistence cannot rewrite notification acknowledgement state. Process
+polling is non-overlapping and shutdown waits for active runs before closing
+connections. IAM application owns the current integration projections; consumers
+reject unsupported subscribed versions. See the bounded
+[event reliability design](iam-events-reliability.md) for contracts and remaining
+consistency limits.
+
 ## Verification limits
 
 ESLint enforces targeted IAM domain/application and API transport boundaries. TypeScript, package exports, tests and review cover the remaining contracts. Restrictions are deliberately narrower than the complete normative matrix.

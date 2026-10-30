@@ -27,6 +27,7 @@ export interface NotificationDeliveryTable {
   attempts: number;
   available_at: Date;
   claimed_at: Date | null;
+  claim_token: string | null;
   sent_at: Date | null;
   last_error: string | null;
 }

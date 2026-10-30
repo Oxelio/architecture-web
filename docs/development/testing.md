@@ -137,13 +137,23 @@ Use the dedicated disposable Compose project, which has no application volumes:
 docker compose -p iam-refactor-tests -f compose.iam-test.yml up -d --wait
 $env:IAM_INTEGRATION_DATABASE_URL = 'postgresql://iam_test:iam_test@127.0.0.1:55432/iam_refactor_test'
 $env:IAM_INTEGRATION_REDIS_URL = 'redis://127.0.0.1:56379/15'
-pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts
+pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts src/adapters/iam/iam-events.integration.spec.ts
 docker compose -p iam-refactor-tests -f compose.iam-test.yml down
 ```
 
 The database name must start with `iam_refactor_test`. Every run creates a unique schema, migrates it, and removes only that schema. Redis uses generated test-account/session identifiers and clears only those owned keys; it never flushes a database. Both variables are required together. These checks cover publication races, single-use recovery, outbox rollback, session-version protection after cleanup failure, MFA attempts and backup-code consumption, single archive download, last-administrator deletion and policy snapshot consistency.
 
 The IAM correction extends the isolated suite with stale credential saves (including MFA), identity-bound recovery issuance in both orderings, stale MFA generations, unsafe publication/restoration, mixed administrator mutations, a real pre-refactor database upgrade, and publication inside actual registration/sign-in workflows. Fixtures use only their generated schemas and owned Redis keys. These scenarios must execute with both integration URLs; ordinary skipped runs provide no database evidence.
+
+The event suite uses a separate generated PostgreSQL schema to exercise real
+`SKIP LOCKED` behavior, distinct concurrent claims, expired/replaced-owner
+finalization in both success/failure orderings, ten abandoned attempts,
+independent notification channel updates, acknowledgement/archive preservation,
+concurrent replay, partial Audit/Notifications dispatch, version rejection and
+aggregate/outbox rollback followed by fresh-state retry. It never resets an
+application schema. Both integration URLs remain required by the isolated-suite
+configuration; these event-specific cases use PostgreSQL, while the security
+suite supplies the real Redis-boundary evidence.
 
 ## Automatic release verification
 
