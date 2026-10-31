@@ -18,55 +18,76 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
     super();
   }
 
-  async create(notification: NotificationEntity): Promise<void> {
+  async hasConsumedEvent(sourceEventId: string): Promise<boolean> {
+    const row = await this.db
+      .selectFrom("notification_consumptions")
+      .select("source_event_id")
+      .where("source_event_id", "=", sourceEventId)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  async createForEvent(
+    sourceEventId: string,
+    notifications: readonly NotificationEntity[],
+  ): Promise<void> {
+    if (
+      notifications.some(
+        (notification) => notification.sourceEventId !== sourceEventId,
+      )
+    ) {
+      throw new Error("Notification snapshot must belong to its source event");
+    }
     await this.db.transaction().execute(async (transaction) => {
-      await transaction
-        .insertInto("notifications")
+      const consumption = await transaction
+        .insertInto("notification_consumptions")
         .values({
-          id: notification.identifier.value,
-          recipient_id: notification.recipientId,
-          source_event_id: notification.sourceEventId,
-          type: notification.type,
-          severity: notification.severity.value,
-          title: notification.title,
-          message: notification.message,
-          action_url: notification.actionUrl,
-          created_at: notification.createdAt,
-          read_at: notification.readAt,
-          archived_at: notification.archivedAt,
-        } as never)
+          source_event_id: sourceEventId,
+          consumed_at: sql<Date>`clock_timestamp()`,
+        })
         .onConflict((conflict) =>
-          conflict.columns(["recipient_id", "source_event_id"]).doNothing(),
+          conflict.column("source_event_id").doNothing(),
         )
-        .execute();
-      const row = await transaction
-        .selectFrom("notifications")
-        .select("id")
-        .where("recipient_id", "=", notification.recipientId)
-        .where("source_event_id", "=", notification.sourceEventId)
-        .executeTakeFirstOrThrow();
-      for (const delivery of notification.deliveries) {
+        .returning("source_event_id")
+        .executeTakeFirst();
+      if (!consumption) {
+        return;
+      }
+      for (const notification of notifications) {
         await transaction
-          .insertInto("notification_deliveries")
+          .insertInto("notifications")
           .values({
-            id: delivery.identifier.value,
-            notification_id: row.id,
-            channel: delivery.channel.value,
-            destination: delivery.destination,
-            status: delivery.status,
-            attempts: delivery.attempts,
-            available_at: delivery.availableAt,
-            claimed_at: delivery.claimedAt,
-            claim_token: null,
-            sent_at: delivery.sentAt,
-            last_error: delivery.lastError,
+            id: notification.identifier.value,
+            recipient_id: notification.recipientId,
+            source_event_id: notification.sourceEventId,
+            type: notification.type,
+            severity: notification.severity.value,
+            title: notification.title,
+            message: notification.message,
+            action_url: notification.actionUrl,
+            created_at: notification.createdAt,
+            read_at: notification.readAt,
+            archived_at: notification.archivedAt,
           } as never)
-          .onConflict((conflict) =>
-            conflict
-              .columns(["notification_id", "channel", "destination"])
-              .doNothing(),
-          )
           .execute();
+        for (const delivery of notification.deliveries) {
+          await transaction
+            .insertInto("notification_deliveries")
+            .values({
+              id: delivery.identifier.value,
+              notification_id: notification.identifier.value,
+              channel: delivery.channel.value,
+              destination: delivery.destination,
+              status: delivery.status,
+              attempts: delivery.attempts,
+              available_at: delivery.availableAt,
+              claimed_at: delivery.claimedAt,
+              claim_token: null,
+              sent_at: delivery.sentAt,
+              last_error: delivery.lastError,
+            } as never)
+            .execute();
+        }
       }
     });
   }

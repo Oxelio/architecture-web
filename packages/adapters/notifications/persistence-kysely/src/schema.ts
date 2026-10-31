@@ -40,6 +40,10 @@ export interface NotificationPreferenceTable {
 }
 
 export interface NotificationDatabase {
+  notification_consumptions: {
+    source_event_id: string;
+    consumed_at: Date;
+  };
   notifications: NotificationTable;
   notification_deliveries: NotificationDeliveryTable;
   notification_preferences: NotificationPreferenceTable;

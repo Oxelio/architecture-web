@@ -43,33 +43,48 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
       throw new Error("Invalid notification event subject");
     }
 
-    const recipient = await this.directory.findUser(subjectId);
-    if (recipient) {
-      await this.createForRecipient(event, recipient, policy, false);
+    if (await this.repository.hasConsumedEvent(event.eventId)) {
+      return;
     }
+    const roles = new Map<string, { user: boolean; administrator: boolean }>([
+      [subjectId, { user: true, administrator: false }],
+    ]);
     if (policy.notifyAdministrators) {
       for (const administratorId of await this.directory.listAdministratorIds()) {
-        const administrator = await this.directory.findUser(administratorId);
-        if (administrator) {
-          await this.createForRecipient(event, administrator, policy, true);
-        }
+        roles.set(administratorId, {
+          user: administratorId === subjectId,
+          administrator: true,
+        });
       }
     }
+    const notifications: NotificationEntity[] = [];
+    for (const [userId, role] of roles) {
+      const recipient = await this.directory.findUser(userId);
+      if (recipient) {
+        notifications.push(
+          await this.buildForRecipient(event, recipient, policy, role),
+        );
+      }
+    }
+    await this.repository.createForEvent(event.eventId, notifications);
   }
 
-  private async createForRecipient(
+  private async buildForRecipient(
     event: IntegrationEvent,
     recipient: NotificationRecipientEntity,
     policy: NotificationPolicy,
-    administrator: boolean,
-  ): Promise<void> {
-    const requested = administrator
-      ? (policy.administratorChannels ?? [])
-      : policy.userChannels;
+    role: { user: boolean; administrator: boolean },
+  ): Promise<NotificationEntity> {
+    const requested = new Set([
+      ...(role.user ? policy.userChannels : []),
+      ...(role.administrator ? (policy.administratorChannels ?? []) : []),
+    ]);
     const deliveries = [];
     for (const channel of requested) {
       const destination =
-        channel === "slack" && administrator
+        channel === "slack" &&
+        role.administrator &&
+        policy.administratorChannels?.includes(channel)
           ? "security"
           : recipient.destinationFor(channel);
       const enabled =
@@ -87,17 +102,15 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
     if (!severity.success) {
       throw new Error(`Unsupported notification severity: ${policy.severity}`);
     }
-    await this.repository.create(
-      NotificationEntity.create({
-        recipientId: recipient.userId,
-        sourceEventId: event.eventId,
-        type: event.topic,
-        severity: severity.value,
-        title: policy.title,
-        message: policy.message,
-        ...(policy.actionUrl ? { actionUrl: policy.actionUrl } : {}),
-        deliveries,
-      }),
-    );
+    return NotificationEntity.create({
+      recipientId: recipient.userId,
+      sourceEventId: event.eventId,
+      type: event.topic,
+      severity: severity.value,
+      title: policy.title,
+      message: policy.message,
+      ...(policy.actionUrl ? { actionUrl: policy.actionUrl } : {}),
+      deliveries,
+    });
   }
 }

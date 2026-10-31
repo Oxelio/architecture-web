@@ -7,7 +7,10 @@ import {
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import { UserEntity } from "@architecture/iam/domain";
 import { KyselyIamUnitOfWorkAdapter } from "@architecture/iam-persistence-kysely";
-import { IntegrationEventRouter } from "@architecture/messaging/application";
+import {
+  IntegrationEventRouter,
+  OutboxWorker,
+} from "@architecture/messaging/application";
 import type { IntegrationEvent } from "@architecture/messaging/domain";
 import {
   KyselyOutboxRepositoryAdapter,
@@ -18,12 +21,17 @@ import {
   NotificationEventHandlerUseCase,
 } from "@architecture/notifications/application";
 import {
+  type NotificationChannelType,
   NotificationEntity,
   NotificationRecipientEntity,
   NotificationRecipientIdentifierValueObject,
   NotificationSeverityValueObject,
 } from "@architecture/notifications/domain";
-import { KyselyNotificationRepositoryAdapter } from "@architecture/notifications-persistence-kysely";
+import {
+  KyselyNotificationPreferenceRepositoryAdapter,
+  KyselyNotificationRepositoryAdapter,
+} from "@architecture/notifications-persistence-kysely";
+import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Migrator } from "kysely/migration";
 import { Pool } from "pg";
@@ -97,8 +105,11 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       vi.restoreAllMocks();
       await db.deleteFrom("notification_deliveries").execute();
       await db.deleteFrom("notifications").execute();
+      await db.deleteFrom("notification_consumptions").execute();
+      await db.deleteFrom("notification_preferences").execute();
       await db.deleteFrom("messaging_outbox").execute();
       await db.deleteFrom("audit_events").execute();
+      await db.deleteFrom("iam_users").execute();
     });
 
     function event(): IntegrationEvent {
@@ -113,6 +124,505 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         context: { actorType: "user", actorId: userId, subjectId: userId },
       };
     }
+    async function createIamRecipient(userId: string, role = "user") {
+      const now = new Date();
+      await db
+        .insertInto("iam_users")
+        .values({
+          id: userId,
+          role,
+          status: "active",
+          created_at: now,
+          updated_at: now,
+        } as never)
+        .execute();
+      await db
+        .insertInto("iam_login_identities")
+        .values({
+          id: randomUUID(),
+          user_id: userId,
+          kind: "email",
+          normalized_value: `${userId}@example.test`,
+          verification_status: "verified",
+          verified_at: now,
+          created_at: now,
+          updated_at: now,
+        } as never)
+        .execute();
+    }
+    function recipientHandler(
+      channels: readonly NotificationChannelType[] = ["email", "slack"],
+    ) {
+      return new NotificationEventHandlerUseCase(
+        notifications,
+        new KyselyNotificationPreferenceRepositoryAdapter(db as never),
+        new KyselyIamNotificationRecipientDirectoryAdapter(db as never),
+        channels.map((channel) => ({ channel, send: vi.fn() })),
+      );
+    }
+    function snapshot(
+      fact: IntegrationEvent,
+      deliveries: readonly {
+        channel: NotificationChannelType;
+        destination: string;
+      }[],
+      recipientId = fact.aggregateId,
+    ) {
+      const severity = NotificationSeverityValueObject.create("warning");
+      if (!severity.success) {
+        throw new Error("Invalid fixture");
+      }
+      return NotificationEntity.create({
+        recipientId,
+        sourceEventId: fact.eventId,
+        type: fact.topic,
+        severity: severity.value,
+        title: "Test",
+        message: "Test",
+        deliveries,
+      });
+    }
+
+    it("does not schedule another email when a consumed fact is replayed after a verified address change", async () => {
+      const fact = event();
+      await createIamRecipient(fact.aggregateId);
+      const handler = new NotificationEventHandlerUseCase(
+        notifications,
+        {
+          find: async () => null,
+          save: async () => undefined,
+          listForRecipient: async () => [],
+        },
+        new KyselyIamNotificationRecipientDirectoryAdapter(db as never),
+        [{ channel: "email", send: vi.fn() }],
+      );
+      await handler.handle(fact);
+      const claim = await notifications.claimDelivery();
+      if (!claim) {
+        throw new Error("Missing email delivery");
+      }
+      claim.delivery.markSent();
+      expect(await notifications.finalizeDelivery(claim)).toBe(true);
+      const before = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .execute();
+      await db
+        .updateTable("iam_login_identities")
+        .set({ normalized_value: `new-${fact.aggregateId}@example.test` })
+        .where("user_id", "=", fact.aggregateId)
+        .execute();
+      await handler.handle(fact);
+      expect(
+        await db.selectFrom("notifications").selectAll().execute(),
+      ).toHaveLength(1);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toEqual(before);
+    });
+
+    it.each([
+      "enable preference",
+      "disable preference",
+      "enable channel",
+      "remove channel",
+    ])("keeps the accepted delivery set after replay: %s", async (change) => {
+      const fact = { ...event(), topic: "iam.user-registered" };
+      await createIamRecipient(fact.aggregateId);
+      await db
+        .insertInto("notification_preferences")
+        .values({
+          user_id: fact.aggregateId,
+          channel: "email",
+          enabled: change !== "enable preference",
+          updated_at: new Date(),
+        })
+        .execute();
+      await recipientHandler(
+        change === "enable channel" ? [] : ["email"],
+      ).handle(fact);
+      const before = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .execute();
+      await db
+        .updateTable("notification_preferences")
+        .set({ enabled: change !== "disable preference" })
+        .where("user_id", "=", fact.aggregateId)
+        .execute();
+      await recipientHandler(
+        change === "remove channel" ? [] : ["email"],
+      ).handle(fact);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toEqual(before);
+      expect(await notifications.hasConsumedEvent(fact.eventId)).toBe(true);
+    });
+
+    it("records an empty recipient selection so later IAM changes do not backfill an old fact", async () => {
+      const fact = event();
+      await recipientHandler().handle(fact);
+      expect(await notifications.hasConsumedEvent(fact.eventId)).toBe(true);
+      await createIamRecipient(fact.aggregateId);
+      await recipientHandler().handle(fact);
+      expect(
+        await db.selectFrom("notifications").selectAll().execute(),
+      ).toHaveLength(0);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toHaveLength(0);
+    });
+
+    it("composes user/admin channels once and does not add newly eligible administrators on replay", async () => {
+      const fact = { ...event(), topic: "iam.user-role-changed" };
+      const otherAdministratorId = randomUUID();
+      await createIamRecipient(fact.aggregateId, "admin");
+      await createIamRecipient(otherAdministratorId, "admin");
+      await Promise.all([
+        recipientHandler().handle(fact),
+        recipientHandler().handle(fact),
+      ]);
+      const rows = await db.selectFrom("notifications").selectAll().execute();
+      expect(rows).toHaveLength(2);
+      const subject = rows.find((row) => row.recipient_id === fact.aggregateId);
+      expect(subject).toBeDefined();
+      const deliveries = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .execute();
+      expect(
+        deliveries
+          .filter((row) => row.notification_id === subject?.id)
+          .map((row) => row.channel)
+          .sort(),
+      ).toEqual(["email", "slack"]);
+      expect(deliveries).toHaveLength(3);
+      await createIamRecipient(randomUUID(), "admin");
+      await recipientHandler().handle(fact);
+      expect(
+        await db.selectFrom("notifications").selectAll().execute(),
+      ).toEqual(rows);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toEqual(deliveries);
+    });
+
+    it("commits one complete snapshot when different channels and destinations race", async () => {
+      const fact = event();
+      const first = snapshot(fact, [
+        { channel: "email", destination: "old@example.test" },
+        { channel: "sms", destination: "old-phone" },
+      ]);
+      const second = snapshot(fact, [
+        { channel: "email", destination: "new@example.test" },
+        { channel: "slack", destination: "security" },
+      ]);
+      await Promise.all([
+        notifications.createForEvent(fact.eventId, [first]),
+        notifications.createForEvent(fact.eventId, [second]),
+      ]);
+      const rows = await db.selectFrom("notifications").selectAll().execute();
+      expect(rows).toHaveLength(1);
+      const winner = rows[0]?.id === first.identifier.value ? first : second;
+      const deliveries = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .orderBy("channel")
+        .execute();
+      expect(
+        deliveries.map(({ channel, destination }) => ({
+          channel,
+          destination,
+        })),
+      ).toEqual(
+        winner.deliveries
+          .map((delivery) => ({
+            channel: delivery.channel.value,
+            destination: delivery.destination,
+          }))
+          .sort((a, b) => a.channel.localeCompare(b.channel)),
+      );
+      expect(
+        await db.selectFrom("notification_consumptions").selectAll().execute(),
+      ).toHaveLength(1);
+      const before = deliveries;
+      await notifications.createForEvent(fact.eventId, [
+        second,
+        snapshot(
+          fact,
+          [{ channel: "sms", destination: "new-phone" }],
+          randomUUID(),
+        ),
+      ]);
+      expect(
+        await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .orderBy("channel")
+          .execute(),
+      ).toEqual(before);
+    });
+
+    it("rolls back consumption and earlier recipients when a later delivery insert fails", async () => {
+      const fact = event();
+      const otherRecipient = randomUUID();
+      const first = snapshot(fact, [
+        { channel: "email", destination: "user@example.test" },
+      ]);
+      const invalid = snapshot(
+        fact,
+        [{ channel: "slack", destination: "x".repeat(513) }],
+        otherRecipient,
+      );
+      await expect(
+        notifications.createForEvent(fact.eventId, [first, invalid]),
+      ).rejects.toThrow("character varying");
+      expect(await notifications.hasConsumedEvent(fact.eventId)).toBe(false);
+      expect(
+        await db.selectFrom("notifications").selectAll().execute(),
+      ).toHaveLength(0);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toHaveLength(0);
+      await notifications.createForEvent(fact.eventId, [
+        first,
+        snapshot(
+          fact,
+          [{ channel: "slack", destination: "security" }],
+          otherRecipient,
+        ),
+      ]);
+      expect(await notifications.hasConsumedEvent(fact.eventId)).toBe(true);
+      expect(
+        await db.selectFrom("notifications").selectAll().execute(),
+      ).toHaveLength(2);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toHaveLength(2);
+    });
+
+    it("rejects a mismatched fact without recording consumption", async () => {
+      const fact = event();
+      await expect(
+        notifications.createForEvent(randomUUID(), [snapshot(fact, [])]),
+      ).rejects.toThrow("source event");
+      expect(
+        await db.selectFrom("notification_consumptions").selectAll().execute(),
+      ).toHaveLength(0);
+    });
+
+    it("keeps an inconsistent pre-existing notification explicit instead of recording false success", async () => {
+      const fact = event();
+      const original = snapshot(fact, [
+        { channel: "email", destination: "old@example.test" },
+      ]);
+      await notifications.createForEvent(fact.eventId, [original]);
+      // Simulate inconsistent imported data in this disposable schema, not a supported upgrade path.
+      await db
+        .deleteFrom("notification_consumptions")
+        .where("source_event_id", "=", fact.eventId)
+        .execute();
+      await expect(
+        notifications.createForEvent(fact.eventId, [
+          snapshot(fact, [
+            { channel: "email", destination: "new@example.test" },
+          ]),
+        ]),
+      ).rejects.toThrow("notifications_source_recipient_unique");
+      expect(await notifications.hasConsumedEvent(fact.eventId)).toBe(false);
+      expect(
+        await db
+          .selectFrom("notification_deliveries")
+          .select("destination")
+          .execute(),
+      ).toEqual([{ destination: "old@example.test" }]);
+    });
+
+    it.each(["downstream failure", "lost finalization"])(
+      "retries the real outbox without changing accepted notification effects after %s",
+      async (failure) => {
+        const fact = event();
+        await createIamRecipient(fact.aggregateId);
+        const audit = new AuditIntegrationEventHandler(
+          new AuditApplication(new KyselyAuditRepositoryAdapter(db as never)),
+          { getRetentionDays: async () => 365 },
+        );
+        if (failure === "downstream failure") {
+          vi.spyOn(audit, "handle").mockRejectedValueOnce(
+            new Error("temporary Audit failure"),
+          );
+        } else {
+          vi.spyOn(outbox, "finalize").mockResolvedValueOnce(false);
+        }
+        const worker = new OutboxWorker(
+          outbox,
+          new IntegrationEventRouter([recipientHandler(), audit]),
+          { error: vi.fn() },
+        );
+        await writer.append([fact]);
+        expect(await worker.drain(1)).toBe(1);
+        expect(
+          (
+            await db
+              .selectFrom("messaging_outbox")
+              .selectAll()
+              .executeTakeFirstOrThrow()
+          ).status,
+        ).toBe(failure === "downstream failure" ? "failed" : "processing");
+        const email = await notifications.claimDelivery();
+        if (!email) {
+          throw new Error("Missing email");
+        }
+        email.delivery.markSent();
+        expect(await notifications.finalizeDelivery(email)).toBe(true);
+        await notifications.markAllRead(fact.aggregateId);
+        await db
+          .updateTable("notifications")
+          .set({ archived_at: new Date() })
+          .execute();
+        const notificationRows = await db
+          .selectFrom("notifications")
+          .selectAll()
+          .execute();
+        const deliveryRows = await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .execute();
+        await db
+          .updateTable("iam_login_identities")
+          .set({ normalized_value: `new-${fact.aggregateId}@example.test` })
+          .where("user_id", "=", fact.aggregateId)
+          .execute();
+        if (failure === "lost finalization") {
+          await expireOutbox(fact.eventId);
+          await outbox.recoverStale();
+        }
+        await dueOutbox();
+        expect(await worker.drain(1)).toBe(1);
+        expect(
+          await db
+            .selectFrom("messaging_outbox")
+            .selectAll()
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({ status: "published", attempts: 2 });
+        expect(
+          await db.selectFrom("audit_events").selectAll().execute(),
+        ).toHaveLength(1);
+        expect(
+          await db.selectFrom("notifications").selectAll().execute(),
+        ).toEqual(notificationRows);
+        expect(
+          await db.selectFrom("notification_deliveries").selectAll().execute(),
+        ).toEqual(deliveryRows);
+      },
+    );
+
+    it("retries only the existing failed channel after replay, preserving sent and acknowledgement state", async () => {
+      const fact = { ...event(), topic: "iam.user-role-changed" };
+      await createIamRecipient(fact.aggregateId, "admin");
+      await recipientHandler().handle(fact);
+      const claims = await Promise.all([
+        notifications.claimDelivery(),
+        notifications.claimDelivery(),
+      ]);
+      const email = claims.find(
+        (claim) => claim?.delivery.channel.value === "email",
+      );
+      const slack = claims.find(
+        (claim) => claim?.delivery.channel.value === "slack",
+      );
+      if (!email || !slack) {
+        throw new Error("Missing independent channels");
+      }
+      email.delivery.markSent();
+      slack.delivery.markFailed(new Error("provider unavailable"));
+      expect(await notifications.finalizeDelivery(email)).toBe(true);
+      expect(await notifications.finalizeDelivery(slack)).toBe(true);
+      await notifications.markAllRead(fact.aggregateId);
+      await db
+        .updateTable("notifications")
+        .set({ archived_at: new Date() })
+        .execute();
+      const notificationRows = await db
+        .selectFrom("notifications")
+        .selectAll()
+        .execute();
+      const deliveries = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .orderBy("id")
+        .execute();
+      await db
+        .updateTable("iam_login_identities")
+        .set({ normalized_value: `new-${fact.aggregateId}@example.test` })
+        .where("user_id", "=", fact.aggregateId)
+        .execute();
+      await recipientHandler().handle(fact);
+      expect(
+        await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .orderBy("id")
+          .execute(),
+      ).toEqual(deliveries);
+      await db
+        .updateTable("notification_deliveries")
+        .set({ available_at: new Date(0) })
+        .where("id", "=", slack.delivery.identifier.value)
+        .execute();
+      const retry = await notifications.claimDelivery();
+      if (!retry) {
+        throw new Error("Missing retry");
+      }
+      expect(retry.delivery.identifier.value).toBe(
+        slack.delivery.identifier.value,
+      );
+      expect(retry.delivery.destination).toBe(slack.delivery.destination);
+      expect(retry.delivery.attempts).toBe(2);
+      retry.delivery.markSent();
+      expect(await notifications.finalizeDelivery(retry)).toBe(true);
+      expect(await notifications.claimDelivery()).toBeNull();
+      expect(
+        await db.selectFrom("notifications").selectAll().execute(),
+      ).toEqual(notificationRows);
+      expect(
+        await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .where("id", "=", email.delivery.identifier.value)
+          .executeTakeFirstOrThrow(),
+      ).toEqual(
+        deliveries.find(
+          (delivery) => delivery.id === email.delivery.identifier.value,
+        ),
+      );
+    });
+
+    it("does not replace an active delivery claim when a different snapshot is replayed", async () => {
+      const { fact, make } = await notification();
+      const claim = await notifications.claimDelivery();
+      if (!claim) {
+        throw new Error("Missing active delivery");
+      }
+      const before = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .orderBy("id")
+        .execute();
+      await notifications.createForEvent(fact.eventId, [
+        snapshot(fact, [{ channel: "email", destination: "new@example.test" }]),
+      ]);
+      expect(
+        await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .orderBy("id")
+          .execute(),
+      ).toEqual(before);
+      claim.delivery.markSent();
+      expect(await notifications.finalizeDelivery(claim)).toBe(true);
+      await notifications.createForEvent(fact.eventId, [make()]);
+    });
     async function notification() {
       const fact = event(),
         severity = NotificationSeverityValueObject.create("warning");
@@ -133,8 +643,8 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           ],
         });
       await Promise.all([
-        notifications.create(make()),
-        notifications.create(make()),
+        notifications.createForEvent(fact.eventId, [make()]),
+        notifications.createForEvent(fact.eventId, [make()]),
       ]);
       return { fact, make };
     }
@@ -358,7 +868,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         second.delivery.markFailed(new Error("provider down"));
         expect(await notifications.finalizeDelivery(first)).toBe(true);
         expect(await notifications.finalizeDelivery(second)).toBe(true);
-        await notifications.create(make());
+        await notifications.createForEvent(fact.eventId, [make()]);
         const rows = await db.selectFrom("notifications").selectAll().execute();
         expect(rows).toHaveLength(1);
         expect(rows[0]?.read_at).not.toBeNull();
@@ -489,7 +999,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
     );
 
     it("dead-letters ten abandoned deliveries", async () => {
-      await notification();
+      const { fact, make } = await notification();
       const initial = await notifications.claimDelivery();
       if (!initial) {
         throw new Error("Missing delivery");
@@ -528,6 +1038,14 @@ describe.skipIf(!databaseUrl || !redisUrl)(
             .executeTakeFirstOrThrow()
         ).status,
       ).toBe("dead_letter");
+      const beforeReplay = await db
+        .selectFrom("notification_deliveries")
+        .selectAll()
+        .execute();
+      await notifications.createForEvent(fact.eventId, [make()]);
+      expect(
+        await db.selectFrom("notification_deliveries").selectAll().execute(),
+      ).toEqual(beforeReplay);
     });
 
     it("replays partial Audit/Notifications dispatch without duplicates or acknowledgement changes", async () => {
@@ -561,7 +1079,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         [],
       );
       const router = new IntegrationEventRouter([audit, handler]);
-      vi.spyOn(notifications, "create").mockRejectedValueOnce(
+      vi.spyOn(notifications, "createForEvent").mockRejectedValueOnce(
         new Error("temporary consumer failure"),
       );
       await expect(router.dispatch(fact)).rejects.toThrow(

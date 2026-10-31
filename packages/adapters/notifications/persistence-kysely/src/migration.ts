@@ -4,6 +4,13 @@ import type { NotificationDatabase } from "./schema.js";
 
 async function up(db: Kysely<NotificationDatabase>): Promise<void> {
   await db.schema
+    .createTable("notification_consumptions")
+    .addColumn("source_event_id", "uuid", (column) => column.primaryKey())
+    .addColumn("consumed_at", "timestamptz", (column) =>
+      column.defaultTo(sql`clock_timestamp()`).notNull(),
+    )
+    .execute();
+  await db.schema
     .createTable("notifications")
     .addColumn("id", "uuid", (column) => column.primaryKey())
     .addColumn("recipient_id", "uuid", (column) => column.notNull())
@@ -78,6 +85,7 @@ async function down(db: Kysely<NotificationDatabase>): Promise<void> {
     "notification_preferences",
     "notification_deliveries",
     "notifications",
+    "notification_consumptions",
   ] as const) {
     await db.schema.dropTable(table).ifExists().cascade().execute();
   }

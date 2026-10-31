@@ -52,6 +52,60 @@ Source-contract replacements have no legacy facade. The maintainer explicitly
 selected a fresh database target; no historic event/data migration or replay
 compatibility is included. Future Audit retention is unchanged.
 
+## Atomic Notifications consumption
+
+Final review reproduced an additional delivery on PostgreSQL 18.4 at
+`e8a2ec9a53b20e25824d22f08712f13ce0331ddf`: after an email delivery succeeded,
+replaying the fact with a changed verified IAM address inserted a new pending
+email while retaining one visible notification. Notification uniqueness alone
+did not prevent this: the old create operation appended deliveries whose
+uniqueness key included their mutable destination. Enabling an optional channel
+or preference also added deliveries on replay.
+
+The maintainer explicitly approved the complete first-successful-consumption
+snapshot during final hardening on 2026-10-31 and requested its implementation
+within this focused correction. The behavioral owner is the approved
+[Notifications specification](../specifications/SF-NOTIFICATIONS-001.md#delivery-selection-and-replay).
+This is a scoped functional clarification, not an inference from the former
+uniqueness constraints or an approval of unrelated functional follow-ups.
+
+Notifications resolves each recipient once per attempt and composes affected-user
+and administrator channels before persistence. Its existing repository port
+replaces single-notification `create` with `hasConsumedEvent` and atomic
+`createForEvent(sourceEventId, notifications)`. The latter receives complete
+notification aggregates, including an empty collection. All adapters and callers
+must adopt this source-breaking contract; no compatibility facade remains.
+
+The Notifications Kysely adapter owns a local `notification_consumptions` table
+containing only the source-event UUID and database timestamp. In one transaction,
+it inserts the unique consumption record with `ON CONFLICT DO NOTHING RETURNING`
+and inserts the winning notification/delivery set. A concurrent loser writes
+nothing; a failed winner rolls back the record and every effect, allowing retry
+to select again. The application precheck avoids mutable lookups on replay but
+does not replace this database concurrency boundary. Unexpected conflicts or
+technical failures propagate rather than acknowledging a partial snapshot.
+
+Existing notification/delivery constraints remain. Empty recipient and delivery
+sets are durable consumption results, so later configuration or role changes do
+not backfill an old fact. Read/archive operations and delivery finalization never
+remove consumption records. Delivery claims, retries, ten-attempt exhaustion,
+provider adapters and the outbox remain unchanged. Destinations are application
+targets such as a verified email or logical Slack destination `security`, not
+provider webhook credentials. The fresh-database target permits updating the
+initial Notifications migration; there is no existing-data backfill or upgrade.
+
+This local consumer boundary adds neither a generic inbox framework nor a
+distributed transaction. A return on the former per-recipient conflict would
+lose valid user/admin channel composition. A channel-only delivery key would
+still allow newly enabled channels and recipients on replay and cannot record
+an empty consumption result.
+
+The existing delivery worker does not refresh IAM administrative membership
+before sending an already queued alert. This correction does not establish
+compliance with the specification's delivery-time authorization requirement;
+that enforcement remains a separate functional/design follow-up. Snapshot
+acceptance does not grant additional authorization.
+
 ## Unchanged limits and functional follow-ups
 
 - PostgreSQL aggregate events are cleared during save. Current use cases do not
@@ -83,8 +137,9 @@ session-management and logging surfaces, is not silently implemented here.
 
 Classification: Defect Correction / Technical Change, Complex, concurrency- and
 security-sensitive with source breaking changes. Context owners and technical
-decisions are resolved for this scope. No new product policy or durable
-structural rule is established. Work #60 owns operational scope. Project Status
+decisions are resolved for this scope. The original correction established no
+new product policy or durable structural rule; the later replay-selection
+clarification is explicitly approved above. Work #60 owns operational scope. Project Status
 cannot be read with the current connector; it remains unavailable and no
 operational Ready/Done transition is inferred or recorded.
 

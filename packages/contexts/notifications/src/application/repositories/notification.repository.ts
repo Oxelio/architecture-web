@@ -10,7 +10,16 @@ export interface ClaimedNotificationDelivery {
 }
 
 export abstract class NotificationRepository {
-  abstract create(notification: NotificationEntity): Promise<void>;
+  abstract hasConsumedEvent(sourceEventId: string): Promise<boolean>;
+  /**
+   * Atomically persist the complete event snapshot, including an empty selection.
+   * Each recipient appears once and every aggregate belongs to sourceEventId.
+   * A consumed event is a no-op; a failure persists none of the snapshot.
+   */
+  abstract createForEvent(
+    sourceEventId: string,
+    notifications: readonly NotificationEntity[],
+  ): Promise<void>;
   abstract findByIdForRecipient(
     notificationId: string,
     recipientId: string,

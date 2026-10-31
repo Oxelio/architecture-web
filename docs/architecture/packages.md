@@ -162,6 +162,16 @@ delivery and returns false after ownership loss. `saveState(notification)` write
 acknowledgement/archive state only; `recoverStaleDeliveries()` handles abandoned
 attempts. The former combined save and batch claim contracts are removed.
 
+Notification creation uses `hasConsumedEvent(sourceEventId)` and
+`createForEvent(sourceEventId, notifications)` instead of single-notification
+`create`. The latter accepts the complete aggregate set, including an empty
+selection, and atomically records consumption with its effects. A consumed
+event is a no-op; failure persists none of the set. Recipients appear once and
+all aggregates belong to the supplied source event. The precheck is advisory;
+the adapter must enforce concurrent idempotency. See
+[Atomic Notifications consumption](iam-events-reliability.md#atomic-notifications-consumption)
+for the approved target and rationale.
+
 IAM application exports `createIamSecurityEvent` and its closed
 `IamSecurityEventInput` contract for existing application/security facts.
 Aggregate facts use `toIamIntegrationEvent` with explicit payload projections.
