@@ -99,6 +99,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     iamDb = db as unknown as Kysely<IamDatabase>;
     const migrated = await new Migrator({
       db,
+      migrationTableSchema: schema,
       provider: { getMigrations: async () => getAllMigrations() },
     }).migrateToLatest();
     if (migrated.error) {

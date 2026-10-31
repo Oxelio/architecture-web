@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
+
 import {
+  type OutboxClaim,
   OutboxRepository,
   OutboxWriter,
 } from "@architecture/messaging/application";
@@ -6,7 +9,7 @@ import {
   type IntegrationEvent,
   OutboxMessageEntity,
 } from "@architecture/messaging/domain";
-import type { Insertable, Kysely, Selectable } from "kysely";
+import { type Kysely, type Selectable, sql } from "kysely";
 
 import type { MessagingDatabase, MessagingOutboxTable } from "./schema.js";
 
@@ -21,7 +24,7 @@ export class KyselyOutboxWriterAdapter extends OutboxWriter {
     if (events.length === 0) {
       return;
     }
-    const rows: Insertable<MessagingOutboxTable>[] = events.map((event) => ({
+    const rows = events.map((event) => ({
       id: event.eventId,
       topic: event.topic,
       version: event.version,
@@ -29,16 +32,17 @@ export class KyselyOutboxWriterAdapter extends OutboxWriter {
       occurred_at: event.occurredAt,
       payload: JSON.stringify(event.payload),
       context: JSON.stringify(event.context),
-      status: "pending",
+      status: "pending" as const,
       attempts: 0,
-      available_at: new Date(),
+      available_at: sql<Date>`clock_timestamp()`,
       claimed_at: null,
+      claim_token: null,
       published_at: null,
       last_error: null,
     }));
     await this.db
       .insertInto("messaging_outbox")
-      .values(rows as never)
+      .values(rows)
       .onConflict((conflict) => conflict.column("id").doNothing())
       .execute();
   }
@@ -49,61 +53,87 @@ export class KyselyOutboxRepositoryAdapter extends OutboxRepository {
     super();
   }
 
-  async claim(limit: number): Promise<OutboxMessageEntity[]> {
+  async claim(): Promise<OutboxClaim | null> {
     return this.db.transaction().execute(async (transaction) => {
-      const rows = await transaction
+      const row = await transaction
         .selectFrom("messaging_outbox")
         .selectAll()
         .where("status", "in", ["pending", "failed"])
-        .where("available_at", "<=", new Date())
+        .where("available_at", "<=", sql<Date>`clock_timestamp()`)
+        .where("attempts", "<", 10)
         .orderBy("occurred_at", "asc")
-        .limit(limit)
+        .orderBy("id", "asc")
+        .limit(1)
         .forUpdate()
         .skipLocked()
-        .execute();
-      const claimedAt = new Date();
-      if (rows.length > 0) {
-        await transaction
-          .updateTable("messaging_outbox")
-          .set({ status: "processing", claimed_at: claimedAt })
-          .where(
-            "id",
-            "in",
-            rows.map((row) => row.id),
-          )
-          .execute();
+        .executeTakeFirst();
+      if (!row) {
+        return null;
       }
-      return rows.map((row) =>
-        outboxRowToEntity({
-          ...row,
+      const claimToken = randomUUID();
+      const claimed = await transaction
+        .updateTable("messaging_outbox")
+        .set({
           status: "processing",
-          claimed_at: claimedAt,
-        } as OutboxRow),
-      );
+          claimed_at: sql<Date>`clock_timestamp()`,
+          claim_token: claimToken,
+          attempts: row.attempts + 1,
+        })
+        .where("id", "=", row.id)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+      return { message: outboxRowToEntity(claimed), claimToken };
     });
   }
 
-  async save(message: OutboxMessageEntity): Promise<void> {
-    await this.db
+  async finalize({ message, claimToken }: OutboxClaim): Promise<boolean> {
+    if (
+      message.status !== "published" &&
+      message.status !== "failed" &&
+      message.status !== "dead_letter"
+    ) {
+      throw new Error("Only a completed attempt can be finalized");
+    }
+    const result = await this.db
       .updateTable("messaging_outbox")
       .set({
         status: message.status,
         attempts: message.attempts,
-        available_at: message.availableAt,
-        claimed_at: message.claimedAt,
-        published_at: message.publishedAt,
+        available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(${message.attempts}, 10))) * interval '1 second'`,
+        claimed_at: null,
+        claim_token: null,
+        published_at:
+          message.status === "published" ? sql<Date>`clock_timestamp()` : null,
         last_error: message.lastError,
       })
       .where("id", "=", message.identifier.value)
-      .execute();
+      .where("status", "=", "processing")
+      .where("claim_token", "=", claimToken)
+      .where(
+        "claimed_at",
+        ">",
+        sql<Date>`clock_timestamp() - interval '5 minutes'`,
+      )
+      .executeTakeFirst();
+    return Number(result.numUpdatedRows) === 1;
   }
 
-  async releaseStale(before: Date): Promise<void> {
+  async recoverStale(): Promise<void> {
     await this.db
       .updateTable("messaging_outbox")
-      .set({ status: "failed", claimed_at: null, available_at: new Date() })
+      .set({
+        status: sql`case when attempts >= 10 then 'dead_letter' else 'failed' end`,
+        claimed_at: null,
+        claim_token: null,
+        available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(attempts, 10))) * interval '1 second'`,
+        last_error: "Processing claim expired",
+      })
       .where("status", "=", "processing")
-      .where("claimed_at", "<", before)
+      .where(
+        "claimed_at",
+        "<=",
+        sql<Date>`clock_timestamp() - interval '5 minutes'`,
+      )
       .execute();
   }
 }

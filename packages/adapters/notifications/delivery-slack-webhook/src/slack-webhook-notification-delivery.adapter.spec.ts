@@ -34,5 +34,9 @@ describe("SlackWebhookNotificationDeliveryAdapter", () => {
     }
 
     await expect(adapter.send(notification, delivery)).rejects.toThrow("503");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://example.test/hook",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 });

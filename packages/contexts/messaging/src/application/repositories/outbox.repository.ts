@@ -8,7 +8,12 @@ export abstract class OutboxWriter {
 }
 
 export abstract class OutboxRepository {
-  abstract claim(limit: number): Promise<OutboxMessageEntity[]>;
-  abstract save(message: OutboxMessageEntity): Promise<void>;
-  abstract releaseStale(before: Date): Promise<void>;
+  abstract claim(): Promise<OutboxClaim | null>;
+  abstract finalize(claim: OutboxClaim): Promise<boolean>;
+  abstract recoverStale(): Promise<void>;
+}
+
+export interface OutboxClaim {
+  readonly message: OutboxMessageEntity;
+  readonly claimToken: string;
 }

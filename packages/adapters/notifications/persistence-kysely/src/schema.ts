@@ -27,6 +27,7 @@ export interface NotificationDeliveryTable {
   attempts: number;
   available_at: Date;
   claimed_at: Date | null;
+  claim_token: string | null;
   sent_at: Date | null;
   last_error: string | null;
 }
@@ -39,6 +40,10 @@ export interface NotificationPreferenceTable {
 }
 
 export interface NotificationDatabase {
+  notification_consumptions: {
+    source_event_id: string;
+    consumed_at: Date;
+  };
   notifications: NotificationTable;
   notification_deliveries: NotificationDeliveryTable;
   notification_preferences: NotificationPreferenceTable;

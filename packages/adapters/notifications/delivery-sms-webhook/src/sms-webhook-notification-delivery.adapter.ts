@@ -17,6 +17,7 @@ export class SmsWebhookNotificationDeliveryAdapter extends NotificationDelivery 
   ): Promise<void> {
     const response = await fetch(this.webhookUrl, {
       method: "POST",
+      signal: AbortSignal.timeout(30_000),
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         to: delivery.destination,

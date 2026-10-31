@@ -236,6 +236,28 @@ Notifications are eventually consistent with the business operation.
 Immediate security invariants, such as rejecting an invalid session, do not
 depend solely on a notification or asynchronous process.
 
+### Delivery selection and replay
+
+The first successful atomic Notifications consumption of a supported fact fixes
+its complete recipient list and requested channel/destination set. This includes
+an empty selection when no recipients or permitted, available channels qualify.
+The affected-user and administrator roles are composed before acceptance; a
+recipient eligible through both roles retains all requested channels without a
+duplicate visible notification.
+
+Replaying that consumed fact does not select new recipients, add channels, or
+replace destinations after identity, preference, policy, or configuration changes.
+Acknowledgement and existing delivery states remain unchanged. This selection
+rule does not grant administrative permissions or replace the applicable
+delivery-time authorization policy.
+
+If consumption fails before its atomic commit, no partial notification set is
+accepted; retry may select again from current authorized state. After commit,
+delivery retries operate independently on the accepted deliveries and their
+original destinations. Provider configuration and credentials remain technical
+configuration, not part of the recipient snapshot. Carrier delivery remains at
+least once when a send succeeds but its response or finalization is lost.
+
 ## Personal data and secrets
 
 Events, notifications, and deliveries minimize personal data. They never

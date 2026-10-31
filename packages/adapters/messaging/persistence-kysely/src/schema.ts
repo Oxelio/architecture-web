@@ -12,6 +12,7 @@ export interface MessagingOutboxTable {
   attempts: number;
   available_at: Date;
   claimed_at: Date | null;
+  claim_token: string | null;
   published_at: Date | null;
   last_error: string | null;
 }

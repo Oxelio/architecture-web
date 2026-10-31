@@ -1,4 +1,5 @@
 export {
+  type OutboxClaim,
   OutboxRepository,
   OutboxWriter,
 } from "./repositories/outbox.repository.js";

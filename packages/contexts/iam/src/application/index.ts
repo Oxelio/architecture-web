@@ -395,3 +395,7 @@ export {
 } from "./authentication/reauthentication.js";
 export { RegenerateMfaBackupCodesUseCase } from "./authentication/regenerate-mfa-backup-codes/regenerate-mfa-backup-codes.use-case.js";
 export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
+export {
+  createIamSecurityEvent,
+  type IamSecurityEventInput,
+} from "./events/iam-security-event.js";

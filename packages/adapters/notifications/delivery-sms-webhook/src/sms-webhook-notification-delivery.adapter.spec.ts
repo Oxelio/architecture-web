@@ -32,6 +32,10 @@ describe("SmsWebhookNotificationDeliveryAdapter", () => {
     }
 
     await adapter.send(notification, delivery);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://example.test/sms",

@@ -1,7 +1,10 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   PasswordRecoveryStore,
   RecoveryCommit,
 } from "@architecture/iam/application";
+import { createIamSecurityEvent } from "@architecture/iam/application";
 import {
   isRecoveryTokenUsable,
   UserIdentifierValueObject,
@@ -11,7 +14,6 @@ import type { Kysely } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";
 
-import { appendIamSecurityEvent } from "./iam-security-event.js";
 import { KyselyPasswordAuthenticatorAdapter } from "./kysely-password-authenticator.adapter.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
@@ -177,12 +179,14 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
             .set({ consumed_at: now })
             .where("id", "=", row.id)
             .execute();
-          await appendIamSecurityEvent(
-            this.outbox(trx),
-            "account.recovery.completed",
-            row.user_id,
-            "anonymous",
-          );
+          await this.outbox(trx).append([
+            createIamSecurityEvent({
+              type: "account.recovery.completed",
+              userId: row.user_id,
+              eventId: randomUUID(),
+              occurredAt: new Date(),
+            }),
+          ]);
         },
       });
     });

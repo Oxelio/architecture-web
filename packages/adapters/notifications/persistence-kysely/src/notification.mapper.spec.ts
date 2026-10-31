@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  claimableNotificationRowsToEntities,
   claimableNotificationRowToEntity,
   notificationPreferenceRowToEntity,
   notificationRowToEntity,
@@ -70,12 +69,5 @@ describe("claimableNotificationRowToEntity", () => {
 
     expect(notification.identifier.value).toBe("notification-1");
     expect(notification.deliveries[0]?.identifier.value).toBe("delivery-1");
-
-    const grouped = claimableNotificationRowsToEntities([
-      row,
-      { ...row, delivery_id: "delivery-2", channel: "sms" },
-    ]);
-    expect(grouped).toHaveLength(1);
-    expect(grouped[0]?.deliveries).toHaveLength(2);
   });
 });

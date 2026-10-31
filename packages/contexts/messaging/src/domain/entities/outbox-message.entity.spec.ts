@@ -3,6 +3,25 @@ import { describe, expect, it } from "vitest";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 
 describe("OutboxMessageEntity", () => {
+  it("starts a pending message with zero attempts", () => {
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const message = OutboxMessageEntity.pending(
+      {
+        eventId: "event-1",
+        topic: "iam.user-registered",
+        version: 1,
+        aggregateId: "user-1",
+        occurredAt: now,
+        payload: {},
+        context: {},
+      },
+      now,
+    );
+
+    expect(message.status).toBe("pending");
+    expect(message.attempts).toBe(0);
+  });
+
   it("moves a claimed message to failed and schedules a retry", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
     const message = OutboxMessageEntity.rehydrate({
@@ -16,7 +35,7 @@ describe("OutboxMessageEntity", () => {
         context: {},
       },
       status: "processing",
-      attempts: 0,
+      attempts: 1,
       availableAt: now,
       claimedAt: now,
       publishedAt: null,

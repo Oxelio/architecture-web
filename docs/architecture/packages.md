@@ -147,3 +147,37 @@ The application composition API exposes only `createIam`, returning `IamApplicat
 Direct construction of administration use cases now requires an explicit `AdministratorAuthorizer`. Account-administration operations that only used the user repository for authorization receive this authorizer instead; session-administration operations retain their repository and receive the authorizer separately. `createIam` shares one instance across account and configuration administration. Constructors do not construct a fallback authorizer.
 
 MFA challenge creation additionally requires the expected account session generation, while status consultation keeps its original input. Fresh-authentication results carry that generation to the configuration commit guard. These are explicit application contracts; they do not expose credentials or introduce a persistence framework into the core.
+
+## Event processing contracts
+
+`OutboxRepository.claim()` returns one `OutboxClaim` or null. Its immutable
+`claimToken` accompanies the message through `finalize(claim)`, which returns
+false after ownership loss. `recoverStale()` uses PostgreSQL time. Attempts count
+at claim, including abandoned attempts. The former batch claim and unconditional
+save/release methods are removed.
+
+`NotificationRepository.claimDelivery()` similarly returns one
+`ClaimedNotificationDelivery` or null. `finalizeDelivery(claim)` updates only that
+delivery and returns false after ownership loss. `saveState(notification)` writes
+acknowledgement/archive state only; `recoverStaleDeliveries()` handles abandoned
+attempts. The former combined save and batch claim contracts are removed.
+
+Notification creation uses `hasConsumedEvent(sourceEventId)` and
+`createForEvent(sourceEventId, notifications)` instead of single-notification
+`create`. The latter accepts the complete aggregate set, including an empty
+selection, and atomically records consumption with its effects. A consumed
+event is a no-op; failure persists none of the set. Recipients appear once and
+all aggregates belong to the supplied source event. The precheck is advisory;
+the adapter must enforce concurrent idempotency. See
+[Atomic Notifications consumption](iam-events-reliability.md#atomic-notifications-consumption)
+for the approved target and rationale.
+
+IAM application exports `createIamSecurityEvent` and its closed
+`IamSecurityEventInput` contract for existing application/security facts.
+Aggregate facts use `toIamIntegrationEvent` with explicit payload projections.
+Session-started's only current integration version is v2; other existing topics
+retain v1. Incompatible versions are rejected before consumer effects.
+
+These source-contract replacements have no compatibility facade. Schemas include
+claim tokens at creation; the selected fresh-database target requires no upgrade
+of existing outbox/delivery rows. See [Event reliability](iam-events-reliability.md).

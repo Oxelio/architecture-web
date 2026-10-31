@@ -4,6 +4,7 @@ import type {
   AccountDeletionStore,
   DeletionRequest,
 } from "@architecture/iam/application";
+import { createIamSecurityEvent } from "@architecture/iam/application";
 import type { OutboxWriter } from "@architecture/messaging/application";
 import { type Kysely, sql } from "kysely";
 
@@ -13,7 +14,6 @@ import {
   currentAccessPolicy,
   hasAdministrativeAccess,
 } from "./administrative-access.js";
-import { appendIamSecurityEvent } from "./iam-security-event.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 function deletion(row: IamAccountDeletionTable): DeletionRequest {
   return {
@@ -99,13 +99,15 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         .where("user_id", "=", account.id)
         .where("consumed_at", "is", null)
         .execute();
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "account.deletion.requested",
-        account.id,
-        "user",
-        { scheduledFor: input.scheduledFor.toISOString() },
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "account.deletion.requested",
+          userId: account.id,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+          scheduledFor: input.scheduledFor.toISOString(),
+        }),
+      ]);
       return "saved" as const;
     });
   }
@@ -150,11 +152,14 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         return false;
       }
       await new KyselyUserAdapter(trx, this.outbox(trx)).save(input.user);
-      await appendIamSecurityEvent(
-        this.outbox(trx),
-        "account.deletion.cancelled",
-        user.id,
-      );
+      await this.outbox(trx).append([
+        createIamSecurityEvent({
+          type: "account.deletion.cancelled",
+          userId: user.id,
+          eventId: randomUUID(),
+          occurredAt: new Date(),
+        }),
+      ]);
       return true;
     });
   }
@@ -210,15 +215,12 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
       await trx.deleteFrom("iam_users").where("id", "=", row.user_id).execute();
       const pseudonym = createHash("sha256").update(row.user_id).digest("hex");
       await this.outbox(trx).append([
-        {
+        createIamSecurityEvent({
+          type: "account.deletion.executed",
           eventId: randomUUID(),
-          topic: "account.deletion.executed",
-          version: 1,
-          aggregateId: pseudonym,
           occurredAt: now,
-          payload: { pseudonymousSubject: pseudonym },
-          context: { actorType: "system" },
-        },
+          pseudonymousSubject: pseudonym,
+        }),
       ]);
       return row.user_id;
     });
