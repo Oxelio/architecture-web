@@ -119,7 +119,6 @@ export class OutboxMessageEntity extends Entity<OutboxMessageProperties> {
     if (this.status !== "processing") {
       throw new Error("Only a processing outbox message can fail");
     }
-    this.properties.attempts += 1;
     this.properties.status =
       this.properties.attempts >= 10
         ? OutboxStatusValueObject.deadLetter()

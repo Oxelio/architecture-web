@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
@@ -37,7 +38,7 @@ test("supports absolute sources from the same checkout", () => {
       [
         {
           path: "apps/api/coverage/lcov.info",
-          content: `SF:${resolve(root, "apps/api/src/index.ts")}\n`,
+          content: `SF:${resolve(root, "apps/api/src/index.ts")}\nDA:1,1\nend_of_record\n`,
         },
       ],
       root,
@@ -69,4 +70,42 @@ test("rejects missing or empty coverage", () => {
       ),
     /no sources/,
   );
+});
+
+test("rejects an empty report alongside a valid report and malformed records", () => {
+  const good = {
+    path: "apps/api/coverage/lcov.info",
+    content: "SF:src/index.ts\nDA:1,1\nend_of_record\n",
+  };
+  assert.throws(
+    () => mergeCoverage([good, { ...good, content: "" }], root),
+    /no sources/,
+  );
+  for (const content of [
+    "SF:src/index.ts\n",
+    "SF:src/index.ts\nDA:invalid\nend_of_record\n",
+  ]) {
+    assert.throws(
+      () => mergeCoverage([{ ...good, content }], root),
+      /Invalid LCOV/,
+    );
+  }
+});
+
+test("CLI rejects a missing report for a declared test workspace", () => {
+  const workspace = resolve(root, "apps/api");
+  writeFileSync(
+    resolve(workspace, "package.json"),
+    JSON.stringify({
+      name: "api",
+      scripts: { test: "vitest run", "test:coverage": "vitest run --coverage" },
+    }),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [resolve(import.meta.dirname, "merge-coverage.mjs")],
+    { cwd: root, encoding: "utf8" },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /ENOENT.*lcov.info/);
 });

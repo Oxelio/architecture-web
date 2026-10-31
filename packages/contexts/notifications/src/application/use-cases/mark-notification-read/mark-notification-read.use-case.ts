@@ -30,7 +30,7 @@ export class MarkNotificationReadUseCase implements MarkNotificationRead {
       return Result.failure(MarkNotificationReadErrors.notFound);
     }
     if (notification.markRead()) {
-      await this.repository.save(notification);
+      await this.repository.saveState(notification);
     }
     return Result.success(undefined);
   }

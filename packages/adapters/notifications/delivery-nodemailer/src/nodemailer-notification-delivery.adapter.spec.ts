@@ -41,6 +41,15 @@ describe("NodemailerNotificationDeliveryAdapter", () => {
 
     await adapter.send(notification, delivery);
 
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connectionTimeout: 30_000,
+        greetingTimeout: 30_000,
+        socketTimeout: 30_000,
+        dnsTimeout: 30_000,
+      }),
+    );
+
     expect(sendMail).toHaveBeenCalledWith({
       from: "notifications@example.test",
       to: "user@example.test",

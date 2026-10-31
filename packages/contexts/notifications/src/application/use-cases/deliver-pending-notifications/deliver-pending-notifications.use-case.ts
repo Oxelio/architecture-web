@@ -23,24 +23,29 @@ export class DeliverPendingNotificationsUseCase implements DeliverPendingNotific
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
       return Result.failure(DeliverPendingNotificationsErrors.invalidLimit);
     }
-    const notifications = await this.repository.claimDeliveries(limit);
+    await this.repository.recoverStaleDeliveries();
     let deliveryCount = 0;
-    for (const notification of notifications) {
-      for (const delivery of notification.deliveries) {
-        deliveryCount += 1;
-        const adapter = this.deliveries.find(
-          (candidate) => candidate.channel === delivery.channel.value,
-        );
-        try {
-          if (!adapter) {
-            throw new Error(`No adapter for ${delivery.channel.value}`);
-          }
-          await adapter.send(notification, delivery);
-          delivery.markSent();
-        } catch (error) {
-          delivery.markFailed(error);
+    while (deliveryCount < limit) {
+      const claim = await this.repository.claimDelivery();
+      if (!claim) {
+        break;
+      }
+      const { notification, delivery } = claim;
+      deliveryCount += 1;
+      const adapter = this.deliveries.find(
+        (candidate) => candidate.channel === delivery.channel.value,
+      );
+      try {
+        if (!adapter) {
+          throw new Error(`No adapter for ${delivery.channel.value}`);
         }
-        await this.repository.save(notification);
+        await adapter.send(notification, delivery);
+        delivery.markSent();
+      } catch (error) {
+        delivery.markFailed(error);
+      }
+      if (!(await this.repository.finalizeDelivery(claim))) {
+        throw new Error("Notification delivery claim expired or replaced");
       }
     }
     return Result.success(deliveryCount);

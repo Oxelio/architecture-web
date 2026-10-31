@@ -1,10 +1,63 @@
+import { DomainEvent } from "@architecture/foundation";
 import { describe, expect, it } from "vitest";
 
 import { SessionEntity } from "#entities/session.entity";
 import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
 import { toIamIntegrationEvent } from "./iam-integration-event.js";
+import { createIamSecurityEvent } from "./iam-security-event.js";
 describe("IAM integration event projection", () => {
+  it.each([
+    "iam.user-registered",
+    "iam.user-password-changed",
+    "iam.user-suspended",
+    "iam.user-activated",
+  ])("allowlists domain payloads: %s", (type) => {
+    const event = new DomainEvent({
+      type,
+      aggregateId: "user-1",
+      payload: {
+        userId: "user-1",
+        password: "canary-password",
+        token: "canary-token",
+        sessionId: "canary-bearer",
+        authorization: "canary-header",
+      },
+    });
+    expect(toIamIntegrationEvent(event).payload).toEqual({ userId: "user-1" });
+  });
+  it("does not forward unknown domain facts", () => {
+    expect(() =>
+      toIamIntegrationEvent(
+        new DomainEvent({
+          type: "unknown",
+          aggregateId: "user-1",
+          payload: { userId: "user-1" },
+        }),
+      ),
+    ).toThrow("Unsupported");
+  });
+  it("projects application facts without credentials or arbitrary metadata", () => {
+    const input = {
+      type: "mfa.activated" as const,
+      userId: "user-1",
+      eventId: "event-1",
+      occurredAt: new Date(),
+      secret: "canary-mfa",
+      recoveryCode: "canary-recovery",
+    };
+    const event = createIamSecurityEvent(input);
+    expect(event.payload).toEqual({ userId: "user-1" });
+    expect(JSON.stringify(event)).not.toContain("canary");
+    const deleted = createIamSecurityEvent({
+      type: "account.deletion.executed",
+      pseudonymousSubject: "pseudonym",
+      eventId: "event-2",
+      occurredAt: new Date(),
+    });
+    expect(deleted.context).toEqual({ actorType: "system" });
+    expect(deleted.payload).toEqual({ pseudonymousSubject: "pseudonym" });
+  });
   it("publishes a versioned account fact without the session bearer identifier", () => {
     const account = UserIdentifierValueObject.generate(),
       session = SessionEntity.createForUser({

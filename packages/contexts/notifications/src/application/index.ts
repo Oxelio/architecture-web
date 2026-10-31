@@ -3,7 +3,10 @@ export {
   type NotificationsApplication,
   type NotificationsDependencies,
 } from "./create-notifications.js";
-export { NotificationRepository } from "./repositories/notification.repository.js";
+export {
+  type ClaimedNotificationDelivery,
+  NotificationRepository,
+} from "./repositories/notification.repository.js";
 export { NotificationPreferenceRepository } from "./repositories/notification-preference.repository.js";
 export { NotificationDelivery } from "./services/notification-delivery.service.js";
 export { NotificationRecipientDirectory } from "./services/notification-recipient-directory.service.js";

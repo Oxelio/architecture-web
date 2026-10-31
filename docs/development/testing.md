@@ -38,10 +38,12 @@ pnpm typecheck:test
 pnpm lint
 pnpm test
 pnpm test:coverage
+pnpm ci:test
+pnpm ci:test:integration
+pnpm ci:test:tooling
 pnpm format:check
 pnpm docs:links
 pnpm docs:links:test
-node --test scripts/merge-coverage.test.mjs
 ```
 
 For a shorter loop:
@@ -54,6 +56,28 @@ pnpm --filter web test
 
 The core package is named `@architecture/iam`, not
 `@architecture/iam-core`.
+
+### Isolated Messaging unit tests
+
+Messaging's Vitest configuration resolves its internal `#...` aliases to `src`,
+following the IAM package convention. Its unit tests do not require Messaging's
+own `dist` output. Excluding `dist` from test discovery alone does not prevent an
+import from loading stale compiled code.
+
+Public imports from other workspace packages still use their compiled exports.
+Build those dependencies from the current candidate before an isolated run:
+
+```bash
+pnpm --filter '@architecture/messaging^...' build
+pnpm --filter @architecture/messaging test
+```
+
+Workspace and API integration tests consume public compiled package exports;
+run `pnpm build` first so those outputs represent the candidate under validation.
+Outbox and notification delivery attempts count successful claims, including
+abandoned claims, rather than only recorded failures. New items start at zero;
+success/failure finalization does not increment the count. The tenth failed or
+abandoned attempt reaches `dead_letter`.
 
 ## Proportional verification
 
@@ -136,12 +160,19 @@ Vitest uses V8 and writes text, HTML, and LCOV reports to each package's
 `coverage` directory. No global minimum threshold is configured, so a
 percentage cannot replace tests of important business behavior.
 
-After `pnpm test:coverage`, run `node scripts/merge-coverage.mjs` to prepare
-`coverage/lcov.info` for the repository scanner. The merger preserves workspace
-identity for identical relative filenames and rejects missing/escaping paths and
-empty coverage. `node --test scripts/merge-coverage.test.mjs` verifies these
-positive and negative cases. CI creates the artifact from the same test executions
-used for validation; Sonar analysis and its Quality Gate remain informational.
+`pnpm ci:test` runs all declared test workspaces with coverage and a result
+summary, rejecting missing coverage commands, execution reports and zero tests.
+It clears generated reports before execution. `pnpm ci:test:integration` uses the
+same runner with the disposable PostgreSQL/Redis environment, including cleanup
+on failure. Run these commands through pnpm so child commands use its exact CLI.
+
+After coverage, run `node scripts/merge-coverage.mjs` to prepare
+`coverage/lcov.info`. A valid nonempty LCOV report is required from every expected
+test workspace; partial coverage, malformed records and missing/escaping sources
+are rejected. `pnpm ci:test:tooling` verifies runner/service failures, required
+check outcomes and coverage handling. The [CI guide](continuous-integration.md)
+describes shared validation and same-run artifact transfer. Sonar analysis and its
+Quality Gate remain informational.
 
 ## Isolated IAM PostgreSQL/Redis integration
 
@@ -151,13 +182,23 @@ Use the dedicated disposable Compose project, which has no application volumes:
 docker compose -p iam-refactor-tests -f compose.iam-test.yml up -d --wait
 $env:IAM_INTEGRATION_DATABASE_URL = 'postgresql://iam_test:iam_test@127.0.0.1:55432/iam_refactor_test'
 $env:IAM_INTEGRATION_REDIS_URL = 'redis://127.0.0.1:56379/15'
-pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts
+pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts src/adapters/iam/iam-events.integration.spec.ts
 docker compose -p iam-refactor-tests -f compose.iam-test.yml down
 ```
 
 The database name must start with `iam_refactor_test`. Every run creates a unique schema, migrates it, and removes only that schema. Redis uses generated test-account/session identifiers and clears only those owned keys; it never flushes a database. Both variables are required together. These checks cover publication races, single-use recovery, outbox rollback, session-version protection after cleanup failure, MFA attempts and backup-code consumption, single archive download, last-administrator deletion and policy snapshot consistency.
 
 The IAM correction extends the isolated suite with stale credential saves (including MFA), identity-bound recovery issuance in both orderings, stale MFA generations, unsafe publication/restoration, mixed administrator mutations, a real pre-refactor database upgrade, and publication inside actual registration/sign-in workflows. Fixtures use only their generated schemas and owned Redis keys. These scenarios must execute with both integration URLs; ordinary skipped runs provide no database evidence.
+
+The event suite uses a separate generated PostgreSQL schema to exercise real
+`SKIP LOCKED` behavior, distinct concurrent claims, expired/replaced-owner
+finalization in both success/failure orderings, ten abandoned attempts,
+independent notification channel updates, acknowledgement/archive preservation,
+concurrent replay, partial Audit/Notifications dispatch, version rejection and
+aggregate/outbox rollback followed by fresh-state retry. It never resets an
+application schema. Both integration URLs remain required by the isolated-suite
+configuration; these event-specific cases use PostgreSQL, while the security
+suite supplies the real Redis-boundary evidence.
 
 ## Automatic release verification
 

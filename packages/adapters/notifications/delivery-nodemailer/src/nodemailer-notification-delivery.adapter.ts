@@ -21,6 +21,10 @@ export class NodemailerNotificationDeliveryAdapter extends NotificationDelivery 
       host,
       port,
       secure: port === 465,
+      connectionTimeout: 30_000,
+      greetingTimeout: 30_000,
+      socketTimeout: 30_000,
+      dnsTimeout: 30_000,
       auth: { user, pass: password },
     });
   }

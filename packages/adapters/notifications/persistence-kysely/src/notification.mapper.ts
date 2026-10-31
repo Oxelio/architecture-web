@@ -125,35 +125,3 @@ export function claimableNotificationRowToEntity(
     deliveries: [delivery],
   });
 }
-
-export function claimableNotificationRowsToEntities(
-  rows: readonly ClaimableNotificationRow[],
-): NotificationEntity[] {
-  const byNotification = new Map<string, NotificationEntity[]>();
-  for (const row of rows) {
-    const notification = claimableNotificationRowToEntity(row);
-    const group = byNotification.get(notification.identifier.value) ?? [];
-    group.push(notification);
-    byNotification.set(notification.identifier.value, group);
-  }
-  return [...byNotification.values()].map((group) => {
-    const first = group[0];
-    if (!first) {
-      throw new Error("A claimable notification group cannot be empty");
-    }
-    return NotificationEntity.rehydrate({
-      identifier: first.identifier,
-      recipientId: first.recipientId,
-      sourceEventId: first.sourceEventId,
-      type: first.type,
-      severity: first.severity,
-      title: first.title,
-      message: first.message,
-      actionUrl: first.actionUrl,
-      createdAt: first.createdAt,
-      readAt: first.readAt,
-      archivedAt: first.archivedAt,
-      deliveries: group.flatMap((notification) => notification.deliveries),
-    });
-  });
-}

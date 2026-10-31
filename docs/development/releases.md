@@ -28,6 +28,15 @@ source archive in isolation with release-it. A separate trusted job verifies the
 plan and checksums, creates an annotated tag and publishes the GitHub Release.
 It never pushes branch changes or publishes npm packages.
 
+The workflow calls `repository-validation.yml` with the selected immutable source
+SHA before generation. The shared Node 26 suite includes real disposable
+PostgreSQL/Redis integration, and the Node 24 compatibility suite must also pass.
+The generation job does not duplicate build/test commands. This revalidation is
+independent from PR/main CI because a pending-release recovery can select an older
+SHA than the trigger. No Sonar result is a publication dependency. Validation and
+generation use read permissions; only the separate publisher can write tags and
+Releases. A failed or skipped validation prevents generation/publication.
+
 Tracked manifest versions are development declarations, not the latest published
 version. Tags own publication history. The attached source archive stamps all
 discovered workspace manifests and includes generated `CHANGELOG.md`; it preserves

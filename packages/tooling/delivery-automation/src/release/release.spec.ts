@@ -414,15 +414,27 @@ describe("release source pipeline", () => {
     expect(required(workflow.jobs["publish"]).permissions?.contents).toBe(
       "write",
     );
-    expect(required(workflow.jobs["publish"]).needs).toContain(
-      "validate-and-generate",
-    );
+    expect(required(workflow.jobs["publish"]).needs).toContain("validate");
+    expect(required(workflow.jobs["generate"]).needs).toContain("validate");
+    const shared = parse(
+      readFileSync(
+        resolve(
+          import.meta.dirname,
+          "../../../../../.github/workflows/repository-validation.yml",
+        ),
+        "utf8",
+      ),
+    ) as typeof workflow;
     expect(
-      required(workflow.jobs["validate-and-generate"])
+      required(shared.jobs["validate"])
         .steps.filter((s) => s.run)
         .map((s) => s.run),
     ).toEqual(
-      expect.arrayContaining(["pnpm build", "pnpm test", "pnpm docs:links"]),
+      expect.arrayContaining([
+        "pnpm build",
+        "pnpm ci:test:integration",
+        "pnpm docs:links",
+      ]),
     );
   });
 });

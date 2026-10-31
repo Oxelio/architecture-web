@@ -18,9 +18,14 @@ export class OutboxWorker {
   ) {}
 
   async drain(batchSize = 50): Promise<number> {
-    await this.repository.releaseStale(new Date(Date.now() - 5 * 60_000));
-    const messages = await this.repository.claim(batchSize);
-    for (const message of messages) {
+    await this.repository.recoverStale();
+    let processed = 0;
+    while (processed < batchSize) {
+      const claim = await this.repository.claim();
+      if (!claim) {
+        break;
+      }
+      const { message } = claim;
       try {
         await this.router.dispatch(message.event);
         message.markPublished();
@@ -31,8 +36,14 @@ export class OutboxWorker {
           "Outbox dispatch failed",
         );
       }
-      await this.repository.save(message);
+      if (!(await this.repository.finalize(claim))) {
+        this.logger.error(
+          { eventId: message.identifier.value },
+          "Outbox claim expired or replaced",
+        );
+      }
+      processed += 1;
     }
-    return messages.length;
+    return processed;
   }
 }

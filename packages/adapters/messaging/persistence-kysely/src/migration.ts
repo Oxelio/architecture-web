@@ -18,6 +18,7 @@ async function up(db: Kysely<MessagingDatabase>): Promise<void> {
     .addColumn("attempts", "integer", (column) => column.defaultTo(0).notNull())
     .addColumn("available_at", "timestamptz", (column) => column.notNull())
     .addColumn("claimed_at", "timestamptz")
+    .addColumn("claim_token", "uuid")
     .addColumn("published_at", "timestamptz")
     .addColumn("last_error", "text")
     .execute();

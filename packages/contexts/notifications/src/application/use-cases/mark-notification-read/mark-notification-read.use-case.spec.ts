@@ -43,7 +43,7 @@ describe("MarkNotificationReadUseCase", () => {
     const save = vi.fn();
     const useCase = new MarkNotificationReadUseCase({
       findByIdForRecipient: vi.fn().mockResolvedValue(notification),
-      save,
+      saveState: save,
     } as unknown as NotificationRepository);
 
     const result = await useCase.execute({
