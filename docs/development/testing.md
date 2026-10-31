@@ -23,6 +23,12 @@ PostgreSQL plan measurements on representative data.
 
 PostgreSQL/Redis security integration tests are opt-in. They are skipped in ordinary unit runs unless both integration URLs are set. A skipped run does not validate concurrency or transaction guarantees. SMTP delivery, legal-retention completeness and deployment scheduling still require their own evidence.
 
+The [repository CI](continuous-integration.md) supplies both integration URLs to
+disposable services for its primary PR/post-merge suite and release validation.
+The Node 24 compatibility job runs unit tests without these services. Successful
+primary/release runs therefore provide the existing database-boundary evidence;
+skipped local/compatibility runs still do not.
+
 ## Root commands
 
 ```bash
@@ -35,6 +41,7 @@ pnpm test:coverage
 pnpm format:check
 pnpm docs:links
 pnpm docs:links:test
+node --test scripts/merge-coverage.test.mjs
 ```
 
 For a shorter loop:
@@ -128,6 +135,13 @@ service, credential, action, or runtime dependency.
 Vitest uses V8 and writes text, HTML, and LCOV reports to each package's
 `coverage` directory. No global minimum threshold is configured, so a
 percentage cannot replace tests of important business behavior.
+
+After `pnpm test:coverage`, run `node scripts/merge-coverage.mjs` to prepare
+`coverage/lcov.info` for the repository scanner. The merger preserves workspace
+identity for identical relative filenames and rejects missing/escaping paths and
+empty coverage. `node --test scripts/merge-coverage.test.mjs` verifies these
+positive and negative cases. CI creates the artifact from the same test executions
+used for validation; Sonar analysis and its Quality Gate remain informational.
 
 ## Isolated IAM PostgreSQL/Redis integration
 

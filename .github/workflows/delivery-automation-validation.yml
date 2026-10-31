@@ -1,6 +1,8 @@
 name: Delivery Automation Validation
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches:
       - main
@@ -13,6 +15,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: repository-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
@@ -40,6 +46,15 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Record candidate and tooling
+        run: |
+          {
+            echo '## Validation identity'
+            echo "Candidate: ${GITHUB_SHA}; ref: ${GITHUB_REF}"
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "Node: $(node --version); pnpm: $(pnpm --version)"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       - name: Build
         run: pnpm build
 
@@ -55,7 +70,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test
+      - name: Start disposable IAM integration services
+        run: docker compose -p ci-iam -f compose.iam-test.yml up -d --wait --wait-timeout 90
+
+      - name: Test with coverage and real IAM integration
+        env:
+          IAM_INTEGRATION_DATABASE_URL: postgresql://iam_test:iam_test@127.0.0.1:55432/iam_refactor_test
+          IAM_INTEGRATION_REDIS_URL: redis://127.0.0.1:56379/15
         shell: bash
         run: |
           set -euo pipefail
@@ -83,7 +104,7 @@ jobs:
             set +e
             (
               cd "${package_dir}"
-              GITHUB_STEP_SUMMARY="${package_summary}" NO_COLOR=1 pnpm test
+              GITHUB_STEP_SUMMARY="${package_summary}" NO_COLOR=1 pnpm test:coverage
             )
             package_status=$?
             set -e
@@ -133,6 +154,11 @@ jobs:
               -print | sort
           )
 
+          if [[ "${workspace_runs}" -eq 0 ]]; then
+            echo '::error::No test workspaces were discovered.'
+            overall_status=1
+          fi
+
           if [[ "${overall_status}" -eq 0 ]]; then
             overall_result="✅ PASS"
           else
@@ -158,6 +184,33 @@ jobs:
 
           exit "${overall_status}"
 
+      - name: Stop disposable IAM integration services
+        if: always()
+        run: docker compose -p ci-iam -f compose.iam-test.yml down --volumes
+
+      - name: Prepare repository-relative LCOV
+        run: node scripts/merge-coverage.mjs
+
+      - name: Test coverage path handling
+        run: node --test scripts/merge-coverage.test.mjs
+
+      - name: Export coverage from this run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sonar-coverage
+          path: coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Verify artifact download even when Sonar is skipped
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: sonar-coverage
+          path: ${{ runner.temp }}/coverage-roundtrip
+
+      - name: Verify coverage artifact contents
+        run: cmp coverage/lcov.info "${RUNNER_TEMP}/coverage-roundtrip/lcov.info"
+
       - name: Check formatting
         run: pnpm format:check
 
@@ -169,3 +222,112 @@ jobs:
 
       - name: Check whitespace errors
         run: git diff --check
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          vulnerability-check: true
+          license-check: false
+          show-patched-versions: true
+
+  node-compatibility:
+    name: Node 24 compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.15.0"
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm typecheck:test
+      - run: pnpm test
+
+  sonar:
+    name: SonarQube (informational)
+    needs: validate
+    # Never give a fork or Dependabot candidate access to the analysis credential.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login != 'dependabot[bot]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - name: Check Sonar configuration
+        id: config
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          enabled=true
+          for name in SONAR_HOST_URL SONAR_PROJECT_KEY SONAR_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::warning::Sonar skipped: configure ${name}; see docs/development/continuous-integration.md."
+              enabled=false
+            fi
+          done
+          if [ "${enabled}" = true ] && [[ "${SONAR_HOST_URL}" != https://* ]]; then
+            echo '::warning::Sonar skipped: SONAR_HOST_URL must use HTTPS.'
+            enabled=false
+          fi
+          echo "enabled=${enabled}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout analyzed commit with history
+        if: steps.config.outputs.enabled == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Import coverage from this workflow run
+        if: steps.config.outputs.enabled == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: sonar-coverage
+          path: coverage
+
+      - name: Analyze and wait for the informational Quality Gate
+        id: scan
+        if: steps.config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          args: >-
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+      - name: Report informational analysis outcome
+        if: always()
+        env:
+          CONFIGURED: ${{ steps.config.outputs.enabled }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
+        run: |
+          {
+            echo '## SonarQube — informational'
+            echo "Candidate: ${GITHUB_SHA}"
+            echo "Configured: ${CONFIGURED:-false}; scan/Quality Gate: ${SCAN_OUTCOME:-skipped}"
+            echo 'Sonar findings, failed Quality Gates and analysis errors do not block repository validation or source publication.'
+          } >> "${GITHUB_STEP_SUMMARY}"
+          if [ "${CONFIGURED}" = true ] && [ "${SCAN_OUTCOME}" != success ]; then
+            echo '::warning::Sonar analysis or its Quality Gate did not succeed. Review this job and the Sonar dashboard.'
+          fi
