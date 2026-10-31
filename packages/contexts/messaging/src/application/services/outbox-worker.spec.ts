@@ -51,6 +51,7 @@ describe("OutboxWorker", () => {
     expect(repository.finalize.mock.calls[0]?.[0].message.status).toBe(
       "published",
     );
+    expect(repository.finalize.mock.calls[0]?.[0].message.attempts).toBe(1);
   });
   it("dead-letters a tenth failed attempt and reports ownership loss without overwriting", async () => {
     const current = claim(10),

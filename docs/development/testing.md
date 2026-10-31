@@ -48,6 +48,28 @@ pnpm --filter web test
 The core package is named `@architecture/iam`, not
 `@architecture/iam-core`.
 
+### Isolated Messaging unit tests
+
+Messaging's Vitest configuration resolves its internal `#...` aliases to `src`,
+following the IAM package convention. Its unit tests do not require Messaging's
+own `dist` output. Excluding `dist` from test discovery alone does not prevent an
+import from loading stale compiled code.
+
+Public imports from other workspace packages still use their compiled exports.
+Build those dependencies from the current candidate before an isolated run:
+
+```bash
+pnpm --filter '@architecture/messaging^...' build
+pnpm --filter @architecture/messaging test
+```
+
+Workspace and API integration tests consume public compiled package exports;
+run `pnpm build` first so those outputs represent the candidate under validation.
+Outbox and notification delivery attempts count successful claims, including
+abandoned claims, rather than only recorded failures. New items start at zero;
+success/failure finalization does not increment the count. The tenth failed or
+abandoned attempt reaches `dead_letter`.
+
 ## Proportional verification
 
 Documentation-only changes should validate relative links and referenced paths,

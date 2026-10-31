@@ -215,6 +215,18 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           throw new Error("Missing replacement");
         }
         expect(current.claimToken).not.toBe(old.claimToken);
+        expect(await outbox.finalize(old)).toBe(false);
+        expect(
+          await db
+            .selectFrom("messaging_outbox")
+            .selectAll()
+            .where("id", "=", fact.eventId)
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({
+          status: "processing",
+          claim_token: current.claimToken,
+          attempts: 2,
+        });
         if (success) {
           current.message.markPublished();
         } else {
@@ -234,6 +246,53 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       },
     );
 
+    it.each([true, false])(
+      "counts outbox claims once through finalization (success=%s)",
+      async (success) => {
+        const fact = event();
+        await writer.append([fact]);
+        expect(
+          await db
+            .selectFrom("messaging_outbox")
+            .selectAll()
+            .where("id", "=", fact.eventId)
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({ status: "pending", attempts: 0 });
+
+        const limit = success ? 1 : 10;
+        for (let attempt = 1; attempt <= limit; attempt++) {
+          const claim = await outbox.claim();
+          if (!claim) {
+            throw new Error("Missing claim");
+          }
+          expect(claim.message.attempts).toBe(attempt);
+          if (success) {
+            claim.message.markPublished();
+          } else {
+            claim.message.markFailed(new Error("provider unavailable"));
+          }
+          expect(claim.message.attempts).toBe(attempt);
+          expect(await outbox.finalize(claim)).toBe(true);
+          expect(
+            await db
+              .selectFrom("messaging_outbox")
+              .selectAll()
+              .where("id", "=", fact.eventId)
+              .executeTakeFirstOrThrow(),
+          ).toMatchObject({
+            attempts: attempt,
+            status: success
+              ? "published"
+              : attempt === 10
+                ? "dead_letter"
+                : "failed",
+          });
+          await dueOutbox();
+        }
+        expect(await outbox.claim()).toBeNull();
+      },
+    );
+
     it("dead-letters ten abandoned outbox attempts", async () => {
       const fact = event();
       await writer.append([fact]);
@@ -242,6 +301,16 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         expect(claim?.message.attempts).toBe(attempt);
         await expireOutbox(fact.eventId);
         await outbox.recoverStale();
+        expect(
+          await db
+            .selectFrom("messaging_outbox")
+            .selectAll()
+            .where("id", "=", fact.eventId)
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({
+          attempts: attempt,
+          status: attempt === 10 ? "dead_letter" : "failed",
+        });
         await dueOutbox();
       }
       expect(await outbox.claim()).toBeNull();
@@ -303,6 +372,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           "failed",
           "sent",
         ]);
+        expect(deliveries.map((delivery) => delivery.attempts)).toEqual([1, 1]);
       },
     );
 
@@ -335,6 +405,19 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         if (!current) {
           throw new Error("Missing replacement");
         }
+        expect(current.claimToken).not.toBe(old.claimToken);
+        expect(await notifications.finalizeDelivery(old)).toBe(false);
+        expect(
+          await db
+            .selectFrom("notification_deliveries")
+            .selectAll()
+            .where("id", "=", current.delivery.identifier.value)
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({
+          status: "processing",
+          claim_token: current.claimToken,
+          attempts: 2,
+        });
         if (success) {
           current.delivery.markSent();
         } else {
@@ -350,6 +433,58 @@ describe.skipIf(!databaseUrl || !redisUrl)(
               .executeTakeFirstOrThrow()
           ).status,
         ).toBe(success ? "sent" : "failed");
+      },
+    );
+
+    it.each([true, false])(
+      "counts delivery claims once through finalization (success=%s)",
+      async (success) => {
+        await notification();
+        await db
+          .deleteFrom("notification_deliveries")
+          .where("channel", "!=", "email")
+          .execute();
+        expect(
+          await db
+            .selectFrom("notification_deliveries")
+            .selectAll()
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({ status: "pending", attempts: 0 });
+
+        const limit = success ? 1 : 10;
+        for (let attempt = 1; attempt <= limit; attempt++) {
+          const claim = await notifications.claimDelivery();
+          if (!claim) {
+            throw new Error("Missing delivery");
+          }
+          expect(claim.delivery.attempts).toBe(attempt);
+          if (success) {
+            claim.delivery.markSent();
+          } else {
+            claim.delivery.markFailed(new Error("provider unavailable"));
+          }
+          expect(claim.delivery.attempts).toBe(attempt);
+          expect(await notifications.finalizeDelivery(claim)).toBe(true);
+          expect(
+            await db
+              .selectFrom("notification_deliveries")
+              .selectAll()
+              .where("id", "=", claim.delivery.identifier.value)
+              .executeTakeFirstOrThrow(),
+          ).toMatchObject({
+            attempts: attempt,
+            status: success
+              ? "sent"
+              : attempt === 10
+                ? "dead_letter"
+                : "failed",
+          });
+          await db
+            .updateTable("notification_deliveries")
+            .set({ available_at: new Date(0) })
+            .execute();
+        }
+        expect(await notifications.claimDelivery()).toBeNull();
       },
     );
 
@@ -369,6 +504,16 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         expect(claim?.delivery.attempts).toBe(attempt);
         await expireDeliveries();
         await notifications.recoverStaleDeliveries();
+        expect(
+          await db
+            .selectFrom("notification_deliveries")
+            .selectAll()
+            .where("id", "=", initial.delivery.identifier.value)
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({
+          attempts: attempt,
+          status: attempt === 10 ? "dead_letter" : "failed",
+        });
         await db
           .updateTable("notification_deliveries")
           .set({ available_at: new Date(0) })

@@ -26,10 +26,17 @@ describe("NotificationDeliveryEntity", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
     const delivery = createDelivery(now);
 
+    expect(delivery.attempts).toBe(0);
     expect(delivery.claim(now)).toBe(true);
+    expect(delivery.attempts).toBe(1);
+    expect(delivery.claim(now)).toBe(false);
+    expect(delivery.attempts).toBe(1);
     delivery.markSent(new Date("2026-01-01T00:00:01.000Z"));
 
     expect(delivery.status).toBe("sent");
+    expect(delivery.attempts).toBe(1);
+    expect(delivery.claim(now)).toBe(false);
+    expect(delivery.attempts).toBe(1);
     expect(delivery.sentAt).toEqual(new Date("2026-01-01T00:00:01.000Z"));
   });
 
@@ -47,5 +54,21 @@ describe("NotificationDeliveryEntity", () => {
     expect(delivery.attempts).toBe(1);
     expect(delivery.availableAt).toEqual(new Date("2026-01-01T00:00:03.000Z"));
     expect(delivery.lastError).toBe("Error: provider unavailable");
+  });
+
+  it("dead-letters the tenth failed claim without counting failure twice", () => {
+    const delivery = createDelivery(new Date("2026-01-01T00:00:00.000Z"));
+
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      const now = delivery.availableAt;
+      expect(delivery.claim(now)).toBe(true);
+      expect(delivery.attempts).toBe(attempt);
+      delivery.markFailed(new Error("provider unavailable"), now);
+      expect(delivery.attempts).toBe(attempt);
+      expect(delivery.status).toBe(attempt === 10 ? "dead_letter" : "failed");
+    }
+
+    expect(delivery.claim(delivery.availableAt)).toBe(false);
+    expect(delivery.attempts).toBe(10);
   });
 });
