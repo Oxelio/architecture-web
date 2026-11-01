@@ -59,14 +59,20 @@ async function collectMarkdownFiles(
   return files.sort();
 }
 
+function fenceMarker(line) {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith("```")) return "`";
+  if (trimmed.startsWith("~~~")) return "~";
+  return null;
+}
+
 function extractTargets(markdown) {
   const targets = [];
   let fence = null;
 
   for (const line of markdown.split(/\r?\n/u)) {
-    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/u);
-    if (fenceMatch) {
-      const marker = fenceMatch[1][0];
+    const marker = fenceMarker(line);
+    if (marker) {
       if (fence === marker) fence = null;
       else if (fence === null) fence = marker;
       continue;
