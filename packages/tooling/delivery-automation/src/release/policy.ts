@@ -37,52 +37,55 @@ function nextVersion(previous: string | null, impact: number): string | null {
   return semver.inc(previous, impact >= 2 ? "minor" : "patch");
 }
 
-export async function planVersion(input: {
+export function planVersion(input: {
   readonly previousVersion: string | null;
   readonly messages: readonly string[];
   readonly firstStable?: FirstStableRequest | null;
 }): Promise<VersionPlan> {
-  const previous = input.previousVersion;
-  if (
-    previous !== null &&
-    (semver.valid(previous) !== previous ||
-      semver.prerelease(previous) ||
-      (semver.parse(previous)?.build.length ?? 0) > 0)
-  ) {
-    throw new Error(
-      "UNSUPPORTED_RELEASE_BASE: an explicit version migration is required",
-    );
-  }
-  const request = input.firstStable ?? null;
-  if (request) {
+  return new Promise((resolve) => {
+    const previous = input.previousVersion;
     if (
-      (previous && semver.gte(previous, "1.0.0")) ||
-      !request.actor ||
-      !/^\d+$/u.test(request.runId) ||
-      !/^[a-f0-9]{40}$/u.test(request.sourceSha)
+      previous !== null &&
+      (semver.valid(previous) !== previous ||
+        semver.prerelease(previous) ||
+        (semver.parse(previous)?.build.length ?? 0) > 0)
     ) {
-      throw new Error("INVALID_FIRST_STABLE_REQUEST");
+      throw new Error(
+        "UNSUPPORTED_RELEASE_BASE: an explicit version migration is required",
+      );
     }
-    return {
-      previousVersion: previous,
-      version: "1.0.0",
-      firstStable: request,
+    const request = input.firstStable ?? null;
+    if (request) {
+      if (
+        (previous && semver.gte(previous, "1.0.0")) ||
+        !request.actor ||
+        !/^\d+$/u.test(request.runId) ||
+        !/^[a-f0-9]{40}$/u.test(request.sourceSha)
+      ) {
+        throw new Error("INVALID_FIRST_STABLE_REQUEST");
+      }
+      resolve({
+        previousVersion: previous,
+        version: "1.0.0",
+        firstStable: request,
+      });
+      return;
+    }
+    const preset = createPreset() as {
+      parser: ConstructorParameters<typeof CommitParser>[0];
     };
-  }
-  const preset = (await createPreset()) as {
-    parser: ConstructorParameters<typeof CommitParser>[0];
-  };
-  const parser = new CommitParser(preset.parser);
-  let impact = 0;
-  for (const message of input.messages) {
-    const commit = parser.parse(message);
-    impact = Math.max(impact, commitImpact(commit));
-  }
-  return {
-    previousVersion: previous,
-    version: nextVersion(previous, impact),
-    firstStable: null,
-  };
+    const parser = new CommitParser(preset.parser);
+    let impact = 0;
+    for (const message of input.messages) {
+      const commit = parser.parse(message);
+      impact = Math.max(impact, commitImpact(commit));
+    }
+    resolve({
+      previousVersion: previous,
+      version: nextVersion(previous, impact),
+      firstStable: null,
+    });
+  });
 }
 
 export function assertPublicationContext(input: {
