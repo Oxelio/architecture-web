@@ -84,8 +84,10 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`claim reconciliation planning failed: ${message}\n`);
   process.exitCode = 1;
-});
+}

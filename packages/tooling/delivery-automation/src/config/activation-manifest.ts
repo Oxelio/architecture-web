@@ -51,8 +51,18 @@ function exactKeys(
   expected: readonly string[],
   path: string,
 ): void {
-  const actual = Object.keys(record).toSorted();
-  const wanted = [...expected].toSorted();
+  const actual = Object.keys(record).toSorted((a, b) => {
+    if (a === b) {
+      return 0;
+    }
+    return a < b ? -1 : 1;
+  });
+  const wanted = [...expected].toSorted((a, b) => {
+    if (a === b) {
+      return 0;
+    }
+    return a < b ? -1 : 1;
+  });
   if (
     actual.length !== wanted.length ||
     actual.some((key, index) => key !== wanted[index])

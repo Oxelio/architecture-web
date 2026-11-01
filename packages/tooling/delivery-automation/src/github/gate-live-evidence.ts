@@ -169,7 +169,7 @@ export async function readWorkMergeGateLiveEvidence(input: {
   }
 
   const work = items.find((item) => item.issueNumber === input.workNumber);
-  if (!work || !work.issueOpen) {
+  if (!work?.issueOpen) {
     return { status: "blocked", reason: "WORK_ITEM_UNAVAILABLE" };
   }
 
