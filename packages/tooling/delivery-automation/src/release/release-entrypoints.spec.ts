@@ -46,6 +46,52 @@ function root() {
 }
 
 describe("release entrypoint contracts", () => {
+  it("generates verified artifacts through the in-process CLI entrypoint", async () => {
+    const directory = root();
+    git(directory, "init", "-b", "main");
+    git(directory, "config", "user.name", "Release Test");
+    git(directory, "config", "user.email", "release@example.invalid");
+    git(
+      directory,
+      "remote",
+      "add",
+      "origin",
+      "https://example.invalid/fixture.git",
+    );
+    writeFileSync(
+      join(directory, "package.json"),
+      '{"name":"fixture","version":"0.1.0"}',
+    );
+    writeFileSync(join(directory, "pnpm-workspace.yaml"), "packages: []\n");
+    git(directory, "add", "package.json", "pnpm-workspace.yaml");
+    git(directory, "commit", "-m", "feat: initial fixture");
+    const sourceSha = git(directory, "rev-parse", "HEAD");
+    writeFileSync(
+      join(directory, "release-plan.json"),
+      JSON.stringify({
+        version: "0.1.0",
+        tag: "v0.1.0",
+        sourceSha,
+        previousTag: null,
+      }),
+    );
+    process.argv = [
+      process.execPath,
+      "release.ts",
+      "generate",
+      "output",
+      "release-plan.json",
+    ];
+    await import("../cli/release.js");
+    expect(process.exitCode).toBe(originalExitCode);
+    expect(
+      JSON.parse(
+        readFileSync(join(directory, "output/release-manifest.json"), "utf8"),
+      ),
+    ).toMatchObject({ plan: { sourceSha, version: "0.1.0" } });
+    expect(git(directory, "diff", "--name-only")).toBe("");
+  }, 30_000);
+
   it("prints a read-only plan independently of an unrelated external artifact alias", async () => {
     const directory = root();
     git(directory, "init", "-b", "main");
