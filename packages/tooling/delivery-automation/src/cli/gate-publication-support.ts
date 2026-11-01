@@ -91,7 +91,7 @@ export function markdownValue(value: string | null): string {
   return value
     .replaceAll("\r", " ")
     .replaceAll("\n", " ")
-    .replaceAll("|", "\\|");
+    .replaceAll("|", String.raw`\|`);
 }
 
 export function writeJson(value: unknown): void {

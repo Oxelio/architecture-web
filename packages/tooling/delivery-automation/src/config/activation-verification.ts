@@ -115,19 +115,22 @@ function splitOutsideQuotes(
     const isSeparator =
       separator === "," ? character === "," : /\s/u.test(character);
     if (isSeparator) {
-      if (current.trim()) {
-        parts.push(current.trim());
-        current = "";
-      }
+      appendFilterPart(parts, current);
+      current = "";
       continue;
     }
     current += character;
   }
 
-  if (current.trim()) {
-    parts.push(current.trim());
-  }
+  appendFilterPart(parts, current);
   return parts;
+}
+
+function appendFilterPart(parts: string[], value: string): void {
+  const trimmed = value.trim();
+  if (trimmed) {
+    parts.push(trimmed);
+  }
 }
 
 function unquotedColon(value: string): number {

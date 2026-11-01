@@ -63,7 +63,7 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
     throw new Error("Gate evaluation envelope has an invalid summary");
   }
   if (typeof pass !== "boolean") {
-    throw new Error("Gate evaluation envelope has an invalid pass result");
+    throw new TypeError("Gate evaluation envelope has an invalid pass result");
   }
 
   return {
@@ -95,8 +95,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`Gate check publication failed: ${message}\n`);
   process.exitCode = 1;
-});
+}
