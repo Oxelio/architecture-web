@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, CircleAlert, Info, ShieldAlert } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 
+import { NotificationCard } from "#components/NotificationCard";
 import {
   getNotificationPreferences,
   listNotifications,
@@ -116,58 +116,13 @@ export function NotificationsPage() {
         <p className="text-rose-300">{t("notifications.error")}</p>
       ) : notifications.data?.length ? (
         <div className="space-y-3">
-          {notifications.data.map((notification) => {
-            const Icon =
-              notification.severity === "critical"
-                ? ShieldAlert
-                : notification.severity === "warning"
-                  ? CircleAlert
-                  : Info;
-            const content = (
-              <>
-                <Icon className="mt-1 h-5 w-5 shrink-0 text-sky-400" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="font-semibold text-white">
-                      {notification.title}
-                    </h3>
-                    <time className="text-xs text-slate-500">
-                      {new Intl.DateTimeFormat(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }).format(new Date(notification.createdAt))}
-                    </time>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-300">
-                    {notification.message}
-                  </p>
-                </div>
-              </>
-            );
-            return (
-              <article
-                key={notification.id}
-                className={`flex gap-4 rounded-3xl border p-5 ${
-                  notification.readAt
-                    ? "border-slate-800 bg-slate-900/50"
-                    : "border-sky-500/30 bg-sky-500/10"
-                }`}
-                onClick={() => {
-                  if (!notification.readAt) {
-                    markRead.mutate(notification.id);
-                  }
-                }}
-              >
-                {notification.actionUrl ? (
-                  <Link className="contents" to={notification.actionUrl}>
-                    {content}
-                  </Link>
-                ) : (
-                  content
-                )}
-              </article>
-            );
-          })}
+          {notifications.data.map((notification) => (
+            <NotificationCard
+              key={notification.id}
+              notification={notification}
+              onRead={(id) => markRead.mutate(id)}
+            />
+          ))}
         </div>
       ) : (
         <div className="rounded-3xl border border-dashed border-slate-700 p-12 text-center text-slate-400">

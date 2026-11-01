@@ -366,7 +366,7 @@ function ConfigurationEditor({
                 onCriticalConfirmationChange(event.target.checked)
               }
               className="mt-1"
-            />
+            />{" "}
             Je confirme avoir examiné les conséquences de cette modification
             critique.
           </label>
