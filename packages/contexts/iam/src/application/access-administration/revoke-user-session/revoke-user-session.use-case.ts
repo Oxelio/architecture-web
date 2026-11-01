@@ -1,7 +1,11 @@
 import { Result } from "@architecture/foundation";
+import type { OutboxWriter } from "@architecture/messaging/application";
+import { v4 as randomUUID } from "uuid";
 
 import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { SessionPolicyReader } from "#authentication/authentication-policy.reader";
+import { createIamSecurityEvent } from "#events/iam-security-event";
+import { publishSessionFacts } from "#events/publish-session-facts";
 import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
 import { SessionIdentifierValueObject } from "#value-objects/session-identifier.value-object";
@@ -20,6 +24,7 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
     private readonly sessions: SessionRepository,
     private readonly policies: SessionPolicyReader,
     private readonly authorizer: AdministratorAuthorizer,
+    private readonly outbox: OutboxWriter,
   ) {}
 
   async execute(
@@ -43,6 +48,7 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
 
     if (!input.sessionId) {
       await this.sessions.deleteAllForUser(userId.value);
+      await this.publish(input.actorUserId, input.userId, "all");
       return Result.success(undefined);
     }
 
@@ -56,6 +62,20 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
     }
 
     await this.sessions.delete(sessionId.value);
+    await this.publish(input.actorUserId, input.userId, "one");
     return Result.success(undefined);
+  }
+
+  private publish(actorId: string, userId: string, scope: "one" | "all") {
+    return publishSessionFacts(this.outbox, [
+      createIamSecurityEvent({
+        type: "iam.sessions-revoked",
+        userId,
+        actorId,
+        scope,
+        eventId: randomUUID(),
+        occurredAt: new Date(),
+      }),
+    ]);
   }
 }

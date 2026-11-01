@@ -24,7 +24,13 @@ describe("SmsWebhookNotificationDeliveryAdapter", () => {
       severity: severity.value,
       title: "Security alert",
       message: "A new session was opened.",
-      deliveries: [{ channel: "sms", destination: "+33123456789" }],
+      deliveries: [
+        {
+          channel: "sms",
+          destination: "+33123456789",
+          audience: "affected_user",
+        },
+      ],
     });
     const [delivery] = notification.deliveries;
     if (!delivery) {

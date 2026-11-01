@@ -7,6 +7,7 @@ export interface AuditContext {
   readonly subjectId?: string;
   readonly correlationId?: string;
   readonly ipAddress?: string;
+  readonly networkFingerprint?: string;
   readonly client?: string;
 }
 

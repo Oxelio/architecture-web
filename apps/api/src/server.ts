@@ -99,8 +99,7 @@ export async function buildServer() {
           options: sessionCookieOptions,
         },
         container.audit,
-        container.configuration,
-        container.securityEvents,
+        container.auditQueries,
       ),
       { prefix: `/${apiVersion}/iam` },
     );

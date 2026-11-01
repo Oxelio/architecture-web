@@ -1,6 +1,5 @@
-import { randomUUID } from "node:crypto";
-
 import { Identifier, Result, type ValueOf } from "@architecture/foundation";
+import { v4 as randomUUID } from "uuid";
 
 const errors = {
   notificationEmpty: { code: "notification.identifier.empty" },

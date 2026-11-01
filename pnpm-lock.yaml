@@ -873,9 +873,15 @@ importers:
 
   packages/contexts/audit:
     dependencies:
+      '@architecture/foundation':
+        specifier: workspace:*
+        version: link:../../shared/foundation
       '@architecture/messaging':
         specifier: workspace:*
         version: link:../messaging
+      uuid:
+        specifier: ^14.0.1
+        version: 14.0.1
     devDependencies:
       '@architecture/eslint-config':
         specifier: workspace:*
@@ -969,6 +975,9 @@ importers:
       '@architecture/messaging':
         specifier: workspace:*
         version: link:../messaging
+      uuid:
+        specifier: ^14.0.1
+        version: 14.0.1
     devDependencies:
       '@architecture/eslint-config':
         specifier: workspace:*

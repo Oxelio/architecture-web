@@ -43,8 +43,10 @@ async function server(
       iam as IamApplication,
       { name: "sid", options: { httpOnly: true, path: "/", sameSite: "lax" } },
       audit as AuditApplication,
-      {} as never,
-      { record: async () => undefined },
+      {
+        listOwn: { execute: async () => Result.success([]) },
+        listAdministrative: { execute: async () => Result.success([]) },
+      },
     ),
   );
   await app.ready();

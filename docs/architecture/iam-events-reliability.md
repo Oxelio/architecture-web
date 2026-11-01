@@ -6,6 +6,11 @@
 >
 > **Work:** [#60](https://github.com/Oxelio/Architecture-Web/issues/60)
 
+> Subsequent applicability: [Cross-context compliance](cross-context-compliance.md)
+> records later authorization, Audit privacy/acceptance and loss-policy corrections.
+> The limitations below describe Work #60's bounded integration, not a claim that
+> those later corrections are absent. Its validation record remains historical.
+
 ## Authority and context
 
 This bounded technical correction implements the maintainer-requested plan. It

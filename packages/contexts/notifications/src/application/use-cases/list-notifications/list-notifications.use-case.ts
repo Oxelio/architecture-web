@@ -43,7 +43,7 @@ export class ListNotificationsUseCase implements ListNotifications {
         severity: notification.severity.value,
         title: notification.title,
         message: notification.message,
-        actionUrl: notification.actionUrl,
+        action: notification.action,
         createdAt: notification.createdAt,
         readAt: notification.readAt,
       })),

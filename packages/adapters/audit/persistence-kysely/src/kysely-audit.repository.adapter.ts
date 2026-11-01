@@ -4,9 +4,12 @@ import {
 } from "@architecture/audit/application";
 import {
   type AuditEntryInput,
+  auditExpiresAt,
+  MAX_AUDIT_RETENTION_DAYS,
+  pseudonymizeAuditMetadata,
   redactAuditMetadata,
 } from "@architecture/audit/domain";
-import type { Kysely, SelectQueryBuilder } from "kysely";
+import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import { toAuditEntry } from "./audit-entry.mapper.js";
 import type { AuditDatabase, AuditEventTable } from "./schema.js";
@@ -17,36 +20,95 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
   }
 
   async append(
-    entry: AuditEntryInput & { readonly id: string },
+    entry: AuditEntryInput & {
+      readonly id: string;
+      readonly actorReference: string | null;
+      readonly subjectReference: string | null;
+    },
   ): Promise<void> {
-    const now = entry.occurredAt ?? new Date();
+    const occurredAt = entry.occurredAt ?? new Date();
+    const expiresAt = auditExpiresAt(occurredAt, entry.retentionDays);
+    if (expiresAt <= new Date()) {
+      return;
+    }
     const fingerprint = entry.context.ipAddress
       ? await crypto.subtle.digest(
           "SHA-256",
           new TextEncoder().encode(entry.context.ipAddress),
         )
       : undefined;
-    await this.db
-      .insertInto("audit_events")
-      .values({
-        id: entry.id,
-        type: entry.type,
-        occurred_at: now,
-        result: entry.result,
-        actor_type: entry.context.actorType,
-        actor_id: entry.context.actorId ?? null,
-        subject_id: entry.context.subjectId ?? null,
-        correlation_id: entry.context.correlationId?.slice(0, 128) ?? null,
-        network_fingerprint: fingerprint
-          ? Buffer.from(fingerprint).toString("hex")
-          : null,
-        client: entry.context.client?.slice(0, 256) ?? null,
-        metadata: JSON.stringify(redactAuditMetadata(entry.metadata ?? {})),
-        expires_at: new Date(now.getTime() + entry.retentionDays * 86_400_000),
-        legal_hold: false,
-      } as never)
-      .onConflict((conflict) => conflict.column("id").doNothing())
-      .execute();
+    await this.db.transaction().execute(async (transaction) => {
+      const references = [
+        ...new Set(
+          [entry.actorReference, entry.subjectReference].filter(
+            (reference): reference is string => reference !== null,
+          ),
+        ),
+      ].sort();
+      for (const reference of references) {
+        await sql`select pg_advisory_xact_lock(hashtextextended(${reference}, 0))`.execute(
+          transaction,
+        );
+      }
+      const deleted = references.length
+        ? await transaction
+            .selectFrom("audit_deleted_subjects")
+            .select("reference")
+            .where("reference", "in", references)
+            .where("expires_at", ">", sql<Date>`clock_timestamp()`)
+            .execute()
+        : [];
+      const removed = new Set(deleted.map((row) => row.reference));
+      const actorDeleted =
+        entry.actorReference !== null && removed.has(entry.actorReference);
+      const subjectDeleted =
+        entry.subjectReference !== null && removed.has(entry.subjectReference);
+      const replacements = new Map<string, string>();
+      if (actorDeleted && entry.context.actorId && entry.actorReference) {
+        replacements.set(entry.context.actorId, entry.actorReference);
+      }
+      if (subjectDeleted && entry.context.subjectId && entry.subjectReference) {
+        replacements.set(entry.context.subjectId, entry.subjectReference);
+      }
+      await transaction
+        .insertInto("audit_events")
+        .values({
+          id: entry.id,
+          type: entry.type,
+          occurred_at: occurredAt,
+          result: entry.result,
+          actor_type: entry.context.actorType,
+          actor_id: actorDeleted ? null : (entry.context.actorId ?? null),
+          subject_id: subjectDeleted ? null : (entry.context.subjectId ?? null),
+          actor_reference: entry.actorReference,
+          subject_reference: entry.subjectReference,
+          correlation_id: entry.context.correlationId
+            ? pseudonymizeAuditMetadata(
+                entry.context.correlationId,
+                replacements,
+              ).slice(0, 128)
+            : null,
+          network_fingerprint:
+            entry.context.networkFingerprint ??
+            (fingerprint ? Buffer.from(fingerprint).toString("hex") : null),
+          client: entry.context.client
+            ? pseudonymizeAuditMetadata(
+                entry.context.client,
+                replacements,
+              ).slice(0, 256)
+            : null,
+          metadata: JSON.stringify(
+            pseudonymizeAuditMetadata(
+              redactAuditMetadata(entry.metadata ?? {}),
+              replacements,
+            ),
+          ),
+          expires_at: expiresAt,
+          legal_hold: false,
+        })
+        .onConflict((conflict) => conflict.column("id").doNothing())
+        .execute();
+    });
   }
 
   async listForSubject(userId: string, page: number, pageSize: number) {
@@ -98,21 +160,62 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
     return (rows as AuditEventTable[]).map(toAuditEntry);
   }
 
-  async pseudonymizeSubject(userId: string, reference: string): Promise<void> {
-    await this.db
-      .updateTable("audit_events")
-      .set({
-        actor_id: null,
-        subject_id: null,
-        metadata: JSON.stringify({ pseudonymousSubject: reference }),
-      } as never)
-      .where((expression) =>
-        expression.or([
-          expression("actor_id", "=", userId),
-          expression("subject_id", "=", userId),
-        ]),
-      )
-      .execute();
+  async pseudonymizeSubject(reference: string): Promise<void> {
+    await this.db.transaction().execute(async (transaction) => {
+      await sql`select pg_advisory_xact_lock(hashtextextended(${reference}, 0))`.execute(
+        transaction,
+      );
+      await transaction
+        .insertInto("audit_deleted_subjects")
+        .values({
+          reference,
+          expires_at: sql<Date>`clock_timestamp() + ${MAX_AUDIT_RETENTION_DAYS} * interval '1 day'`,
+        })
+        .onConflict((conflict) => conflict.column("reference").doNothing())
+        .execute();
+      const rows = await transaction
+        .selectFrom("audit_events")
+        .selectAll()
+        .where((expression) =>
+          expression.or([
+            expression("actor_reference", "=", reference),
+            expression("subject_reference", "=", reference),
+          ]),
+        )
+        .orderBy("id", "asc")
+        .forUpdate()
+        .execute();
+      for (const row of rows) {
+        const replacements = new Map<string, string>();
+        if (row.actor_reference === reference && row.actor_id) {
+          replacements.set(row.actor_id, reference);
+        }
+        if (row.subject_reference === reference && row.subject_id) {
+          replacements.set(row.subject_id, reference);
+        }
+        await transaction
+          .updateTable("audit_events")
+          .set({
+            actor_id: row.actor_reference === reference ? null : row.actor_id,
+            subject_id:
+              row.subject_reference === reference ? null : row.subject_id,
+            metadata: JSON.stringify(
+              pseudonymizeAuditMetadata(
+                toAuditEntry(row).metadata,
+                replacements,
+              ),
+            ),
+            correlation_id: row.correlation_id
+              ? pseudonymizeAuditMetadata(row.correlation_id, replacements)
+              : null,
+            client: row.client
+              ? pseudonymizeAuditMetadata(row.client, replacements)
+              : null,
+          })
+          .where("id", "=", row.id)
+          .execute();
+      }
+    });
   }
 
   async purgeExpired(now: Date): Promise<number> {
@@ -121,22 +224,11 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
       .where("expires_at", "<=", now)
       .where("legal_hold", "=", false)
       .executeTakeFirst();
+    await this.db
+      .deleteFrom("audit_deleted_subjects")
+      .where("expires_at", "<=", now)
+      .execute();
     return Number(result.numDeletedRows);
-  }
-
-  async countRecentByNetworkFingerprint(
-    type: string,
-    fingerprint: string,
-    since: Date,
-  ): Promise<number> {
-    const row = await this.db
-      .selectFrom("audit_events")
-      .select(({ fn }) => fn.countAll().as("count"))
-      .where("type", "=", type)
-      .where("network_fingerprint", "=", fingerprint)
-      .where("occurred_at", ">", since)
-      .executeTakeFirstOrThrow();
-    return Number(row.count);
   }
 
   private applyFilters(

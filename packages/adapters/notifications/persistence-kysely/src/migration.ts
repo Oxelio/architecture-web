@@ -19,7 +19,7 @@ async function up(db: Kysely<NotificationDatabase>): Promise<void> {
     .addColumn("severity", "varchar(24)", (column) => column.notNull())
     .addColumn("title", "varchar(200)", (column) => column.notNull())
     .addColumn("message", "text", (column) => column.notNull())
-    .addColumn("action_url", "varchar(512)")
+    .addColumn("action", "varchar(512)")
     .addColumn("created_at", "timestamptz", (column) =>
       column.defaultTo(sql`now()`).notNull(),
     )
@@ -44,6 +44,8 @@ async function up(db: Kysely<NotificationDatabase>): Promise<void> {
     )
     .addColumn("channel", "varchar(24)", (column) => column.notNull())
     .addColumn("destination", "varchar(512)", (column) => column.notNull())
+    .addColumn("audience", "varchar(40)", (column) => column.notNull())
+    .addColumn("suppression_reason", "varchar(80)")
     .addColumn("status", "varchar(24)", (column) => column.notNull())
     .addColumn("attempts", "integer", (column) => column.defaultTo(0).notNull())
     .addColumn("available_at", "timestamptz", (column) => column.notNull())

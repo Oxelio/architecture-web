@@ -1,6 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { NotificationSeverity } from "#domain/index";
+import type { NotificationAction, NotificationSeverity } from "#domain/index";
 
 export const ListNotificationsErrors = {
   invalidPage: { code: "notifications.invalid_page" },
@@ -19,7 +19,7 @@ export interface NotificationListItem {
   readonly severity: NotificationSeverity;
   readonly title: string;
   readonly message: string;
-  readonly actionUrl: string | null;
+  readonly action: NotificationAction | null;
   readonly createdAt: Date;
   readonly readAt: Date | null;
 }

@@ -28,7 +28,6 @@ export interface AccountArchiveBuilder {
 }
 export interface AccountAuditData {
   exportFor(userId: string): Promise<readonly Record<string, unknown>[]>;
-  pseudonymize(userId: string): Promise<void>;
 }
 export interface DeletionRequest {
   readonly id: string;
@@ -55,9 +54,5 @@ export interface AccountDeletionStore {
     now: Date;
   }): Promise<boolean>;
   due(now: Date): Promise<readonly DeletionRequest[]>;
-  eraseIfDue(
-    id: string,
-    now: Date,
-    beforeErase: (userId: string) => Promise<void>,
-  ): Promise<string | null>;
+  eraseIfDue(id: string, now: Date): Promise<string | null>;
 }

@@ -1,10 +1,17 @@
 // @file apps/api/src/composition-root/application.module.ts
 
 import {
+  AcceptAuditEntryUseCase,
+  AuditAcceptanceEventHandler,
   AuditApplication,
   AuditIntegrationEventHandler,
+  type AuditQueriesApplication,
+  createAuditQueries,
 } from "@architecture/audit/application";
-import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
+import {
+  type AuditDatabase,
+  KyselyAuditRepositoryAdapter,
+} from "@architecture/audit-persistence-kysely";
 import type {
   IamApplication,
   PublishedConfigurationReader,
@@ -12,12 +19,17 @@ import type {
 } from "@architecture/iam/application";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
 import {
+  type IamDatabase,
+  KyselyUserAdapter,
+} from "@architecture/iam-persistence-kysely";
+import {
   IntegrationEventRouter,
   OutboxWorker,
 } from "@architecture/messaging/application";
 import {
   KyselyOutboxRepositoryAdapter,
   KyselyOutboxWriterAdapter,
+  type MessagingDatabase,
 } from "@architecture/messaging-persistence-kysely";
 import {
   createNotifications,
@@ -30,9 +42,12 @@ import { SmsWebhookNotificationDeliveryAdapter } from "@architecture/notificatio
 import {
   KyselyNotificationPreferenceRepositoryAdapter,
   KyselyNotificationRepositoryAdapter,
+  type NotificationDatabase,
 } from "@architecture/notifications-persistence-kysely";
 import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 
+import { IamAuditAccessAdapter } from "#adapters/audit/iam-audit-access.adapter";
+import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
 import { loadConfig } from "#config/app.config";
 
 import { startBackgroundPolling } from "./background-polling.js";
@@ -45,6 +60,7 @@ export interface ApplicationModule {
   readonly securityEvents: SecurityEventRecorder;
   readonly configuration: PublishedConfigurationReader;
   readonly audit: AuditApplication;
+  readonly auditQueries: AuditQueriesApplication;
   readonly notifications: NotificationsApplication;
   readonly outboxWorker: OutboxWorker;
 
@@ -67,9 +83,15 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       config.smtp.from,
       config.smtp.verifyUrl,
     );
-    const audit = new AuditApplication(
-      new KyselyAuditRepositoryAdapter(db as never),
-    );
+    const messagingDb = db.$pickTables<keyof MessagingDatabase>();
+    const auditDb = db.$pickTables<keyof AuditDatabase>();
+    const notificationDb = db.$pickTables<keyof NotificationDatabase>();
+    const iamDb = db.$pickTables<keyof IamDatabase>();
+    const outbox = new KyselyOutboxWriterAdapter(messagingDb);
+    const pseudonymizer = new Sha256AuditPseudonymizerAdapter();
+    const acceptance = new AcceptAuditEntryUseCase(outbox, pseudonymizer);
+    const auditRepository = new KyselyAuditRepositoryAdapter(auditDb);
+    const audit = new AuditApplication(auditRepository, pseudonymizer);
     const deliveries: NotificationDelivery[] = [
       new NodemailerNotificationDeliveryAdapter(
         config.smtp.host,
@@ -95,23 +117,31 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
     }
     const notifications = createNotifications({
       notificationRepository: new KyselyNotificationRepositoryAdapter(
-        db as never,
+        notificationDb,
       ),
       preferenceRepository: new KyselyNotificationPreferenceRepositoryAdapter(
-        db as never,
+        notificationDb,
       ),
       recipientDirectory: new KyselyIamNotificationRecipientDirectoryAdapter(
-        db as never,
+        iamDb,
       ),
       deliveries,
     });
-    const outbox = new KyselyOutboxWriterAdapter(db as never);
-    const iamModule = await buildIamModule(db, redis, email, outbox, audit, {
-      encryptionKey: config.security.encryptionKey,
-      recoveryUrl: config.smtp.recoveryUrl,
-      deletionCancellationUrl: config.smtp.deletionCancellationUrl,
-    });
+    const iamModule = await buildIamModule(
+      db,
+      redis,
+      email,
+      outbox,
+      audit,
+      acceptance,
+      {
+        encryptionKey: config.security.encryptionKey,
+        recoveryUrl: config.smtp.recoveryUrl,
+        deletionCancellationUrl: config.smtp.deletionCancellationUrl,
+      },
+    );
     const router = new IntegrationEventRouter([
+      new AuditAcceptanceEventHandler(audit),
       new AuditIntegrationEventHandler(audit, {
         getRetentionDays: async () =>
           (await iamModule.configuration.readPublished()).values.audit
@@ -119,8 +149,16 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       }),
       notifications.integrationEventHandler,
     ]);
+    const auditQueries = createAuditQueries({
+      repository: auditRepository,
+      recorder: acceptance,
+      access: new IamAuditAccessAdapter(
+        new KyselyUserAdapter(iamDb),
+        iamModule.configuration,
+      ),
+    });
     const outboxWorker = new OutboxWorker(
-      new KyselyOutboxRepositoryAdapter(db as never),
+      new KyselyOutboxRepositoryAdapter(messagingDb),
       router,
     );
     const stopOutbox = startBackgroundPolling(
@@ -135,10 +173,18 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
         console.error("Notification delivery polling failed", error);
       },
     );
+    const stopAudit = startBackgroundPolling(
+      () => audit.purge(),
+      (error) => {
+        console.error("Audit retention polling failed", error);
+      },
+      3_600_000,
+    );
 
     return {
       ...iamModule,
       audit,
+      auditQueries,
       notifications,
       outboxWorker,
 
@@ -146,6 +192,7 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
         const stopped = await Promise.allSettled([
           stopOutbox(),
           stopNotifications(),
+          stopAudit(),
         ]);
         const closed = await Promise.allSettled([redis.quit(), db.destroy()]);
         const failures = [...stopped, ...closed]

@@ -30,7 +30,7 @@ Adapters must use public package exports. Database predicates and locks enforce 
 
 `packages/contexts/messaging` owns integration-event routing and outbox processing; its PostgreSQL adapter owns durable storage and claims. IAM PostgreSQL mutations append events using the transaction-bound outbox writer. Redis and provider calls remain separate consistency boundaries.
 
-`packages/contexts/audit` owns audit contracts, redaction, consultation, export, retention and pseudonymization. Its integration handler subscribes to IAM/domain and security-operation events and receives a retention reader independent of IAM internals. Its PostgreSQL adapter remains separate from IAM persistence.
+`packages/contexts/audit` owns audit contracts, redaction, consultation, export, retention and pseudonymization. Its integration handler subscribes to IAM/domain and security-operation events and receives a retention reader independent of IAM internals. Its PostgreSQL adapter remains separate from IAM persistence. Explicit query contracts authorize and minimize disclosure; durable acceptance decouples direct collection. Deletion privacy and hourly retention are described in [Cross-context compliance](cross-context-compliance.md).
 
 `packages/contexts/notifications` owns notification policies, recipients, preferences and delivery lifecycle. Its own application resolves mandatory/preferred channels and schedules deliveries. IAM emits facts rather than manipulating notification aggregates. Recipient directories and email/Slack/SMS providers are infrastructure adapters.
 
@@ -40,4 +40,4 @@ Adapters must use public package exports. Database predicates and locks enforce 
 
 The React application is an HTTP consumer. Its contracts use transport shapes and serialized dates, never domain objects as UI state. Client validation supports feedback; backend application validation remains authoritative.
 
-ESLint presets enforce selected IAM and API boundaries. Public exports, TypeScript, tests and review remain necessary for constraints outside those static restrictions.
+ESLint presets enforce selected boundaries across all four contexts, the reviewed adapters and API transport. Public exports, TypeScript, tests and review remain necessary for constraints outside those static restrictions.

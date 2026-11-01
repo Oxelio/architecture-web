@@ -48,4 +48,15 @@ export class KyselyIamNotificationRecipientDirectoryAdapter extends Notification
       .execute();
     return rows.map((row) => row.id);
   }
+
+  async isActiveAdministrator(userId: string): Promise<boolean> {
+    const row = await this.db
+      .selectFrom("iam_users")
+      .select("id")
+      .where("id", "=", userId)
+      .where("role", "=", "admin")
+      .where("status", "=", "active")
+      .executeTakeFirst();
+    return row !== undefined;
+  }
 }

@@ -285,7 +285,6 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       maintainAccounts: new MaintainIamAccountsUseCase(
         dependencies.deletions,
         dependencies.exports,
-        dependencies.audit,
         dependencies.sessionRepository,
       ),
     },
@@ -302,6 +301,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       revokeCurrentUserSession: new RevokeCurrentUserSessionUseCase(
         dependencies.sessionRepository,
         dependencies.policies,
+        dependencies.outbox,
       ),
       signIn: new SignInUseCase(
         dependencies.userRepository,
@@ -385,6 +385,7 @@ export function createIam(dependencies: IamDependencies): IamApplication {
         dependencies.sessionRepository,
         dependencies.policies,
         authorization,
+        dependencies.outbox,
       ),
       suspendUser: new SuspendUserUseCase(
         authorization,

@@ -1,6 +1,34 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "#domain": fileURLToPath(new URL("./src/domain", import.meta.url)),
+      "#entities": fileURLToPath(
+        new URL("./src/domain/entities", import.meta.url),
+      ),
+      "#value-objects": fileURLToPath(
+        new URL("./src/domain/value-objects", import.meta.url),
+      ),
+      "#application": fileURLToPath(
+        new URL("./src/application", import.meta.url),
+      ),
+      "#policies": fileURLToPath(
+        new URL("./src/application/policies", import.meta.url),
+      ),
+      "#repositories": fileURLToPath(
+        new URL("./src/application/repositories", import.meta.url),
+      ),
+      "#services": fileURLToPath(
+        new URL("./src/application/services", import.meta.url),
+      ),
+      "#use-cases": fileURLToPath(
+        new URL("./src/application/use-cases", import.meta.url),
+      ),
+    },
+  },
   test: {
     environment: "node",
     coverage: {

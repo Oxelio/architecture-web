@@ -51,6 +51,12 @@ They declare TypeBox schemas for recovery, MFA, account-data and configuration r
 
 ### Notification center (`/v1/notifications`)
 
+Notification responses carry the business action `view_account` or `null`.
+The Web client resolves the destination; the API no longer returns `actionUrl`.
+Requests and responses use executable TypeBox schemas in the Notifications route
+adapter. Personal security-event responses use the minimized projection defined
+by [SF-SECURITY-AUDIT-001](../specifications/SF-SECURITY-AUDIT-001.md).
+
 | Method | Path                    | Intent                                    |
 | ------ | ----------------------- | ----------------------------------------- |
 | `GET`  | `/`                     | list own notifications                    |

@@ -210,7 +210,7 @@ function fixture() {
     mail: { sendRecovery: vi.fn(), sendDeletionCancellation: vi.fn() },
     events,
     origins: { countRecent: vi.fn() },
-    audit: { exportFor: vi.fn(), pseudonymize: vi.fn() },
+    audit: { exportFor: vi.fn() },
     archive: { build: vi.fn() },
   } satisfies IamDependencies;
   async function account(admin = false) {
@@ -852,7 +852,25 @@ describe("createIam", () => {
     ]);
   });
 
-  it.each(["policy", "factor", "session", "outbox", "checker"] as const)(
+  it("keeps successful sign-in when post-Redis fact acceptance fails", async () => {
+    const f = fixture();
+    await f.account();
+    const logger = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    f.outbox.append.mockRejectedValue(new Error("outbox unavailable"));
+    try {
+      expect(
+        (await f.iam.authentication.signIn.execute(loginInput)).success,
+      ).toBe(true);
+      expect(f.sessionRepository.saveEnforcingMaximum).toHaveBeenCalledOnce();
+      expect(logger).toHaveBeenCalledOnce();
+    } finally {
+      logger.mockRestore();
+    }
+  });
+
+  it.each(["policy", "factor", "session", "checker"] as const)(
     "propagates unexpected %s failures through the composed application",
     async (boundary) => {
       const f = fixture(),
@@ -867,9 +885,6 @@ describe("createIam", () => {
       }
       if (boundary === "session") {
         f.sessionRepository.saveEnforcingMaximum.mockRejectedValue(failure);
-      }
-      if (boundary === "outbox") {
-        f.outbox.append.mockRejectedValue(failure);
       }
       if (boundary === "checker") {
         f.strength.evaluate.mockRejectedValue(failure);

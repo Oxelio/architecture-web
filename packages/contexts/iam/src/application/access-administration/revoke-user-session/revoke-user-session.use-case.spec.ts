@@ -36,6 +36,7 @@ describe("RevokeUserSessionUseCase", () => {
       sessions,
       new TestPolicies(),
       new AdministratorAuthorizer(users),
+      { append: vi.fn() },
     ).execute({
       actorUserId: administrator.identifier.value,
       userId: userId.value,
@@ -71,6 +72,7 @@ describe("RevokeUserSessionUseCase", () => {
       sessions,
       new TestPolicies(),
       new AdministratorAuthorizer(users),
+      { append: vi.fn() },
     ).execute({
       actorUserId: administrator.identifier.value,
       userId: userId.value,
@@ -105,6 +107,7 @@ describe("RevokeUserSessionUseCase", () => {
             ? administrator
             : { identifier: userId },
       } as unknown as UserRepository),
+      { append: vi.fn() },
     );
 
     expect(

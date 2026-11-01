@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import type { AuditApplication } from "@architecture/audit/application";
+import type {
+  AuditApplication,
+  AuditRecorder,
+} from "@architecture/audit/application";
 import type {
   AccountAuditData,
   PublishedConfigurationReader,
@@ -14,6 +17,8 @@ export class AuditSecurityEventsAdapter
   constructor(
     private readonly audit: AuditApplication,
     private readonly policies: PublishedConfigurationReader,
+    private readonly acceptance: AuditRecorder,
+    private readonly origins: RecoveryOriginLimiter,
   ) {}
   async record(
     type: string,
@@ -21,24 +26,25 @@ export class AuditSecurityEventsAdapter
     context: SecurityContext,
     metadata: Record<string, unknown> = {},
   ) {
-    const policy = await this.policies.readPublished(),
-      occurredAt = new Date();
-    await this.audit.record({
-      id: randomUUID(),
-      type,
-      occurredAt,
-      result,
-      context,
-      metadata,
-      retentionDays: policy.values.audit.retentionDays,
-    });
+    const id = randomUUID();
+    try {
+      const policy = await this.policies.readPublished(),
+        occurredAt = new Date();
+      await this.acceptance.record({
+        id,
+        type,
+        occurredAt,
+        result,
+        context,
+        metadata,
+        retentionDays: policy.values.audit.retentionDays,
+      });
+    } catch {
+      console.error("Audit preparation failed; event lost", { eventId: id });
+    }
   }
   countRecent(fingerprint: string, since: Date) {
-    return this.audit.countRecentByNetworkFingerprint(
-      "account.recovery.requested",
-      fingerprint,
-      since,
-    );
+    return this.origins.countRecent(fingerprint, since);
   }
   async exportFor(userId: string) {
     return (await this.audit.exportFor(userId)).map((entry) => ({
@@ -47,14 +53,6 @@ export class AuditSecurityEventsAdapter
       occurred_at: entry.occurredAt,
       result: entry.result,
       actor_type: entry.actorType,
-      actor_id: entry.actorId,
-      subject_id: entry.subjectId,
-      correlation_id: entry.correlationId,
-      client: entry.client,
-      metadata: entry.metadata,
     }));
-  }
-  pseudonymize(userId: string) {
-    return this.audit.pseudonymize(userId);
   }
 }

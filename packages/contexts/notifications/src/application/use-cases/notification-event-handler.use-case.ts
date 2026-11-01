@@ -7,6 +7,7 @@ import {
 } from "#application/policies/notification.policies";
 import type { NotificationRecipientEntity } from "#domain/entities/notification-recipient.entity";
 import {
+  type NotificationDeliveryAudience,
   NotificationEntity,
   NotificationSeverityValueObject,
 } from "#domain/index";
@@ -90,7 +91,16 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
         (delivery) => delivery.channel === channel,
       );
       if (destination && enabled && available) {
-        deliveries.push({ channel, destination });
+        const user = role.user && policy.userChannels.includes(channel);
+        const administrator =
+          role.administrator &&
+          (policy.administratorChannels?.includes(channel) ?? false);
+        const audience: NotificationDeliveryAudience = user
+          ? administrator
+            ? "affected_user_and_administrator"
+            : "affected_user"
+          : "administrator";
+        deliveries.push({ channel, destination, audience });
       }
     }
     const severity = NotificationSeverityValueObject.create(policy.severity);
@@ -104,7 +114,7 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
       severity: severity.value,
       title: policy.title,
       message: policy.message,
-      ...(policy.actionUrl ? { actionUrl: policy.actionUrl } : {}),
+      ...(policy.action ? { action: policy.action } : {}),
       deliveries,
     });
   }

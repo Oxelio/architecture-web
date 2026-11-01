@@ -27,10 +27,12 @@ export function NotificationCard({
   let control: ReactNode = null;
   const focus =
     "absolute inset-0 rounded-3xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-400";
-  if (notification.actionUrl) {
+  const actionDestination =
+    notification.action === "view_account" ? "/profile" : null;
+  if (actionDestination) {
     control = (
       <Link
-        to={notification.actionUrl}
+        to={actionDestination}
         onClick={acknowledge}
         aria-labelledby={titleId}
         className={focus}

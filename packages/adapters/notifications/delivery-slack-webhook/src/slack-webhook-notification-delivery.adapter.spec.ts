@@ -26,7 +26,13 @@ describe("SlackWebhookNotificationDeliveryAdapter", () => {
       severity: severity.value,
       title: "Alert",
       message: "Suspicious activity",
-      deliveries: [{ channel: "slack", destination: "security" }],
+      deliveries: [
+        {
+          channel: "slack",
+          destination: "security",
+          audience: "affected_user",
+        },
+      ],
     });
     const [delivery] = notification.deliveries;
     if (!delivery) {

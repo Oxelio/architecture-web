@@ -400,12 +400,10 @@ describe("account and configuration transaction guards", () => {
         iam_users: row,
         iam_account_deletions: { user_id: "account" },
       });
-      const beforeErase = vi.fn();
       const adapter = new KyselyAccountDeletionAdapter(db, () => ({
         append: () => Promise.resolve(),
       }));
-      expect(await adapter.eraseIfDue("deletion", now, beforeErase)).toBeNull();
-      expect(beforeErase).not.toHaveBeenCalled();
+      expect(await adapter.eraseIfDue("deletion", now)).toBeNull();
       await db.destroy();
     },
   );

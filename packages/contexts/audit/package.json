@@ -44,6 +44,8 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
+    "@architecture/foundation": "workspace:*",
+    "uuid": "^14.0.1",
     "@architecture/messaging": "workspace:*"
   },
   "devDependencies": {

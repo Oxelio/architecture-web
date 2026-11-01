@@ -118,7 +118,7 @@ revisions, exports, and deletion requests. IAM Kysely migrations live in
 and Notifications migrations live respectively in
 `packages/adapters/messaging/persistence-kysely`, `packages/adapters/audit/persistence-kysely`, and
 `packages/adapters/notifications/persistence-kysely`.
-Redis stores expiring sessions, a per-user sorted set, and resend rate limits.
+Redis stores expiring sessions, a per-user sorted set, resend rate limits and bounded recovery-origin attempt windows independent of Audit delivery.
 
 Application use cases own security orchestration; capability adapters own SQL and atomic operations. Audit owns its own persistence. See [IAM security](iam-security.md).
 

@@ -2,6 +2,7 @@ import { Result } from "@architecture/foundation";
 
 import type { NotificationRepository } from "#repositories/notification.repository";
 import type { NotificationDelivery } from "#services/notification-delivery.service";
+import type { NotificationRecipientDirectory } from "#services/notification-recipient-directory.service";
 
 import type {
   DeliverPendingNotifications,
@@ -14,6 +15,7 @@ export class DeliverPendingNotificationsUseCase implements DeliverPendingNotific
   constructor(
     private readonly repository: NotificationRepository,
     private readonly deliveries: readonly NotificationDelivery[],
+    private readonly directory: NotificationRecipientDirectory,
   ) {}
 
   async execute(
@@ -36,11 +38,20 @@ export class DeliverPendingNotificationsUseCase implements DeliverPendingNotific
         (candidate) => candidate.channel === delivery.channel.value,
       );
       try {
-        if (!adapter) {
-          throw new Error(`No adapter for ${delivery.channel.value}`);
+        if (
+          delivery.audience === "administrator" &&
+          !(await this.directory.isActiveAdministrator(
+            notification.recipientId,
+          ))
+        ) {
+          delivery.suppress("administrator_not_authorized");
+        } else {
+          if (!adapter) {
+            throw new Error(`No adapter for ${delivery.channel.value}`);
+          }
+          await adapter.send(notification, delivery);
+          delivery.markSent();
         }
-        await adapter.send(notification, delivery);
-        delivery.markSent();
       } catch (error) {
         delivery.markFailed(error);
       }

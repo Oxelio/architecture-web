@@ -20,7 +20,7 @@ Each application graph constructs one password validator, factor verifier, reaut
 | Encryption, tokens, QR, ZIP and cross-context integration        | `apps/api/src/adapters/iam`                                   |
 | HTTP schemas, controllers and presenters                         | `apps/api/src/features/iam`                                   |
 
-Application result contracts represent expected refusals. Unexpected database, crypto, checker, cache and delivery failures remain technical exceptions. HTTP status belongs to presenters. Configuration consumption cannot publish revisions.
+Application result contracts represent expected refusals. Unexpected database, crypto, checker and cache failures remain technical exceptions. The explicit post-effect fact-acceptance loss policy is described in [Cross-context compliance](cross-context-compliance.md). HTTP status belongs to presenters. Configuration consumption cannot publish revisions.
 
 ## Password operations
 
@@ -44,11 +44,11 @@ MFA persistence locks the account before credential and challenge rows. Enrollme
 
 Export reservations serialize per account. Archive data uses explicit projections and excludes bearer session identifiers as well as password hashes, usable tokens and MFA secrets. Download takes and clears the binary atomically. Generation failure records `failed` and propagates the original technical exception.
 
-Deletion requests serialize the last-administrator check, enter the domain's pending-deletion state, invalidate tokens and increment the session version. Cancellation rechecks expiry and consumption inside its transaction and restores the previous status without restoring sessions. Final deletion rechecks due state and legal hold under lock. Audit pseudonymization is an explicit cross-context call and can precede a PostgreSQL commit that later fails; retries must remain idempotent. IAM does not claim atomicity across context applications or external providers.
+Deletion requests serialize the last-administrator check, enter the domain's pending-deletion state, invalidate tokens and increment the session version. Cancellation rechecks expiry and consumption inside its transaction and restores the previous status without restoring sessions. Final deletion rechecks due state and legal hold under lock. The same transaction appends the final deletion fact. Audit cleanup happens asynchronously and idempotently after commit, preserving unrelated evidence and protecting against delayed facts. IAM does not claim atomicity across context applications or external providers.
 
 ## Events and partial failures
 
-Committed PostgreSQL security mutations append secret-free integration events to their transaction's outbox. Audit subscribes to these events and resolves retention through an injected application contract; Notifications uses its own policies and recipient directory. Recovery requests and transport-denial auditing use the explicit Audit integration adapter.
+Committed PostgreSQL security mutations append secret-free integration events to their transaction's outbox. Audit subscribes to these events and resolves retention through an injected application contract; Notifications uses its own policies and recipient directory. Recovery requests and transport-denial auditing use the explicit Audit integration adapter and durable Audit acceptance. Failed acceptance after a business effect reports loss and preserves business success under the approved policy; origin throttling uses independent atomic Redis accounting.
 
 Session-started integration facts use version 2 and carry the account identifier rather than the bearer session identifier. Audit also redacts credential metadata on disclosure, so an export cannot reveal credentials from previously stored entries. Session-management contracts retain their existing identifiers; separating public management references from authentication credentials remains a distinct security change outside this refactoring.
 
