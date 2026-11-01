@@ -68,18 +68,6 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Export workspace declarations for type-aware Sonar analysis
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: sonar-workspace-types
-          path: |
-            packages/contexts/*/dist/**/*.d.ts
-            packages/shared/*/dist/**/*.d.ts
-            packages/adapters/*/*/dist/**/*.d.ts
-            packages/tooling/*/dist/**/*.d.ts
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Preview release version without publishing
         run: pnpm release:plan
 
@@ -107,6 +95,22 @@ jobs:
           name: sonar-coverage
           path: coverage/lcov.info
           if-no-files-found: error
+          retention-days: 1
+
+      - name: Package the validated TypeScript dependency context
+        shell: bash
+        run: |
+          set -euo pipefail
+          find node_modules apps packages -type d \( -name node_modules -o -name dist \) -prune -print0 |
+            tar --create --gzip --file="${RUNNER_TEMP}/sonar-type-context.tar.gz" --null --files-from=-
+
+      - name: Export type context from this run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sonar-type-context
+          path: ${{ runner.temp }}/sonar-type-context.tar.gz
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 1
 
       - name: Verify artifact download even when Sonar is skipped

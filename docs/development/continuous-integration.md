@@ -136,14 +136,17 @@ the merge policy through the existing CI. Rerunning as a maintainer does not
 remove the exclusion. Surface the blocker for a separately accepted and activated
 solution; do not pass secrets to untrusted candidates or switch to a privileged
 trigger. Non-main manual dispatches also skip analysis.
-The scan job installs locked dependencies with lifecycle scripts and pnpmfile hooks
-disabled. It imports workspace declarations produced by the primary validation job
-in the same workflow run instead of building or running candidate code in the
-analysis job. This gives the analyzer the dependency types and public workspace
-exports needed for accurate TypeScript inference, including Promise forwarding.
-Missing declarations fail analysis preparation rather than silently reducing type
-information. The analysis credential is scoped to configuration checking and the
-scanner step; it is not supplied to dependency installation.
+The scan job does not install dependencies or run candidate lifecycle scripts.
+It imports dependency directories and workspace build outputs prepared by the
+primary validation job in the same workflow run. The compressed type-context
+artifact preserves pnpm's relative dependency links. Its input paths are limited to
+dependency and workspace `dist` directories; repository-root configuration and
+environment files are outside that input set. Importing it does not execute its contents.
+This supplies dependency types and public workspace declarations for accurate
+TypeScript inference, including Promise forwarding. Missing declarations or broken
+dependency links fail analysis preparation rather than silently reducing type
+information. The analysis credential remains scoped to configuration checking and
+the scanner step, never to the job that installs or builds candidate code.
 No `pull_request_target`, privileged `workflow_run` or inherited secret set is used.
 
 Provision/configure separately:
