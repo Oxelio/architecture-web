@@ -34,40 +34,34 @@ export class TestPolicies {
     };
   }
   getAccountPolicy(): Promise<SecurityPolicy["accounts"]> {
-    return new Promise((resolve) => {
-      resolve({
-        ...DEFAULT_SECURITY_POLICY.accounts,
-        allowedLoginIdentifiers: [...this.identifiers],
-        emailVerification: this.emailVerification,
-      });
+    return Promise.resolve({
+      ...DEFAULT_SECURITY_POLICY.accounts,
+      allowedLoginIdentifiers: [...this.identifiers],
+      emailVerification: this.emailVerification,
     });
   }
   get(): Promise<PasswordPolicy> {
-    return new Promise((resolve) => {
-      resolve({
-        level: "standard" as const,
-        minLength: 8,
-        maxLength: 128,
-        minimumStrength: "too_weak" as const,
-        checkCommonPasswords: false,
-        checkCompromisedPasswords: false,
-        checkUserContext: false,
-        composition: {
-          requireUppercase: false,
-          requireLowercase: false,
-          requireNumber: false,
-          requireSpecialCharacter: false,
-        },
-        rejectCurrentPassword: false,
-      });
+    return Promise.resolve({
+      level: "standard" as const,
+      minLength: 8,
+      maxLength: 128,
+      minimumStrength: "too_weak" as const,
+      checkCommonPasswords: false,
+      checkCompromisedPasswords: false,
+      checkUserContext: false,
+      composition: {
+        requireUppercase: false,
+        requireLowercase: false,
+        requireNumber: false,
+        requireSpecialCharacter: false,
+      },
+      rejectCurrentPassword: false,
     });
   }
   getSessionPolicy(): Promise<SecurityPolicy["sessions"]> {
-    return new Promise((resolve) => {
-      resolve({
-        ...DEFAULT_SECURITY_POLICY.sessions,
-        durationMinutes: 60,
-      });
+    return Promise.resolve({
+      ...DEFAULT_SECURITY_POLICY.sessions,
+      durationMinutes: 60,
     });
   }
   getAuthenticationPolicy() {

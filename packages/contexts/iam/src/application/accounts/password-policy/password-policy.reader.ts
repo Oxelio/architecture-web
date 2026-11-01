@@ -25,6 +25,6 @@ export class FixedPasswordPolicyReader implements PasswordPolicyReader {
     });
   }
   get(profile: PasswordPolicyProfile): Promise<PasswordPolicy> {
-    return new Promise((resolve) => resolve(this.profiles[profile]));
+    return Promise.resolve(this.profiles[profile]);
   }
 }
