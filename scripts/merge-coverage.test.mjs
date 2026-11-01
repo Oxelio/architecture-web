@@ -215,7 +215,7 @@ test("CLI requires native coverage and preserves workspace counters in its final
   assert.match(merged, /SF:apps\/app\/src\/index.ts\nDA:1,9/);
   for (const source of CI_SOURCES)
     assert.ok(merged.includes(`SF:${source}\nDA:1,2`));
-  assert.equal((merged.match(/^SF:/gm) ?? []).length, 5);
+  assert.equal((merged.match(/^SF:/gm) ?? []).length, CI_SOURCES.length + 1);
 });
 
 test("rejects malformed, duplicate or incomplete line counters", () => {

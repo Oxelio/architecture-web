@@ -47,7 +47,12 @@ function normalizeRepository(value: string): string {
 }
 
 function normalizeUrl(value: string): string {
-  return value.trim().replace(/\/+$/u, "").toLowerCase();
+  const trimmed = value.trim();
+  let end = trimmed.length;
+  while (end > 0 && trimmed[end - 1] === "/") {
+    end -= 1;
+  }
+  return trimmed.slice(0, end).toLowerCase();
 }
 
 function repositoryApiUrl(repository: string): string {
