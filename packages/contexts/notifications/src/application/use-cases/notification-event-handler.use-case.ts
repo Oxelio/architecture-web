@@ -33,12 +33,7 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
     if (event.version !== (event.topic === "iam.session-started" ? 2 : 1)) {
       throw new Error("Unsupported notification event version");
     }
-    const subjectId =
-      typeof event.payload["userId"] === "string"
-        ? event.payload["userId"]
-        : typeof event.context["subjectId"] === "string"
-          ? event.context["subjectId"]
-          : undefined;
+    const subjectId = notificationSubject(event);
     if (!subjectId?.trim()) {
       throw new Error("Invalid notification event subject");
     }
@@ -113,4 +108,13 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
       deliveries,
     });
   }
+}
+
+function notificationSubject(event: IntegrationEvent): string | undefined {
+  if (typeof event.payload["userId"] === "string") {
+    return event.payload["userId"];
+  }
+  return typeof event.context["subjectId"] === "string"
+    ? event.context["subjectId"]
+    : undefined;
 }
