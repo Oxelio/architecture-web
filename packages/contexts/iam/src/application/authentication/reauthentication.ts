@@ -50,13 +50,14 @@ export class FactorVerification {
       now: new Date(),
       ...(challengeId ? { challengeId } : {}),
     });
-    return method
-      ? Result.success(method)
-      : Result.failure(
-          challengeId
-            ? FactorVerificationErrors.invalidChallenge
-            : FactorVerificationErrors.invalidCode,
-        );
+    if (method) {
+      return Result.success(method);
+    }
+    return Result.failure(
+      challengeId
+        ? FactorVerificationErrors.invalidChallenge
+        : FactorVerificationErrors.invalidCode,
+    );
   }
 }
 /** Shared application checks for operations requiring fresh proof of account control. */

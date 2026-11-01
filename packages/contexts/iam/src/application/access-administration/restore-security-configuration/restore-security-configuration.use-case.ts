@@ -35,7 +35,8 @@ export class RestoreSecurityConfigurationUseCase implements RestoreSecurityConfi
         ? { restoredFromRevisionId: input.revisionId }
         : {}),
     };
-    const result = await this.perform(input).catch(async (failure: unknown) => {
+    const result = await this.perform(input).catch(async (error_: unknown) => {
+      const operationError = error_;
       try {
         await this.events.record(
           "security.config.restoration-attempt",
@@ -43,13 +44,13 @@ export class RestoreSecurityConfigurationUseCase implements RestoreSecurityConfi
           context,
           { ...metadata, result: "technical_failure" },
         );
-      } catch (recordFailure) {
+      } catch (error_) {
         throw new AggregateError(
-          [failure, recordFailure],
+          [operationError, error_],
           "Configuration restoration and failure recording failed",
         );
       }
-      throw failure;
+      throw operationError;
     });
     await this.events.record(
       "security.config.restoration-attempt",
