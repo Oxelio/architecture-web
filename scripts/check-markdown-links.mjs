@@ -71,7 +71,7 @@ function fenceMarker(line) {
   return null;
 }
 
-function extractTargets(markdown) {
+export function extractTargets(markdown) {
   const targets = [];
   let fence = null;
 
@@ -85,11 +85,7 @@ function extractTargets(markdown) {
     if (fence !== null) continue;
 
     const withoutInlineCode = line.replace(/`+[^`]*`+/gu, "");
-    const inlineLink = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)/gu;
-    let match;
-    while ((match = inlineLink.exec(withoutInlineCode)) !== null) {
-      targets.push(match[1]);
-    }
+    for (const target of inlineTargets(withoutInlineCode)) targets.push(target);
 
     const reference = withoutInlineCode.match(
       /^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)/u,
@@ -98,6 +94,55 @@ function extractTargets(markdown) {
   }
 
   return targets;
+}
+
+function inlineTargets(line) {
+  const targets = [];
+  const angle = { end: -2, closing: undefined };
+  let labelOpen = false;
+  for (let index = 0; index < line.length; index += 1) {
+    if (line[index] === "[") {
+      labelOpen = true;
+      continue;
+    }
+    if (line[index] !== "]" || !labelOpen) continue;
+    labelOpen = false;
+    if (line[index + 1] !== "(") continue;
+    const closing = line.indexOf(")", index + 2);
+    if (closing === -1) break;
+    const target = inlineTarget(line, index + 2, closing, angle);
+    if (target) {
+      targets.push(line.slice(target.start, target.end));
+      index = target.closing;
+    }
+  }
+  return targets;
+}
+
+function inlineTarget(line, start, closing, angle) {
+  while (/\s/u.test(line[start] ?? "")) start += 1;
+  if (start === closing) return null;
+  const bracketed = angleTarget(line, start, angle);
+  if (bracketed) return { start, ...bracketed };
+  let end = start;
+  while (end < closing && !/\s/u.test(line[end])) end += 1;
+  return { start, end, closing };
+}
+
+function angleTarget(line, start, angle) {
+  if (line[start] !== "<") return null;
+  // Reuse lookahead until the cursor passes it. Malformed links must not scan
+  // the same remaining suffix for every opening bracket or angle bracket.
+  if (angle.end < start && angle.end !== -1) {
+    angle.end = line.indexOf(">", start + 1);
+    angle.closing = undefined;
+  }
+  if (angle.end <= start + 1) return null;
+  const end = angle.end + 1;
+  if (line[end] === ")") return { end, closing: end };
+  if (!/\s/u.test(line[end] ?? "")) return null;
+  if (angle.closing === undefined) angle.closing = line.indexOf(")", end);
+  return angle.closing === -1 ? null : { end, closing: angle.closing };
 }
 
 function normalizeTarget(rawTarget) {
