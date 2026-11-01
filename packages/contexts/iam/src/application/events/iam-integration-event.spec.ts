@@ -8,6 +8,30 @@ import { toIamIntegrationEvent } from "./iam-integration-event.js";
 import { createIamSecurityEvent } from "./iam-security-event.js";
 describe("IAM integration event projection", () => {
   it.each([
+    ["iam.user-email-changed", "kind"],
+    ["iam.user-email-verified", "kind"],
+    ["iam.user-role-changed", "role"],
+  ])("validates and allowlists %s", (type, field) => {
+    const project = (payload: Record<string, unknown>) =>
+      toIamIntegrationEvent(
+        new DomainEvent({ type, aggregateId: "account", payload }),
+      );
+    expect(() => project({ userId: "account" })).toThrow(TypeError);
+    const value = field === "kind" ? "email" : "admin";
+    expect(
+      project({
+        userId: "account",
+        actorId: "administrator",
+        [field]: value,
+        secret: "canary",
+      }).payload,
+    ).toEqual({
+      userId: "account",
+      [field]: value,
+      ...(field === "role" ? { actorId: "administrator" } : {}),
+    });
+  });
+  it.each([
     "iam.user-registered",
     "iam.user-password-changed",
     "iam.user-suspended",
