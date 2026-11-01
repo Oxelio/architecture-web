@@ -45,6 +45,38 @@ describe("CI trust and failure boundaries", () => {
   const shared = workflow("repository-validation");
   const release = workflow("release");
 
+  it("imports the validated type context without installing or building in the credential-bearing job", () => {
+    const primary = shared.jobs["validate"]?.steps ?? [];
+    const exported = primary.find(
+      (step) => step.with?.["name"] === "sonar-type-context",
+    );
+    expect(exported?.with?.["path"]).toBe(
+      "${{ runner.temp }}/sonar-type-context.tar.gz",
+    );
+    const packageContext = primary.find((step) =>
+      step.run?.includes("find node_modules apps packages"),
+    );
+    expect(packageContext?.run).toContain("-prune -print0");
+    expect(packageContext?.run).toContain("--null --files-from=-");
+    const analysis = ci.jobs["sonar"]?.steps ?? [];
+    const imported = analysis.findIndex(
+      (step) => step.with?.["name"] === "sonar-type-context",
+    );
+    const restored = analysis.findIndex((step) =>
+      step.run?.startsWith("tar --extract"),
+    );
+    const scanned = analysis.findIndex((step) =>
+      step.uses?.startsWith("SonarSource/sonarqube-scan-action@"),
+    );
+    expect(imported).toBeGreaterThanOrEqual(0);
+    expect(restored).toBeGreaterThan(imported);
+    expect(scanned).toBeGreaterThan(restored);
+    for (const step of analysis.slice(imported, scanned)) {
+      expect(step.env?.["SONAR_TOKEN"]).toBeUndefined();
+      expect(step.run ?? "").not.toMatch(/pnpm (?:install|build)/u);
+    }
+  });
+
   it("validates draft, edited and integrated candidates through the same read-only workflow", () => {
     expect(ci.on["pull_request"]?.branches).toEqual(["main"]);
     expect(ci.on["pull_request"]?.types).toContain("edited");

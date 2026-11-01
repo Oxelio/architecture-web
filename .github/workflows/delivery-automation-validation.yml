@@ -110,8 +110,27 @@ jobs:
         if: steps.config.outputs.enabled == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Import the validated type context from this workflow run
+        if: steps.config.outputs.enabled == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: sonar-type-context
+          path: ${{ runner.temp }}/sonar-type-context
+
+      - name: Restore analysis dependencies without executing candidate code
+        if: steps.config.outputs.enabled == 'true'
+        run: tar --extract --gzip --file="${RUNNER_TEMP}/sonar-type-context/sonar-type-context.tar.gz" --no-same-owner --no-same-permissions
+
+      - name: Verify workspace declaration layout
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          test -f packages/contexts/iam/dist/application/index.d.ts
+          test -f packages/contexts/iam/dist/domain/index.d.ts
+          test -f packages/adapters/iam/persistence-kysely/node_modules/kysely/package.json
 
       - name: Import coverage from this workflow run
         if: steps.config.outputs.enabled == 'true'

@@ -97,6 +97,22 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Package the validated TypeScript dependency context
+        shell: bash
+        run: |
+          set -euo pipefail
+          find node_modules apps packages -type d \( -name node_modules -o -name dist \) -prune -print0 |
+            tar --create --gzip --file="${RUNNER_TEMP}/sonar-type-context.tar.gz" --null --files-from=-
+
+      - name: Export type context from this run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sonar-type-context
+          path: ${{ runner.temp }}/sonar-type-context.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
       - name: Verify artifact download even when Sonar is skipped
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
