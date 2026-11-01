@@ -9,7 +9,7 @@ import { SecurityCenter } from "../components/SecurityCenter";
 import type { CurrentUser, CurrentUserSession } from "../services/api";
 import { AdminPage } from "./AdminPage";
 import { NotificationsPage } from "./NotificationsPage";
-import { ProfilePage } from "./ProfilePage";
+import { ProfilePage, ProfileVerificationCallout } from "./ProfilePage";
 import { RecoveryPage } from "./RecoveryPage";
 
 vi.mock("react-i18next", async (importOriginal) => ({
@@ -125,6 +125,27 @@ function queryState(
 }
 
 describe("profile presentation states", () => {
+  it.each([true, false])(
+    "preserves resend controls while pending=%s",
+    (pending) => {
+      const onResend = vi.fn();
+      const html = renderToStaticMarkup(
+        <ProfileVerificationCallout
+          email="member@example.invalid"
+          verified={false}
+          pending={pending}
+          onResend={onResend}
+        />,
+      );
+      expect(html).toContain(
+        pending
+          ? "profile.resendVerificationPending"
+          : "profile.resendVerification",
+      );
+      expect(html.includes('disabled=""')).toBe(pending);
+      expect(onResend).not.toHaveBeenCalled();
+    },
+  );
   it("does not request email verification for a username-only account", () => {
     const html = renderPage(
       <ProfilePage
