@@ -111,7 +111,7 @@ function findDuplicateNames(values: readonly string[]): string[] {
   return [...counts.entries()]
     .filter(([, count]) => count > 1)
     .map(([name]) => name)
-    .toSorted();
+    .toSorted((a, b) => Number(a > b) - Number(a < b));
 }
 
 export function selectProject(
