@@ -19,6 +19,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { c, x } from "tar";
 import { parse } from "yaml";
 
+import { releaseAssetNames } from "./release-paths.js";
 import { git, type ReleasePlan } from "./repository.js";
 
 const require = createRequire(import.meta.url);
@@ -73,6 +74,7 @@ export async function generateArtifacts(
   if (!plan.version || !plan.tag) {
     throw new Error("NO_RELEASE_TO_GENERATE");
   }
+  releaseAssetNames(plan.version);
   if (git(root, "rev-parse", "HEAD") !== plan.sourceSha) {
     throw new Error("CHECKOUT_MUST_MATCH_CANDIDATE");
   }
@@ -157,9 +159,6 @@ export async function generateArtifacts(
         },
       },
     };
-    const configPath = join(temporary, "release-it.json");
-    const resultPath = join(temporary, "result.json");
-    writeFileSync(configPath, JSON.stringify(configuration));
     // Changelog readers infer boundaries from local tags. A retry must see the
     // same pre-publication tag set, without deleting anything in the source repo.
     const notesRepository = join(temporary, "notes-repository");
@@ -175,6 +174,9 @@ export async function generateArtifacts(
     if (git(notesRepository, "tag", "--list", plan.tag)) {
       git(notesRepository, "tag", "--delete", plan.tag);
     }
+    const configPath = join(notesRepository, ".release-it-input.json");
+    const resultPath = join(notesRepository, ".release-it-result.json");
+    writeFileSync(configPath, JSON.stringify(configuration), { flag: "wx" });
     const compiledRunner = fileURLToPath(
       new URL("./release-it-runner.js", import.meta.url),
     );
@@ -183,13 +185,7 @@ export async function generateArtifacts(
       : compiledRunner.replace(/\.js$/u, ".ts");
     execFileSync(
       process.execPath,
-      [
-        "--import",
-        pathToFileURL(require.resolve("tsx/esm")).href,
-        runner,
-        configPath,
-        resultPath,
-      ],
+      ["--import", pathToFileURL(require.resolve("tsx/esm")).href, runner],
       { cwd: notesRepository, stdio: "pipe" },
     );
     const result = JSON.parse(readFileSync(resultPath, "utf8")) as {
