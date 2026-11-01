@@ -164,7 +164,8 @@ function normalizeFilterToken(value: string): string {
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-/, "")
+    .replace(/-$/, "");
 }
 
 function parseFilterTerms(filter: string | null): readonly FilterTerm[] {

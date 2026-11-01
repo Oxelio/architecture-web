@@ -36,6 +36,15 @@ describe("security primitives", () => {
     expect(
       crypto.verifyTotp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "287082"),
     ).toBe(1);
+    expect(
+      crypto.verifyTotp(
+        "gezdgnbvgy3tqojqgezdgnbvgy3tqojq" + "=".repeat(100_000),
+        "287082",
+      ),
+    ).toBe(1);
+    expect(() => crypto.verifyTotp("GEZD=GNBV", "287082")).toThrow(
+      "Invalid MFA secret encoding",
+    );
     const sealed = crypto.seal("secret");
     expect(crypto.open(sealed)).toBe("secret");
     expect(() =>
