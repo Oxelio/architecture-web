@@ -51,7 +51,7 @@ export class RevokeUserSessionUseCase implements RevokeUserSession {
       return Result.failure(RevokeUserSessionErrors.invalidSessionId);
     }
     const session = await this.sessions.findById(sessionId.value);
-    if (!session || !session.userId.equals(userId.value)) {
+    if (!session?.userId.equals(userId.value)) {
       return Result.failure(RevokeUserSessionErrors.sessionNotFound);
     }
 

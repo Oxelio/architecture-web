@@ -60,7 +60,7 @@ export class CancelAccountDeletionUseCase implements CancelAccountDeletion {
       return Result.failure(CancelAccountDeletionErrors.invalidToken);
     }
     const user = await this.users.findById(id.value);
-    if (!user || !user.status.isPendingDeletion()) {
+    if (!user?.status.isPendingDeletion()) {
       return Result.failure(CancelAccountDeletionErrors.invalidToken);
     }
     user.cancelDeletion(request.previousStatus);

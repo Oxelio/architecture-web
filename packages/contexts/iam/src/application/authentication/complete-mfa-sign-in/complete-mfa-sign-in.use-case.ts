@@ -35,8 +35,7 @@ export class CompleteMfaSignInUseCase implements CompleteMfaSignIn {
     const captured = await this.policies.getSignInPolicy();
     const challenge = await this.store.findChallenge(input.challengeId);
     if (
-      !challenge ||
-      challenge.purpose !== "signin" ||
+      challenge?.purpose !== "signin" ||
       !isMfaChallengeUsable(challenge, new Date())
     ) {
       return Result.failure(CompleteMfaSignInErrors.invalidChallenge);
@@ -55,8 +54,7 @@ export class CompleteMfaSignInUseCase implements CompleteMfaSignIn {
     }
     const user = await this.users.findById(id.value);
     if (
-      !user ||
-      !user.status.isActive() ||
+      !user?.status.isActive() ||
       user.sessionVersion !== challenge.userSessionVersion
     ) {
       return Result.failure(CompleteMfaSignInErrors.invalidChallenge);

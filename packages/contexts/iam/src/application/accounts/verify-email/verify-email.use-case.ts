@@ -48,7 +48,7 @@ export class VerifyEmailUseCase {
       identity.userId,
       async ({ emailVerifications, loginIdentities }) => {
         const current = await loginIdentities.findById(identity.identifier);
-        if (!current || !current.login.equals(identity.login)) {
+        if (!current?.login.equals(identity.login)) {
           return false;
         }
         const tokenConsumed = await emailVerifications.consume(

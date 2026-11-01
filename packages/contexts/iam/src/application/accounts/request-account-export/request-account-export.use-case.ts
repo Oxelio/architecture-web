@@ -99,16 +99,17 @@ export class RequestAccountExportUseCase implements RequestAccountExport {
         this.archive.build(files),
         new Date(),
       );
-    } catch (failure) {
+    } catch (error_) {
+      const operationError = error_;
       try {
         await this.store.fail(request.id, new Date());
-      } catch (recordFailure) {
+      } catch (error_) {
         throw new AggregateError(
-          [failure, recordFailure],
+          [operationError, error_],
           "Account export generation and failure recording failed",
         );
       }
-      throw failure;
+      throw operationError;
     }
     return Result.success({ id: request.id, status: "ready" });
   }
