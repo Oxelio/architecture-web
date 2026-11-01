@@ -7,16 +7,20 @@ import {
 } from "@architecture/iam/domain";
 
 export class Sha256EmailVerificationTokenHasherAdapter implements EmailVerificationTokenHasher {
-  async hash(
+  hash(
     token: EmailVerificationTokenValueObject,
   ): Promise<EmailVerificationTokenHashValueObject> {
-    const hash = createHash("sha256").update(token.value).digest("hex");
-    const result = EmailVerificationTokenHashValueObject.create(hash);
+    try {
+      const hash = createHash("sha256").update(token.value).digest("hex");
+      const result = EmailVerificationTokenHashValueObject.create(hash);
 
-    if (!result.success) {
-      throw new Error("Invalid email verification token hash");
+      if (!result.success) {
+        throw new Error("Invalid email verification token hash");
+      }
+
+      return Promise.resolve(result.value);
+    } catch (error: unknown) {
+      return Promise.reject(error);
     }
-
-    return result.value;
   }
 }

@@ -26,9 +26,11 @@ export const iamAuthenticationProofMigrations: Record<string, Migration> = {
         db,
       );
     },
-    async down() {
-      throw new Error(
-        "Use a forward migration: rollback must not reactivate unbound authentication proofs",
+    down() {
+      return Promise.reject(
+        new Error(
+          "Use a forward migration: rollback must not reactivate unbound authentication proofs",
+        ),
       );
     },
   },
