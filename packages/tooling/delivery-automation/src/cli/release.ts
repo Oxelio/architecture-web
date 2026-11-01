@@ -57,44 +57,14 @@ async function main(): Promise<void> {
   if (command !== "plan" && command !== "ci-plan") {
     throw new Error("UNKNOWN_RELEASE_COMMAND");
   }
-  let request: FirstStableRequest | null = null;
-  let sourceSha = git(root, "rev-parse", "HEAD");
-  let resumeTag: string | null = null;
-  if (command === "ci-plan") {
-    assertPublicationContext({
-      ref: required("GITHUB_REF"),
-      event: required("GITHUB_EVENT_NAME"),
-    });
-    const client = new ReleaseGitHub(
-      required("GITHUB_REPOSITORY"),
-      required("GITHUB_TOKEN"),
-    );
-    const pending = await pendingRelease(client);
-    if (pending) {
-      sourceSha = pending.plan.sourceSha;
-      resumeTag = pending.plan.tag;
-      request = pending.plan.firstStable;
-    } else if (env["RELEASE_LEVEL"] === "first-stable") {
-      if (env["GITHUB_EVENT_NAME"] !== "workflow_dispatch") {
-        throw new Error("FIRST_STABLE_REQUIRES_DISPATCH");
-      }
-      sourceSha = required("EXPECTED_SHA");
-      if (sourceSha !== required("GITHUB_SHA")) {
-        throw new Error("FIRST_STABLE_SHA_MISMATCH");
-      }
-      request = {
-        sourceSha,
-        actor: required("GITHUB_ACTOR"),
-        runId: required("GITHUB_RUN_ID"),
-      };
-    } else {
-      sourceSha = git(root, "rev-parse", "origin/main");
-    }
-    git(root, "merge-base", "--is-ancestor", sourceSha, "origin/main");
-    if (request) {
-      await client.verifyFirstStable(request);
-    }
-  }
+  const { request, sourceSha, resumeTag } =
+    command === "ci-plan"
+      ? await ciPlanningContext(root)
+      : {
+          request: null,
+          sourceSha: git(root, "rev-parse", "HEAD"),
+          resumeTag: null,
+        };
   const plan = await readReleasePlan(root, sourceSha, request, resumeTag);
   if (command === "ci-plan") {
     writeFileSync(
@@ -107,6 +77,54 @@ async function main(): Promise<void> {
     );
   }
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+}
+
+async function ciPlanningContext(root: string): Promise<{
+  request: FirstStableRequest | null;
+  sourceSha: string;
+  resumeTag: string | null;
+}> {
+  const env = process.env;
+  assertPublicationContext({
+    ref: required("GITHUB_REF"),
+    event: required("GITHUB_EVENT_NAME"),
+  });
+  const client = new ReleaseGitHub(
+    required("GITHUB_REPOSITORY"),
+    required("GITHUB_TOKEN"),
+  );
+  const pending = await pendingRelease(client);
+  if (pending) {
+    const { sourceSha, tag: resumeTag, firstStable: request } = pending.plan;
+    git(root, "merge-base", "--is-ancestor", sourceSha, "origin/main");
+    if (request) {
+      await client.verifyFirstStable(request);
+    }
+    return { sourceSha, resumeTag, request };
+  }
+  let request: FirstStableRequest | null = null;
+  let sourceSha: string;
+  if (env["RELEASE_LEVEL"] === "first-stable") {
+    if (env["GITHUB_EVENT_NAME"] !== "workflow_dispatch") {
+      throw new Error("FIRST_STABLE_REQUIRES_DISPATCH");
+    }
+    sourceSha = required("EXPECTED_SHA");
+    if (sourceSha !== required("GITHUB_SHA")) {
+      throw new Error("FIRST_STABLE_SHA_MISMATCH");
+    }
+    request = {
+      sourceSha,
+      actor: required("GITHUB_ACTOR"),
+      runId: required("GITHUB_RUN_ID"),
+    };
+  } else {
+    sourceSha = git(root, "rev-parse", "origin/main");
+  }
+  git(root, "merge-base", "--is-ancestor", sourceSha, "origin/main");
+  if (request) {
+    await client.verifyFirstStable(request);
+  }
+  return { request, sourceSha, resumeTag: null };
 }
 
 function required(name: string): string {
