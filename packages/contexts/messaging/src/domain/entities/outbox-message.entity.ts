@@ -141,6 +141,8 @@ function validateEvent(event: IntegrationEvent): void {
     throw new Error("An integration event version must be a positive integer");
   }
   if (Number.isNaN(event.occurredAt.getTime())) {
-    throw new Error("An integration event requires a valid occurrence date");
+    throw new TypeError(
+      "An integration event requires a valid occurrence date",
+    );
   }
 }
