@@ -51,7 +51,7 @@ export class SignInUseCase implements SignIn {
     }
 
     const identity = await this.loginIdentities.findByLogin(login.value);
-    if (!identity || !identity.isUsable) {
+    if (!identity?.isUsable) {
       await this.password.fakeVerify(); // Timing attack prevention
 
       return Result.failure(SignInErrors.invalidCredentials);

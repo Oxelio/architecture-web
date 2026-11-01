@@ -28,7 +28,8 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
   async execute(
     input: PublishSecurityConfigurationInput,
   ): Promise<PublishSecurityConfigurationOutput> {
-    const result = await this.perform(input).catch(async (failure: unknown) => {
+    const result = await this.perform(input).catch(async (error_: unknown) => {
+      const operationError = error_;
       try {
         await this.events.record(
           "security.config.publication-attempt",
@@ -44,13 +45,13 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
             result: "technical_failure",
           },
         );
-      } catch (recordFailure) {
+      } catch (error_) {
         throw new AggregateError(
-          [failure, recordFailure],
+          [operationError, error_],
           "Configuration operation and failure recording failed",
         );
       }
-      throw failure;
+      throw operationError;
     });
     await this.events.record(
       "security.config.publication-attempt",
