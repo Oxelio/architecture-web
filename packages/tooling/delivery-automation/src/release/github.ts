@@ -246,23 +246,7 @@ export async function publishRelease(
   const existingAssets = release ? await client.assets(release.id) : [];
   await verifyRemoteAssets(existingAssets, names, directory, client);
   if (!existingTag) {
-    const tag = await client.request<{ readonly sha: string }>(
-      "/git/tags",
-      "POST",
-      {
-        tag: plan.tag,
-        message: JSON.stringify(manifest),
-        object: plan.sourceSha,
-        type: "commit",
-      },
-    );
-    if (!tag) {
-      throw new Error("TAG_CREATION_FAILED");
-    }
-    await client.request("/git/refs", "POST", {
-      ref: `refs/tags/${plan.tag}`,
-      sha: tag.sha,
-    });
+    await createRemoteTag(client, plan.tag, plan.sourceSha, manifest);
   }
   release ??= await client.request<Release>("/releases", "POST", {
     tag_name: plan.tag,
@@ -287,6 +271,31 @@ export async function publishRelease(
   if (release.draft) {
     await client.request(`/releases/${release.id}`, "PATCH", { draft: false });
   }
+}
+
+async function createRemoteTag(
+  client: ReleaseGitHub,
+  tagName: string,
+  sourceSha: string,
+  manifest: ReleaseManifest,
+): Promise<void> {
+  const tag = await client.request<{ readonly sha: string }>(
+    "/git/tags",
+    "POST",
+    {
+      tag: tagName,
+      message: JSON.stringify(manifest),
+      object: sourceSha,
+      type: "commit",
+    },
+  );
+  if (!tag) {
+    throw new Error("TAG_CREATION_FAILED");
+  }
+  await client.request("/git/refs", "POST", {
+    ref: `refs/tags/${tagName}`,
+    sha: tag.sha,
+  });
 }
 
 function compareAssetNames(a: string, b: string): number {

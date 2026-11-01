@@ -4,7 +4,46 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { validateMarkdownLinks } from "./check-markdown-links.mjs";
+import {
+  extractTargets,
+  validateMarkdownLinks,
+} from "./check-markdown-links.mjs";
+
+test("inline parsing preserves the existing grammar on bounded malformed and ordinary inputs", () => {
+  const legacy = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)/gu;
+  const inputs = [
+    "[a](target.md) ![image](<space name.png> title)",
+    "[[nested](target.md) [empty]() [empty-angle](<>)",
+    "[a](<foo)bar>) [b](<foo)bar>suffix)",
+    "[a](<foo> title) [b](<foo>suffix) [c](<unfinished)",
+    '[a](\u00a0target.md\t"title") [b] (ignored.md)',
+  ];
+  let seed = 17;
+  const alphabet = ["[", "]", "(", ")", "<", ">", " ", "\t", "a", "!", '"'];
+  for (let sample = 0; sample < 5_000; sample += 1) {
+    let input = "";
+    for (let index = 0; index < 64; index += 1) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      input += alphabet[seed % alphabet.length];
+    }
+    inputs.push(input);
+  }
+  for (const input of inputs) {
+    assert.deepEqual(
+      extractTargets(input),
+      Array.from(input.matchAll(legacy), (match) => match[1]),
+      input,
+    );
+  }
+});
+
+test("inline parsing handles long unmatched labels and repeated failed angle alternatives", () => {
+  assert.deepEqual(extractTargets("[".repeat(200_000)), []);
+  assert.deepEqual(extractTargets("[a]( ".repeat(20_000)), []);
+  const targets = extractTargets("[a](<x) ".repeat(20_000) + ">suffix");
+  assert.equal(targets.length, 20_000);
+  assert.ok(targets.every((target) => target === "<x"));
+});
 
 async function withRepo(run) {
   const root = await mkdtemp(join(tmpdir(), "markdown-links-"));
