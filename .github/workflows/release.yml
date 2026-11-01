@@ -60,8 +60,16 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  validate-and-generate:
+  validate:
     needs: plan
+    if: needs.plan.outputs.version != ''
+    uses: ./.github/workflows/repository-validation.yml
+    with:
+      candidate_sha: ${{ needs.plan.outputs.source_sha }}
+      comparison_base: ""
+
+  generate:
+    needs: [plan, validate]
     if: needs.plan.outputs.version != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -79,15 +87,6 @@ jobs:
         with:
           install: false
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm typecheck
-      - run: pnpm typecheck:test
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm format:check
-      - run: pnpm docs:links
-      - run: pnpm docs:links:test
-      - run: git diff --check
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-plan
@@ -101,7 +100,7 @@ jobs:
           retention-days: 14
 
   publish:
-    needs: [plan, validate-and-generate]
+    needs: [plan, validate, generate]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

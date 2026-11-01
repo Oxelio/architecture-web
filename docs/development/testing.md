@@ -23,6 +23,12 @@ PostgreSQL plan measurements on representative data.
 
 PostgreSQL/Redis security integration tests are opt-in. They are skipped in ordinary unit runs unless both integration URLs are set. A skipped run does not validate concurrency or transaction guarantees. SMTP delivery, legal-retention completeness and deployment scheduling still require their own evidence.
 
+The [repository CI](continuous-integration.md) supplies both integration URLs to
+disposable services for its primary PR/post-merge suite and release validation.
+The Node 24 compatibility job runs unit tests without these services. Successful
+primary/release runs therefore provide the existing database-boundary evidence;
+skipped local/compatibility runs still do not.
+
 ## Root commands
 
 ```bash
@@ -32,6 +38,9 @@ pnpm typecheck:test
 pnpm lint
 pnpm test
 pnpm test:coverage
+pnpm ci:test
+pnpm ci:test:integration
+pnpm ci:test:tooling
 pnpm format:check
 pnpm docs:links
 pnpm docs:links:test
@@ -150,6 +159,33 @@ service, credential, action, or runtime dependency.
 Vitest uses V8 and writes text, HTML, and LCOV reports to each package's
 `coverage` directory. No global minimum threshold is configured, so a
 percentage cannot replace tests of important business behavior.
+
+`pnpm ci:test` runs all declared test workspaces with coverage and a result
+summary, rejecting missing coverage commands, execution reports and zero tests.
+It clears generated reports before execution. `pnpm ci:test:integration` uses the
+same runner with the disposable PostgreSQL/Redis environment, including cleanup
+on failure. Run these commands through pnpm so child commands use its exact CLI.
+
+Run `pnpm ci:test:tooling` after workspace coverage and before
+`node scripts/merge-coverage.mjs`. The native Node test runner collects V8
+coverage and emits `coverage/scripts/lcov.info`, including tested CLI child
+processes. Both supported Node lines exercise this collection. The merger
+combines that repository-relative report with all workspace reports to prepare
+`coverage/lcov.info`. A valid nonempty LCOV report is required from every expected
+test workspace and all four expected CI-script sources; partial coverage,
+malformed records/counters, duplicate sources and missing/escaping sources are
+rejected. Workspace execution counts and native coverage are separate evidence:
+passing tests alone do not establish coverage import. `pnpm ci:test:tooling` verifies runner/service failures, required
+check outcomes and coverage handling. The [CI guide](continuous-integration.md)
+describes shared validation and same-run artifact transfer. The Actions job
+`SonarQube (informational)` retains `continue-on-error: true`; the separate external
+`SonarCloud Code Analysis` check is required for merge into `main` under the
+[delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
+Verify the current candidate's external result as well as `Quality checks`;
+a tolerated job failure, skipped analysis or missing result does not satisfy
+that merge requirement. The CI guide documents failure handling and the current
+fork/Dependabot analysis limitation. These checks do not replace the Work Merge
+Gate or applicable review and authority gates.
 
 ## Isolated IAM PostgreSQL/Redis integration
 

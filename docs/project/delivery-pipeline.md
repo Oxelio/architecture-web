@@ -73,6 +73,44 @@ A history rewrite still requires separate explicit human governance authority.
 Future environments may consume different immutable SHA/tag identities from the
 same branch; their activation does not require adding permanent branches.
 
+#### Required checks on `main`
+
+The maintainer explicitly accepted and activated the following merge requirements
+on 2026-11-01. Direct verification of the active
+[`protected` ruleset](https://github.com/Oxelio/architecture-web/rules/21839336)
+confirmed that it targets the default branch (`main`) and requires:
+
+| Required check             | Expected provider | Integration ID |
+| -------------------------- | ----------------- | -------------- |
+| `Quality checks`           | GitHub Actions    | `15368`        |
+| `SonarCloud Code Analysis` | SonarQube Cloud   | `12526`        |
+
+Strict required-status-check policy is enabled. The PR branch must be up to date
+with `main`, and required results must apply to the current candidate under that
+policy. Updating the candidate or integration base requires current check evidence;
+stale success is insufficient. Check names and provider identities are part of
+the requirement.
+
+The Actions job `SonarQube (informational)` retains `continue-on-error: true` and
+is excluded from the `Quality checks` aggregate. Its tolerated failure or skip
+does not satisfy the separate required external `SonarCloud Code Analysis`
+check. A failed external Sonar Quality Gate blocks merge. A missing, pending,
+cancelled or unavailable analysis leaves the Sonar merge requirement unsatisfied;
+a green Actions workflow alone does not establish mergeability.
+
+Fork and Dependabot PRs currently have no Sonar analysis path compatible with
+this required external check: the credential-bearing job deliberately excludes
+them. Such PRs remain blocked unless a compatible path is separately designed,
+accepted and activated. Do not expose secrets, weaken checks or infer a bypass
+from this limitation. The [CI guide](../development/continuous-integration.md)
+owns analysis diagnostics and configuration instructions.
+
+These required checks are one part of the [Work Merge Gate](#work-merge-gate).
+They do not accept reviews, establish validation sufficiency, grant merge
+authority or complete the Work. Verification of this ruleset does not activate
+other external mappings or approve other governance decisions. Source-release
+publication retains its separate policy in section 13.
+
 #### Accepted transition from the previous topology
 
 The maintainer explicitly accepted Work #58's complete implementation plan on

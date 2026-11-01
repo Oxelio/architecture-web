@@ -21,7 +21,10 @@
     "format:check": "prettier . --check",
     "docs:links": "node scripts/check-markdown-links.mjs",
     "docs:links:test": "node --test scripts/check-markdown-links.test.mjs",
-    "release:plan": "pnpm --filter @architecture/delivery-automation release:plan"
+    "release:plan": "pnpm --filter @architecture/delivery-automation release:plan",
+    "ci:test": "node scripts/run-workspace-tests.mjs",
+    "ci:test:integration": "node scripts/run-integration-tests.mjs",
+    "ci:test:tooling": "node -e \"const fs=require('node:fs');fs.mkdirSync('coverage/scripts', { recursive: true });fs.rmSync('coverage/scripts/lcov.info', { force: true })\" && node --test --experimental-test-coverage --test-coverage-include=scripts/*.mjs --test-coverage-exclude=scripts/*.test.mjs --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/scripts/lcov.info scripts/run-workspace-tests.test.mjs scripts/merge-coverage.test.mjs"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,ts,tsx}": [

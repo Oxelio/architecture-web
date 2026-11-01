@@ -1,171 +1,151 @@
-name: Delivery Automation Validation
+name: Repository CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    branches: [main]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: repository-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
-    name: Validate repository and delivery tooling
+    uses: ./.github/workflows/repository-validation.yml
+    with:
+      candidate_sha: ${{ github.sha }}
+      comparison_base: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          vulnerability-check: true
+          license-check: false
+          show-patched-versions: true
+
+  commitlint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate the prospective squash commit header
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "${PR_TITLE}" | pnpm exec commitlint
+
+  quality:
+    name: Quality checks
+    needs: [validate, dependency-review, commitlint]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require every applicable blocking check
+        env:
+          VALIDATION_RESULT: ${{ needs.validate.result }}
+          DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
+          COMMITLINT_RESULT: ${{ needs.commitlint.result }}
+        run: node scripts/quality-gate.mjs
+
+  sonar:
+    name: SonarQube (informational)
+    needs: validate
+    # Never give a fork or Dependabot candidate access to the analysis credential.
+    if: >-
+      (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.login != 'dependabot[bot]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - name: Check Sonar configuration
+        id: config
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          enabled=true
+          for name in SONAR_HOST_URL SONAR_PROJECT_KEY SONAR_ORGANIZATION SONAR_TOKEN; do
+            if [ -z "${!name}" ]; then
+              echo "::warning::Sonar skipped: configure ${name}; see docs/development/continuous-integration.md."
+              enabled=false
+            fi
+          done
+          if [ "${enabled}" = true ] && [[ "${SONAR_HOST_URL}" != https://* ]]; then
+            echo '::warning::Sonar skipped: SONAR_HOST_URL must use HTTPS.'
+            enabled=false
+          fi
+          echo "enabled=${enabled}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout analyzed commit with history
+        if: steps.config.outputs.enabled == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
           persist-credentials: false
 
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Import coverage from this workflow run
+        if: steps.config.outputs.enabled == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          node-version-file: .nvmrc
+          name: sonar-coverage
+          path: coverage
 
-      - name: Set up pnpm
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+      - name: Analyze and wait for the informational Quality Gate
+        id: scan
+        if: steps.config.outputs.enabled == 'true'
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
-          install: false
+          args: >-
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
 
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build
-
-      - name: Preview release version without publishing
-        run: pnpm release:plan
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Typecheck tests
-        run: pnpm typecheck:test
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Test
-        shell: bash
+      - name: Report informational analysis outcome
+        if: always()
+        env:
+          CONFIGURED: ${{ steps.config.outputs.enabled }}
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
         run: |
-          set -euo pipefail
-
-          job_summary="${GITHUB_STEP_SUMMARY}"
-          rows="${RUNNER_TEMP}/vitest-workspace-rows.md"
-          : > "${rows}"
-
-          overall_status=0
-          workspace_runs=0
-          total_files=0
-          total_tests=0
-
-          while IFS= read -r manifest; do
-            if ! node -e 'const p = require(process.argv[1]); process.exit(p.scripts?.test ? 0 : 1)' "./${manifest}"; then
-              continue
-            fi
-
-            workspace_runs=$((workspace_runs + 1))
-            package_name="$(node -p "require('./${manifest}').name")"
-            package_dir="$(dirname "${manifest}")"
-            package_summary="${RUNNER_TEMP}/vitest-workspace-${workspace_runs}.md"
-            : > "${package_summary}"
-
-            set +e
-            (
-              cd "${package_dir}"
-              GITHUB_STEP_SUMMARY="${package_summary}" NO_COLOR=1 pnpm test
-            )
-            package_status=$?
-            set -e
-
-            read -r test_files test_results < <(
-              awk '
-                /\*\*Test Files\*\*:/ {
-                  if (match($0, /[0-9]+ total/)) {
-                    value = substr($0, RSTART, RLENGTH)
-                    sub(/ total/, "", value)
-                    files += value
-                  }
-                }
-                /\*\*Test Results\*\*:/ {
-                  if (match($0, /[0-9]+ total/)) {
-                    value = substr($0, RSTART, RLENGTH)
-                    sub(/ total/, "", value)
-                    tests += value
-                  }
-                }
-                END {
-                  printf "%d %d\n", files, tests
-                }
-              ' "${package_summary}"
-            )
-
-            total_files=$((total_files + test_files))
-            total_tests=$((total_tests + test_results))
-
-            if [[ "${package_status}" -eq 0 ]]; then
-              result="✅ PASS"
-            else
-              result="❌ FAIL"
-              overall_status=1
-            fi
-
-            printf '| `%s` | `%s` | %d | %d | %s |\n' \
-              "${package_name}" \
-              "${package_dir}" \
-              "${test_files}" \
-              "${test_results}" \
-              "${result}" >> "${rows}"
-          done < <(
-            find apps packages \
-              -name package.json \
-              -not -path '*/node_modules/*' \
-              -print | sort
-          )
-
-          if [[ "${overall_status}" -eq 0 ]]; then
-            overall_result="✅ PASS"
-          else
-            overall_result="❌ FAIL"
-          fi
-
           {
-            echo "## Repository test validation"
-            echo
-            echo "**Overall result:** ${overall_result}"
-            echo
-            echo "| Workspace | Path | Test files | Tests | Result |"
-            echo "| --- | --- | ---: | ---: | --- |"
-            cat "${rows}"
-            echo "| **Total (${workspace_runs} workspaces)** | | **${total_files}** | **${total_tests}** | **${overall_result}** |"
-            echo
-            if [[ "${overall_status}" -eq 0 ]]; then
-              echo "> All workspace test commands completed successfully. Vitest failure annotations remain enabled for future failing runs."
-            else
-              echo "> One or more workspace test commands failed. See GitHub annotations and the Test step log for the failing workspace and test."
-            fi
-          } >> "${job_summary}"
-
-          exit "${overall_status}"
-
-      - name: Check formatting
-        run: pnpm format:check
-
-      - name: Check documentation links
-        run: pnpm docs:links
-
-      - name: Test documentation link validation
-        run: pnpm docs:links:test
-
-      - name: Check whitespace errors
-        run: git diff --check
+            echo '## SonarQube — informational'
+            echo "Candidate: ${GITHUB_SHA}"
+            echo "Configured: ${CONFIGURED:-false}; scan/Quality Gate: ${SCAN_OUTCOME:-skipped}"
+            echo 'Sonar findings, failed Quality Gates and analysis errors do not block repository validation or source publication.'
+          } >> "${GITHUB_STEP_SUMMARY}"
+          if [ "${CONFIGURED}" = true ] && [ "${SCAN_OUTCOME}" != success ]; then
+            echo '::warning::Sonar analysis or its Quality Gate did not succeed. Review this job and the Sonar dashboard.'
+          fi
