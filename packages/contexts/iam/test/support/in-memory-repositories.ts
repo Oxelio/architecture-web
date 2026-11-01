@@ -20,12 +20,10 @@ import type { UserIdentifierValueObject } from "#value-objects/user-identifier.v
 export class InMemoryUserRepository extends UserRepository {
   readonly values = new Map<string, UserEntity>();
   save(user: UserEntity): Promise<void> {
-    try {
+    return new Promise((resolve) => {
       this.values.set(user.identifier.value, user);
-      return Promise.resolve();
-    } catch (error: unknown) {
-      return Promise.reject(error);
-    }
+      resolve();
+    });
   }
   findById(id: UserIdentifierValueObject): Promise<UserEntity | null> {
     try {
@@ -44,13 +42,10 @@ export class InMemoryLoginIdentityRepository extends LoginIdentityRepository {
     return true;
   }
   save(identity: LoginIdentityEntity): Promise<void> {
-    try {
-      const identityId = identity.identifier.value;
-      this.values.set(identityId, identity);
-      return Promise.resolve();
-    } catch (error: unknown) {
-      return Promise.reject(error);
-    }
+    return new Promise((resolve) => {
+      this.values.set(identity.identifier.value, identity);
+      resolve();
+    });
   }
   findById(
     id: LoginIdentityIdentifierValueObject,
