@@ -68,6 +68,18 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Export workspace declarations for type-aware Sonar analysis
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: sonar-workspace-types
+          path: |
+            packages/contexts/*/dist/**/*.d.ts
+            packages/shared/*/dist/**/*.d.ts
+            packages/adapters/*/*/dist/**/*.d.ts
+            packages/tooling/*/dist/**/*.d.ts
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Preview release version without publishing
         run: pnpm release:plan
 
