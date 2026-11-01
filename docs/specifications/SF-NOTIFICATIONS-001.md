@@ -123,7 +123,7 @@ Notification
 - creation time
 - severity: information, warning, or critical
 - displayable title and message
-- optional action to an authorized destination
+- optional business action resolved to an authorized destination by the receiving client
 - state: unread, read, or archived
 - source fact and correlation identifier
 - requested deliveries by channel
@@ -189,6 +189,15 @@ destination into the event.
 Administrative alerts honor permissions and disclose only necessary data. Role
 membership at delivery time is checked under the applicable policy.
 
+An accepted delivery records its affected-user and/or administrator selection
+basis. Before each administrator-only delivery attempt, current active
+administrator membership is checked. A refusal permanently suppresses that
+delivery with a minimized reason; a technical lookup failure is retried without
+sending. A delivery also justified for the affected user remains eligible on
+that basis. Suppression never changes the accepted destination, notification
+acknowledgement or other deliveries, and replay never recreates it. The check is
+not atomic with an external provider or concurrent membership changes.
+
 ## Preferences
 
 A user may disable optional channels or choose among available channels.
@@ -212,11 +221,19 @@ The first version must support policies for:
 - MFA enablement, disablement, and recovery-mechanism use;
 - account recovery;
 - role changes, suspension, and activation;
-- account-deletion request and execution;
+- account-deletion request and cancellation;
 - suspicious activity detected under a separate policy.
 
 This catalog is extensible. Adding a channel or reaction must not require
 changing the original business fact.
+
+Explicit session-management revocations notify the affected user through Web and
+mandatory email when a verified destination and configured provider qualify.
+Ordinary sign-out does not introduce another notification policy. Final account
+deletion sends no post-erasure message: an address is not retained solely for
+that confirmation. The deletion-request and protected cancellation flow remain
+available before erasure. The maintainer delegated this bounded choice during
+the 2026-11-01 remediation implementation.
 
 ## Reliability and consistency
 

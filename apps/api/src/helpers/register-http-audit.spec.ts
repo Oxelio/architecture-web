@@ -5,6 +5,25 @@ import { registerHttpAudit } from "./register-http-audit.js";
 
 describe("HTTP Audit route confidentiality", () => {
   it.each([
+    [200, "success"],
+    [403, "denied"],
+    [500, "technical_failure"],
+    [503, "technical_failure"],
+  ] as const)("classifies HTTP %s as %s", async (status, outcome) => {
+    const app = Fastify(),
+      record = vi.fn();
+    registerHttpAudit(app, { record });
+    app.post("/v1/iam/signin", async (_request, reply) =>
+      reply.code(status).send(),
+    );
+    try {
+      await app.inject({ method: "POST", url: "/v1/iam/signin" });
+      expect(record.mock.calls[0]?.[1]).toBe(outcome);
+    } finally {
+      await app.close();
+    }
+  });
+  it.each([
     ["/v1/iam/me/sessions/canary-bearer", "/v1/iam/me/sessions/:sessionId"],
     [
       "/v1/iam/users/account/sessions/canary%2Dbearer",

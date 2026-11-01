@@ -14,6 +14,8 @@ describe("toAuditEntry", () => {
       actor_type: "user",
       actor_id: "user-1",
       subject_id: "user-1",
+      actor_reference: null,
+      subject_reference: null,
       correlation_id: "correlation-1",
       network_fingerprint: null,
       client: "test-client",

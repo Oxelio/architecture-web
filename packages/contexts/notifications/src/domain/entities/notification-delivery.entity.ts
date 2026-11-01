@@ -4,12 +4,18 @@ import type { NotificationChannelValueObject } from "#domain/value-objects/notif
 import type { NotificationDeliveryIdentifierValueObject } from "#domain/value-objects/notification-identifier.value-object";
 
 export type NotificationDeliveryStatus =
-  "pending" | "processing" | "sent" | "failed" | "dead_letter";
+  "pending" | "processing" | "sent" | "failed" | "dead_letter" | "suppressed";
+
+export type NotificationDeliveryAudience =
+  "affected_user" | "administrator" | "affected_user_and_administrator";
+export type NotificationSuppressionReason = "administrator_not_authorized";
 
 interface NotificationDeliveryProperties {
   readonly identifier: NotificationDeliveryIdentifierValueObject;
   readonly channel: NotificationChannelValueObject;
   readonly destination: string;
+  readonly audience: NotificationDeliveryAudience;
+  suppressionReason: NotificationSuppressionReason | null;
   status: NotificationDeliveryStatus;
   attempts: number;
   availableAt: Date;
@@ -25,12 +31,13 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
   static create(
     properties: Pick<
       NotificationDeliveryProperties,
-      "identifier" | "channel" | "destination"
+      "identifier" | "channel" | "destination" | "audience"
     >,
     now = new Date(),
   ): NotificationDeliveryEntity {
     return NotificationDeliveryEntity.rehydrate({
       ...properties,
+      suppressionReason: null,
       status: "pending",
       attempts: 0,
       availableAt: now,
@@ -43,6 +50,30 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
   static rehydrate(
     properties: NotificationDeliveryProperties,
   ): NotificationDeliveryEntity {
+    if (
+      ![
+        "affected_user",
+        "administrator",
+        "affected_user_and_administrator",
+      ].includes(properties.audience)
+    ) {
+      throw new Error("Invalid notification delivery audience");
+    }
+    if (
+      ![
+        "pending",
+        "processing",
+        "sent",
+        "failed",
+        "dead_letter",
+        "suppressed",
+      ].includes(properties.status) ||
+      (properties.status === "suppressed"
+        ? properties.suppressionReason !== "administrator_not_authorized"
+        : properties.suppressionReason !== null)
+    ) {
+      throw new Error("Invalid notification delivery state");
+    }
     if (!properties.destination.trim()) {
       throw new Error("A notification delivery requires a destination");
     }
@@ -58,6 +89,24 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
 
   get destination(): string {
     return this.properties.destination;
+  }
+
+  get audience(): NotificationDeliveryAudience {
+    return this.properties.audience;
+  }
+
+  get suppressionReason(): NotificationSuppressionReason | null {
+    return this.properties.suppressionReason;
+  }
+
+  suppress(reason: NotificationSuppressionReason): void {
+    if (this.properties.status !== "processing") {
+      throw new Error("Only a claimed notification delivery can be suppressed");
+    }
+    this.properties.status = "suppressed";
+    this.properties.suppressionReason = reason;
+    this.properties.claimedAt = null;
+    this.properties.lastError = null;
   }
 
   get status(): NotificationDeliveryStatus {

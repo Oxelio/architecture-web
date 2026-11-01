@@ -16,12 +16,26 @@ function createDelivery(now: Date): NotificationDeliveryEntity {
       identifier: identifier.value,
       channel: channel.value,
       destination: "user@example.test",
+      audience: "affected_user",
     },
     now,
   );
 }
 
 describe("NotificationDeliveryEntity", () => {
+  it("permanently suppresses a claimed unauthorized delivery without retrying", () => {
+    const now = new Date();
+    const delivery = createDelivery(now);
+    expect(() => delivery.suppress("administrator_not_authorized")).toThrow();
+    delivery.claim(now);
+    delivery.suppress("administrator_not_authorized");
+    expect(delivery.status).toBe("suppressed");
+    expect(delivery.suppressionReason).toBe("administrator_not_authorized");
+    expect(delivery.claimedAt).toBeNull();
+    expect(delivery.sentAt).toBeNull();
+    expect(delivery.claim(now)).toBe(false);
+    expect(delivery.attempts).toBe(1);
+  });
   it("owns the claim and success transitions", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
     const delivery = createDelivery(now);

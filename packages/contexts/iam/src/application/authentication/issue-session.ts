@@ -3,6 +3,7 @@ import type { OutboxWriter } from "@architecture/messaging/application";
 import { SessionEntity } from "#entities/session.entity";
 import type { UserEntity } from "#entities/user.entity";
 import { toIamIntegrationEvent } from "#events/iam-integration-event";
+import { publishSessionFacts } from "#events/publish-session-facts";
 import type { SessionRepository } from "#ports/session.repository";
 
 import type { SessionPolicyReader } from "./authentication-policy.reader.js";
@@ -33,7 +34,8 @@ export class IssueSession {
       session,
       MAX_ACTIVE_SESSIONS_PER_USER,
     );
-    await this.outbox.append(
+    await publishSessionFacts(
+      this.outbox,
       session.pullDomainEvents().map(toIamIntegrationEvent),
     );
     return {

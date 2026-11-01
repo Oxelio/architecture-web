@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  db: { destroy: vi.fn() },
+  db: { destroy: vi.fn(), $pickTables: vi.fn() },
   redis: { quit: vi.fn(), disconnect: vi.fn() },
   createRedis: vi.fn(),
   buildIam: vi.fn(),
@@ -30,11 +30,14 @@ vi.mock("./background-polling.js", () => ({
   startBackgroundPolling: state.poll,
 }));
 
+import { AuditApplication } from "@architecture/audit/application";
+
 import { buildApplicationModule } from "./application.module.js";
 
 beforeEach(() => {
   vi.resetAllMocks();
   state.createRedis.mockReturnValue(state.redis);
+  state.db.$pickTables.mockReturnValue(state.db);
   state.buildIam.mockResolvedValue({
     iam: {},
     configuration: {},
@@ -46,6 +49,36 @@ beforeEach(() => {
 });
 
 describe("application worker lifecycle", () => {
+  it("schedules hourly retention and waits for it during shutdown", async () => {
+    let finish!: () => void;
+    const stopRetention = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    state.poll
+      .mockReturnValueOnce(async () => undefined)
+      .mockReturnValueOnce(async () => undefined)
+      .mockReturnValueOnce(stopRetention);
+    const purge = vi
+      .spyOn(AuditApplication.prototype, "purge")
+      .mockResolvedValue(0);
+    try {
+      const app = await buildApplicationModule();
+      expect(state.poll.mock.calls[2]?.[2]).toBe(3_600_000);
+      await state.poll.mock.calls[2]?.[0]();
+      expect(purge).toHaveBeenCalledOnce();
+      const closing = app.dispose();
+      expect(state.db.destroy).not.toHaveBeenCalled();
+      finish();
+      await closing;
+      expect(stopRetention).toHaveBeenCalledOnce();
+      expect(state.db.destroy).toHaveBeenCalledOnce();
+    } finally {
+      purge.mockRestore();
+    }
+  });
   it("closes PostgreSQL when Redis creation throws", async () => {
     const failure = new Error("Redis construction failed");
     state.createRedis.mockImplementation(() => {

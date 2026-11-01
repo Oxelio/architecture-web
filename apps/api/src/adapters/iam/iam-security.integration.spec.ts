@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import { AuditApplication } from "@architecture/audit/application";
+import {
+  AcceptAuditEntryUseCase,
+  AuditApplication,
+  createAuditQueries,
+} from "@architecture/audit/application";
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import {
   PasswordValidation,
@@ -47,6 +51,7 @@ import {
   vi,
 } from "vitest";
 
+import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
 import { authPlugin } from "#app/auth";
 import { getAllMigrations } from "#app/scripts/migrations.provider";
 import type { AppDatabase } from "#composition-root/database.module";
@@ -56,6 +61,7 @@ import { buildSecurityRoutes } from "#iam/security/security.routes";
 import { errorHandler } from "#types/error-handler";
 
 import { NodeSecurityTokensAdapter } from "./node-security-tokens.adapter.js";
+import { RedisRecoveryOriginLimiterAdapter } from "./redis-recovery-origin-limiter.adapter.js";
 
 const databaseUrl = process.env["IAM_INTEGRATION_DATABASE_URL"],
   redisUrl = process.env["IAM_INTEGRATION_REDIS_URL"];
@@ -75,6 +81,31 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     hasher = new Argon2PasswordHasherAdapter();
   const outbox = (trx: Kysely<IamDatabase>) =>
     new KyselyOutboxWriterAdapter(trx as never);
+  it("counts recovery attempts atomically without relying on Audit delivery", async () => {
+    const fingerprint = randomUUID(),
+      key = `iam:recovery-origin:${fingerprint}`;
+    const limiter = new RedisRecoveryOriginLimiterAdapter(redis);
+    try {
+      const counts = await Promise.all(
+        Array.from({ length: 12 }, () =>
+          limiter.countRecent(fingerprint, new Date(Date.now() - 3_600_000)),
+        ),
+      );
+      expect(counts.sort((a, b) => a - b)).toEqual(
+        Array.from({ length: 12 }, (_, i) => i),
+      );
+      await redis.zadd(key, 0, "expired-attempt");
+      expect(
+        await limiter.countRecent(
+          fingerprint,
+          new Date(Date.now() - 3_600_000),
+        ),
+      ).toBe(12);
+    } finally {
+      await redis.del(key);
+    }
+  });
+
   beforeAll(async () => {
     if (!databaseUrl || !redisUrl) {
       throw new Error("Missing integration endpoints");
@@ -119,7 +150,14 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         "http://localhost/verify",
       ),
       outbox(iamDb),
-      new AuditApplication(new KyselyAuditRepositoryAdapter(db as never)),
+      new AuditApplication(
+        new KyselyAuditRepositoryAdapter(db as never),
+        new Sha256AuditPseudonymizerAdapter(),
+      ),
+      new AcceptAuditEntryUseCase(
+        outbox(iamDb),
+        new Sha256AuditPseudonymizerAdapter(),
+      ),
       {
         encryptionKey: "integration-test-key",
         recoveryUrl: "http://localhost/recovery",
@@ -643,9 +681,25 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         buildSecurityRoutes(
           module.iam,
           cookie,
-          new AuditApplication(new KyselyAuditRepositoryAdapter(db as never)),
-          module.configuration,
-          module.securityEvents,
+          new AuditApplication(
+            new KyselyAuditRepositoryAdapter(db as never),
+            new Sha256AuditPseudonymizerAdapter(),
+          ),
+          createAuditQueries({
+            repository: new KyselyAuditRepositoryAdapter(db as never),
+            recorder: new AcceptAuditEntryUseCase(
+              outbox(iamDb),
+              new Sha256AuditPseudonymizerAdapter(),
+            ),
+            access: {
+              resolveActor: async () => ({
+                active: true,
+                administrator: true,
+                consultationEnabled: true,
+                retentionDays: 365,
+              }),
+            },
+          }),
         ),
         { prefix: "/v1/iam" },
       );
@@ -720,20 +774,26 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       .set({ legal_hold_reason: "test hold" })
       .where("id", "=", id)
       .execute();
-    const pseudonymize = vi.fn(async () => undefined);
-    expect(await store.eraseIfDue(id, new Date(), pseudonymize)).toBeNull();
-    expect(pseudonymize).not.toHaveBeenCalled();
+    expect(await store.eraseIfDue(id, new Date())).toBeNull();
     await db
       .updateTable("iam_account_deletions")
       .set({ legal_hold_reason: null })
       .where("id", "=", id)
       .execute();
+    const failing = new KyselyAccountDeletionAdapter(iamDb, () => ({
+      append: async () => {
+        throw new Error("outbox unavailable");
+      },
+    }));
+    await expect(failing.eraseIfDue(id, new Date())).rejects.toThrow(
+      "outbox unavailable",
+    );
+    expect(await f.users.findById(f.user.identifier)).not.toBeNull();
     const outcomes = await Promise.all([
-      store.eraseIfDue(id, new Date(), pseudonymize),
-      store.eraseIfDue(id, new Date(), pseudonymize),
+      store.eraseIfDue(id, new Date()),
+      store.eraseIfDue(id, new Date()),
     ]);
     expect(outcomes.filter(Boolean)).toHaveLength(1);
-    expect(pseudonymize).toHaveBeenCalledOnce();
     expect(await f.users.findById(f.user.identifier)).toBeNull();
     const events = await db
       .selectFrom("messaging_outbox")

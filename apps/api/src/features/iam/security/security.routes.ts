@@ -1,12 +1,9 @@
 import type {
   AuditApplication,
   AuditEntry,
+  AuditQueriesApplication,
 } from "@architecture/audit/application";
-import type {
-  IamApplication,
-  PublishedConfigurationReader,
-  SecurityEventRecorder,
-} from "@architecture/iam/application";
+import type { IamApplication } from "@architecture/iam/application";
 import type { CookieSerializeOptions } from "@fastify/cookie";
 import { type Static, Type } from "@sinclair/typebox";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -104,8 +101,7 @@ export function buildSecurityRoutes(
   iam: IamApplication,
   cookie: SecurityCookie,
   audit: AuditApplication,
-  configuration: PublishedConfigurationReader,
-  events: SecurityEventRecorder,
+  auditQueries: AuditQueriesApplication,
 ) {
   return async (app: FastifyInstance) => {
     const errorEnvelope = Type.Object({
@@ -513,21 +509,29 @@ export function buildSecurityRoutes(
             if (!auth) {
               return reply;
             }
-            if (
-              !(await configuration.readPublished()).values.audit.consultation
-            ) {
+            const result = await auditQueries.listOwn.execute({
+              actorUserId: auth.userId,
+              page: request.query.page ?? 1,
+              pageSize: request.query.pageSize ?? 25,
+            });
+            if (!result.success) {
               return reply
-                .status(403)
-                .send({ error: { code: "audit_consultation.disabled" } });
+                .status(
+                  result.error.code === "audit_consultation.unauthorized" ||
+                    result.error.code === "audit_consultation.disabled"
+                    ? 403
+                    : 400,
+                )
+                .send({ error: result.error });
             }
             return reply.send({
-              data: (
-                await audit.listOwn(
-                  auth.userId,
-                  request.query.page ?? 1,
-                  request.query.pageSize ?? 25,
-                )
-              ).map(auditResponse),
+              data: result.value.map((entry) => ({
+                id: entry.id,
+                type: entry.type,
+                occurred_at: entry.occurredAt,
+                result: entry.result,
+                actor_type: entry.actorType,
+              })),
             });
           },
         );
@@ -700,18 +704,21 @@ export function buildSecurityRoutes(
               ...(q["from"] ? { from: new Date(q["from"]) } : {}),
               ...(q["to"] ? { to: new Date(q["to"]) } : {}),
             };
-            const rows = await audit.list(filters);
-            await events.record(
-              "security.audit.consulted",
-              "success",
-              {
-                actorType: "administrator",
-                actorId: auth.userId,
-                subjectId: auth.userId,
-              },
-              { filters },
-            );
-            return reply.send({ data: rows.map(auditResponse) });
+            const result = await auditQueries.listAdministrative.execute({
+              actorUserId: auth.userId,
+              filters,
+            });
+            if (!result.success) {
+              return reply
+                .status(
+                  result.error.code === "audit_consultation.unauthorized" ||
+                    result.error.code === "audit_consultation.disabled"
+                    ? 403
+                    : 400,
+                )
+                .send({ error: result.error });
+            }
+            return reply.send({ data: result.value.map(auditResponse) });
           },
         );
         admin.post("/admin/security/maintenance", async (request, reply) => {

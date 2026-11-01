@@ -20,27 +20,27 @@ const notification: NotificationItem = {
   severity: "warning",
   title: "Account changed",
   message: "Review your account",
-  actionUrl: null,
+  action: null,
   createdAt: "2026-01-01T00:00:00Z",
   readAt: null,
 };
 
 describe("notification native interaction", () => {
-  it.each([null, "/account"])(
+  it.each([null, "view_account"] as const)(
     "uses one native control for an unread notification with action %s",
-    (actionUrl) => {
+    (action) => {
       const markup = renderToStaticMarkup(
         <MemoryRouter>
           <NotificationCard
-            notification={{ ...notification, actionUrl }}
+            notification={{ ...notification, action }}
             onRead={vi.fn()}
           />
         </MemoryRouter>,
       );
       expect(markup).toContain("<article");
       expect(markup).toContain('<h3 id="notification-title-notice-1"');
-      if (actionUrl) {
-        expect(markup).toContain('href="/account"');
+      if (action) {
+        expect(markup).toContain('href="/profile"');
         expect(markup).toContain(
           'aria-labelledby="notification-title-notice-1"',
         );
@@ -59,7 +59,7 @@ describe("notification native interaction", () => {
     (readAt) => {
       const onRead = vi.fn();
       const element = NotificationCard({
-        notification: { ...notification, readAt, actionUrl: "/account" },
+        notification: { ...notification, readAt, action: "view_account" },
         onRead,
       }) as ReactElement<{ children: ReactNode[] }>;
       const control = element.props.children.at(-1);

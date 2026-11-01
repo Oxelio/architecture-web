@@ -6,12 +6,46 @@ import { AuditApplication } from "#services/audit.application";
 import { AuditIntegrationEventHandler } from "./audit-integration-event.handler.js";
 
 describe("AuditIntegrationEventHandler", () => {
+  it("uses producer payload references when context omits them and rejects contradictions", async () => {
+    const record = vi.fn();
+    const handler = new AuditIntegrationEventHandler(
+      { record, removeAccountReferences: vi.fn() },
+      { getRetentionDays: async () => 365 },
+    );
+    const event = {
+      eventId: "event",
+      topic: "iam.user-role-changed",
+      version: 1,
+      aggregateId: "user",
+      occurredAt: new Date(),
+      payload: { userId: "user", actorId: "admin" },
+      context: { actorType: "administrator" },
+    };
+    await handler.handle(event);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: {
+          actorType: "administrator",
+          actorId: "admin",
+          subjectId: "user",
+        },
+      }),
+    );
+    record.mockClear();
+    await expect(
+      handler.handle({
+        ...event,
+        context: { ...event.context, subjectId: "different" },
+      }),
+    ).rejects.toThrow("Inconsistent");
+    expect(record).not.toHaveBeenCalled();
+  });
   it.each(["administrator", "system", "anonymous", "user", "unexpected"])(
     "preserves the audit actor for %s",
     async (actorType) => {
       const record = vi.fn();
       const handler = new AuditIntegrationEventHandler(
-        { record },
+        { record, removeAccountReferences: vi.fn() },
         { getRetentionDays: () => Promise.resolve(365) },
       );
       await handler.handle({
@@ -43,7 +77,7 @@ describe("AuditIntegrationEventHandler", () => {
     async (payload) => {
       const record = vi.fn();
       const handler = new AuditIntegrationEventHandler(
-        { record },
+        { record, removeAccountReferences: vi.fn() },
         { getRetentionDays: () => Promise.resolve(365) },
       );
       await expect(
@@ -67,7 +101,7 @@ describe("AuditIntegrationEventHandler", () => {
   ])("rejects unsupported %s v%s before writing", async (topic, version) => {
     const record = vi.fn(),
       handler = new AuditIntegrationEventHandler(
-        { record },
+        { record, removeAccountReferences: vi.fn() },
         { getRetentionDays: async () => 365 },
       );
     await expect(
@@ -86,7 +120,7 @@ describe("AuditIntegrationEventHandler", () => {
   it("rejects a malformed current fact and accepts the current session contract", async () => {
     const record = vi.fn(),
       handler = new AuditIntegrationEventHandler(
-        { record },
+        { record, removeAccountReferences: vi.fn() },
         { getRetentionDays: async () => 365 },
       );
     const event = {
@@ -108,7 +142,9 @@ describe("AuditIntegrationEventHandler", () => {
       append,
     } as unknown as AuditRepository;
     const handler = new AuditIntegrationEventHandler(
-      new AuditApplication(repository),
+      new AuditApplication(repository, {
+        reference: (id) => `pseudonym-${id}`,
+      }),
       { getRetentionDays: async () => 365 },
     );
 

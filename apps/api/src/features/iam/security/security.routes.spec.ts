@@ -1,4 +1,7 @@
-import type { AuditApplication } from "@architecture/audit/application";
+import type {
+  AuditApplication,
+  AuditQueriesApplication,
+} from "@architecture/audit/application";
 import fastifyCookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,6 +26,7 @@ async function server(
   authenticated = true,
   role: "user" | "admin" = "user",
   audit: Partial<AuditApplication> = {},
+  queries: Partial<AuditQueriesApplication> = {},
 ) {
   const app = Fastify();
   instances.push(app);
@@ -43,14 +47,71 @@ async function server(
       iam as IamApplication,
       { name: "sid", options: { httpOnly: true, path: "/", sameSite: "lax" } },
       audit as AuditApplication,
-      {} as never,
-      { record: async () => undefined },
+      {
+        listOwn: { execute: async () => Result.success([]) },
+        listAdministrative: { execute: async () => Result.success([]) },
+        ...queries,
+      },
     ),
   );
   await app.ready();
   return app;
 }
 describe("security HTTP application boundary", () => {
+  it("returns only the personal Audit projection and binds the authenticated actor", async () => {
+    const execute = vi
+      .fn<AuditQueriesApplication["listOwn"]["execute"]>()
+      .mockResolvedValue(
+        Result.success([
+          {
+            id: "event",
+            type: "iam.sessions-revoked",
+            occurredAt: new Date("2026-01-01T00:00:00Z"),
+            result: "success",
+            actorType: "administrator",
+          },
+        ]),
+      );
+    const app = await server({}, true, "user", {}, { listOwn: { execute } });
+    const response = await app.inject({
+      url: "/me/security-events?page=2&pageSize=5&actorUserId=someone-else",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(execute).toHaveBeenCalledExactlyOnceWith({
+      actorUserId: "authoritative-actor",
+      page: 2,
+      pageSize: 5,
+    });
+    expect(response.json()).toEqual({
+      data: [
+        {
+          id: "event",
+          type: "iam.sessions-revoked",
+          occurred_at: "2026-01-01T00:00:00.000Z",
+          result: "success",
+          actor_type: "administrator",
+        },
+      ],
+    });
+  });
+
+  it.each([
+    ["audit_consultation.unauthorized", 403],
+    ["audit_consultation.disabled", 403],
+    ["audit_consultation.invalid_page", 400],
+  ] as const)(
+    "maps the application Audit refusal %s without exposing records",
+    async (code, status) => {
+      const execute = vi
+        .fn<AuditQueriesApplication["listOwn"]["execute"]>()
+        .mockResolvedValue(Result.failure({ code }));
+      const app = await server({}, true, "user", {}, { listOwn: { execute } });
+      const response = await app.inject({ url: "/me/security-events" });
+      expect(response.statusCode).toBe(status);
+      expect(response.json()).toEqual({ error: { code } });
+    },
+  );
+
   // Compatibility expectations are independent of the production HTTP tables.
   const expectedFailures = [
     {

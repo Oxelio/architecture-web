@@ -61,6 +61,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "uuid": "^14.0.1",
     "@architecture/foundation": "workspace:*",
     "@architecture/messaging": "workspace:*"
   },

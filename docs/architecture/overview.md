@@ -15,7 +15,7 @@ packages/
   tooling/{eslint-config,delivery-automation}/
 ```
 
-Package manifests and public exports define boundaries; directory grouping does not grant access to another context's internals. Domain/application packages expose separate public subpaths and keep their layers under `src/`. The physical grouping diverges from the accepted flat topology recorded in ADR-0007. No accepted successor is recorded; this current-state description does not change that decision.
+Package manifests and public exports define boundaries; directory grouping does not grant access to another context's internals. Domain/application packages expose separate public subpaths and keep their layers under `src/`. [ADR-0009](decisions/0009-grouped-workspace-topology.md) accepts this grouping and supersedes the earlier flat-topology decision.
 
 The API composition root explicitly instantiates adapters, initializes configuration, and calls the single `createIam` application factory. No dependency-injection framework or service locator is involved. HTTP controllers call application contracts and map results to transport responses.
 
@@ -73,11 +73,11 @@ consistency limits.
 
 ## Verification limits
 
-ESLint enforces targeted IAM domain/application and API transport boundaries. TypeScript, package exports, tests and review cover the remaining contracts. Restrictions are deliberately narrower than the complete normative matrix.
+ESLint applies the TypeScript baseline and targeted domain/application rules to all four contexts and the reviewed adapters; API transport cannot import context domain models or concrete adapters. TypeScript, package exports, tests and review cover the remaining contracts. Restrictions are deliberately narrower than the complete normative matrix.
 
 Unit and HTTP suites cover policies, expected failures, dependency failures and controller ownership. An opt-in PostgreSQL/Redis suite covers important transaction races; its presence does not establish successful execution in an environment where Docker is unavailable. See [Testing](../development/testing.md).
 
-Remote compromise checking, password history, exhaustive notification scenarios and deployment scheduling are not implemented by this refactoring.
+Remote compromise checking, password history and exhaustive product notification scenarios remain outside this correction. Audit retention runs hourly while the API is running. [Cross-context compliance](cross-context-compliance.md) describes delivery authorization, minimal Audit projections, deferred acceptance, deletion privacy and the accepted loss policy.
 
 ## Source delivery
 

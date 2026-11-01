@@ -1,10 +1,13 @@
 export {
   type CreateNotificationProperties,
+  type NotificationAction,
   NotificationEntity,
 } from "./entities/notification.entity.js";
 export {
+  type NotificationDeliveryAudience,
   NotificationDeliveryEntity,
   type NotificationDeliveryStatus,
+  type NotificationSuppressionReason,
 } from "./entities/notification-delivery.entity.js";
 export {
   NotificationPreferenceEntity,

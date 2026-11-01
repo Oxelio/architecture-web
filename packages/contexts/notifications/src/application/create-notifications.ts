@@ -70,6 +70,7 @@ export function createNotifications(
     deliverPending: new DeliverPendingNotificationsUseCase(
       dependencies.notificationRepository,
       deliveries,
+      dependencies.recipientDirectory,
     ),
   };
 }

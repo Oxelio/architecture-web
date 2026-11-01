@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  AcceptAuditEntryUseCase,
+  AuditAcceptanceEventHandler,
   AuditApplication,
   AuditIntegrationEventHandler,
 } from "@architecture/audit/application";
@@ -17,6 +19,7 @@ import {
   KyselyOutboxWriterAdapter,
 } from "@architecture/messaging-persistence-kysely";
 import {
+  DeliverPendingNotificationsUseCase,
   MarkNotificationReadUseCase,
   NotificationEventHandlerUseCase,
 } from "@architecture/notifications/application";
@@ -45,6 +48,7 @@ import {
   vi,
 } from "vitest";
 
+import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
 import { getAllMigrations } from "#app/scripts/migrations.provider";
 import type { AppDatabase } from "#composition-root/database.module";
 
@@ -109,6 +113,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       await db.deleteFrom("notification_preferences").execute();
       await db.deleteFrom("messaging_outbox").execute();
       await db.deleteFrom("audit_events").execute();
+      await db.deleteFrom("audit_deleted_subjects").execute();
       await db.deleteFrom("iam_users").execute();
     });
 
@@ -124,6 +129,202 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         context: { actorType: "user", actorId: userId, subjectId: userId },
       };
     }
+
+    it("minimizes only the deleted account and prevents concurrent or delayed facts from restoring its references", async () => {
+      const repository = new KyselyAuditRepositoryAdapter(db as never);
+      const pseudonymizer = new Sha256AuditPseudonymizerAdapter();
+      const audit = new AuditApplication(repository, pseudonymizer);
+      const actorId = randomUUID(),
+        subjectId = randomUUID(),
+        firstId = randomUUID();
+      const input = {
+        type: "iam.user-role-changed",
+        result: "success" as const,
+        context: { actorType: "administrator" as const, actorId, subjectId },
+        metadata: {
+          actorId,
+          userId: subjectId,
+          role: "user",
+          nested: { reason: `changed by ${actorId}` },
+        },
+        retentionDays: 365,
+      };
+      await audit.record({ ...input, id: firstId });
+      const reference = pseudonymizer.reference(actorId);
+      const deletion = {
+        eventId: randomUUID(),
+        topic: "account.deletion.executed",
+        version: 1,
+        aggregateId: reference,
+        occurredAt: new Date(),
+        payload: { pseudonymousSubject: reference },
+        context: { actorType: "system" },
+      };
+      const handler = new AuditIntegrationEventHandler(audit, {
+        getRetentionDays: async () => 365,
+      });
+      await Promise.all([
+        handler.handle(deletion),
+        audit.record({ ...input, id: randomUUID() }),
+      ]);
+      await audit.record({ ...input, id: randomUUID() });
+      await handler.handle(deletion);
+      const rows = await db
+        .selectFrom("audit_events")
+        .selectAll()
+        .where("type", "=", input.type)
+        .execute();
+      expect(rows).toHaveLength(3);
+      for (const row of rows) {
+        expect(row.actor_id).toBeNull();
+        expect(row.subject_id).toBe(subjectId);
+        expect(JSON.stringify(row.metadata)).not.toContain(actorId);
+        expect(row.metadata).toMatchObject({
+          actorId: reference,
+          userId: subjectId,
+          role: "user",
+          nested: { reason: `changed by ${reference}` },
+        });
+      }
+      expect(
+        await db.selectFrom("audit_deleted_subjects").selectAll().execute(),
+      ).toHaveLength(1);
+    });
+
+    it("recovers accepted Audit events after storage failure and does not duplicate them", async () => {
+      const repository = new KyselyAuditRepositoryAdapter(db as never),
+        audit = new AuditApplication(
+          repository,
+          new Sha256AuditPseudonymizerAdapter(),
+        );
+      const acceptance = new AcceptAuditEntryUseCase(
+        writer,
+        new Sha256AuditPseudonymizerAdapter(),
+      );
+      const eventId = randomUUID(),
+        userId = randomUUID();
+      await acceptance.record({
+        id: eventId,
+        type: "authentication.signin",
+        result: "success",
+        context: { actorType: "user", actorId: userId, subjectId: userId },
+        retentionDays: 365,
+      });
+      const handler = new AuditAcceptanceEventHandler(audit);
+      const append = vi
+        .spyOn(repository, "append")
+        .mockRejectedValueOnce(new Error("Audit storage unavailable"));
+      const worker = new OutboxWorker(
+        outbox,
+        new IntegrationEventRouter([handler]),
+        { error: vi.fn() },
+      );
+      await worker.drain();
+      expect(
+        await db.selectFrom("audit_events").selectAll().execute(),
+      ).toHaveLength(0);
+      await db
+        .updateTable("messaging_outbox")
+        .set({ available_at: new Date(0) })
+        .execute();
+      await worker.drain();
+      expect(
+        await db.selectFrom("audit_events").selectAll().execute(),
+      ).toHaveLength(1);
+      expect(append).toHaveBeenCalledTimes(2);
+      const accepted = await db
+        .selectFrom("messaging_outbox")
+        .selectAll()
+        .executeTakeFirstOrThrow();
+      expect(accepted.status).toBe("published");
+      await acceptance.record({
+        id: eventId,
+        type: "authentication.signin",
+        result: "success",
+        context: { actorType: "user", actorId: userId },
+        retentionDays: 365,
+      });
+      expect(
+        await db.selectFrom("messaging_outbox").selectAll().execute(),
+      ).toHaveLength(1);
+    });
+
+    it("purges expired evidence while retaining legal holds and rejects resurrection by an expired fact", async () => {
+      const audit = new AuditApplication(
+        new KyselyAuditRepositoryAdapter(db as never),
+        new Sha256AuditPseudonymizerAdapter(),
+      );
+      const expiredId = randomUUID(),
+        heldId = randomUUID();
+      for (const id of [expiredId, heldId]) {
+        await audit.record({
+          id,
+          type: "test.retention",
+          result: "success",
+          context: { actorType: "system" },
+          retentionDays: 1,
+        });
+      }
+      await db
+        .updateTable("audit_events")
+        .set({ expires_at: new Date(0) })
+        .execute();
+      await db
+        .updateTable("audit_events")
+        .set({ legal_hold: true })
+        .where("id", "=", heldId)
+        .execute();
+      expect(await audit.purge()).toBe(1);
+      expect(
+        (await db.selectFrom("audit_events").select("id").execute()).map(
+          (row) => row.id,
+        ),
+      ).toEqual([heldId]);
+      await audit.record({
+        id: expiredId,
+        type: "test.retention",
+        result: "success",
+        context: { actorType: "system" },
+        retentionDays: 1,
+        occurredAt: new Date(0),
+      });
+      expect(
+        await db.selectFrom("audit_events").selectAll().execute(),
+      ).toHaveLength(1);
+    });
+
+    it("keeps SQL retry delays aligned with the core policy for every attempt", async () => {
+      const fact = event();
+      await writer.append([fact]);
+      for (let attempt = 1; attempt <= 10; attempt++) {
+        await db
+          .updateTable("messaging_outbox")
+          .set({ available_at: new Date(0) })
+          .execute();
+        const claim = await outbox.claim();
+        if (!claim) {
+          throw new Error("Missing retry claim");
+        }
+        const before = await sql<{
+          now: Date;
+        }>`select clock_timestamp() as now`.execute(db);
+        const now = before.rows[0]?.now;
+        if (!now) {
+          throw new Error("Missing database clock");
+        }
+        claim.message.markFailed(new Error("test failure"), now);
+        const expected = claim.message.availableAt.getTime();
+        expect(await outbox.finalize(claim)).toBe(true);
+        const row = await db
+          .selectFrom("messaging_outbox")
+          .selectAll()
+          .executeTakeFirstOrThrow();
+        expect(Math.abs(row.available_at.getTime() - expected)).toBeLessThan(
+          1000,
+        );
+        expect(row.status).toBe(attempt === 10 ? "dead_letter" : "failed");
+      }
+    });
     async function createIamRecipient(userId: string, role = "user") {
       const now = new Date();
       await db
@@ -165,6 +366,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       deliveries: readonly {
         channel: NotificationChannelType;
         destination: string;
+        audience?: "affected_user";
       }[],
       recipientId = fact.aggregateId,
     ) {
@@ -179,9 +381,92 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         severity: severity.value,
         title: "Test",
         message: "Test",
-        deliveries,
+        deliveries: deliveries.map((delivery) => ({
+          ...delivery,
+          audience: "affected_user" as const,
+        })),
       });
     }
+
+    it.each(["user", "suspended"])(
+      "suppresses an accepted alert after administrator eligibility changes to %s",
+      async (change) => {
+        const fact = { ...event(), topic: "iam.user-role-changed" };
+        await createIamRecipient(fact.aggregateId, "admin");
+        const handler = recipientHandler();
+        await handler.handle(fact);
+        await db
+          .updateTable("notifications")
+          .set({ read_at: new Date() })
+          .execute();
+        const before = await db
+          .selectFrom("notifications")
+          .selectAll()
+          .execute();
+        await db
+          .updateTable("iam_users")
+          .set(change === "user" ? { role: "user" } : { status: "suspended" })
+          .where("id", "=", fact.aggregateId)
+          .execute();
+        const email = vi.fn(),
+          slack = vi.fn();
+        await new DeliverPendingNotificationsUseCase(
+          notifications,
+          [
+            { channel: "email", send: email },
+            { channel: "slack", send: slack },
+          ],
+          new KyselyIamNotificationRecipientDirectoryAdapter(db as never),
+        ).execute();
+        expect(email).toHaveBeenCalledOnce();
+        expect(slack).not.toHaveBeenCalled();
+        const rows = await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .execute();
+        expect(rows.find((row) => row.channel === "slack")).toMatchObject({
+          status: "suppressed",
+          audience: "administrator",
+          suppression_reason: "administrator_not_authorized",
+          attempts: 1,
+        });
+        expect(
+          await db.selectFrom("notifications").selectAll().execute(),
+        ).toEqual(before);
+        await handler.handle(fact);
+        expect(await notifications.claimDelivery()).toBeNull();
+        expect(
+          await db.selectFrom("notification_deliveries").selectAll().execute(),
+        ).toEqual(rows);
+      },
+    );
+
+    it("fences suppression by an expired delivery owner", async () => {
+      const fact = event();
+      await notifications.createForEvent(fact.eventId, [
+        snapshot(fact, [
+          { channel: "email", destination: "user@example.test" },
+        ]),
+      ]);
+      const claim = await notifications.claimDelivery();
+      if (!claim) {
+        throw new Error("Missing claim");
+      }
+      await db
+        .updateTable("notification_deliveries")
+        .set({ claimed_at: new Date(0) })
+        .execute();
+      claim.delivery.suppress("administrator_not_authorized");
+      expect(await notifications.finalizeDelivery(claim)).toBe(false);
+      expect(
+        (
+          await db
+            .selectFrom("notification_deliveries")
+            .selectAll()
+            .executeTakeFirstOrThrow()
+        ).status,
+      ).toBe("processing");
+    });
 
     it("does not schedule another email when a consumed fact is replayed after a verified address change", async () => {
       const fact = event();
@@ -367,7 +652,11 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       const fact = event();
       const otherRecipient = randomUUID();
       const first = snapshot(fact, [
-        { channel: "email", destination: "user@example.test" },
+        {
+          channel: "email",
+          destination: "user@example.test",
+          audience: "affected_user",
+        },
       ]);
       const invalid = snapshot(
         fact,
@@ -444,7 +733,10 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         const fact = event();
         await createIamRecipient(fact.aggregateId);
         const audit = new AuditIntegrationEventHandler(
-          new AuditApplication(new KyselyAuditRepositoryAdapter(db as never)),
+          new AuditApplication(
+            new KyselyAuditRepositoryAdapter(db as never),
+            new Sha256AuditPseudonymizerAdapter(),
+          ),
           { getRetentionDays: async () => 365 },
         );
         if (failure === "downstream failure") {
@@ -638,8 +930,16 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           title: "Test",
           message: "Test",
           deliveries: [
-            { channel: "email", destination: "user@example.test" },
-            { channel: "sms", destination: "test-destination" },
+            {
+              channel: "email",
+              destination: "user@example.test",
+              audience: "affected_user",
+            },
+            {
+              channel: "sms",
+              destination: "test-destination",
+              audience: "affected_user",
+            },
           ],
         });
       await Promise.all([
@@ -1057,7 +1357,10 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         throw new Error("Invalid fixture");
       }
       const audit = new AuditIntegrationEventHandler(
-        new AuditApplication(new KyselyAuditRepositoryAdapter(db as never)),
+        new AuditApplication(
+          new KyselyAuditRepositoryAdapter(db as never),
+          new Sha256AuditPseudonymizerAdapter(),
+        ),
         { getRetentionDays: async () => 365 },
       );
       const handler = new NotificationEventHandlerUseCase(
@@ -1075,6 +1378,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
               phoneNumber: null,
             }),
           listAdministratorIds: async () => [],
+          isActiveAdministrator: async () => false,
         },
         [],
       );

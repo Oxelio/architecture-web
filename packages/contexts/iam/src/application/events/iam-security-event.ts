@@ -25,6 +25,12 @@ type AccountFact =
 export type IamSecurityEventInput = (
   | AccountFact
   | {
+      readonly type: "iam.sessions-revoked";
+      readonly userId: string;
+      readonly scope: "one" | "all";
+      readonly actorId: string;
+    }
+  | {
       readonly type: "account.deletion.executed";
       readonly pseudonymousSubject: string;
     }
@@ -48,6 +54,18 @@ export function createIamSecurityEvent(
     version: 1,
     occurredAt: input.occurredAt,
   };
+  if (input.type === "iam.sessions-revoked") {
+    return {
+      ...envelope,
+      aggregateId: input.userId,
+      payload: { userId: input.userId, scope: input.scope },
+      context: {
+        actorType: input.actorId === input.userId ? "user" : "administrator",
+        actorId: input.actorId,
+        subjectId: input.userId,
+      },
+    };
+  }
   if (input.type === "account.deletion.executed") {
     return {
       ...envelope,

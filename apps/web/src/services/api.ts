@@ -131,7 +131,7 @@ export interface NotificationItem {
   severity: "information" | "warning" | "critical";
   title: string;
   message: string;
-  actionUrl: string | null;
+  action: "view_account" | null;
   createdAt: string;
   readAt: string | null;
 }

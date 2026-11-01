@@ -1,4 +1,7 @@
-import type { AuditApplication } from "@architecture/audit/application";
+import type {
+  AuditApplication,
+  AuditRecorder,
+} from "@architecture/audit/application";
 import {
   type ConfigurationStore,
   createIam,
@@ -27,7 +30,10 @@ import {
   RedisSessionAdapter,
 } from "@architecture/iam-session-redis";
 import type { OutboxWriter } from "@architecture/messaging/application";
-import { KyselyOutboxWriterAdapter } from "@architecture/messaging-persistence-kysely";
+import {
+  KyselyOutboxWriterAdapter,
+  type MessagingDatabase,
+} from "@architecture/messaging-persistence-kysely";
 import type { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 
@@ -36,6 +42,7 @@ import { AuditSecurityEventsAdapter } from "#adapters/iam/audit-security-events.
 import { NodeAccountArchiveAdapter } from "#adapters/iam/node-account-archive.adapter";
 import { NodeMfaCryptographyAdapter } from "#adapters/iam/node-mfa-cryptography.adapter";
 import { NodeSecurityTokensAdapter } from "#adapters/iam/node-security-tokens.adapter";
+import { RedisRecoveryOriginLimiterAdapter } from "#adapters/iam/redis-recovery-origin-limiter.adapter";
 import {
   HeuristicPasswordStrengthEvaluator,
   LocalCommonPasswordChecker,
@@ -49,6 +56,7 @@ export async function buildIamModule(
   email: NodemailerEmailSenderAdapter,
   outbox: OutboxWriter,
   audit: AuditApplication,
+  acceptance: AuditRecorder,
   options: {
     encryptionKey: string;
     recoveryUrl: string;
@@ -59,16 +67,27 @@ export async function buildIamModule(
   configuration: ConfigurationStore;
   securityEvents: SecurityEventRecorder;
 }> {
-  const db = database as unknown as Kysely<IamDatabase>;
+  const db = database.$pickTables<keyof IamDatabase>();
   const createOutbox = (transaction: Kysely<IamDatabase>) =>
-    new KyselyOutboxWriterAdapter(transaction as never);
+    new KyselyOutboxWriterAdapter(
+      transaction
+        .$extendTables<{
+          messaging_outbox: MessagingDatabase["messaging_outbox"];
+        }>()
+        .$pickTables<keyof MessagingDatabase>(),
+    );
   const configuration = new KyselySecurityConfigurationAdapter(
     db,
     createOutbox,
   );
   await configuration.initialize();
   const policies = new PublishedIamPolicies(configuration),
-    events = new AuditSecurityEventsAdapter(audit, configuration);
+    events = new AuditSecurityEventsAdapter(
+      audit,
+      configuration,
+      acceptance,
+      new RedisRecoveryOriginLimiterAdapter(redis),
+    );
   const users = new KyselyUserAdapter(db, outbox),
     identities = new KyselyLoginIdentityAdapter(db, outbox),
     passwords = new KyselyPasswordAuthenticatorAdapter(db, outbox),

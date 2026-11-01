@@ -32,7 +32,13 @@ describe("NodemailerNotificationDeliveryAdapter", () => {
       severity: severity.value,
       title: "Security alert",
       message: "A <new> session was opened.",
-      deliveries: [{ channel: "email", destination: "user@example.test" }],
+      deliveries: [
+        {
+          channel: "email",
+          destination: "user@example.test",
+          audience: "affected_user",
+        },
+      ],
     });
     const [delivery] = notification.deliveries;
     if (!delivery) {

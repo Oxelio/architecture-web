@@ -33,6 +33,7 @@ function fixture(topic = "security.suspicious-activity-detected") {
       .mockResolvedValue(undefined),
   };
   const directory = {
+    isActiveAdministrator: vi.fn().mockResolvedValue(true),
     listAdministratorIds: vi
       .fn()
       .mockResolvedValue(["user-1", "admin-1", "admin-1"]),
@@ -82,6 +83,10 @@ describe("NotificationEventHandlerUseCase", () => {
       notifications?.[1]?.deliveries.map((delivery) => delivery.channel.value),
     ).toEqual(["slack"]);
     expect(notifications?.[0]?.deliveries[2]?.destination).toBe("security");
+    expect(
+      notifications?.[0]?.deliveries.map((delivery) => delivery.audience),
+    ).toEqual(["affected_user", "affected_user", "administrator"]);
+    expect(notifications?.[1]?.deliveries[0]?.audience).toBe("administrator");
   });
 
   it("does not consult mutable recipient state for an already-consumed supported fact", async () => {
@@ -220,6 +225,7 @@ describe("NotificationEventHandlerUseCase", () => {
         throw new Error("Test fixture is invalid");
       }
       const directory = {
+        isActiveAdministrator: vi.fn().mockResolvedValue(true),
         findUser: vi.fn().mockResolvedValue(
           NotificationRecipientEntity.create({
             identifier: identifier.value,

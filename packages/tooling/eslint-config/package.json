@@ -27,6 +27,8 @@
     "./react-vite": "./react-vite.mjs",
     "./architecture": "./architecture.mjs",
     "./iam": "./iam.mjs",
+    "./context": "./context.mjs",
+    "./adapter": "./adapter.mjs",
     "./api-boundaries": "./api-boundaries.mjs",
     "./full": "./full.mjs"
   },

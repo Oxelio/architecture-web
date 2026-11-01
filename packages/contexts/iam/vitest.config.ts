@@ -7,6 +7,9 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "#events": fileURLToPath(
+        new URL("./src/application/events", import.meta.url),
+      ),
       "#application-result": fileURLToPath(
         new URL("./src/application/application-result.ts", import.meta.url),
       ),

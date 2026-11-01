@@ -17,7 +17,11 @@ export function registerHttpAudit(
     try {
       await events.record(
         type,
-        reply.statusCode < 400 ? "success" : "denied",
+        reply.statusCode >= 500
+          ? "technical_failure"
+          : reply.statusCode < 400
+            ? "success"
+            : "denied",
         {
           actorType: auditActorType(request.auth),
           ...(request.auth ? { actorId: request.auth.userId } : {}),

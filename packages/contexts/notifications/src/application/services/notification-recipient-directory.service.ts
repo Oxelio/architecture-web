@@ -5,4 +5,5 @@ export abstract class NotificationRecipientDirectory {
     userId: string,
   ): Promise<NotificationRecipientEntity | null>;
   abstract listAdministratorIds(): Promise<string[]>;
+  abstract isActiveAdministrator(userId: string): Promise<boolean>;
 }

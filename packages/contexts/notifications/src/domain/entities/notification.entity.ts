@@ -1,6 +1,9 @@
 import { AggregateRoot } from "@architecture/foundation";
 
-import { NotificationDeliveryEntity } from "#domain/entities/notification-delivery.entity";
+import {
+  type NotificationDeliveryAudience,
+  NotificationDeliveryEntity,
+} from "#domain/entities/notification-delivery.entity";
 import {
   type NotificationChannelType,
   NotificationChannelValueObject,
@@ -11,6 +14,8 @@ import {
 } from "#domain/value-objects/notification-identifier.value-object";
 import type { NotificationSeverityValueObject } from "#domain/value-objects/notification-severity.value-object";
 
+export type NotificationAction = "view_account";
+
 export interface RehydratedNotificationProperties {
   readonly identifier: NotificationIdentifierValueObject;
   readonly recipientId: string;
@@ -19,7 +24,7 @@ export interface RehydratedNotificationProperties {
   readonly severity: NotificationSeverityValueObject;
   readonly title: string;
   readonly message: string;
-  readonly actionUrl: string | null;
+  readonly action: NotificationAction | null;
   readonly createdAt: Date;
   readAt: Date | null;
   archivedAt: Date | null;
@@ -33,10 +38,11 @@ export interface CreateNotificationProperties {
   readonly severity: NotificationSeverityValueObject;
   readonly title: string;
   readonly message: string;
-  readonly actionUrl?: string;
+  readonly action?: NotificationAction;
   readonly deliveries: readonly {
     readonly channel: NotificationChannelType;
     readonly destination: string;
+    readonly audience: NotificationDeliveryAudience;
   }[];
 }
 
@@ -57,6 +63,7 @@ export class NotificationEntity extends AggregateRoot<RehydratedNotificationProp
           identifier: NotificationDeliveryIdentifierValueObject.generate(),
           channel: channel.value,
           destination: delivery.destination,
+          audience: delivery.audience,
         },
         now,
       );
@@ -69,7 +76,7 @@ export class NotificationEntity extends AggregateRoot<RehydratedNotificationProp
       severity: properties.severity,
       title: properties.title,
       message: properties.message,
-      actionUrl: properties.actionUrl ?? null,
+      action: properties.action ?? null,
       createdAt: now,
       readAt: null,
       archivedAt: null,
@@ -121,8 +128,8 @@ export class NotificationEntity extends AggregateRoot<RehydratedNotificationProp
     return this.properties.message;
   }
 
-  get actionUrl(): string | null {
-    return this.properties.actionUrl;
+  get action(): NotificationAction | null {
+    return this.properties.action;
   }
 
   get createdAt(): Date {

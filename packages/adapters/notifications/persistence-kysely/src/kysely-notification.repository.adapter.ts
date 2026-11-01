@@ -64,11 +64,11 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
             severity: notification.severity.value,
             title: notification.title,
             message: notification.message,
-            action_url: notification.actionUrl,
+            action: notification.action,
             created_at: notification.createdAt,
             read_at: notification.readAt,
             archived_at: notification.archivedAt,
-          } as never)
+          })
           .execute();
         for (const delivery of notification.deliveries) {
           await transaction
@@ -78,6 +78,8 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
               notification_id: notification.identifier.value,
               channel: delivery.channel.value,
               destination: delivery.destination,
+              audience: delivery.audience,
+              suppression_reason: delivery.suppressionReason,
               status: delivery.status,
               attempts: delivery.attempts,
               available_at: delivery.availableAt,
@@ -85,7 +87,7 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
               claim_token: null,
               sent_at: delivery.sentAt,
               last_error: delivery.lastError,
-            } as never)
+            })
             .execute();
         }
       }
@@ -123,13 +125,16 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
     delivery,
     claimToken,
   }: ClaimedNotificationDelivery): Promise<boolean> {
-    if (!["sent", "failed", "dead_letter"].includes(delivery.status)) {
+    if (
+      !["sent", "failed", "dead_letter", "suppressed"].includes(delivery.status)
+    ) {
       throw new Error("Only a completed delivery attempt can be finalized");
     }
     const result = await this.db
       .updateTable("notification_deliveries")
       .set({
         status: delivery.status,
+        suppression_reason: delivery.suppressionReason,
         attempts: delivery.attempts,
         available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(${delivery.attempts}, 10))) * interval '1 second'`,
         claimed_at: null,
@@ -225,13 +230,15 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
           "notifications.severity",
           "notifications.title",
           "notifications.message",
-          "notifications.action_url",
+          "notifications.action",
           "notifications.created_at",
           "notifications.read_at",
           "notifications.archived_at",
           "notification_deliveries.id as delivery_id",
           "notification_deliveries.channel",
           "notification_deliveries.destination",
+          "notification_deliveries.audience",
+          "notification_deliveries.suppression_reason",
           "notification_deliveries.status",
           "notification_deliveries.attempts",
           "notification_deliveries.available_at",

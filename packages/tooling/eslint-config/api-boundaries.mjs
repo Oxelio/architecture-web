@@ -14,7 +14,7 @@ export default [
           patterns: [
             {
               group: [
-                "@architecture/iam/domain",
+                "@architecture/*/domain",
                 "@architecture/*/src/**",
                 "@architecture/*-kysely",
                 "@architecture/*-redis",

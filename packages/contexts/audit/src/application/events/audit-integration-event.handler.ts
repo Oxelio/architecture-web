@@ -1,9 +1,10 @@
 import type { IntegrationEventHandler } from "@architecture/messaging/application";
 import type { IntegrationEvent } from "@architecture/messaging/domain";
 
-import type { AuditRecorder } from "../audit.contracts.js";
+import type { AuditEventConsumer } from "../audit.contracts.js";
 
 export const IAM_AUDITED_TOPICS = [
+  "iam.sessions-revoked",
   "iam.user-registered",
   "iam.user-email-changed",
   "iam.user-password-changed",
@@ -29,7 +30,7 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
   readonly topics = IAM_AUDITED_TOPICS;
 
   constructor(
-    private readonly audit: AuditRecorder,
+    private readonly audit: AuditEventConsumer,
     private readonly retention: { getRetentionDays(): Promise<number> },
   ) {}
 
@@ -42,6 +43,28 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
       throw new Error("Unsupported audit event version");
     }
     validateAuditPayload(event);
+    const subjectId =
+      event.topic === "account.deletion.executed"
+        ? undefined
+        : event.topic === "security.config.published"
+          ? event.context["subjectId"]
+          : event.payload["userId"];
+    const actorId = event.context["actorId"] ?? event.payload["actorId"];
+    if (
+      (typeof event.context["subjectId"] === "string" &&
+        typeof subjectId === "string" &&
+        event.context["subjectId"] !== subjectId) ||
+      (typeof event.context["actorId"] === "string" &&
+        typeof event.payload["actorId"] === "string" &&
+        event.context["actorId"] !== event.payload["actorId"])
+    ) {
+      throw new Error("Inconsistent Audit event references");
+    }
+    if (event.topic === "account.deletion.executed") {
+      await this.audit.removeAccountReferences(
+        String(event.payload["pseudonymousSubject"]),
+      );
+    }
     const actorType = auditActorType(event.context["actorType"]);
     return this.audit.record({
       id: event.eventId,
@@ -50,12 +73,8 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
       result: "success",
       context: {
         actorType,
-        ...(typeof event.context["actorId"] === "string"
-          ? { actorId: event.context["actorId"] }
-          : {}),
-        ...(typeof event.context["subjectId"] === "string"
-          ? { subjectId: event.context["subjectId"] }
-          : {}),
+        ...(typeof actorId === "string" ? { actorId } : {}),
+        ...(typeof subjectId === "string" ? { subjectId } : {}),
       },
       metadata: event.payload,
       retentionDays: await this.retention.getRetentionDays(),

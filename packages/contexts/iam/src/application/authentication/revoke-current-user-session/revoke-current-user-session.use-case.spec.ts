@@ -16,6 +16,7 @@ describe("RevokeCurrentUserSessionUseCase", () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
     const deleteSession = vi.fn();
+    const append = vi.fn();
     const sessions = {
       findById: async () => session,
       delete: deleteSession,
@@ -24,6 +25,7 @@ describe("RevokeCurrentUserSessionUseCase", () => {
     const result = await new RevokeCurrentUserSessionUseCase(
       sessions,
       new TestPolicies(),
+      { append },
     ).execute({
       actorUserId: actorId.value,
       sessionId: session.identifier.value,
@@ -31,6 +33,16 @@ describe("RevokeCurrentUserSessionUseCase", () => {
 
     expect(result.success).toBe(true);
     expect(deleteSession).toHaveBeenCalledWith(session.identifier);
+    expect(append).toHaveBeenCalledWith([
+      expect.objectContaining({
+        topic: "iam.sessions-revoked",
+        version: 1,
+        payload: { userId: actorId.value, scope: "one" },
+      }),
+    ]);
+    expect(JSON.stringify(append.mock.calls)).not.toContain(
+      session.identifier.value,
+    );
   });
 
   it("hides a session owned by another user", async () => {
@@ -47,6 +59,7 @@ describe("RevokeCurrentUserSessionUseCase", () => {
     const result = await new RevokeCurrentUserSessionUseCase(
       sessions,
       new TestPolicies(),
+      { append: vi.fn() },
     ).execute({
       actorUserId: UserIdentifierValueObject.generate().value,
       sessionId: session.identifier.value,

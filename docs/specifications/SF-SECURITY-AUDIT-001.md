@@ -40,6 +40,20 @@ The trail supports investigation and user information. It must not become an
 authorization mechanism or block a business operation during temporary
 unavailability unless an explicit policy says otherwise.
 
+### Durable acceptance and explicit loss policy
+
+Direct collection first attempts durable acceptance into the existing outbox;
+Audit persistence and replay happen independently afterward. Stable identifiers
+prevent duplicate records. If even durable acceptance or its preparation fails
+after a business effect, preserve the successful business response and emit an
+explicit operational event-loss report. Do not claim that the action was audited.
+The maintainer selected this loss policy on 2026-11-01. PostgreSQL business state
+and its transactional facts still roll back together on append failure. Redis
+session effects have no distributed transaction; failed fact acceptance after
+a successful session save or revocation is reported without undoing success.
+Recovery abuse limits use independent atomic Redis attempt accounting, rather
+than waiting for the asynchronous Audit projection.
+
 ## Events in scope
 
 The first version records at least:
@@ -93,8 +107,12 @@ unavailability avoids visible duplicates and documents any remaining loss risk.
 
 ## Querying and authorization
 
-An authenticated user may view useful security events concerning their own
-account, without internal metadata or more administrator identity than needed.
+An authenticated active user may view security events concerning their own
+account. The personal projection contains only event identifier, type, occurrence
+time, outcome and actor category. It excludes internal metadata, client details,
+correlation references and other actors' identifiers. Account-export Audit data
+uses the same minimized projection. Current permission and consultation policy
+are checked in the application, including for administrative queries.
 
 An administrator may query events within their permissions and filter by:
 
@@ -104,7 +122,8 @@ An administrator may query events within their permissions and filter by:
 - correlation identifier.
 
 A non-administrator can neither query another account’s events nor infer their
-existence. Viewing the audit trail is itself audited.
+existence. Viewing the audit trail is itself audited, for both personal and administrative
+queries. Administrative query traces need not copy sensitive filter values.
 
 ## Personal data and secrets
 
@@ -130,6 +149,13 @@ context may require a different duration.
 At expiry, events are deleted or irreversibly aggregated. After account
 deletion, events still required for security may remain until expiry, but direct
 account references are removed or pseudonymized.
+
+IAM deletion commits its deletion fact atomically with erasure. Audit removes
+the deleted account's references asynchronously, so an Audit outage delays that
+cleanup without rolling back IAM. Cleanup preserves unrelated subjects and
+non-sensitive evidence. Its idempotent privacy marker also protects ingestion
+of delayed facts; this eventual consistency was selected by the maintainer on
+2026-11-01. Expired facts cannot recreate purged evidence.
 
 A documented legal hold may pause a relevant purge. It does not permit silently
 expanding collection.

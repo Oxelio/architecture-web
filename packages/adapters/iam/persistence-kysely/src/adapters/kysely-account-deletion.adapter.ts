@@ -173,11 +173,7 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         .execute()
     ).map(deletion);
   }
-  async eraseIfDue(
-    id: string,
-    now: Date,
-    beforeErase: (userId: string) => Promise<void>,
-  ) {
+  async eraseIfDue(id: string, now: Date) {
     return this.db.transaction().execute(async (trx) => {
       const initial = await trx
         .selectFrom("iam_account_deletions")
@@ -209,7 +205,6 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
       if (!row) {
         return null;
       }
-      await beforeErase(row.user_id);
       await trx.deleteFrom("iam_users").where("id", "=", row.user_id).execute();
       const pseudonym = createHash("sha256").update(row.user_id).digest("hex");
       await this.outbox(trx).append([

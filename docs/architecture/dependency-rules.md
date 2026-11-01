@@ -37,22 +37,22 @@ own `src/` directories.
 
 ## Matrix
 
-| From                                         | May import                                     | Must not import                             |
-| -------------------------------------------- | ---------------------------------------------- | ------------------------------------------- |
-| Foundation                                   | required generic libraries                     | IAM, apps, infrastructure                   |
-| IAM domain                                   | Foundation, IAM domain                         | application, infrastructure, Fastify, React |
-| IAM application                              | IAM domain, Foundation, Messaging, local ports | adapters, database, cache, HTTP, UI         |
-| Messaging domain                             | Foundation, Messaging model                    | application, Kysely, HTTP, UI               |
-| Messaging application                        | Messaging domain, local ports                  | Kysely, HTTP, UI                            |
-| Audit domain                                 | Audit domain                                   | application, Messaging, Kysely, HTTP, UI    |
-| Audit application                            | Audit domain, Messaging, local ports           | adapters, Kysely, HTTP, UI                  |
-| Notifications domain                         | Foundation, Notifications domain               | application, Messaging, Kysely, HTTP, UI    |
-| Notifications application                    | Notifications domain, Messaging, local ports   | adapters, Kysely, HTTP, UI                  |
-| IAM infrastructure                           | public IAM exports, targeted technology        | private core internals, apps                |
-| Messaging/Audit/Notifications infrastructure | public core exports, targeted technology       | private internals, apps                     |
-| API outside composition                      | application contracts, Fastify, API helpers    | domain internals, concrete adapters         |
-| API composition root                         | application and concrete adapters              | —                                           |
-| Web                                          | UI code and HTTP contract                      | business and infrastructure packages        |
+| From                                         | May import                                       | Must not import                             |
+| -------------------------------------------- | ------------------------------------------------ | ------------------------------------------- |
+| Foundation                                   | required generic libraries                       | IAM, apps, infrastructure                   |
+| IAM domain                                   | Foundation, IAM domain                           | application, infrastructure, Fastify, React |
+| IAM application                              | IAM domain, Foundation, Messaging, local ports   | adapters, database, cache, HTTP, UI         |
+| Messaging domain                             | Foundation, Messaging model                      | application, Kysely, HTTP, UI               |
+| Messaging application                        | Messaging domain, local ports                    | Kysely, HTTP, UI                            |
+| Audit domain                                 | Audit domain                                     | application, Messaging, Kysely, HTTP, UI    |
+| Audit application                            | Audit domain, Foundation, Messaging, local ports | adapters, Kysely, HTTP, UI                  |
+| Notifications domain                         | Foundation, Notifications domain                 | application, Messaging, Kysely, HTTP, UI    |
+| Notifications application                    | Notifications domain, Messaging, local ports     | adapters, Kysely, HTTP, UI                  |
+| IAM infrastructure                           | public IAM exports, targeted technology          | private core internals, apps                |
+| Messaging/Audit/Notifications infrastructure | public core exports, targeted technology         | private internals, apps                     |
+| API outside composition                      | application contracts, Fastify, API helpers      | domain internals, concrete adapters         |
+| API composition root                         | application and concrete adapters                | —                                           |
+| Web                                          | UI code and HTTP contract                        | business and infrastructure packages        |
 
 IAM security routes follow the same boundary as other IAM transport. Node cryptography, mail, archives and cross-context bridges live under `apps/api/src/adapters`; concrete composition lives under `composition-root`.
 
@@ -107,6 +107,6 @@ also breaking.
 
 ## Current enforcement and limitation
 
-IAM ESLint presets reject application/technical imports in the domain and concrete database, cache, HTTP, crypto and provider dependencies in application code. API transport cannot import concrete IAM adapters or domain models; adapter and composition directories have explicit technical responsibilities. Tests verify both rejected and legitimate dependencies.
+Context ESLint presets reject application/technical imports in the domain and concrete database, cache, HTTP, crypto and provider dependencies in application code. The TypeScript baseline applies to all four contexts and the reviewed adapters. IAM domain restrictions include its effective `#ports`, `#events` and `#test` aliases. API transport cannot import concrete adapters or context domain models; adapter and composition directories have explicit technical responsibilities. Tests verify both rejected and legitimate dependencies.
 
 Package exports and TypeScript enforce public contracts. These targeted static rules do not resolve every possible dependency path or replace review against the complete matrix.

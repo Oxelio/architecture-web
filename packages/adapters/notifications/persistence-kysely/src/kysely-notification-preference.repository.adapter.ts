@@ -45,7 +45,7 @@ export class KyselyNotificationPreferenceRepositoryAdapter extends NotificationP
         channel: preference.channel.value,
         enabled: preference.enabled,
         updated_at: preference.updatedAt,
-      } as never)
+      })
       .onConflict((conflict) =>
         conflict.columns(["user_id", "channel"]).doUpdateSet({
           enabled: preference.enabled,

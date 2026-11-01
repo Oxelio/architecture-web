@@ -1,7 +1,6 @@
 import { Result } from "@architecture/foundation";
 
 import type {
-  AccountAuditData,
   AccountDeletionStore,
   AccountExportStore,
 } from "#accounts/account-data/account-data.ports";
@@ -17,7 +16,6 @@ export class MaintainIamAccountsUseCase implements MaintainIamAccounts {
   constructor(
     private readonly deletions: AccountDeletionStore,
     private readonly exports: AccountExportStore,
-    private readonly audit: AccountAuditData,
     private readonly sessions: SessionRepository,
   ) {}
   async execute(): Promise<MaintainIamAccountsOutput> {
@@ -25,9 +23,7 @@ export class MaintainIamAccountsUseCase implements MaintainIamAccounts {
       due = await this.deletions.due(now);
     let deletedAccounts = 0;
     for (const request of due) {
-      const userId = await this.deletions.eraseIfDue(request.id, now, (id) =>
-        this.audit.pseudonymize(id),
-      );
+      const userId = await this.deletions.eraseIfDue(request.id, now);
       if (!userId) {
         continue;
       }

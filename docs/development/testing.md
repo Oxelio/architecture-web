@@ -72,8 +72,14 @@ pnpm --filter '@architecture/messaging^...' build
 pnpm --filter @architecture/messaging test
 ```
 
-Workspace and API integration tests consume public compiled package exports;
-run `pnpm build` first so those outputs represent the candidate under validation.
+Workspace and API integration tests consume public package exports; run
+`pnpm build` first so compiled dependencies represent the candidate under
+validation. The API test configuration resolves the Audit and Notifications
+persistence public entrypoints to their current sources and includes those
+external executable files in coverage. This attributes real PostgreSQL tests to
+the adapters they exercise instead of leaving their source coverage at zero.
+Pure type-only persistence schemas are excluded from executable coverage.
+IAM's internal event alias also resolves to source during unit tests.
 Outbox and notification delivery attempts count successful claims, including
 abandoned claims, rather than only recorded failures. New items start at zero;
 success/failure finalization does not increment the count. The tenth failed or

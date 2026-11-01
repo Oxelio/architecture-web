@@ -18,7 +18,13 @@ describe("NotificationEntity", () => {
         severity: severity.value,
         title: "Password changed",
         message: "Your password changed.",
-        deliveries: [{ channel: "email", destination: "user@example.test" }],
+        deliveries: [
+          {
+            channel: "email",
+            destination: "user@example.test",
+            audience: "affected_user",
+          },
+        ],
       },
       createdAt,
     );

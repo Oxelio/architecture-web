@@ -1,6 +1,9 @@
 import type {
+  NotificationAction,
+  NotificationDeliveryAudience,
   NotificationDeliveryStatus,
   NotificationSeverity,
+  NotificationSuppressionReason,
 } from "@architecture/notifications/domain";
 import {
   NotificationChannelValueObject,
@@ -26,13 +29,15 @@ export interface ClaimableNotificationRow {
   readonly severity: NotificationSeverity;
   readonly title: string;
   readonly message: string;
-  readonly action_url: string | null;
+  readonly action: NotificationAction | null;
   readonly created_at: Date;
   readonly read_at: Date | null;
   readonly archived_at: Date | null;
   readonly delivery_id: string;
   readonly channel: NotificationPreferenceTable["channel"];
   readonly destination: string;
+  readonly audience: NotificationDeliveryAudience;
+  readonly suppression_reason: NotificationSuppressionReason | null;
   readonly status: NotificationDeliveryStatus;
   readonly attempts: number;
   readonly available_at: Date;
@@ -57,7 +62,7 @@ export function notificationRowToEntity(
     severity: severity.value,
     title: row.title,
     message: row.message,
-    actionUrl: row.action_url,
+    action: row.action,
     createdAt: row.created_at,
     readAt: row.read_at,
     archivedAt: row.archived_at,
@@ -103,6 +108,8 @@ export function claimableNotificationRowToEntity(
     identifier: deliveryIdentifier.value,
     channel: channel.value,
     destination: row.destination,
+    audience: row.audience,
+    suppressionReason: row.suppression_reason,
     status: row.status,
     attempts: row.attempts,
     availableAt: row.available_at,
@@ -118,7 +125,7 @@ export function claimableNotificationRowToEntity(
     severity: severity.value,
     title: row.title,
     message: row.message,
-    actionUrl: row.action_url,
+    action: row.action,
     createdAt: row.created_at,
     readAt: row.read_at,
     archivedAt: row.archived_at,

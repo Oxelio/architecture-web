@@ -1,7 +1,10 @@
 import type {
+  NotificationAction,
   NotificationChannelType,
+  NotificationDeliveryAudience,
   NotificationDeliveryStatus,
   NotificationSeverity,
+  NotificationSuppressionReason,
 } from "@architecture/notifications/domain";
 
 export interface NotificationTable {
@@ -12,7 +15,7 @@ export interface NotificationTable {
   severity: NotificationSeverity;
   title: string;
   message: string;
-  action_url: string | null;
+  action: NotificationAction | null;
   created_at: Date;
   read_at: Date | null;
   archived_at: Date | null;
@@ -23,6 +26,8 @@ export interface NotificationDeliveryTable {
   notification_id: string;
   channel: NotificationChannelType;
   destination: string;
+  audience: NotificationDeliveryAudience;
+  suppression_reason: NotificationSuppressionReason | null;
   status: NotificationDeliveryStatus;
   attempts: number;
   available_at: Date;

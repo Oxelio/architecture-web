@@ -23,8 +23,8 @@ detailed in [ADR-0005](0005-domain-events-messaging.md).
 The separation between accounts, login identities, and authenticators is
 detailed in
 [ADR-0006](0006-iam-account-identities-and-authenticators.md).
-The accepted flat package-topology decision, currently diverged from by the grouped implementation, and its rationale are detailed in
-[ADR-0007](0007-package-first-workspace-topology.md).
+The historical flat migration is detailed in [ADR-0007](0007-package-first-workspace-topology.md).
+[ADR-0009](0009-grouped-workspace-topology.md) supersedes it with the explicitly accepted grouping by architectural responsibility.
 
 ### ADR-0001 — Technology-independent IAM core
 
@@ -64,7 +64,7 @@ choice is made:
 - whether packages are published outside the monorepo;
 
 - automated enforcement of all dependency rules;
-- the scheduling strategy for security maintenance.
+- scheduling account deletion/export maintenance beyond the hourly Audit retention worker described in [Cross-context compliance](../cross-context-compliance.md).
 
 ## ADR-0008 — Main-only automatic coordinated releases
 
