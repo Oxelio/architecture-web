@@ -126,7 +126,7 @@ export function SignInPage() {
       {challengeId ? (
         <div className="mt-8 space-y-5">
           <label className="block text-sm font-medium text-slate-200">
-            Code de l’application ou code de secours
+            Code de l’application ou code de secours{" "}
             <input
               value={mfaCode}
               onChange={(event) => setMfaCode(event.target.value)}
