@@ -275,447 +275,473 @@ export function buildSecurityRoutes(
         ),
     );
 
-    await app.register(async (protectedApp) => {
-      const { authenticate } = protectedApp as AuthenticatedFastifyInstance;
-      protectedApp.addHook("preValidation", authenticate);
-      protectedApp.get("/me/mfa", async (request, reply) => {
-        const auth = actor(request, reply);
-        if (!auth) {
-          return reply;
-        }
-        return applicationResponse(
-          reply,
-          await iam.authentication.getMfaStatus.execute({
-            userId: auth.userId,
-          }),
-          {},
+    await app.register((protectedApp) => {
+      try {
+        const { authenticate } = protectedApp as AuthenticatedFastifyInstance;
+        protectedApp.addHook("preValidation", authenticate);
+        protectedApp.get("/me/mfa", async (request, reply) => {
+          const auth = actor(request, reply);
+          if (!auth) {
+            return reply;
+          }
+          return applicationResponse(
+            reply,
+            await iam.authentication.getMfaStatus.execute({
+              userId: auth.userId,
+            }),
+            {},
+          );
+        });
+        protectedApp.post<{ Body: AuthenticationBody }>(
+          "/me/mfa/enrollment",
+          { schema: { body: authentication } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.authentication.beginMfaEnrollment.execute({
+                userId: auth.userId,
+                sessionId: auth.sessionId,
+                password: request.body.password,
+              }),
+              BeginMfaEnrollmentHttpErrors,
+              201,
+            );
+          },
         );
-      });
-      protectedApp.post<{ Body: AuthenticationBody }>(
-        "/me/mfa/enrollment",
-        { schema: { body: authentication } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          return applicationResponse(
-            reply,
-            await iam.authentication.beginMfaEnrollment.execute({
-              userId: auth.userId,
-              sessionId: auth.sessionId,
-              password: request.body.password,
-            }),
-            BeginMfaEnrollmentHttpErrors,
-            201,
-          );
-        },
-      );
-      const confirmation = Type.Object({ code: Type.String() });
-      protectedApp.post<{ Body: Static<typeof confirmation> }>(
-        "/me/mfa/enrollment/confirm",
-        { schema: { body: confirmation } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          return applicationResponse(
-            reply,
-            await iam.authentication.confirmMfaEnrollment.execute({
-              userId: auth.userId,
-              code: request.body.code,
-            }),
-            ConfirmMfaEnrollmentHttpErrors,
-            200,
-          );
-        },
-      );
-      const saved = Type.Object({
-        confirmationId: Type.String(),
-        backupCodesSaved: Type.Boolean(),
-      });
-      protectedApp.post<{ Body: Static<typeof saved> }>(
-        "/me/mfa/enrollment/backup-codes/confirm",
-        { schema: { body: saved } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          return applicationResponse(
-            reply,
-            await iam.authentication.activateMfa.execute({
-              ...request.body,
-              userId: auth.userId,
-            }),
-            ActivateMfaHttpErrors,
-            204,
-          );
-        },
-      );
-      const strong = Type.Object({
-        password: Type.String({ maxLength: 1024 }),
-        mfaCode: Type.String(),
-      });
-      protectedApp.post<{ Body: Static<typeof strong> }>(
-        "/me/mfa/backup-codes",
-        { schema: { body: strong } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          return applicationResponse(
-            reply,
-            await iam.authentication.regenerateBackupCodes.execute({
+        const confirmation = Type.Object({ code: Type.String() });
+        protectedApp.post<{ Body: Static<typeof confirmation> }>(
+          "/me/mfa/enrollment/confirm",
+          { schema: { body: confirmation } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.authentication.confirmMfaEnrollment.execute({
+                userId: auth.userId,
+                code: request.body.code,
+              }),
+              ConfirmMfaEnrollmentHttpErrors,
+              200,
+            );
+          },
+        );
+        const saved = Type.Object({
+          confirmationId: Type.String(),
+          backupCodesSaved: Type.Boolean(),
+        });
+        protectedApp.post<{ Body: Static<typeof saved> }>(
+          "/me/mfa/enrollment/backup-codes/confirm",
+          { schema: { body: saved } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.authentication.activateMfa.execute({
+                ...request.body,
+                userId: auth.userId,
+              }),
+              ActivateMfaHttpErrors,
+              204,
+            );
+          },
+        );
+        const strong = Type.Object({
+          password: Type.String({ maxLength: 1024 }),
+          mfaCode: Type.String(),
+        });
+        protectedApp.post<{ Body: Static<typeof strong> }>(
+          "/me/mfa/backup-codes",
+          { schema: { body: strong } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.authentication.regenerateBackupCodes.execute({
+                userId: auth.userId,
+                sessionId: auth.sessionId,
+                password: request.body.password,
+                code: request.body.mfaCode,
+              }),
+              RegenerateMfaBackupCodesHttpErrors,
+            );
+          },
+        );
+        protectedApp.delete<{ Body: Static<typeof strong> }>(
+          "/me/mfa",
+          { schema: { body: strong } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            const result = await iam.authentication.disableMfa.execute({
               userId: auth.userId,
               sessionId: auth.sessionId,
               password: request.body.password,
               code: request.body.mfaCode,
-            }),
-            RegenerateMfaBackupCodesHttpErrors,
-          );
-        },
-      );
-      protectedApp.delete<{ Body: Static<typeof strong> }>(
-        "/me/mfa",
-        { schema: { body: strong } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          const result = await iam.authentication.disableMfa.execute({
-            userId: auth.userId,
-            sessionId: auth.sessionId,
-            password: request.body.password,
-            code: request.body.mfaCode,
-          });
-          if (result.success) {
-            reply.clearCookie(cookie.name, cookie.options);
-          }
-          return applicationResponse(reply, result, DisableMfaHttpErrors, 204);
-        },
-      );
-      protectedApp.post<{ Body: AuthenticationBody }>(
-        "/me/exports",
-        { schema: { body: authentication } },
-        async (request, reply) => {
+            });
+            if (result.success) {
+              reply.clearCookie(cookie.name, cookie.options);
+            }
+            return applicationResponse(
+              reply,
+              result,
+              DisableMfaHttpErrors,
+              204,
+            );
+          },
+        );
+        protectedApp.post<{ Body: AuthenticationBody }>(
+          "/me/exports",
+          { schema: { body: authentication } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.accounts.requestExport.execute({
+                userId: auth.userId,
+                sessionId: auth.sessionId,
+                password: request.body.password,
+                ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
+              }),
+              RequestAccountExportHttpErrors,
+              202,
+            );
+          },
+        );
+        protectedApp.get("/me/exports", async (request, reply) => {
           const auth = actor(request, reply);
           if (!auth) {
             return reply;
           }
           return applicationResponse(
             reply,
-            await iam.accounts.requestExport.execute({
+            await iam.accounts.listExports.execute({ userId: auth.userId }),
+            {},
+          );
+        });
+        const exportParams = Type.Object({ exportId: Type.String() });
+        protectedApp.get<{ Params: Static<typeof exportParams> }>(
+          "/me/exports/:exportId/download",
+          { schema: { params: exportParams } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            const result = await iam.accounts.downloadExport.execute({
+              userId: auth.userId,
+              exportId: request.params.exportId,
+            });
+            if (!result.success) {
+              return applicationResponse(
+                reply,
+                result,
+                DownloadAccountExportHttpErrors,
+              );
+            }
+            return reply
+              .header("content-type", "application/zip")
+              .header(
+                "content-disposition",
+                `attachment; filename="account-export-${request.params.exportId}.zip"`,
+              )
+              .header("cache-control", "no-store")
+              .send(Buffer.from(result.value));
+          },
+        );
+        const deletion = Type.Intersect([
+          authentication,
+          Type.Object({ confirmation: Type.String() }),
+        ]);
+        protectedApp.post<{ Body: Static<typeof deletion> }>(
+          "/me/deletion",
+          { schema: { body: deletion } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            const result = await iam.accounts.requestDeletion.execute({
               userId: auth.userId,
               sessionId: auth.sessionId,
               password: request.body.password,
+              confirmation: request.body.confirmation,
               ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
-            }),
-            RequestAccountExportHttpErrors,
-            202,
-          );
-        },
-      );
-      protectedApp.get("/me/exports", async (request, reply) => {
-        const auth = actor(request, reply);
-        if (!auth) {
-          return reply;
-        }
-        return applicationResponse(
-          reply,
-          await iam.accounts.listExports.execute({ userId: auth.userId }),
-          {},
+            });
+            if (result.success) {
+              reply.clearCookie(cookie.name, cookie.options);
+            }
+            return applicationResponse(
+              reply,
+              result,
+              RequestAccountDeletionHttpErrors,
+              202,
+            );
+          },
         );
-      });
-      const exportParams = Type.Object({ exportId: Type.String() });
-      protectedApp.get<{ Params: Static<typeof exportParams> }>(
-        "/me/exports/:exportId/download",
-        { schema: { params: exportParams } },
-        async (request, reply) => {
+        protectedApp.get<{ Querystring: { page?: number; pageSize?: number } }>(
+          "/me/security-events",
+          {
+            schema: {
+              querystring: Type.Object({
+                page: Type.Optional(Type.Integer({ minimum: 1 })),
+                pageSize: Type.Optional(
+                  Type.Integer({ minimum: 1, maximum: 100 }),
+                ),
+              }),
+            },
+          },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            if (
+              !(await configuration.readPublished()).values.audit.consultation
+            ) {
+              return reply
+                .status(403)
+                .send({ error: { code: "audit_consultation.disabled" } });
+            }
+            return reply.send({
+              data: (
+                await audit.listOwn(
+                  auth.userId,
+                  request.query.page ?? 1,
+                  request.query.pageSize ?? 25,
+                )
+              ).map(auditResponse),
+            });
+          },
+        );
+
+        return Promise.resolve();
+      } catch (error: unknown) {
+        return Promise.reject(error);
+      }
+    });
+
+    await app.register((admin) => {
+      try {
+        const { authenticate } = admin as AuthenticatedFastifyInstance;
+        admin.addHook("preValidation", authenticate);
+        admin.addHook("preValidation", (request, reply) => {
+          try {
+            if (request.auth?.role !== "admin") {
+              return Promise.resolve(
+                reply
+                  .status(403)
+                  .send({ error: { code: "authorization.forbidden" } }),
+              );
+            }
+
+            return Promise.resolve();
+          } catch (error: unknown) {
+            return Promise.reject(error);
+          }
+        });
+        admin.get("/admin/security/config", async (request, reply) => {
           const auth = actor(request, reply);
           if (!auth) {
             return reply;
           }
-          const result = await iam.accounts.downloadExport.execute({
-            userId: auth.userId,
-            exportId: request.params.exportId,
-          });
+          const result = await iam.administration.getConfiguration.execute(
+            auth.userId,
+          );
           if (!result.success) {
             return applicationResponse(
               reply,
               result,
-              DownloadAccountExportHttpErrors,
+              GetSecurityConfigurationHttpErrors,
             );
           }
-          return reply
-            .header("content-type", "application/zip")
-            .header(
-              "content-disposition",
-              `attachment; filename="account-export-${request.params.exportId}.zip"`,
-            )
-            .header("cache-control", "no-store")
-            .send(Buffer.from(result.value));
-        },
-      );
-      const deletion = Type.Intersect([
-        authentication,
-        Type.Object({ confirmation: Type.String() }),
-      ]);
-      protectedApp.post<{ Body: Static<typeof deletion> }>(
-        "/me/deletion",
-        { schema: { body: deletion } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          const result = await iam.accounts.requestDeletion.execute({
-            userId: auth.userId,
-            sessionId: auth.sessionId,
-            password: request.body.password,
-            confirmation: request.body.confirmation,
-            ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
+          return reply.send({
+            data: {
+              catalog: SECURITY_CONFIG_CATALOG,
+              effective: result.value.effective,
+              effectiveRevision: result.value.effectiveRevision,
+              revisions: result.value.revisions.map((revision) => ({
+                id: revision.id,
+                version: revision.version,
+                status: revision.status,
+                justification: revision.justification,
+                origin: revision.origin,
+                restored_from_revision_id: revision.restoredFromRevisionId,
+                created_by: revision.createdBy,
+                created_at: revision.createdAt,
+                published_at: revision.publishedAt,
+                changes: revision.changes,
+                previous_revision_id: revision.previousRevisionId,
+              })),
+            },
           });
-          if (result.success) {
-            reply.clearCookie(cookie.name, cookie.options);
-          }
-          return applicationResponse(
-            reply,
-            result,
-            RequestAccountDeletionHttpErrors,
-            202,
-          );
-        },
-      );
-      protectedApp.get<{ Querystring: { page?: number; pageSize?: number } }>(
-        "/me/security-events",
-        {
-          schema: {
-            querystring: Type.Object({
-              page: Type.Optional(Type.Integer({ minimum: 1 })),
-              pageSize: Type.Optional(
-                Type.Integer({ minimum: 1, maximum: 100 }),
-              ),
-            }),
+        });
+        const publication = Type.Object({
+          values: Type.Unknown(),
+          expectedVersion: Type.Integer({ minimum: 1 }),
+          justification: Type.String(),
+          confirmedCritical: Type.Optional(Type.Boolean()),
+          password: Type.Optional(Type.String({ maxLength: 1024 })),
+          mfaCode: Type.Optional(Type.String()),
+        });
+        admin.put<{ Body: Static<typeof publication> }>(
+          "/admin/security/config",
+          { schema: { body: publication } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.administration.publishConfiguration.execute({
+                actorId: auth.userId,
+                values: request.body.values,
+                expectedVersion: request.body.expectedVersion,
+                justification: request.body.justification,
+                confirmedCritical: request.body.confirmedCritical === true,
+                sessionId: auth.sessionId,
+                ...(request.body.password !== undefined
+                  ? { password: request.body.password }
+                  : {}),
+                ...(request.body.mfaCode !== undefined
+                  ? { mfaCode: request.body.mfaCode }
+                  : {}),
+              }),
+              PublishSecurityConfigurationHttpErrors,
+            );
           },
-        },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
+        );
+        const preview = Type.Object({ values: Type.Unknown() });
+        admin.post<{ Body: Static<typeof preview> }>(
+          "/admin/security/config/preview",
+          { schema: { body: preview } },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            const result =
+              await iam.administration.previewConfiguration.execute({
+                actorId: auth.userId,
+                values: request.body.values,
+              });
+            return applicationResponse(
+              reply,
+              result,
+              PreviewSecurityConfigurationHttpErrors,
+            );
+          },
+        );
+        const revision = Type.Object({ revisionId: Type.String() });
+        admin.post<{
+          Params: Static<typeof revision>;
+          Body: Omit<Static<typeof publication>, "values">;
+        }>(
+          "/admin/security/config/:revisionId/rollback",
+          {
+            schema: {
+              params: revision,
+              body: Type.Omit(publication, ["values"]),
+            },
+          },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply,
+              await iam.administration.restoreConfiguration.execute({
+                actorId: auth.userId,
+                revisionId: request.params.revisionId,
+                expectedVersion: request.body.expectedVersion,
+                justification: request.body.justification,
+                confirmedCritical: request.body.confirmedCritical === true,
+                sessionId: auth.sessionId,
+                ...(request.body.password !== undefined
+                  ? { password: request.body.password }
+                  : {}),
+                ...(request.body.mfaCode !== undefined
+                  ? { mfaCode: request.body.mfaCode }
+                  : {}),
+              }),
+              RestoreSecurityConfigurationHttpErrors,
+            );
+          },
+        );
+        admin.get<{ Querystring: Record<string, string | undefined> }>(
+          "/admin/security-events",
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            const q = request.query;
+            const filters = {
+              page: Number(q["page"]) || 1,
+              pageSize: Math.min(100, Number(q["pageSize"]) || 25),
+              ...(q["type"] ? { type: q["type"] } : {}),
+              ...(q["result"] ? { result: q["result"] } : {}),
+              ...(q["actorId"] ? { actorId: q["actorId"] } : {}),
+              ...(q["subjectId"] ? { subjectId: q["subjectId"] } : {}),
+              ...(q["correlationId"]
+                ? { correlationId: q["correlationId"] }
+                : {}),
+              ...(q["from"] ? { from: new Date(q["from"]) } : {}),
+              ...(q["to"] ? { to: new Date(q["to"]) } : {}),
+            };
+            const rows = await audit.list(filters);
+            await events.record(
+              "security.audit.consulted",
+              "success",
+              {
+                actorType: "administrator",
+                actorId: auth.userId,
+                subjectId: auth.userId,
+              },
+              { filters },
+            );
+            return reply.send({ data: rows.map(auditResponse) });
+          },
+        );
+        admin.post("/admin/security/maintenance", async (request, reply) => {
+          if (!actor(request, reply)) {
             return reply;
           }
-          if (
-            !(await configuration.readPublished()).values.audit.consultation
-          ) {
-            return reply
-              .status(403)
-              .send({ error: { code: "audit_consultation.disabled" } });
+          const result = await iam.accounts.maintainAccounts.execute();
+          if (!result.success) {
+            return applicationResponse(reply, result, {});
           }
           return reply.send({
-            data: (
-              await audit.listOwn(
-                auth.userId,
-                request.query.page ?? 1,
-                request.query.pageSize ?? 25,
-              )
-            ).map(auditResponse),
-          });
-        },
-      );
-    });
-
-    await app.register(async (admin) => {
-      const { authenticate } = admin as AuthenticatedFastifyInstance;
-      admin.addHook("preValidation", authenticate);
-      admin.addHook("preValidation", async (request, reply) => {
-        if (request.auth?.role !== "admin") {
-          return reply
-            .status(403)
-            .send({ error: { code: "authorization.forbidden" } });
-        }
-      });
-      admin.get("/admin/security/config", async (request, reply) => {
-        const auth = actor(request, reply);
-        if (!auth) {
-          return reply;
-        }
-        const result = await iam.administration.getConfiguration.execute(
-          auth.userId,
-        );
-        if (!result.success) {
-          return applicationResponse(
-            reply,
-            result,
-            GetSecurityConfigurationHttpErrors,
-          );
-        }
-        return reply.send({
-          data: {
-            catalog: SECURITY_CONFIG_CATALOG,
-            effective: result.value.effective,
-            effectiveRevision: result.value.effectiveRevision,
-            revisions: result.value.revisions.map((revision) => ({
-              id: revision.id,
-              version: revision.version,
-              status: revision.status,
-              justification: revision.justification,
-              origin: revision.origin,
-              restored_from_revision_id: revision.restoredFromRevisionId,
-              created_by: revision.createdBy,
-              created_at: revision.createdAt,
-              published_at: revision.publishedAt,
-              changes: revision.changes,
-              previous_revision_id: revision.previousRevisionId,
-            })),
-          },
-        });
-      });
-      const publication = Type.Object({
-        values: Type.Unknown(),
-        expectedVersion: Type.Integer({ minimum: 1 }),
-        justification: Type.String(),
-        confirmedCritical: Type.Optional(Type.Boolean()),
-        password: Type.Optional(Type.String({ maxLength: 1024 })),
-        mfaCode: Type.Optional(Type.String()),
-      });
-      admin.put<{ Body: Static<typeof publication> }>(
-        "/admin/security/config",
-        { schema: { body: publication } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          return applicationResponse(
-            reply,
-            await iam.administration.publishConfiguration.execute({
-              actorId: auth.userId,
-              values: request.body.values,
-              expectedVersion: request.body.expectedVersion,
-              justification: request.body.justification,
-              confirmedCritical: request.body.confirmedCritical === true,
-              sessionId: auth.sessionId,
-              ...(request.body.password !== undefined
-                ? { password: request.body.password }
-                : {}),
-              ...(request.body.mfaCode !== undefined
-                ? { mfaCode: request.body.mfaCode }
-                : {}),
-            }),
-            PublishSecurityConfigurationHttpErrors,
-          );
-        },
-      );
-      const preview = Type.Object({ values: Type.Unknown() });
-      admin.post<{ Body: Static<typeof preview> }>(
-        "/admin/security/config/preview",
-        { schema: { body: preview } },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          const result = await iam.administration.previewConfiguration.execute({
-            actorId: auth.userId,
-            values: request.body.values,
-          });
-          return applicationResponse(
-            reply,
-            result,
-            PreviewSecurityConfigurationHttpErrors,
-          );
-        },
-      );
-      const revision = Type.Object({ revisionId: Type.String() });
-      admin.post<{
-        Params: Static<typeof revision>;
-        Body: Omit<Static<typeof publication>, "values">;
-      }>(
-        "/admin/security/config/:revisionId/rollback",
-        {
-          schema: {
-            params: revision,
-            body: Type.Omit(publication, ["values"]),
-          },
-        },
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          return applicationResponse(
-            reply,
-            await iam.administration.restoreConfiguration.execute({
-              actorId: auth.userId,
-              revisionId: request.params.revisionId,
-              expectedVersion: request.body.expectedVersion,
-              justification: request.body.justification,
-              confirmedCritical: request.body.confirmedCritical === true,
-              sessionId: auth.sessionId,
-              ...(request.body.password !== undefined
-                ? { password: request.body.password }
-                : {}),
-              ...(request.body.mfaCode !== undefined
-                ? { mfaCode: request.body.mfaCode }
-                : {}),
-            }),
-            RestoreSecurityConfigurationHttpErrors,
-          );
-        },
-      );
-      admin.get<{ Querystring: Record<string, string | undefined> }>(
-        "/admin/security-events",
-        async (request, reply) => {
-          const auth = actor(request, reply);
-          if (!auth) {
-            return reply;
-          }
-          const q = request.query;
-          const filters = {
-            page: Number(q["page"]) || 1,
-            pageSize: Math.min(100, Number(q["pageSize"]) || 25),
-            ...(q["type"] ? { type: q["type"] } : {}),
-            ...(q["result"] ? { result: q["result"] } : {}),
-            ...(q["actorId"] ? { actorId: q["actorId"] } : {}),
-            ...(q["subjectId"] ? { subjectId: q["subjectId"] } : {}),
-            ...(q["correlationId"]
-              ? { correlationId: q["correlationId"] }
-              : {}),
-            ...(q["from"] ? { from: new Date(q["from"]) } : {}),
-            ...(q["to"] ? { to: new Date(q["to"]) } : {}),
-          };
-          const rows = await audit.list(filters);
-          await events.record(
-            "security.audit.consulted",
-            "success",
-            {
-              actorType: "administrator",
-              actorId: auth.userId,
-              subjectId: auth.userId,
+            data: {
+              ...result.value,
+              purgedEvents: await audit.purge(new Date()),
             },
-            { filters },
-          );
-          return reply.send({ data: rows.map(auditResponse) });
-        },
-      );
-      admin.post("/admin/security/maintenance", async (request, reply) => {
-        if (!actor(request, reply)) {
-          return reply;
-        }
-        const result = await iam.accounts.maintainAccounts.execute();
-        if (!result.success) {
-          return applicationResponse(reply, result, {});
-        }
-        return reply.send({
-          data: {
-            ...result.value,
-            purgedEvents: await audit.purge(new Date()),
-          },
+          });
         });
-      });
+
+        return Promise.resolve();
+      } catch (error: unknown) {
+        return Promise.reject(error);
+      }
     });
   };
 }
