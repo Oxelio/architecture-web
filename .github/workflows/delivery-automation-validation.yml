@@ -139,7 +139,9 @@ jobs:
 
       - name: Verify workspace declaration layout
         if: steps.config.outputs.enabled == 'true'
-        run: test -f packages/contexts/iam/dist/index.d.ts
+        run: |
+          test -f packages/contexts/iam/dist/application/index.d.ts
+          test -f packages/contexts/iam/dist/domain/index.d.ts
 
       - name: Import coverage from this workflow run
         if: steps.config.outputs.enabled == 'true'
