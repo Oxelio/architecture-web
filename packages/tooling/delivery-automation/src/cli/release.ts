@@ -25,9 +25,10 @@ async function main(): Promise<void> {
   const command = process.argv[2] ?? "plan";
   const root = git(process.cwd(), "rev-parse", "--show-toplevel");
   process.chdir(root);
-  const output = confinedReleasePath(root, process.argv[3] ?? "release-output");
+  const output = process.argv[3] ?? "release-output";
   const env = process.env;
   if (command === "generate") {
+    const directory = confinedReleasePath(root, output);
     const plan = JSON.parse(
       readFileSync(
         confinedReleasePath(root, process.argv[4] ?? "release-plan.json"),
@@ -37,7 +38,7 @@ async function main(): Promise<void> {
     await generateArtifacts(
       root,
       plan,
-      prepareReleaseOutput(root, output, plan.version),
+      prepareReleaseOutput(root, directory, plan.version),
     );
     return;
   }
@@ -116,9 +117,11 @@ function required(name: string): string {
   return value;
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   process.stderr.write(
     `${error instanceof Error ? error.message : String(error)}\n`,
   );
   process.exitCode = 1;
-});
+}
