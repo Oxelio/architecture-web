@@ -38,6 +38,18 @@ test("parallel collection preserves UTF-16 file order and repeated diagnostics",
   });
 });
 
+test("parallel collection propagates the first source-path failure deterministically", async () => {
+  await withRepo(async (root) => {
+    await assert.rejects(
+      validateMarkdownLinks({
+        repoRoot: root,
+        sourcePaths: ["first\0", "second\0"],
+      }),
+      /first/,
+    );
+  });
+});
+
 test("validates Unicode paths and malformed or escaping targets without counting external links", async () => {
   await withRepo(async (root) => {
     await writeFile(join(root, "é.md"), "# Target");

@@ -39,20 +39,29 @@ async function collectMarkdownFiles(
 
     if (info.isDirectory()) {
       const entries = await readdir(candidate, { withFileTypes: true });
-      const nested = await Promise.all(
-        entries.map((entry) => visit(resolve(candidate, entry.name))),
+      const nested = await Promise.allSettled(
+        entries
+          .toSorted((a, b) => a.name.localeCompare(b.name))
+          .map((entry) => visit(resolve(candidate, entry.name))),
       );
-      return nested.flat();
+      return collectedFiles(nested);
     }
 
     return info.isFile() && candidate.endsWith(".md") ? [candidate] : [];
   }
 
-  const groups = await Promise.all(
+  const groups = await Promise.allSettled(
     sourcePaths.map((sourcePath) => visit(resolve(repoRoot, sourcePath))),
   );
   // Preserve default UTF-16 ordering, independent of filesystem completion order.
-  return groups.flat().sort((a, b) => Number(a > b) - Number(a < b));
+  return collectedFiles(groups).sort((a, b) => Number(a > b) - Number(a < b));
+}
+
+function collectedFiles(results) {
+  return results.flatMap((result) => {
+    if (result.status === "rejected") throw result.reason;
+    return result.value;
+  });
 }
 
 function fenceMarker(line) {
