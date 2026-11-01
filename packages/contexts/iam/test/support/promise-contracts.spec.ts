@@ -45,6 +45,18 @@ it("preserves asynchronous rejection when authenticator lookup fails", async () 
   ).rejects.toBe(failure);
 });
 
+it("preserves asynchronous rejection while recording successful password use", async () => {
+  const repository = new InMemoryPasswordAuthenticatorRepository();
+  const failure = new Error("Storage unavailable");
+  vi.spyOn(repository.values, "get").mockImplementation(() => {
+    throw failure;
+  });
+  const authenticator = { userId: UserIdentifierValueObject.generate() };
+  await expect(
+    repository.recordSuccessfulUse(authenticator as never),
+  ).rejects.toBe(failure);
+});
+
 it("preserves asynchronous rejection when account-view lookup fails", async () => {
   const users = new InMemoryUserRepository();
   const repository = new InMemoryUserQueryRepository(
