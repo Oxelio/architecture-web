@@ -28,6 +28,8 @@ afterEach(() => {
   process.argv = originalArgv;
   process.exitCode = originalExitCode;
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
   for (const directory of directories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
@@ -46,6 +48,73 @@ function root() {
 }
 
 describe("release entrypoint contracts", () => {
+  it.each([false, true])(
+    "writes the CI plan with verified first-stable request=%s",
+    async (firstStable) => {
+      const directory = root();
+      git(directory, "init", "-b", "main");
+      git(directory, "config", "user.name", "Release Test");
+      git(directory, "config", "user.email", "release@example.invalid");
+      writeFileSync(
+        join(directory, "package.json"),
+        '{"name":"fixture","version":"0.1.0"}',
+      );
+      git(directory, "add", "package.json");
+      git(directory, "commit", "-m", "feat: initial fixture");
+      const sourceSha = git(directory, "rev-parse", "HEAD");
+      git(directory, "update-ref", "refs/remotes/origin/main", sourceSha);
+      const outputPath = join(directory, "github-output");
+      for (const [name, value] of Object.entries({
+        GITHUB_REF: "refs/heads/main",
+        GITHUB_EVENT_NAME: firstStable ? "workflow_dispatch" : "push",
+        GITHUB_REPOSITORY: "example/fixture",
+        GITHUB_TOKEN: "test-token",
+        GITHUB_SHA: sourceSha,
+        EXPECTED_SHA: sourceSha,
+        GITHUB_ACTOR: "maintainer",
+        GITHUB_RUN_ID: "123",
+        GITHUB_OUTPUT: outputPath,
+        RELEASE_LEVEL: firstStable ? "first-stable" : "",
+      })) {
+        vi.stubEnv(name, value);
+      }
+      const fetch = vi.fn(async (url: string, options: RequestInit) => {
+        expect(options.method).toBe("GET");
+        let value: unknown = [];
+        if (url.endsWith("/actions/runs/123")) {
+          value = {
+            event: "workflow_dispatch",
+            head_sha: sourceSha,
+            actor: { login: "maintainer", type: "User" },
+            path: ".github/workflows/release.yml",
+          };
+        }
+        if (url.endsWith("/collaborators/maintainer/permission")) {
+          value = { role_name: "maintain", user: { type: "User" } };
+        }
+        return new Response(JSON.stringify(value));
+      });
+      vi.stubGlobal("fetch", fetch);
+      vi.spyOn(process.stdout, "write").mockReturnValue(true);
+      process.argv = [process.execPath, "release.ts", "ci-plan"];
+      await import("../cli/release.js");
+      expect(process.exitCode).toBe(originalExitCode);
+      expect(
+        JSON.parse(readFileSync(join(directory, "release-plan.json"), "utf8")),
+      ).toMatchObject({
+        sourceSha,
+        version: firstStable ? "1.0.0" : "0.1.0",
+        firstStable: firstStable
+          ? { sourceSha, actor: "maintainer", runId: "123" }
+          : null,
+      });
+      expect(readFileSync(outputPath, "utf8")).toBe(
+        `version=${firstStable ? "1.0.0" : "0.1.0"}\nsource_sha=${sourceSha}\n`,
+      );
+      expect(fetch).toHaveBeenCalledTimes(firstStable ? 3 : 1);
+    },
+  );
+
   it("generates verified artifacts through the in-process CLI entrypoint", async () => {
     const directory = root();
     git(directory, "init", "-b", "main");

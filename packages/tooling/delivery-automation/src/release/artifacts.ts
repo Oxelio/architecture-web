@@ -24,6 +24,13 @@ import { git, type ReleasePlan } from "./repository.js";
 
 const require = createRequire(import.meta.url);
 
+function compareFileNames(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  return a < b ? -1 : 1;
+}
+
 export interface ReleaseManifest {
   readonly schemaVersion: 1;
   readonly plan: ReleasePlan;
@@ -57,7 +64,7 @@ export function workspaceManifests(root: string): string[] {
   ];
   const files = ["package.json", ...globSync(patterns, { cwd: root, exclude })]
     .map((p) => p.replaceAll("\\", "/"))
-    .sort();
+    .sort(compareFileNames);
   for (const file of files) {
     if (!lstatSync(join(root, file)).isFile()) {
       throw new Error("MANIFEST_MUST_BE_REGULAR_FILE");
@@ -208,7 +215,7 @@ export async function generateArtifacts(
         mtime: new Date(`${date}T00:00:00.000Z`),
         prefix: `architecture-web-${plan.version}/`,
       },
-      readdirSync(stage).sort(),
+      readdirSync(stage).sort(compareFileNames),
     );
     const manifest: ReleaseManifest = {
       schemaVersion: 1,
@@ -230,7 +237,7 @@ export async function generateArtifacts(
     const names = [
       ...Object.keys(manifest.files),
       "release-manifest.json",
-    ].sort();
+    ].sort(compareFileNames);
     writeFileSync(
       join(output, "SHA256SUMS"),
       names.map((name) => `${sha256(join(output, name))}  ${name}\n`).join(""),
@@ -261,8 +268,8 @@ export function readVerifiedArtifacts(directory: string): ReleaseManifest {
     "release-notes.md",
   ];
   if (
-    JSON.stringify(Object.keys(manifest.files).sort()) !==
-    JSON.stringify(expected.sort())
+    JSON.stringify(Object.keys(manifest.files).toSorted(compareFileNames)) !==
+    JSON.stringify(expected.toSorted(compareFileNames))
   ) {
     throw new Error("INVALID_RELEASE_ASSET_SET");
   }
@@ -276,7 +283,7 @@ export function readVerifiedArtifacts(directory: string): ReleaseManifest {
     }
   }
   const sums = [...expected, "release-manifest.json"]
-    .sort()
+    .sort(compareFileNames)
     .map((name) => `${sha256(join(directory, name))}  ${name}\n`)
     .join("");
   if (readFileSync(join(directory, "SHA256SUMS"), "utf8") !== sums) {
