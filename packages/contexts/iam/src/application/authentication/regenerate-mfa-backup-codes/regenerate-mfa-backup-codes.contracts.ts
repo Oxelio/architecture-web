@@ -1,7 +1,9 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
-import type { RecentAuthenticationError } from "#authentication/reauthentication.contracts";
-import type { FactorVerificationError } from "#authentication/reauthentication.contracts";
+import type {
+  FactorVerificationError,
+  RecentAuthenticationError,
+} from "#authentication/reauthentication.contracts";
 
 export const RegenerateMfaBackupCodesErrors = {
   notEnabled: { code: "mfa.not_enabled" },

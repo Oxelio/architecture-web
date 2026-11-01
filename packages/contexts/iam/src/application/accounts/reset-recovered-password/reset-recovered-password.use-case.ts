@@ -106,7 +106,7 @@ export class ResetRecoveredPasswordUseCase implements ResetRecoveredPassword {
         return Result.success(undefined);
       },
     );
-    if (!result || !result.success) {
+    if (!result?.success) {
       return result ?? invalid();
     }
     await this.sessions.deleteAllForUser(user.identifier);
