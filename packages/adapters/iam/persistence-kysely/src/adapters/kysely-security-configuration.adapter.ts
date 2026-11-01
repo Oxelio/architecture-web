@@ -195,7 +195,7 @@ export class KyselySecurityConfigurationAdapter implements ConfigurationStore {
         .where("id", "=", input.actorId)
         .forUpdate()
         .executeTakeFirst();
-      if (!actor || actor.role !== "admin" || actor.status !== "active") {
+      if (actor?.role !== "admin" || actor.status !== "active") {
         return "unauthorized" as const;
       }
       if (

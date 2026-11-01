@@ -19,7 +19,7 @@ export class KyselyAccountExportAdapter implements AccountExportStore {
         .where("id", "=", userId)
         .forUpdate()
         .executeTakeFirst();
-      if (!user || user.status !== "active") {
+      if (user?.status !== "active") {
         return null;
       }
       const existing = await trx
