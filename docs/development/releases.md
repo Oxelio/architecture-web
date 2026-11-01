@@ -20,6 +20,21 @@ This command reads the local checkout and reachable tags without writing files,
 creating tags or using publication credentials. Its JSON names the exact SHA,
 previous version and next version, or `null` when no release is warranted.
 
+The `release:generate` and `release:publish` CLI paths are confined to the canonical
+repository root. Absolute paths inside the repository remain supported; traversal
+and symlinks to outside paths are rejected, including individual artifact files
+and existing parents of future output directories. The default output directory
+is `release-output`. Generation also validates the stable version before using it
+in an artifact filename. The fixed `release-plan.json` write follows the same
+boundary. `GITHUB_OUTPUT` remains the runner-owned external workflow channel.
+
+The private release-it runner accepts no path arguments. It exchanges regular
+files with fixed names in the independently allocated notes repository and creates
+its result exclusively. Temporary staging remains outside the source repository;
+the source checkout's tracked files are not stamped. Path preflight assumes an
+operator-controlled filesystem and does not claim to prevent concurrent malicious
+replacement of filesystem entries.
+
 ## Publication
 
 The `Automatic coordinated release` workflow selects an immutable SHA from
