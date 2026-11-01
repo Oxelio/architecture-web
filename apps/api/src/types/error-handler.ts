@@ -14,14 +14,14 @@ export function errorHandler(
       ? error.statusCode
       : 500;
   const isServerError = statusCode >= 500;
+  const clientErrorCode =
+    error.validation || error.code === "FST_ERR_VALIDATION"
+      ? "request.validation_failed"
+      : "request.invalid";
 
   return reply.status(statusCode).send({
     error: {
-      code: isServerError
-        ? "internal.unexpected_error"
-        : error.validation || error.code === "FST_ERR_VALIDATION"
-          ? "request.validation_failed"
-          : "request.invalid",
+      code: isServerError ? "internal.unexpected_error" : clientErrorCode,
       message: isServerError ? "Internal server error" : error.message,
     },
   });
