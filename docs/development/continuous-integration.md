@@ -35,7 +35,10 @@ be activated separately; an unavailable service is a failure, not a clean review
 `Quality checks` requires shared validation, Dependency Review and commitlint to
 succeed on PRs. On pushes/manual runs, the two PR-only jobs must be skipped and
 shared validation must succeed. Failures, cancellations, missing results and
-unexpected skips fail the gate. Sonar is excluded from this acceptance result.
+unexpected skips fail the gate. Sonar is excluded from this aggregate result.
+The separate external `SonarCloud Code Analysis` check is nevertheless required
+for merge into `main`, under the strict policy owned by the
+[delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
 
 The release workflow independently selects an immutable source SHA, calls the
 same validation, then generates source assets and invokes its isolated trusted
@@ -91,15 +94,48 @@ Local V8 percentages describe the executed test suite; Sonar's new-code coverage
 is a separate server-side measure over the PR diff and its coverable conditions.
 A successful local report does not prove its remote import or Quality Gate.
 
-## Informational SonarQube Cloud
+## SonarQube Cloud: informational job and required external check
 
-Sonar is a separate read-only job with `continue-on-error: true`. It imports the
-primary job's coverage from the same workflow run, waits for the remote Quality
-Gate and reports scan/gate errors through warnings and a job summary. Transfer or
-scanner failures stay visible. No required check or publisher depends on Sonar.
+`SonarQube (informational)` is a separate read-only Actions job with
+`continue-on-error: true`. It imports the primary job's coverage from the same
+workflow run, waits for the remote Quality Gate and reports scan/gate errors
+through warnings and a job summary. Transfer or scanner failures stay visible.
+Neither the `Quality checks` aggregate nor the source-release publisher depends
+on this job.
+
+`SonarCloud Code Analysis` is the check published by the SonarQube Cloud
+integration. It is required for merging into `main`, independently of the
+informational Actions job. The [delivery profile](../project/delivery-pipeline.md#required-checks-on-main)
+owns the exact check/provider identities and strict merge policy. An Actions run
+can succeed while the external Sonar check blocks merge. The job summary's
+statement about repository validation/source publication describes those workflow
+boundaries; it does not waive the required external merge check.
+
+When analysis does not succeed:
+
+- A completed analysis with a failed Quality Gate requires examination of the
+  dashboard conditions and affected sources, correction of the underlying issue,
+  and fresh analysis of the current candidate. Keep the configured quality
+  thresholds; a tolerated Actions failure does not turn the external result green.
+- Missing configuration, a non-HTTPS endpoint, coverage-transfer failure,
+  authentication/scanner errors or a service outage may prevent an external
+  result. Inspect the warnings, job summary, artifact and scanner logs, then
+  restore the approved configuration or service and rerun the eligible analysis.
+  An absent/pending/cancelled result is not successful validation or permission
+  to merge. A scanner timeout/error and the server-side Quality Gate are distinct:
+  verify the actual external check for the current candidate.
+- After a candidate/base change, confirm current results for both required checks
+  under strict verification. A successful local scan or an older PR analysis is
+  insufficient. Configuration and analysis-path changes need their own applicable
+  authorization; do not bypass the required check to recover mergeability.
 
 Fork PRs and PRs authored by `dependabot[bot]` never enter the secret-bearing job,
-including when another actor reruns them. Non-main manual dispatches also skip it.
+including when another actor reruns them. They currently have no analysis path
+compatible with the required external Sonar check, so these PRs cannot satisfy
+the merge policy through the existing CI. Rerunning as a maintainer does not
+remove the exclusion. Surface the blocker for a separately accepted and activated
+solution; do not pass secrets to untrusted candidates or switch to a privileged
+trigger. Non-main manual dispatches also skip analysis.
 The scan job does not install project dependencies or run candidate lifecycle
 scripts. No `pull_request_target`, privileged `workflow_run` or inherited secret
 set is used.
@@ -128,16 +164,18 @@ The reference was [Forge Publish at fc109e0](https://github.com/Oxelio/forge-pub
 including its CI, integration, compatibility, Sonar and release workflows. Reused
 practices are locked tooling, pinned actions, read-only validation, dependency
 review, supported-runtime checks, real isolated services and same-run coverage.
-Architecture Web intentionally keeps Sonar informational. Python tooling,
+Architecture Web keeps the Actions Sonar job informational while requiring the
+external Sonar check for merge under the delivery policy. Python tooling,
 Forgejo/PyPI publication, Windows matrices and Python distribution
 SBOM/attestation contracts are not copied into this source-release project.
 No arbitrary global coverage threshold is introduced.
 
-Before enforcing this CI, a maintainer must separately verify the dependency
-graph, compatible main-branch restrictions, ordinary squash/title settings and
-required check identities. `Quality checks` is the CI acceptance check; the Work
-Merge Gate remains independent. Neither Sonar's Actions job nor its externally
-published Quality Gate should be required during this phase. This Work does not
-change protections, secrets, merge settings or Work State. Record live inventory
-and activation evidence in the owning Work/PR, rather than treating these
-operational observations as permanent policy.
+The maintainer-activated required checks and strict `main` policy are recorded
+in the [delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
+`Quality checks` is the CI aggregate; `SonarCloud Code Analysis` is the separate
+required external result. The Work Merge Gate remains independent of both.
+Dependency graph availability, analysis credentials/configuration and actual
+check publication must still be diagnosed when unavailable. Changes to
+protections, secrets, merge settings or analysis paths require their own applicable
+authorization. Activation of these two checks does not approve other governance
+decisions or establish Work State.

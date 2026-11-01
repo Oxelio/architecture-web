@@ -177,8 +177,15 @@ malformed records/counters, duplicate sources and missing/escaping sources are
 rejected. Workspace execution counts and native coverage are separate evidence:
 passing tests alone do not establish coverage import. `pnpm ci:test:tooling` verifies runner/service failures, required
 check outcomes and coverage handling. The [CI guide](continuous-integration.md)
-describes shared validation and same-run artifact transfer. Sonar analysis and its
-Quality Gate remain informational.
+describes shared validation and same-run artifact transfer. The Actions job
+`SonarQube (informational)` retains `continue-on-error: true`; the separate external
+`SonarCloud Code Analysis` check is required for merge into `main` under the
+[delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
+Verify the current candidate's external result as well as `Quality checks`;
+a tolerated job failure, skipped analysis or missing result does not satisfy
+that merge requirement. The CI guide documents failure handling and the current
+fork/Dependabot analysis limitation. These checks do not replace the Work Merge
+Gate or applicable review and authority gates.
 
 ## Isolated IAM PostgreSQL/Redis integration
 
