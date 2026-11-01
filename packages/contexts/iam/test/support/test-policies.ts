@@ -1,6 +1,10 @@
 import type { OutboxWriter } from "@architecture/messaging/application";
 
-import { DEFAULT_SECURITY_POLICY } from "#domain/security-policy";
+import type { PasswordPolicy } from "#domain/password-policy";
+import {
+  DEFAULT_SECURITY_POLICY,
+  type SecurityPolicy,
+} from "#domain/security-policy";
 import { PasswordHashValueObject } from "#value-objects/password-hash.value-object";
 export class TestPolicies {
   constructor(
@@ -29,20 +33,18 @@ export class TestPolicies {
       authentication: await this.getAuthenticationPolicy(),
     };
   }
-  getAccountPolicy() {
-    try {
-      return Promise.resolve({
+  getAccountPolicy(): Promise<SecurityPolicy["accounts"]> {
+    return new Promise((resolve) => {
+      resolve({
         ...DEFAULT_SECURITY_POLICY.accounts,
         allowedLoginIdentifiers: [...this.identifiers],
         emailVerification: this.emailVerification,
       });
-    } catch (error: unknown) {
-      return Promise.reject(error);
-    }
+    });
   }
-  get() {
-    try {
-      return Promise.resolve({
+  get(): Promise<PasswordPolicy> {
+    return new Promise((resolve) => {
+      resolve({
         level: "standard" as const,
         minLength: 8,
         maxLength: 128,
@@ -58,19 +60,15 @@ export class TestPolicies {
         },
         rejectCurrentPassword: false,
       });
-    } catch (error: unknown) {
-      return Promise.reject(error);
-    }
+    });
   }
-  getSessionPolicy() {
-    try {
-      return Promise.resolve({
+  getSessionPolicy(): Promise<SecurityPolicy["sessions"]> {
+    return new Promise((resolve) => {
+      resolve({
         ...DEFAULT_SECURITY_POLICY.sessions,
         durationMinutes: 60,
       });
-    } catch (error: unknown) {
-      return Promise.reject(error);
-    }
+    });
   }
   getAuthenticationPolicy() {
     try {

@@ -45,7 +45,8 @@ export class InMemoryLoginIdentityRepository extends LoginIdentityRepository {
   }
   save(identity: LoginIdentityEntity): Promise<void> {
     try {
-      this.values.set(identity.identifier.value, identity);
+      const identityId = identity.identifier.value;
+      this.values.set(identityId, identity);
       return Promise.resolve();
     } catch (error: unknown) {
       return Promise.reject(error);
