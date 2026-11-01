@@ -1,3 +1,4 @@
+import { UserEntity } from "@architecture/iam/domain";
 import { Kysely, PostgresDialect, type PostgresPoolClient } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
@@ -73,6 +74,149 @@ const user = {
 };
 
 describe("transactional MFA proof consumption", () => {
+  it.each([
+    "missing",
+    "no-expiry",
+    "changed-secret",
+    "expired",
+    "old-counter",
+    "valid",
+  ])("validates enrollment proof against %s settings", async (mode) => {
+    const row = {
+      ...setting,
+      enabled_at: null,
+      ...(mode === "no-expiry" ? { enrollment_expires_at: null } : {}),
+      ...(mode === "changed-secret" ? { encrypted_secret: "other" } : {}),
+      ...(mode === "expired" ? { enrollment_expires_at: new Date(0) } : {}),
+      ...(mode === "old-counter" ? { last_totp_counter: String(counter) } : {}),
+    };
+    const { db } = database({
+      iam_users: account,
+      iam_mfa_settings: mode === "missing" ? undefined : row,
+    });
+    const adapter = new KyselyMfaAdapter(db, () => ({
+      append: () => Promise.resolve(),
+    }));
+    expect(
+      await adapter.confirmEnrollment({
+        userId: "account",
+        sealedSecret: "sealed",
+        counter,
+        now,
+        backupHashes: ["backup-hash"],
+        confirmationId: "confirmation",
+      }),
+    ).toBe(mode === "valid");
+    await db.destroy();
+  });
+
+  it.each([
+    "missing-account",
+    "inactive",
+    "role",
+    "generation",
+    "missing-setting",
+    "expired-setting",
+    "missing-challenge",
+    "purpose",
+    "consumed",
+    "valid",
+  ])("validates MFA activation against %s state", async (mode) => {
+    const entity = UserEntity.create();
+    entity.pullDomainEvents();
+    entity.invalidateSessions();
+    const row = {
+      ...account,
+      id: entity.identifier.value,
+      ...(mode === "inactive" ? { status: "suspended" } : {}),
+      ...(mode === "role" ? { role: "admin" } : {}),
+      ...(mode === "generation" ? { session_version: 3 } : {}),
+    };
+    const { db } = database({
+      iam_users: mode === "missing-account" ? undefined : row,
+      iam_mfa_settings:
+        mode === "missing-setting"
+          ? undefined
+          : {
+              ...setting,
+              enabled_at: null,
+              ...(mode === "expired-setting"
+                ? { enrollment_expires_at: new Date(0) }
+                : {}),
+            },
+      iam_mfa_challenges:
+        mode === "missing-challenge"
+          ? undefined
+          : {
+              ...challenge,
+              purpose:
+                mode === "purpose" ? "signin" : "enrollment_confirmation",
+              ...(mode === "consumed" ? { consumed_at: now } : {}),
+            },
+    });
+    const adapter = new KyselyMfaAdapter(db, () => ({
+      append: () => Promise.resolve(),
+    }));
+    expect(
+      await adapter.activate({
+        user: entity,
+        confirmationId: "confirmation",
+        now,
+      }),
+    ).toBe(mode === "valid");
+    await db.destroy();
+  });
+
+  it.each([
+    undefined,
+    { ...account, status: "suspended" },
+    { ...account, session_version: 2 },
+    account,
+  ])("binds new challenges to the locked account generation", async (row) => {
+    const { db } = database({ iam_users: row, iam_mfa_challenges: challenge });
+    const adapter = new KyselyMfaAdapter(db, () => ({
+      append: () => Promise.resolve(),
+    }));
+    const result = await adapter.beginChallenge({
+      userId: "account",
+      userSessionVersion: 1,
+      id: "challenge",
+      now,
+      expiresAt: challenge.expires_at,
+      maximumAttempts: 3,
+    });
+    expect(result?.id ?? null).toBe(row === account ? "challenge" : null);
+    await db.destroy();
+  });
+
+  it.each([
+    "missing-account",
+    "inactive",
+    "missing-setting",
+    "disabled",
+    "valid",
+  ])("guards backup-code replacement against %s state", async (mode) => {
+    const { db } = database({
+      iam_users:
+        mode === "missing-account"
+          ? undefined
+          : {
+              ...account,
+              status: mode === "inactive" ? "suspended" : "active",
+            },
+      iam_mfa_settings:
+        mode === "missing-setting"
+          ? undefined
+          : { ...setting, enabled_at: mode === "disabled" ? null : now },
+    });
+    const adapter = new KyselyMfaAdapter(db, () => ({
+      append: () => Promise.resolve(),
+    }));
+    expect(
+      await adapter.replaceBackupCodes("account", ["backup-hash"], now),
+    ).toBe(mode === "valid");
+    await db.destroy();
+  });
   it.each(["totp", "backup_code", "replay", "expired-counter"] as const)(
     "preserves %s consumption and statement order",
     async (mode) => {
@@ -161,6 +305,18 @@ describe("transactional MFA proof consumption", () => {
 });
 
 describe("account and configuration transaction guards", () => {
+  it("does not cancel when a locked deletion update no longer matches", async () => {
+    const { db } = database({
+      iam_users: { ...account, status: "pending_deletion", session_version: 2 },
+    });
+    const adapter = new KyselyAccountDeletionAdapter(db, () => ({
+      append: () => Promise.resolve(),
+    }));
+    expect(
+      await adapter.cancel({ user, requestId: "request", now } as never),
+    ).toBe(false);
+    await db.destroy();
+  });
   it.each([undefined, { ...account, status: "suspended" }])(
     "refuses export reservation for an unavailable account",
     async (row) => {
