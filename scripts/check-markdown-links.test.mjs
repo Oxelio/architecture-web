@@ -15,6 +15,64 @@ async function withRepo(run) {
   }
 }
 
+test("parallel collection preserves UTF-16 file order and repeated diagnostics", async () => {
+  await withRepo(async (root) => {
+    await mkdir(join(root, "docs"));
+    await writeFile(join(root, "docs", "é.md"), "[Missing](missing.md)");
+    await writeFile(
+      join(root, "docs", "Z.md"),
+      "[Missing](missing.md) [Repeated](missing.md)",
+    );
+    await writeFile(join(root, "docs", "ignored.txt"), "[Ignored](missing.md)");
+    const result = await validateMarkdownLinks({
+      repoRoot: root,
+      sourcePaths: ["docs"],
+    });
+    assert.equal(result.filesChecked, 2);
+    assert.equal(result.linksChecked, 3);
+    assert.deepEqual(result.errors, [
+      "docs/Z.md: missing repository-relative target: missing.md",
+      "docs/Z.md: missing repository-relative target: missing.md",
+      "docs/é.md: missing repository-relative target: missing.md",
+    ]);
+  });
+});
+
+test("parallel collection propagates the first source-path failure deterministically", async () => {
+  await withRepo(async (root) => {
+    await assert.rejects(
+      validateMarkdownLinks({
+        repoRoot: root,
+        sourcePaths: ["first\0", "second\0"],
+      }),
+      /first/,
+    );
+  });
+});
+
+test("validates Unicode paths and malformed or escaping targets without counting external links", async () => {
+  await withRepo(async (root) => {
+    await writeFile(join(root, "é.md"), "# Target");
+    await writeFile(
+      join(root, "README.md"),
+      [
+        "[Unicode](%C3%A9.md) [Encoded](%E0%A4%A) [Escape](../outside.md)",
+        "[External](https://example.invalid) [Mail](mailto:a@example.invalid) [Anchor](#part)",
+        "`[Inline](hidden.md)`",
+      ].join("\n"),
+    );
+    const result = await validateMarkdownLinks({
+      repoRoot: root,
+      sourcePaths: ["README.md", "missing-directory"],
+    });
+    assert.equal(result.linksChecked, 3);
+    assert.deepEqual(result.errors, [
+      "README.md: invalid URI encoding in link target %E0%A4%A",
+      "README.md: link escapes repository root: ../outside.md",
+    ]);
+  });
+});
+
 for (const marker of ["`", "~"]) {
   test(`long Unicode-indented ${marker} fences hide links and preserve the following link`, async () => {
     await withRepo(async (root) => {
