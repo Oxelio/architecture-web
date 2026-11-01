@@ -169,8 +169,7 @@ export class KyselyMfaAdapter implements MfaStore {
         .forUpdate()
         .executeTakeFirst();
       if (
-        !row ||
-        !row.enrollment_expires_at ||
+        !row?.enrollment_expires_at ||
         row.encrypted_secret !== input.sealedSecret ||
         !isMfaEnrollmentUsable(
           credential(row),
@@ -216,8 +215,7 @@ export class KyselyMfaAdapter implements MfaStore {
     return this.db.transaction().execute(async (trx) => {
       const account = await this.lockAccount(trx, input.user.identifier.value);
       if (
-        !account ||
-        account.status !== "active" ||
+        account?.status !== "active" ||
         account.role !== input.user.role.value ||
         account.session_version !== input.user.sessionVersion - 1
       ) {
@@ -242,8 +240,7 @@ export class KyselyMfaAdapter implements MfaStore {
           credential(setting),
           new Date(Math.max(input.now.getTime(), Date.now())),
         ) ||
-        !row ||
-        row.purpose !== "enrollment_confirmation" ||
+        row?.purpose !== "enrollment_confirmation" ||
         !isMfaChallengeUsable(
           challenge(row),
           new Date(Math.max(input.now.getTime(), Date.now())),
@@ -289,8 +286,7 @@ export class KyselyMfaAdapter implements MfaStore {
     return this.db.transaction().execute(async (trx) => {
       const account = await this.lockAccount(trx, input.userId);
       if (
-        !account ||
-        account.status !== "active" ||
+        account?.status !== "active" ||
         account.session_version !== input.userSessionVersion
       ) {
         return null;
@@ -354,8 +350,7 @@ export class KyselyMfaAdapter implements MfaStore {
           .forUpdate()
           .executeTakeFirst();
         if (
-          !row ||
-          row.purpose !== "signin" ||
+          row?.purpose !== "signin" ||
           row.user_session_version !== account.session_version ||
           !isMfaChallengeUsable(
             challenge(row),
@@ -370,40 +365,7 @@ export class KyselyMfaAdapter implements MfaStore {
           .where("id", "=", row.id)
           .execute();
       }
-      let method: "totp" | "backup_code" | null = null;
-      // A proof computed before waiting for a row lock must still belong to
-      // the configured 30-second TOTP window at the time of consumption.
-      const counter =
-        input.counter !== null &&
-        Math.abs(input.counter - Math.floor(Date.now() / 30000)) <= 1
-          ? input.counter
-          : null;
-      if (
-        counter !== null &&
-        (currentCredential.lastCounter === null ||
-          counter > currentCredential.lastCounter)
-      ) {
-        await trx
-          .updateTable("iam_mfa_settings")
-          .set({
-            last_totp_counter: String(counter),
-            updated_at: input.now,
-          })
-          .where("user_id", "=", input.userId)
-          .execute();
-        method = "totp";
-      } else {
-        const backup = await trx
-          .updateTable("iam_mfa_backup_codes")
-          .set({ consumed_at: input.now })
-          .where("user_id", "=", input.userId)
-          .where("code_hash", "=", input.backupHash)
-          .where("consumed_at", "is", null)
-          .executeTakeFirst();
-        if (Number(backup.numUpdatedRows) === 1) {
-          method = "backup_code";
-        }
-      }
+      const method = await this.consumeProof(trx, input, currentCredential);
       if (method && input.challengeId) {
         await trx
           .updateTable("iam_mfa_challenges")
@@ -424,6 +386,48 @@ export class KyselyMfaAdapter implements MfaStore {
       return method;
     });
   }
+  private async consumeProof(
+    trx: Kysely<IamDatabase>,
+    input: Parameters<MfaStore["verify"]>[0],
+    currentCredential: MfaCredential,
+  ): Promise<"totp" | "backup_code" | null> {
+    let method: "totp" | "backup_code" | null = null;
+    // A proof computed before waiting for a row lock must still belong to
+    // the configured 30-second TOTP window at the time of consumption.
+    const counter =
+      input.counter !== null &&
+      Math.abs(input.counter - Math.floor(Date.now() / 30000)) <= 1
+        ? input.counter
+        : null;
+    if (
+      counter !== null &&
+      (currentCredential.lastCounter === null ||
+        counter > currentCredential.lastCounter)
+    ) {
+      await trx
+        .updateTable("iam_mfa_settings")
+        .set({
+          last_totp_counter: String(counter),
+          updated_at: input.now,
+        })
+        .where("user_id", "=", input.userId)
+        .execute();
+      method = "totp";
+    } else {
+      const backup = await trx
+        .updateTable("iam_mfa_backup_codes")
+        .set({ consumed_at: input.now })
+        .where("user_id", "=", input.userId)
+        .where("code_hash", "=", input.backupHash)
+        .where("consumed_at", "is", null)
+        .executeTakeFirst();
+      if (Number(backup.numUpdatedRows) === 1) {
+        method = "backup_code";
+      }
+    }
+
+    return method;
+  }
   async replaceBackupCodes(
     userId: string,
     hashes: readonly string[],
@@ -437,7 +441,7 @@ export class KyselyMfaAdapter implements MfaStore {
         .where("user_id", "=", userId)
         .forUpdate()
         .executeTakeFirst();
-      if (!user || user.status !== "active" || !setting?.enabled_at) {
+      if (user?.status !== "active" || !setting?.enabled_at) {
         return false;
       }
       await this.backupCodes(trx, userId, hashes, now);
@@ -461,8 +465,7 @@ export class KyselyMfaAdapter implements MfaStore {
         return false;
       }
       if (
-        !account ||
-        account.status !== user.status.value ||
+        account?.status !== user.status.value ||
         account.role !== user.role.value ||
         account.session_version !== user.sessionVersion - 1
       ) {

@@ -40,8 +40,7 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         .forUpdate()
         .executeTakeFirst();
       if (
-        !account ||
-        account.session_version !== input.user.sessionVersion - 1 ||
+        account?.session_version !== input.user.sessionVersion - 1 ||
         account.status !== input.previousStatus ||
         account.role !== input.user.role.value
       ) {
@@ -128,8 +127,7 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         .forUpdate()
         .executeTakeFirst();
       if (
-        !user ||
-        user.status !== "pending_deletion" ||
+        user?.status !== "pending_deletion" ||
         user.session_version !== input.user.sessionVersion ||
         user.role !== input.user.role.value
       ) {
@@ -195,7 +193,7 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         .where("id", "=", initial.user_id)
         .forUpdate()
         .executeTakeFirst();
-      if (!user || user.status !== "pending_deletion") {
+      if (user?.status !== "pending_deletion") {
         return null;
       }
       const row = await trx
