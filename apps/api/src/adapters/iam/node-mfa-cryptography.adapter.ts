@@ -72,7 +72,11 @@ function base32Encode(input: Buffer) {
 function base32Decode(input: string) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
-  for (const character of input.replace(/=+$/g, "").toUpperCase()) {
+  let end = input.length;
+  while (end > 0 && input[end - 1] === "=") {
+    end -= 1;
+  }
+  for (const character of input.slice(0, end).toUpperCase()) {
     const index = alphabet.indexOf(character);
     if (index < 0) {
       throw new Error("Invalid MFA secret encoding");
