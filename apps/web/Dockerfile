@@ -2,11 +2,12 @@ FROM node:26.8.1-alpine3.24 AS build
 
 WORKDIR /app
 
-RUN npm install -g corepack@0.35.0 && corepack enable
+RUN npm install -g --ignore-scripts corepack@0.35.0 && corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
-COPY packages/eslint-config/package.json packages/eslint-config/package.json
+COPY apps/api/package.json apps/api/package.json
+COPY packages/ packages/
 
 RUN corepack install
 
