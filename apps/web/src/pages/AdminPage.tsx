@@ -35,7 +35,7 @@ interface AdminPageProps {
   currentUserId: string;
 }
 
-export function AdminPage({ currentUserId }: AdminPageProps) {
+export function AdminPage({ currentUserId }: Readonly<AdminPageProps>) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -248,70 +248,7 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
             </div>
           </div>
 
-          {usersQuery.isLoading ? (
-            <div className="py-20 text-center text-slate-400">
-              {t("common.loading")}
-            </div>
-          ) : usersQuery.isError ? (
-            <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200">
-              {t("admin.loadError")}
-            </div>
-          ) : (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
-              <div className="hidden grid-cols-[minmax(15rem,1fr)_9rem_9rem_11rem_3rem] gap-4 border-b border-slate-800 bg-slate-950/80 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 md:grid">
-                <span>{t("admin.user")}</span>
-                <span>{t("admin.role")}</span>
-                <span>{t("admin.status")}</span>
-                <span>{t("admin.createdAt")}</span>
-                <span />
-              </div>
-              {users.length === 0 ? (
-                <p className="px-5 py-14 text-center text-sm text-slate-500">
-                  {t("admin.empty")}
-                </p>
-              ) : (
-                users.map((user) => (
-                  <button
-                    key={user.userId}
-                    type="button"
-                    onClick={() => setSelectedUserId(user.userId)}
-                    className="grid w-full gap-3 border-b border-slate-800/80 bg-slate-900/30 px-5 py-4 text-left transition last:border-b-0 hover:bg-slate-800/50 md:grid-cols-[minmax(15rem,1fr)_9rem_9rem_11rem_3rem] md:items-center md:gap-4"
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sky-300">
-                        <CircleUserRound className="h-5 w-5" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-white">
-                          {accountDisplayIdentifier(user)}
-                          {user.userId === currentUserId ? (
-                            <span className="ml-2 text-xs text-sky-400">
-                              {t("admin.you")}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="block truncate font-mono text-xs text-slate-500">
-                          {user.userId}
-                        </span>
-                      </span>
-                    </span>
-                    <Badge tone={user.role === "admin" ? "violet" : "slate"}>
-                      {t(`admin.roleValue.${user.role}`)}
-                    </Badge>
-                    <Badge tone={user.status === "active" ? "emerald" : "rose"}>
-                      {t(`admin.statusValue.${user.status}`)}
-                    </Badge>
-                    <span className="text-sm text-slate-400">
-                      {new Intl.DateTimeFormat(i18n.language, {
-                        dateStyle: "medium",
-                      }).format(new Date(user.createdAt))}
-                    </span>
-                    <ChevronRight className="hidden h-5 w-5 text-slate-600 md:block" />
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+          {renderUsers()}
           {usersQuery.isFetching && !usersQuery.isLoading ? (
             <p className="mt-3 text-xs text-sky-300" role="status">
               {t("admin.refreshing")}
@@ -403,6 +340,79 @@ export function AdminPage({ currentUserId }: AdminPageProps) {
       <AdminSecurityCenter />
     </motion.section>
   );
+
+  function renderUsers() {
+    if (usersQuery.isLoading) {
+      return (
+        <div className="py-20 text-center text-slate-400">
+          {t("common.loading")}
+        </div>
+      );
+    }
+    if (usersQuery.isError) {
+      return (
+        <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200">
+          {t("admin.loadError")}
+        </div>
+      );
+    }
+    return (
+      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
+        <div className="hidden grid-cols-[minmax(15rem,1fr)_9rem_9rem_11rem_3rem] gap-4 border-b border-slate-800 bg-slate-950/80 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 md:grid">
+          <span>{t("admin.user")}</span>
+          <span>{t("admin.role")}</span>
+          <span>{t("admin.status")}</span>
+          <span>{t("admin.createdAt")}</span>
+          <span />
+        </div>
+        {users.length === 0 ? (
+          <p className="px-5 py-14 text-center text-sm text-slate-500">
+            {t("admin.empty")}
+          </p>
+        ) : (
+          users.map((user) => (
+            <button
+              key={user.userId}
+              type="button"
+              onClick={() => setSelectedUserId(user.userId)}
+              className="grid w-full gap-3 border-b border-slate-800/80 bg-slate-900/30 px-5 py-4 text-left transition last:border-b-0 hover:bg-slate-800/50 md:grid-cols-[minmax(15rem,1fr)_9rem_9rem_11rem_3rem] md:items-center md:gap-4"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sky-300">
+                  <CircleUserRound className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-white">
+                    {accountDisplayIdentifier(user)}
+                    {user.userId === currentUserId ? (
+                      <span className="ml-2 text-xs text-sky-400">
+                        {t("admin.you")}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="block truncate font-mono text-xs text-slate-500">
+                    {user.userId}
+                  </span>
+                </span>
+              </span>
+              <Badge tone={user.role === "admin" ? "violet" : "slate"}>
+                {t(`admin.roleValue.${user.role}`)}
+              </Badge>
+              <Badge tone={user.status === "active" ? "emerald" : "rose"}>
+                {t(`admin.statusValue.${user.status}`)}
+              </Badge>
+              <span className="text-sm text-slate-400">
+                {new Intl.DateTimeFormat(i18n.language, {
+                  dateStyle: "medium",
+                }).format(new Date(user.createdAt))}
+              </span>
+              <ChevronRight className="hidden h-5 w-5 text-slate-600 md:block" />
+            </button>
+          ))
+        )}
+      </div>
+    );
+  }
 }
 
 function FilterSelect({
@@ -411,13 +421,13 @@ function FilterSelect({
   onChange,
   options,
   allLabel,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly (readonly [string, string])[];
   allLabel: string;
-}) {
+}>) {
   return (
     <label>
       <span className="sr-only">{label}</span>
@@ -445,14 +455,14 @@ function UserPanel({
   onClose,
   onRoleChange,
   onStatusChange,
-}: {
+}: Readonly<{
   user: AdminUser;
   isSelf: boolean;
   isMutating: boolean;
   onClose: () => void;
   onRoleChange: (role: AdminUser["role"]) => void;
   onStatusChange: () => void;
-}) {
+}>) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const sessionsQuery = useQuery({
@@ -625,10 +635,10 @@ function UserPanel({
 function Badge({
   children,
   tone,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   tone: "slate" | "emerald" | "rose" | "violet";
-}) {
+}>) {
   const tones = {
     slate: "border-slate-700 bg-slate-800/70 text-slate-300",
     emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
@@ -649,12 +659,12 @@ function Stat({
   label,
   value,
   tone = "sky",
-}: {
+}: Readonly<{
   icon: typeof Users;
   label: string;
   value: React.ReactNode;
   tone?: "sky" | "emerald" | "rose" | "violet";
-}) {
+}>) {
   const tones = {
     sky: "text-sky-300 bg-sky-500/10",
     emerald: "text-emerald-300 bg-emerald-500/10",

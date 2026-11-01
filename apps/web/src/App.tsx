@@ -60,106 +60,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 via-indigo-500 to-sky-500 shadow-lg shadow-violet-500/20">
-              <span className="text-xl font-semibold text-white">A</span>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
-                Architecture
-              </p>
-              <h1 className="text-lg font-semibold text-white">IAM Studio</h1>
-            </div>
-          </Link>
-
-          <nav className="flex flex-wrap items-center gap-2">
-            <LanguageSwitcher />
-            <Link
-              to="/"
-              className={cn(
-                "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                location.pathname === "/"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400",
-              )}
-            >
-              {t("nav.home")}
-            </Link>
-            {user ? (
-              <>
-                <Link
-                  to="/profile"
-                  className={cn(
-                    "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                    location.pathname === "/profile"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400",
-                  )}
-                >
-                  {t("nav.profile")}
-                </Link>
-                <Link
-                  to="/notifications"
-                  className={cn(
-                    "relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                    location.pathname === "/notifications"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400",
-                  )}
-                >
-                  <Bell className="h-4 w-4" />
-                  {t("nav.notifications")}
-                  {(unread.data?.count ?? 0) > 0 ? (
-                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white">
-                      {unread.data?.count}
-                    </span>
-                  ) : null}
-                </Link>
-                {user.role === "admin" ? (
-                  <Link
-                    to="/admin"
-                    className={cn(
-                      "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                      location.pathname === "/admin"
-                        ? "bg-slate-800 text-white"
-                        : "text-slate-400",
-                    )}
-                  >
-                    {t("nav.admin")}
-                  </Link>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/signin"
-                  className={cn(
-                    "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                    location.pathname === "/signin"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400",
-                  )}
-                >
-                  {t("nav.signIn")}
-                </Link>
-                <Link
-                  to="/signup"
-                  className={cn(
-                    "rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-900",
-                    location.pathname === "/signup"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-200",
-                  )}
-                >
-                  {t("nav.signUp")}
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
+      {renderHeader()}
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <Suspense
@@ -221,6 +122,101 @@ function App() {
       </main>
     </div>
   );
+  function renderHeader() {
+    return (
+      <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 via-indigo-500 to-sky-500 shadow-lg shadow-violet-500/20">
+              <span className="text-xl font-semibold text-white">A</span>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-slate-400">
+                Architecture
+              </p>
+              <h1 className="text-lg font-semibold text-white">IAM Studio</h1>
+            </div>
+          </Link>
+
+          <nav className="flex flex-wrap items-center gap-2">
+            <LanguageSwitcher />
+            <Link
+              to="/"
+              className={cn(
+                "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                activeNavigationClass("/"),
+              )}
+            >
+              {t("nav.home")}
+            </Link>
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                    activeNavigationClass("/profile"),
+                  )}
+                >
+                  {t("nav.profile")}
+                </Link>
+                <Link
+                  to="/notifications"
+                  className={cn(
+                    "relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                    activeNavigationClass("/notifications"),
+                  )}
+                >
+                  <Bell className="h-4 w-4" />
+                  {t("nav.notifications")}
+                  {(unread.data?.count ?? 0) > 0 ? (
+                    <span className="rounded-full bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white">
+                      {unread.data?.count}
+                    </span>
+                  ) : null}
+                </Link>
+                {user.role === "admin" ? (
+                  <Link
+                    to="/admin"
+                    className={cn(
+                      "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                      activeNavigationClass("/admin"),
+                    )}
+                  >
+                    {t("nav.admin")}
+                  </Link>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/signin"
+                  className={cn(
+                    "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
+                    activeNavigationClass("/signin"),
+                  )}
+                >
+                  {t("nav.signIn")}
+                </Link>
+                <Link
+                  to="/signup"
+                  className={cn(
+                    "rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-900",
+                    activeNavigationClass("/signup", "text-slate-200"),
+                  )}
+                >
+                  {t("nav.signUp")}
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      </header>
+    );
+  }
+  function activeNavigationClass(path: string, inactive = "text-slate-400") {
+    return location.pathname === path ? "bg-slate-800 text-white" : inactive;
+  }
 }
 
 export default App;

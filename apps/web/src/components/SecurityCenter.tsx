@@ -95,41 +95,7 @@ export function SecurityCenter() {
               placeholder="Code TOTP ou de secours"
             />
           ) : null}
-          {enrollment ? (
-            <div className="rounded-2xl bg-white p-4 text-slate-950">
-              <img
-                src={enrollment.qrCodeDataUrl}
-                alt="QR code TOTP"
-                className="mx-auto h-48 w-48"
-              />
-              <p className="break-all text-center font-mono text-xs">
-                {enrollment.secret}
-              </p>
-              <button
-                type="button"
-                onClick={() => confirm.mutate()}
-                className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-2 text-white"
-              >
-                Valider l’enrôlement
-              </button>
-            </div>
-          ) : mfa.data?.enabled ? (
-            <button
-              type="button"
-              onClick={() => disable.mutate()}
-              className="rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300"
-            >
-              Désactiver le MFA
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => enroll.mutate()}
-              className="rounded-xl bg-sky-500 px-4 py-2 font-semibold text-white"
-            >
-              Configurer le MFA
-            </button>
-          )}
+          {renderMfaControl()}
           {backupCodes.length > 0 ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
               <strong className="text-amber-200">
@@ -220,4 +186,48 @@ export function SecurityCenter() {
       </article>
     </section>
   );
+
+  function renderMfaControl() {
+    if (enrollment) {
+      return (
+        <div className="rounded-2xl bg-white p-4 text-slate-950">
+          <img
+            src={enrollment.qrCodeDataUrl}
+            alt="QR code TOTP"
+            className="mx-auto h-48 w-48"
+          />
+          <p className="break-all text-center font-mono text-xs">
+            {enrollment.secret}
+          </p>
+          <button
+            type="button"
+            onClick={() => confirm.mutate()}
+            className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-2 text-white"
+          >
+            Valider l’enrôlement
+          </button>
+        </div>
+      );
+    }
+    if (mfa.data?.enabled) {
+      return (
+        <button
+          type="button"
+          onClick={() => disable.mutate()}
+          className="rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300"
+        >
+          Désactiver le MFA
+        </button>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => enroll.mutate()}
+        className="rounded-xl bg-sky-500 px-4 py-2 font-semibold text-white"
+      >
+        Configurer le MFA
+      </button>
+    );
+  }
 }

@@ -110,11 +110,19 @@ export function NotificationsPage() {
         </div>
       </section>
 
-      {notifications.isLoading ? (
-        <p className="text-slate-400">{t("common.loading")}</p>
-      ) : notifications.isError ? (
-        <p className="text-rose-300">{t("notifications.error")}</p>
-      ) : notifications.data?.length ? (
+      {renderNotifications()}
+    </section>
+  );
+
+  function renderNotifications() {
+    if (notifications.isLoading) {
+      return <p className="text-slate-400">{t("common.loading")}</p>;
+    }
+    if (notifications.isError) {
+      return <p className="text-rose-300">{t("notifications.error")}</p>;
+    }
+    if (notifications.data?.length) {
+      return (
         <div className="space-y-3">
           {notifications.data.map((notification) => (
             <NotificationCard
@@ -124,12 +132,13 @@ export function NotificationsPage() {
             />
           ))}
         </div>
-      ) : (
-        <div className="rounded-3xl border border-dashed border-slate-700 p-12 text-center text-slate-400">
-          <Bell className="mx-auto mb-4 h-8 w-8" />
-          {t("notifications.empty")}
-        </div>
-      )}
-    </section>
-  );
+      );
+    }
+    return (
+      <div className="rounded-3xl border border-dashed border-slate-700 p-12 text-center text-slate-400">
+        <Bell className="mx-auto mb-4 h-8 w-8" />
+        {t("notifications.empty")}
+      </div>
+    );
+  }
 }
