@@ -125,6 +125,27 @@ function queryState(
 }
 
 describe("profile presentation states", () => {
+  it("does not request email verification for a username-only account", () => {
+    const html = renderPage(
+      <ProfilePage
+        user={{
+          ...user,
+          email: null,
+          isEmailVerified: false,
+          loginIdentifiers: [
+            {
+              kind: "username",
+              value: "member",
+              verificationStatus: "not_required",
+            },
+          ],
+        }}
+      />,
+      (client) => client.setQueryData(["currentUserSessions"], []),
+    );
+    expect(html).not.toContain("profile.verificationCalloutTitle");
+    expect(html).toContain("member");
+  });
   it.each([true, false])(
     "preserves native MFA controls for enabled=%s",
     (enabled) => {
