@@ -14,6 +14,29 @@ export interface VersionPlan {
   readonly firstStable: FirstStableRequest | null;
 }
 
+function commitImpact(commit: ReturnType<CommitParser["parse"]>): number {
+  if (commit.notes.length > 0) {
+    return 3;
+  }
+  if (commit["type"] === "feat") {
+    return 2;
+  }
+  return commit["type"] === "fix" ? 1 : 0;
+}
+
+function nextVersion(previous: string | null, impact: number): string | null {
+  if (impact === 0) {
+    return null;
+  }
+  if (previous === null) {
+    return "0.1.0";
+  }
+  if (impact === 3 && semver.major(previous) > 0) {
+    return semver.inc(previous, "major");
+  }
+  return semver.inc(previous, impact >= 2 ? "minor" : "patch");
+}
+
 export async function planVersion(input: {
   readonly previousVersion: string | null;
   readonly messages: readonly string[];
@@ -53,32 +76,11 @@ export async function planVersion(input: {
   let impact = 0;
   for (const message of input.messages) {
     const commit = parser.parse(message);
-    const breaking = commit.notes.length > 0;
-    impact = Math.max(
-      impact,
-      breaking
-        ? 3
-        : commit["type"] === "feat"
-          ? 2
-          : commit["type"] === "fix"
-            ? 1
-            : 0,
-    );
+    impact = Math.max(impact, commitImpact(commit));
   }
-  const bump =
-    impact === 3 && previous && semver.major(previous) > 0
-      ? "major"
-      : impact >= 2
-        ? "minor"
-        : "patch";
   return {
     previousVersion: previous,
-    version:
-      impact === 0
-        ? null
-        : previous === null
-          ? "0.1.0"
-          : semver.inc(previous, bump),
+    version: nextVersion(previous, impact),
     firstStable: null,
   };
 }
