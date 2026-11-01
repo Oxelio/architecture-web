@@ -666,7 +666,7 @@ export async function listUsers(
     AdminUser[],
     { pagination: UserListPagination }
   >(`/iam/users?${parameters.toString()}`, { method: "GET" });
-  if (response === null || response.meta === undefined) {
+  if (response?.meta === undefined) {
     throw new Error("INVALID_RESPONSE");
   }
 

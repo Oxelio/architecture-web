@@ -170,12 +170,7 @@ export function AdminSecurityCenter() {
             }`}
           >
             {t(`securityConfig.tabs.${item}`, {
-              defaultValue:
-                item === "configuration"
-                  ? "Configuration"
-                  : item === "history"
-                    ? "Historique"
-                    : "Journal d’audit",
+              defaultValue: securityTabLabel(item),
             })}
           </button>
         ))}
@@ -232,7 +227,7 @@ function ConfigurationEditor({
   onCriticalConfirmationChange,
   preview,
   publish,
-}: {
+}: Readonly<{
   catalog: SecurityConfigCenter["catalog"];
   draft: Draft | null;
   onChange: (key: string, value: unknown) => void;
@@ -250,7 +245,7 @@ function ConfigurationEditor({
     >
   >;
   publish: ReturnType<typeof useMutation<unknown, Error, void>>;
-}) {
+}>) {
   const { t, i18n } = useTranslation();
   const critical = preview.data?.impact === "critical";
 
@@ -405,12 +400,12 @@ function ConfigField({
   value,
   onChange,
   language,
-}: {
+}: Readonly<{
   entry: CatalogEntry;
   value: unknown;
   onChange: (value: unknown) => void;
   language: string;
-}) {
+}>) {
   const id = `security-${entry.key.replaceAll(".", "-")}`;
   const disabled = !entry.availability.available || entry.availability.readOnly;
   const label = fieldLabel(entry.key, language);
@@ -446,7 +441,7 @@ function ConfigField({
         {entry.control === "select" ? (
           <select
             id={id}
-            value={String(value ?? "")}
+            value={formatValue(value ?? "")}
             disabled={disabled}
             onChange={(event) => onChange(event.target.value)}
             className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white"
@@ -535,12 +530,12 @@ function History({
   currentVersion,
   pending,
   onRollback,
-}: {
+}: Readonly<{
   revisions: SecurityConfigCenter["revisions"];
   currentVersion: number;
   pending: boolean;
   onRollback: (id: string) => void;
-}) {
+}>) {
   const { t } = useTranslation();
   return (
     <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
@@ -601,9 +596,9 @@ function History({
 
 function Audit({
   events,
-}: {
+}: Readonly<{
   events: Awaited<ReturnType<typeof listAdminSecurityEvents>>;
-}) {
+}>) {
   return (
     <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
       <h2 className="text-xl font-semibold text-white">Journal de sécurité</h2>
@@ -711,8 +706,35 @@ function setPolicyValue(source: Draft, key: string, value: unknown): Draft {
   return result;
 }
 
-function formatValue(value: unknown): string {
-  return Array.isArray(value) ? value.join(", ") || "—" : String(value ?? "—");
+export function formatValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.map(formatValue).join(", ") || "—";
+  }
+  if (value === null || value === undefined) {
+    return "—";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value) ?? "—";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint" ||
+    typeof value === "symbol"
+  ) {
+    return String(value);
+  }
+  return "—";
+}
+
+function securityTabLabel(tab: string): string {
+  if (tab === "configuration") {
+    return "Configuration";
+  }
+  return tab === "history" ? "Historique" : "Journal d’audit";
 }
 
 function categoryLabel(category: string, language: string): string {

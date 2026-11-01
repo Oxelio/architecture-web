@@ -37,19 +37,8 @@ export function RecoveryPage() {
         await requestAccountRecovery(email);
       }
       setState("success");
-    } catch (caught) {
-      const code = caught instanceof Error ? caught.message : "UNKNOWN_ERROR";
-      setError(
-        code.startsWith("password.")
-          ? t(`passwordFeedback.${code.slice(9)}`, {
-              defaultValue: t("passwordFeedback.invalid"),
-            })
-          : code === "password_recovery.invalid_token"
-            ? t("passwordFeedback.recovery_invalid")
-            : code === "email.invalid_format"
-              ? t("auth.invalidEmail")
-              : t("passwordFeedback.unavailable"),
-      );
+    } catch (error) {
+      setError(recoveryErrorMessage(error, t));
       setState("error");
     }
   };
@@ -132,14 +121,36 @@ export function RecoveryPage() {
             }
             className="w-full rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 font-semibold text-white disabled:opacity-50"
           >
-            {state === "pending"
-              ? "Traitement…"
-              : token
-                ? "Réinitialiser"
-                : "Envoyer les instructions"}
+            {recoverySubmitLabel(state === "pending", Boolean(token))}
           </button>
         </div>
       )}
     </motion.section>
   );
+}
+
+export function recoverySubmitLabel(pending: boolean, reset: boolean): string {
+  if (pending) {
+    return "Traitement…";
+  }
+  return reset ? "Réinitialiser" : "Envoyer les instructions";
+}
+
+export function recoveryErrorMessage(
+  error: unknown,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
+  if (code.startsWith("password.")) {
+    return t(`passwordFeedback.${code.slice(9)}`, {
+      defaultValue: t("passwordFeedback.invalid"),
+    });
+  }
+  if (code === "password_recovery.invalid_token") {
+    return t("passwordFeedback.recovery_invalid");
+  }
+  if (code === "email.invalid_format") {
+    return t("auth.invalidEmail");
+  }
+  return t("passwordFeedback.unavailable");
 }
