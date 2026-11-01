@@ -169,6 +169,43 @@ describe("CI trust and failure boundaries", () => {
     }
   });
 
+  it("collects native Node coverage before merging and exporting the single artifact", () => {
+    const steps = shared.jobs["validate"]?.steps ?? [];
+    const collect = steps.findIndex(
+      (step) => step.run === "pnpm ci:test:tooling",
+    );
+    const merge = steps.findIndex(
+      (step) => step.run === "node scripts/merge-coverage.mjs",
+    );
+    const upload = steps.findIndex((step) =>
+      step.uses?.startsWith("actions/upload-artifact@"),
+    );
+    expect(collect).toBeGreaterThan(
+      steps.findIndex((step) => step.run === "pnpm ci:test:integration"),
+    );
+    expect(merge).toBeGreaterThan(collect);
+    expect(upload).toBeGreaterThan(merge);
+    expect(
+      shared.jobs["node-compatibility"]?.steps?.some(
+        (step) => step.run === "pnpm ci:test:tooling",
+      ),
+    ).toBe(true);
+    const root = JSON.parse(
+      readFileSync(
+        new URL("../../../../../package.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { scripts: Record<string, string> };
+    const command = root.scripts["ci:test:tooling"];
+    expect(command).toContain("--experimental-test-coverage");
+    expect(command).toContain("--test-reporter=lcov");
+    expect(command).toContain(
+      "--test-reporter-destination=coverage/scripts/lcov.info",
+    );
+    expect(command).toContain("scripts/run-workspace-tests.test.mjs");
+    expect(command).toContain("scripts/merge-coverage.test.mjs");
+  });
+
   it("keeps source execution and publication credentials separate", () => {
     const steps = shared.jobs["validate"]?.steps ?? [];
     expect(steps.some((step) => step.run === "pnpm ci:test:integration")).toBe(

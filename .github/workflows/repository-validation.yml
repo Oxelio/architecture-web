@@ -83,11 +83,11 @@ jobs:
       - name: Test with coverage and real IAM integration
         run: pnpm ci:test:integration
 
+      - name: Test CI tooling with native Node coverage
+        run: pnpm ci:test:tooling
+
       - name: Prepare repository-relative LCOV
         run: node scripts/merge-coverage.mjs
-
-      - name: Test coverage path handling
-        run: pnpm ci:test:tooling
 
       - name: Export coverage from this run
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -141,3 +141,4 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm typecheck:test
       - run: pnpm test
+      - run: pnpm ci:test:tooling

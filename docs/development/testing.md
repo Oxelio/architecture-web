@@ -166,10 +166,16 @@ It clears generated reports before execution. `pnpm ci:test:integration` uses th
 same runner with the disposable PostgreSQL/Redis environment, including cleanup
 on failure. Run these commands through pnpm so child commands use its exact CLI.
 
-After coverage, run `node scripts/merge-coverage.mjs` to prepare
+Run `pnpm ci:test:tooling` after workspace coverage and before
+`node scripts/merge-coverage.mjs`. The native Node test runner collects V8
+coverage and emits `coverage/scripts/lcov.info`, including tested CLI child
+processes. Both supported Node lines exercise this collection. The merger
+combines that repository-relative report with all workspace reports to prepare
 `coverage/lcov.info`. A valid nonempty LCOV report is required from every expected
-test workspace; partial coverage, malformed records and missing/escaping sources
-are rejected. `pnpm ci:test:tooling` verifies runner/service failures, required
+test workspace and all four expected CI-script sources; partial coverage,
+malformed records/counters, duplicate sources and missing/escaping sources are
+rejected. Workspace execution counts and native coverage are separate evidence:
+passing tests alone do not establish coverage import. `pnpm ci:test:tooling` verifies runner/service failures, required
 check outcomes and coverage handling. The [CI guide](continuous-integration.md)
 describes shared validation and same-run artifact transfer. Sonar analysis and its
 Quality Gate remain informational.

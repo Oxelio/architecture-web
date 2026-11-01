@@ -58,11 +58,38 @@ The child test environment uses `TZ=UTC`, matching the hosted Linux runner.
 Only disposable localhost endpoints are supplied. No application volume or
 production credential is used.
 
+`pnpm ci:test:tooling` keeps the native Node tests and enables Node's built-in
+V8 coverage with spec and LCOV reporters. It writes `coverage/scripts/lcov.info`
+with repository-relative source paths. Tests of spawned CLI processes remain
+instrumented. The primary job runs this collection before LCOV merging; the Node
+24 job also exercises it for runtime compatibility but does not export a second
+coverage artifact. No coverage-conversion dependency or separate analysis
+pipeline is introduced.
+
 The LCOV merger requires a nonempty valid report from every expected test
-workspace, converts source paths to repository-relative paths and rejects missing
+workspace and the native report containing all four CI scripts, converts source paths to repository-relative paths and rejects missing
 or escaping sources. The resulting artifact is uploaded, downloaded and compared
-in the same run even when Sonar is unavailable. `pnpm ci:test:tooling` covers the
-runner, service lifecycle, required-check acceptance and LCOV failure cases.
+in the same run even when Sonar is unavailable. The tests cover the
+runner, real command exit/launch failures, service lifecycle, CLI cleanup,
+required-check acceptance, missing native/workspace reports and invalid LCOV
+records/counters. Native coverage is merged using its repository source root;
+Vitest reports retain their workspace roots and counters. Missing expected script
+sources, duplicate sources or incomplete declared line counts fail collection.
+
+Use this order for local coverage validation:
+
+```bash
+pnpm build
+pnpm ci:test:integration
+pnpm ci:test:tooling
+node scripts/merge-coverage.mjs
+```
+
+The four required native sources are `merge-coverage.mjs`, `quality-gate.mjs`,
+`run-integration-tests.mjs` and `run-workspace-tests.mjs` under `scripts/`.
+Local V8 percentages describe the executed test suite; Sonar's new-code coverage
+is a separate server-side measure over the PR diff and its coverable conditions.
+A successful local report does not prove its remote import or Quality Gate.
 
 ## Informational SonarQube Cloud
 

@@ -10,10 +10,11 @@ import {
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 
 import { qualityGate } from "./quality-gate.mjs";
 import { runIntegrationTests } from "./run-integration-tests.mjs";
-import { runWorkspaceTests } from "./run-workspace-tests.mjs";
+import { execute, runWorkspaceTests } from "./run-workspace-tests.mjs";
 
 function fixture(
   t,
@@ -238,4 +239,155 @@ test("quality gate rejects failed, cancelled, missing and unexpectedly skipped r
     },
   );
   assert.equal(child.status, 1);
+});
+
+test("command execution preserves exit status and reports launch failures", (t) => {
+  const cwd = fixture(t);
+  assert.equal(
+    execute(process.execPath, ["-e", "process.exit(7)"], {
+      cwd,
+      env: process.env,
+    }),
+    7,
+  );
+  assert.equal(
+    execute(resolve(cwd, "missing-executable"), [], { cwd, env: process.env }),
+    1,
+  );
+  assert.throws(() => execute("pnpm", [], { cwd, env: {} }), /through pnpm/);
+});
+
+test("command execution supports both JavaScript and native pnpm entrypoints without a shell", (t) => {
+  const cwd = fixture(t);
+  const entry = resolve(cwd, "pnpm.cjs");
+  const result = resolve(cwd, "arguments.json");
+  writeFileSync(
+    entry,
+    "require('node:fs').writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)));process.exit(4);",
+  );
+  assert.equal(
+    execute("pnpm", [result, "literal;argument"], {
+      cwd,
+      env: { ...process.env, npm_execpath: entry },
+    }),
+    4,
+  );
+  assert.deepEqual(JSON.parse(readFileSync(result, "utf8")), [
+    "literal;argument",
+  ]);
+  assert.equal(
+    execute("pnpm", ["-e", "process.exit(3)"], {
+      cwd,
+      env: { ...process.env, npm_execpath: process.execPath },
+    }),
+    3,
+  );
+});
+
+test("malformed execution JSON fails the workspace and summary write errors propagate", (t) => {
+  const root = fixture(t);
+  assert.equal(
+    runWorkspaceTests({
+      root,
+      env: {},
+      run: (_command, args) => {
+        const path = args
+          .find((arg) => arg.startsWith("--outputFile.json="))
+          .slice("--outputFile.json=".length);
+        writeFileSync(path, "invalid JSON");
+        return 0;
+      },
+    }),
+    1,
+  );
+  assert.throws(
+    () =>
+      runWorkspaceTests({
+        root,
+        env: { GITHUB_STEP_SUMMARY: root },
+        run: (_command, args) => {
+          report(args);
+          return 0;
+        },
+      }),
+    /EISDIR|EPERM|EACCES/,
+  );
+});
+
+test("workspace CLI fails explicitly when its checkout has no test workspaces", (t) => {
+  const root = fixture(t, []);
+  const result = spawnSync(
+    process.execPath,
+    [resolve(import.meta.dirname, "run-workspace-tests.mjs")],
+    { cwd: root, env: process.env, encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /No test workspaces/);
+});
+
+test("refuses a workspace path that would delete coverage outside the checkout", (t) => {
+  const root = fixture(t);
+  writeFileSync(
+    resolve(root, "apps/app-0/package.json"),
+    JSON.stringify({
+      name: "escaped",
+      path: "..",
+      scripts: { test: "vitest run", "test:coverage": "vitest run --coverage" },
+    }),
+  );
+  assert.throws(
+    () =>
+      runWorkspaceTests({
+        root,
+        run: () => assert.fail("must not execute outside checkout"),
+      }),
+    /escapes repository/,
+  );
+});
+
+test("integration CLI propagates a Docker launch failure", (t) => {
+  const root = fixture(t, []);
+  const result = spawnSync(
+    process.execPath,
+    [resolve(import.meta.dirname, "run-integration-tests.mjs")],
+    { cwd: root, env: { ...process.env, PATH: "" }, encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /docker/);
+});
+
+test("integration CLI cleans up when checkout validation throws", (t) => {
+  const root = fixture(t, []);
+  const calls = resolve(root, "docker-calls.jsonl");
+  const preload = resolve(root, "docker-stub.mjs");
+  // Stub only the process boundary; execute the real CLI and its error handling.
+  writeFileSync(
+    preload,
+    `import childProcess from 'node:child_process';
+import { appendFileSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+childProcess.spawnSync = (command, args) => {
+  if (command !== 'docker') throw new Error('Unexpected command');
+  appendFileSync(${JSON.stringify(calls)}, JSON.stringify(args) + '\\n');
+  return { status: 0 };
+};
+syncBuiltinESMExports();`,
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      pathToFileURL(preload).href,
+      resolve(import.meta.dirname, "run-integration-tests.mjs"),
+    ],
+    { cwd: root, env: process.env, encoding: "utf8" },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /No test workspaces/);
+  const commands = readFileSync(calls, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  assert.ok(commands[0].includes("up"));
+  assert.deepEqual(commands[1].slice(-2), ["down", "--volumes"]);
 });
