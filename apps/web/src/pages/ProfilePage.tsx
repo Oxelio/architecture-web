@@ -209,38 +209,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     >
       {renderProfileHeader()}
 
-      {user.email !== null && !user.isEmailVerified ? (
-        <section className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-400/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-              <CircleAlert className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-amber-100">
-                {t("profile.verificationCalloutTitle")}
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-amber-100/60">
-                {t("profile.emailVerificationHint")}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => resendVerificationMutation.mutate()}
-            disabled={resendVerificationMutation.isPending}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-amber-300 px-4 py-3 text-sm font-semibold text-amber-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {resendVerificationMutation.isPending ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="h-4 w-4" />
-            )}
-            {resendVerificationMutation.isPending
-              ? t("profile.resendVerificationPending")
-              : t("profile.resendVerification")}
-          </button>
-        </section>
-      ) : null}
+      {renderVerificationCallout()}
 
       <div className="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
         <aside className="space-y-4 lg:sticky lg:top-6">
@@ -751,6 +720,44 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
           ×
         </button>
       </motion.div>
+    );
+  }
+
+  function renderVerificationCallout() {
+    if (!(user.email !== null && !user.isEmailVerified)) {
+      return null;
+    }
+    return (
+      <section className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-400/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
+            <CircleAlert className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-amber-100">
+              {t("profile.verificationCalloutTitle")}
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-amber-100/60">
+              {t("profile.emailVerificationHint")}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => resendVerificationMutation.mutate()}
+          disabled={resendVerificationMutation.isPending}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-amber-300 px-4 py-3 text-sm font-semibold text-amber-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {resendVerificationMutation.isPending ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <Mail className="h-4 w-4" />
+          )}
+          {resendVerificationMutation.isPending
+            ? t("profile.resendVerificationPending")
+            : t("profile.resendVerification")}
+        </button>
+      </section>
     );
   }
 }
