@@ -22,6 +22,14 @@ export interface ReleasePlan extends VersionPlan {
   readonly tag: string | null;
 }
 
+function validateReleaseTags(tags: readonly string[]): void {
+  for (const tag of tags) {
+    if (semver.valid(tag.slice(1)) !== tag.slice(1)) {
+      throw new Error(`INVALID_RELEASE_TAG: ${tag}`);
+    }
+  }
+}
+
 export async function readReleasePlan(
   root: string,
   sourceSha: string,
@@ -40,11 +48,7 @@ export async function readReleasePlan(
   const tags = git(root, "tag", "--merged", sourceSha, "--list", "v*")
     .split(/\r?\n/u)
     .filter(Boolean);
-  for (const tag of tags) {
-    if (semver.valid(tag.slice(1)) !== tag.slice(1)) {
-      throw new Error(`INVALID_RELEASE_TAG: ${tag}`);
-    }
-  }
+  validateReleaseTags(tags);
   tags.sort((a, b) => semver.rcompare(a.slice(1), b.slice(1)));
   const latestVersion = tags[0]?.slice(1);
   if (
