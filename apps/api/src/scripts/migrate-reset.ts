@@ -21,8 +21,12 @@ console.log("♻️ Running migrations...");
 const migrator = new Migrator({
   db,
   provider: {
-    async getMigrations() {
-      return getAllMigrations();
+    getMigrations() {
+      try {
+        return Promise.resolve(getAllMigrations());
+      } catch (error: unknown) {
+        return Promise.reject(error);
+      }
     },
   },
 });

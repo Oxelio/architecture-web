@@ -19,12 +19,7 @@ export function registerHttpAudit(
         type,
         reply.statusCode < 400 ? "success" : "denied",
         {
-          actorType:
-            request.auth?.role === "admin"
-              ? "administrator"
-              : request.auth
-                ? "user"
-                : "anonymous",
+          actorType: auditActorType(request.auth),
           ...(request.auth ? { actorId: request.auth.userId } : {}),
           ...(request.auth ? { subjectId: request.auth.userId } : {}),
           correlationId: String(request.id),
@@ -43,6 +38,15 @@ export function registerHttpAudit(
       request.log.error({ err: error }, "Security audit write failed");
     }
   });
+}
+
+function auditActorType(
+  auth: { role: string } | null | undefined,
+): "administrator" | "user" | "anonymous" {
+  if (auth?.role === "admin") {
+    return "administrator";
+  }
+  return auth ? "user" : "anonymous";
 }
 
 function auditTypeFor(method: string, path: string): string | null {

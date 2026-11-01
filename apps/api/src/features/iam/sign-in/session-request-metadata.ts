@@ -8,7 +8,7 @@ const VERSION_PATTERN = /(\d+(?:[._]\d+){0,3})/;
 
 function versionAfter(userAgent: string, marker: string): string | undefined {
   const value = userAgent.slice(userAgent.indexOf(marker) + marker.length);
-  return value.match(VERSION_PATTERN)?.[1]?.replaceAll("_", ".");
+  return VERSION_PATTERN.exec(value)?.[1]?.replaceAll("_", ".");
 }
 
 export function parseSessionClient(userAgent?: string): SessionClient {
@@ -16,33 +16,7 @@ export function parseSessionClient(userAgent?: string): SessionClient {
     return { type: "unknown", deviceType: "unknown" };
   }
 
-  const os = (() => {
-    if (userAgent.includes("Windows NT")) {
-      return {
-        name: "Windows",
-        version: versionAfter(userAgent, "Windows NT "),
-      };
-    }
-    if (userAgent.includes("Android")) {
-      return {
-        name: "Android",
-        version: versionAfter(userAgent, "Android "),
-      };
-    }
-    if (/(iPhone|iPad).*OS /.test(userAgent)) {
-      return { name: "iOS", version: versionAfter(userAgent, "OS ") };
-    }
-    if (userAgent.includes("Mac OS X")) {
-      return {
-        name: "macOS",
-        version: versionAfter(userAgent, "Mac OS X "),
-      };
-    }
-    if (userAgent.includes("Linux")) {
-      return { name: "Linux" };
-    }
-    return undefined;
-  })();
+  const os = sessionOperatingSystem(userAgent);
 
   const browser = (() => {
     const candidates = [
@@ -57,13 +31,7 @@ export function parseSessionClient(userAgent?: string): SessionClient {
       : undefined;
   })();
 
-  const deviceType = /iPad|Tablet/i.test(userAgent)
-    ? "tablet"
-    : /(?:\bMobile(?:\b|\/)|iPhone|Android)/i.test(userAgent)
-      ? "phone"
-      : os
-        ? "desktop"
-        : "unknown";
+  const deviceType = sessionDeviceType(userAgent, os !== undefined);
 
   if (browser) {
     return {
@@ -82,9 +50,8 @@ export function parseSessionClient(userAgent?: string): SessionClient {
     };
   }
 
-  const application = userAgent.match(
-    /^([A-Za-z][A-Za-z0-9 ._-]{1,63})\/(\d+(?:\.\d+){0,3})/,
-  );
+  const application =
+    /^([A-Za-z][A-Za-z0-9 ._-]{1,63})\/(\d+(?:\.\d+){0,3})/.exec(userAgent);
   return {
     type: application ? "application" : "unknown",
     deviceType,
@@ -110,4 +77,45 @@ export function sessionMetadataFromRequest(request: FastifyRequest): {
     client: parseSessionClient(request.headers["user-agent"]),
     ...(ipAddress ? { network: { ipAddress } } : {}),
   };
+}
+
+function sessionOperatingSystem(userAgent: string) {
+  if (userAgent.includes("Windows NT")) {
+    return {
+      name: "Windows",
+      version: versionAfter(userAgent, "Windows NT "),
+    };
+  }
+  if (userAgent.includes("Android")) {
+    return {
+      name: "Android",
+      version: versionAfter(userAgent, "Android "),
+    };
+  }
+  if (/(iPhone|iPad).*OS /.test(userAgent)) {
+    return { name: "iOS", version: versionAfter(userAgent, "OS ") };
+  }
+  if (userAgent.includes("Mac OS X")) {
+    return {
+      name: "macOS",
+      version: versionAfter(userAgent, "Mac OS X "),
+    };
+  }
+  if (userAgent.includes("Linux")) {
+    return { name: "Linux" };
+  }
+  return undefined;
+}
+
+function sessionDeviceType(
+  userAgent: string,
+  hasOperatingSystem: boolean,
+): SessionClient["deviceType"] {
+  if (/iPad|Tablet/i.test(userAgent)) {
+    return "tablet";
+  }
+  if (/(?:\bMobile(?:\b|\/)|iPhone|Android)/i.test(userAgent)) {
+    return "phone";
+  }
+  return hasOperatingSystem ? "desktop" : "unknown";
 }

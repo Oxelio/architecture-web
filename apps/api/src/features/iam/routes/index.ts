@@ -14,11 +14,17 @@ export function buildIamRoutes(
   container: IamApplication,
   sessionCookie: SessionCookieOptions,
 ) {
-  return async (app: FastifyInstance) => {
-    const controllers = composeIamControllers(container, sessionCookie);
+  return (app: FastifyInstance) => {
+    try {
+      const controllers = composeIamControllers(container, sessionCookie);
 
-    app.register(registerPublicRoutes(controllers));
-    app.register(registerProtectedRoutes(controllers));
-    app.register(registerAdminRoutes(controllers));
+      app.register(registerPublicRoutes(controllers));
+      app.register(registerProtectedRoutes(controllers));
+      app.register(registerAdminRoutes(controllers));
+
+      return Promise.resolve();
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   };
 }
