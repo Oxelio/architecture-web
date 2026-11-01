@@ -9,6 +9,7 @@ import { iamConfigurationVersionMigrations } from "../persistence/migrations/008
 import { KyselyAccountDeletionAdapter } from "./kysely-account-deletion.adapter.js";
 import { KyselyAccountExportAdapter } from "./kysely-account-export.adapter.js";
 import { KyselyMfaAdapter } from "./kysely-mfa.adapter.js";
+import { KyselyPasswordRecoveryAdapter } from "./kysely-password-recovery.adapter.js";
 import { KyselySecurityConfigurationAdapter } from "./kysely-security-configuration.adapter.js";
 
 // Compile real Kysely queries; control only the PostgreSQL driver's responses.
@@ -72,6 +73,48 @@ const user = {
   sessionVersion: 2,
   role: { value: "user" },
 };
+
+describe("recovery identity binding", () => {
+  it.each(["missing", "unbound", "malformed", "stale", "matching"])(
+    "preserves fail-closed recovery checks for %s identity state",
+    async (mode) => {
+      const accountId = UserEntity.create().identifier.value;
+      const { db, statements } = database({
+        iam_users: {
+          ...account,
+          id: accountId,
+          created_at: now,
+          updated_at: now,
+        },
+        iam_password_recoveries: {
+          id: "recovery",
+          user_id: accountId,
+          expires_at: new Date(Date.now() + 60_000),
+          consumed_at: null,
+          invalidated_at: null,
+          login_identity_id: mode === "unbound" ? null : "identity",
+          identity_generation: mode === "malformed" ? undefined : 1,
+        },
+        iam_login_identities: ["missing", "malformed", "unbound"].includes(mode)
+          ? undefined
+          : { generation: mode === "stale" ? 2 : 1 },
+      });
+      const work = vi.fn(() => Promise.resolve("reset"));
+      const adapter = new KyselyPasswordRecoveryAdapter(db, () => ({
+        append: () => Promise.resolve(),
+      }));
+      expect(await adapter.withUsableToken("token-hash", now, work)).toBeNull();
+      expect(work).not.toHaveBeenCalled();
+      expect(
+        statements.some((sql) =>
+          sql.includes('from "iam_password_authenticators"'),
+        ),
+      ).toBe(mode === "matching");
+      expect(statements.some((sql) => sql.startsWith("update"))).toBe(false);
+      await db.destroy();
+    },
+  );
+});
 
 describe("transactional MFA proof consumption", () => {
   it.each([
