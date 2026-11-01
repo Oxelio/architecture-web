@@ -79,6 +79,7 @@ const resources = {
         description:
           "Retrouvez les changements importants concernant votre compte et votre sécurité.",
         markAllRead: "Tout marquer comme lu",
+        markRead: "Marquer comme lu : {{title}}",
         empty: "Vous n’avez aucune notification.",
         error: "Impossible de charger les notifications.",
         preferences: "Préférences de diffusion",
@@ -386,6 +387,7 @@ const resources = {
         description:
           "Review important changes concerning your account and security.",
         markAllRead: "Mark all as read",
+        markRead: "Mark as read: {{title}}",
         empty: "You have no notifications.",
         error: "Unable to load notifications.",
         preferences: "Delivery preferences",
