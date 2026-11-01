@@ -6,6 +6,60 @@ import { AuditApplication } from "#services/audit.application";
 import { AuditIntegrationEventHandler } from "./audit-integration-event.handler.js";
 
 describe("AuditIntegrationEventHandler", () => {
+  it.each(["administrator", "system", "anonymous", "user", "unexpected"])(
+    "preserves the audit actor for %s",
+    async (actorType) => {
+      const record = vi.fn();
+      const handler = new AuditIntegrationEventHandler(
+        { record },
+        { getRetentionDays: () => Promise.resolve(365) },
+      );
+      await handler.handle({
+        eventId: "event",
+        topic: "account.deletion.executed",
+        version: 1,
+        aggregateId: "pseudonym",
+        occurredAt: new Date(),
+        payload: { pseudonymousSubject: "pseudonym" },
+        context: { actorType },
+      });
+      expect(record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: {
+            actorType: actorType === "unexpected" ? "user" : actorType,
+          },
+        }),
+      );
+    },
+  );
+
+  it.each([
+    { version: "1", changedKeys: [], justification: "reason" },
+    { version: 1, changedKeys: null, justification: "reason" },
+    { version: 1, changedKeys: [1], justification: "reason" },
+    { version: 1, changedKeys: [], justification: null },
+  ])(
+    "refuses malformed configuration facts before writing",
+    async (payload) => {
+      const record = vi.fn();
+      const handler = new AuditIntegrationEventHandler(
+        { record },
+        { getRetentionDays: () => Promise.resolve(365) },
+      );
+      await expect(
+        handler.handle({
+          eventId: "event",
+          topic: "security.config.published",
+          version: 1,
+          aggregateId: "revision",
+          occurredAt: new Date(),
+          payload,
+          context: {},
+        }),
+      ).rejects.toThrow("Invalid configuration event");
+      expect(record).not.toHaveBeenCalled();
+    },
+  );
   it.each([
     ["iam.session-started", 1],
     ["iam.session-started", 999],
