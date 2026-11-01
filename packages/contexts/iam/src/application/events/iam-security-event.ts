@@ -72,12 +72,7 @@ export function createIamSecurityEvent(
       },
     };
   }
-  const actorType =
-    input.type === "account.recovery.completed"
-      ? "anonymous"
-      : input.type === "account.export.generated"
-        ? "system"
-        : "user";
+  const actorType = securityActorType(input.type);
   return {
     ...envelope,
     aggregateId: input.userId,
@@ -97,4 +92,13 @@ export function createIamSecurityEvent(
       subjectId: input.userId,
     },
   };
+}
+
+function securityActorType(
+  type: IamSecurityEventInput["type"],
+): "anonymous" | "system" | "user" {
+  if (type === "account.recovery.completed") {
+    return "anonymous";
+  }
+  return type === "account.export.generated" ? "system" : "user";
 }
