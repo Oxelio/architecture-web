@@ -44,7 +44,9 @@ export class NotificationPreferenceEntity extends AggregateRoot<NotificationPref
       throw new Error("A notification preference requires a recipient");
     }
     if (Number.isNaN(properties.updatedAt.getTime())) {
-      throw new Error("A notification preference requires a valid update date");
+      throw new TypeError(
+        "A notification preference requires a valid update date",
+      );
     }
     return new NotificationPreferenceEntity({
       identifier: identifier.value,

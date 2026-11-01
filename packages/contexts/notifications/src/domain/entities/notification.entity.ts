@@ -92,7 +92,7 @@ export class NotificationEntity extends AggregateRoot<RehydratedNotificationProp
       }
     }
     if (Number.isNaN(properties.createdAt.getTime())) {
-      throw new Error("A notification requires a valid creation date");
+      throw new TypeError("A notification requires a valid creation date");
     }
     return new NotificationEntity(properties);
   }
