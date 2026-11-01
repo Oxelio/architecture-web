@@ -44,7 +44,7 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
             (reference): reference is string => reference !== null,
           ),
         ),
-      ].sort();
+      ].sort((left, right) => left.localeCompare(right, "en"));
       for (const reference of references) {
         await sql`select pg_advisory_xact_lock(hashtextextended(${reference}, 0))`.execute(
           transaction,
