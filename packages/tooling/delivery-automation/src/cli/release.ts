@@ -1,5 +1,4 @@
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { generateArtifacts } from "../release/artifacts.js";
 import {
@@ -12,6 +11,11 @@ import {
   type FirstStableRequest,
 } from "../release/policy.js";
 import {
+  confinedReleasePath,
+  prepareReleaseOutput,
+  verifiedReleaseInput,
+} from "../release/release-paths.js";
+import {
   git,
   readReleasePlan,
   type ReleasePlan,
@@ -21,13 +25,21 @@ async function main(): Promise<void> {
   const command = process.argv[2] ?? "plan";
   const root = git(process.cwd(), "rev-parse", "--show-toplevel");
   process.chdir(root);
-  const output = resolve(process.argv[3] ?? "release-output");
+  const output = process.argv[3] ?? "release-output";
   const env = process.env;
   if (command === "generate") {
+    const directory = confinedReleasePath(root, output);
     const plan = JSON.parse(
-      readFileSync(process.argv[4] ?? "release-plan.json", "utf8"),
+      readFileSync(
+        confinedReleasePath(root, process.argv[4] ?? "release-plan.json"),
+        "utf8",
+      ),
     ) as ReleasePlan;
-    await generateArtifacts(root, plan, output);
+    await generateArtifacts(
+      root,
+      plan,
+      prepareReleaseOutput(root, directory, plan.version),
+    );
     return;
   }
   if (command === "publish") {
@@ -39,7 +51,7 @@ async function main(): Promise<void> {
       required("GITHUB_REPOSITORY"),
       required("GITHUB_TOKEN"),
     );
-    await publishRelease(root, output, client);
+    await publishRelease(root, verifiedReleaseInput(root, output), client);
     return;
   }
   if (command !== "plan" && command !== "ci-plan") {
@@ -85,7 +97,10 @@ async function main(): Promise<void> {
   }
   const plan = await readReleasePlan(root, sourceSha, request, resumeTag);
   if (command === "ci-plan") {
-    writeFileSync("release-plan.json", `${JSON.stringify(plan, null, 2)}\n`);
+    writeFileSync(
+      confinedReleasePath(root, "release-plan.json"),
+      `${JSON.stringify(plan, null, 2)}\n`,
+    );
     appendFileSync(
       required("GITHUB_OUTPUT"),
       `version=${plan.version ?? ""}\nsource_sha=${sourceSha}\n`,
@@ -102,9 +117,11 @@ function required(name: string): string {
   return value;
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   process.stderr.write(
     `${error instanceof Error ? error.message : String(error)}\n`,
   );
   process.exitCode = 1;
-});
+}
