@@ -85,7 +85,7 @@ export class ReleaseGitHub {
       readonly message: string;
       readonly object: { readonly sha: string; readonly type: string };
     }>(`/git/tags/${tag.object.sha}`);
-    if (!annotation || annotation.object.type !== "commit") {
+    if (annotation?.object.type !== "commit") {
       throw new Error("INVALID_RELEASE_TAG_TARGET");
     }
     const manifest = JSON.parse(annotation.message) as ReleaseManifest;
@@ -110,14 +110,12 @@ export class ReleaseGitHub {
       readonly user: { readonly type: string };
     }>(`/collaborators/${encodeURIComponent(request.actor)}/permission`);
     if (
-      !run ||
-      run.event !== "workflow_dispatch" ||
+      run?.event !== "workflow_dispatch" ||
       run.head_sha !== request.sourceSha ||
       run.actor.login !== request.actor ||
       run.actor.type !== "User" ||
       run.path !== ".github/workflows/release.yml" ||
-      !permission ||
-      permission.user.type !== "User" ||
+      permission?.user.type !== "User" ||
       !["maintain", "admin"].includes(permission.role_name)
     ) {
       throw new Error("FIRST_STABLE_REQUIRES_HUMAN_MAINTAINER_DISPATCH");
@@ -215,15 +213,7 @@ export async function publishRelease(
     await client.verifyFirstStable(plan.firstStable);
   }
   const tags = await client.tags();
-  for (const tag of tags) {
-    const version = tag.ref.slice("refs/tags/v".length);
-    if (semver.valid(version) !== version || semver.prerelease(version)) {
-      throw new Error("UNSUPPORTED_REMOTE_RELEASE_TAG");
-    }
-    if (semver.gt(version, plan.version)) {
-      throw new Error("OBSOLETE_RELEASE_CANDIDATE");
-    }
-  }
+  validatePublicationTags(tags, plan.version);
   const existingTag = tags.find((tag) => tag.ref === `refs/tags/${plan.tag}`);
   if (
     existingTag &&
@@ -252,18 +242,9 @@ export async function publishRelease(
     ...Object.keys(manifest.files),
     "release-manifest.json",
     "SHA256SUMS",
-  ].sort();
+  ].sort(compareAssetNames);
   const existingAssets = release ? await client.assets(release.id) : [];
-  for (const asset of existingAssets) {
-    if (
-      !names.includes(asset.name) ||
-      createHash("sha256")
-        .update(await client.download(asset.id))
-        .digest("hex") !== sha256(join(directory, asset.name))
-    ) {
-      throw new Error("REMOTE_RELEASE_ASSET_CONFLICT");
-    }
-  }
+  await verifyRemoteAssets(existingAssets, names, directory, client);
   if (!existingTag) {
     const tag = await client.request<{ readonly sha: string }>(
       "/git/tags",
@@ -283,16 +264,14 @@ export async function publishRelease(
       sha: tag.sha,
     });
   }
-  if (!release) {
-    release = await client.request<Release>("/releases", "POST", {
-      tag_name: plan.tag,
-      target_commitish: plan.sourceSha,
-      name: plan.tag,
-      body: `${readFileSync(join(directory, "release-notes.md"), "utf8")}\n${marker}`,
-      draft: true,
-      prerelease: false,
-    });
-  }
+  release ??= await client.request<Release>("/releases", "POST", {
+    tag_name: plan.tag,
+    target_commitish: plan.sourceSha,
+    name: plan.tag,
+    body: `${readFileSync(join(directory, "release-notes.md"), "utf8")}\n${marker}`,
+    draft: true,
+    prerelease: false,
+  });
   if (!release) {
     throw new Error("RELEASE_CREATION_FAILED");
   }
@@ -307,5 +286,49 @@ export async function publishRelease(
   }
   if (release.draft) {
     await client.request(`/releases/${release.id}`, "PATCH", { draft: false });
+  }
+}
+
+function compareAssetNames(a: string, b: string): number {
+  if (a === b) {
+    return 0;
+  }
+  return a < b ? -1 : 1;
+}
+
+function validatePublicationTags(
+  tags: readonly TagRef[],
+  version: string,
+): void {
+  for (const tag of tags) {
+    const remoteVersion = tag.ref.slice("refs/tags/v".length);
+    if (
+      semver.valid(remoteVersion) !== remoteVersion ||
+      semver.prerelease(remoteVersion)
+    ) {
+      throw new Error("UNSUPPORTED_REMOTE_RELEASE_TAG");
+    }
+    if (semver.gt(remoteVersion, version)) {
+      throw new Error("OBSOLETE_RELEASE_CANDIDATE");
+    }
+  }
+}
+
+async function verifyRemoteAssets(
+  assets: readonly Asset[],
+  names: readonly string[],
+  directory: string,
+  client: ReleaseGitHub,
+): Promise<void> {
+  // Validate serially before any publication mutation, preserving rate and failure order.
+  for (const asset of assets) {
+    if (
+      !names.includes(asset.name) ||
+      createHash("sha256")
+        .update(await client.download(asset.id))
+        .digest("hex") !== sha256(join(directory, asset.name))
+    ) {
+      throw new Error("REMOTE_RELEASE_ASSET_CONFLICT");
+    }
   }
 }
