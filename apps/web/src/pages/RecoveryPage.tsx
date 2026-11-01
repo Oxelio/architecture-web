@@ -129,14 +129,14 @@ export function RecoveryPage() {
   );
 }
 
-function recoverySubmitLabel(pending: boolean, reset: boolean): string {
+export function recoverySubmitLabel(pending: boolean, reset: boolean): string {
   if (pending) {
     return "Traitement…";
   }
   return reset ? "Réinitialiser" : "Envoyer les instructions";
 }
 
-function recoveryErrorMessage(
+export function recoveryErrorMessage(
   error: unknown,
   t: ReturnType<typeof useTranslation>["t"],
 ): string {

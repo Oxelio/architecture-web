@@ -659,12 +659,6 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     );
   }
 
-  function passwordStrengthColor(score: number, level: number): string {
-    if (score < level) {
-      return "bg-slate-800";
-    }
-    return score <= 2 ? "bg-amber-400" : "bg-emerald-400";
-  }
   function renderProfileHeader() {
     return (
       <section className="relative overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/85 p-6 shadow-2xl shadow-slate-950/40 sm:p-8">
@@ -759,4 +753,11 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
       </motion.div>
     );
   }
+}
+
+function passwordStrengthColor(score: number, level: number): string {
+  if (score < level) {
+    return "bg-slate-800";
+  }
+  return score <= 2 ? "bg-amber-400" : "bg-emerald-400";
 }

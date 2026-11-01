@@ -144,9 +144,7 @@ function App() {
               to="/"
               className={cn(
                 "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                location.pathname === "/"
-                  ? "bg-slate-800 text-white"
-                  : "text-slate-400",
+                activeNavigationClass("/"),
               )}
             >
               {t("nav.home")}
@@ -157,9 +155,7 @@ function App() {
                   to="/profile"
                   className={cn(
                     "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                    location.pathname === "/profile"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400",
+                    activeNavigationClass("/profile"),
                   )}
                 >
                   {t("nav.profile")}
@@ -168,9 +164,7 @@ function App() {
                   to="/notifications"
                   className={cn(
                     "relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                    location.pathname === "/notifications"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400",
+                    activeNavigationClass("/notifications"),
                   )}
                 >
                   <Bell className="h-4 w-4" />
@@ -186,9 +180,7 @@ function App() {
                     to="/admin"
                     className={cn(
                       "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                      location.pathname === "/admin"
-                        ? "bg-slate-800 text-white"
-                        : "text-slate-400",
+                      activeNavigationClass("/admin"),
                     )}
                   >
                     {t("nav.admin")}
@@ -201,9 +193,7 @@ function App() {
                   to="/signin"
                   className={cn(
                     "rounded-full px-4 py-2 text-sm font-medium transition hover:bg-slate-800/80",
-                    location.pathname === "/signin"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400",
+                    activeNavigationClass("/signin"),
                   )}
                 >
                   {t("nav.signIn")}
@@ -212,9 +202,7 @@ function App() {
                   to="/signup"
                   className={cn(
                     "rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-900",
-                    location.pathname === "/signup"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-200",
+                    activeNavigationClass("/signup", "text-slate-200"),
                   )}
                 >
                   {t("nav.signUp")}
@@ -225,6 +213,9 @@ function App() {
         </div>
       </header>
     );
+  }
+  function activeNavigationClass(path: string, inactive = "text-slate-400") {
+    return location.pathname === path ? "bg-slate-800 text-white" : inactive;
   }
 }
 
