@@ -164,7 +164,7 @@ function text(
 
 function nonEmpty(value: string | undefined): string | null {
   const result = value?.trim();
-  return result ? result : null;
+  return result || null;
 }
 
 function positiveTaskNumber(value: string | undefined): number | null {
@@ -189,7 +189,7 @@ async function readPublishedTaskClaimFields(input: {
   });
 
   const node = data.node;
-  if (!node || node.__typename !== "ProjectV2Item") {
+  if (node?.__typename !== "ProjectV2Item") {
     throw new Error(
       `Project item '${input.target.projectItemId}' is unavailable`,
     );
