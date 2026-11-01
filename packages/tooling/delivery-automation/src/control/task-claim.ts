@@ -24,7 +24,7 @@ export type ParsedTaskClaim =
 
 function trimmed(value: string | undefined): string | null {
   const result = value?.trim();
-  return result ? result : null;
+  return result || null;
 }
 
 function parseTaskNumber(value: string | null): number | null {
@@ -40,7 +40,12 @@ function presentFieldNames(
 ): readonly string[] {
   return Object.values(taskClaimFieldNames)
     .filter((name) => trimmed(fields[name]) !== null)
-    .toSorted();
+    .toSorted((a, b) => {
+      if (a === b) {
+        return 0;
+      }
+      return a < b ? -1 : 1;
+    });
 }
 
 export function parseTaskClaim(

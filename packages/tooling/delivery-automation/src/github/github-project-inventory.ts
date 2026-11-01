@@ -365,7 +365,12 @@ async function readLabels(input: {
     labels.push(...pageLabels.map((label) => label.name));
 
     if (pageLabels.length < 100) {
-      return labels.toSorted();
+      return labels.toSorted((a, b) => {
+        if (a === b) {
+          return 0;
+        }
+        return a < b ? -1 : 1;
+      });
     }
   }
 

@@ -99,6 +99,9 @@ async function main(): Promise<void> {
     enforcement: "unavailable",
   });
 
+  const blockers = result.blockers
+    .map((blocker) => `\`${blocker}\``)
+    .join(", ");
   const summary = [
     `Work: #${workNumber}`,
     `Work Integration PR: #${live.target.pullRequestNumber}`,
@@ -107,7 +110,7 @@ async function main(): Promise<void> {
     `Enforcement: \`${result.enforcement}\``,
     "",
     `Result: **${result.pass ? "PASS" : "FAIL"}**`,
-    `Blockers: ${result.blockers.length > 0 ? result.blockers.map((blocker) => `\`${blocker}\``).join(", ") : "none"}`,
+    `Blockers: ${result.blockers.length > 0 ? blockers : "none"}`,
     "",
     "| Recorded evidence | Result | Reference |",
     "| --- | --- | --- |",
@@ -140,8 +143,10 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`Work Merge Gate evaluation failed: ${message}\n`);
   process.exitCode = 1;
-});
+}

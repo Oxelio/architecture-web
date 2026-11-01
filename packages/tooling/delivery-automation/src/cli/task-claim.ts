@@ -167,14 +167,7 @@ async function main(): Promise<void> {
   }
 
   if (args.action === "acquire") {
-    if (!args.claimant) {
-      throw new Error("--claimant is required for acquire");
-    }
-    if (args.generation) {
-      throw new Error(
-        "--generation must not be supplied for acquire; the trusted publisher generates it",
-      );
-    }
+    validateAcquisitionArguments(args);
 
     const execution = claimExecution(args);
     const candidate = await readTaskDispatchCandidate({
@@ -266,8 +259,23 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+function validateAcquisitionArguments(
+  args: CliArguments,
+): asserts args is CliArguments & { claimant: string } {
+  if (!args.claimant) {
+    throw new Error("--claimant is required for acquire");
+  }
+  if (args.generation) {
+    throw new Error(
+      "--generation must not be supplied for acquire; the trusted publisher generates it",
+    );
+  }
+}
+
+try {
+  await main();
+} catch (error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(message);
   process.exitCode = 1;
-});
+}

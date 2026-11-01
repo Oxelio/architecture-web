@@ -137,10 +137,12 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(
     `delivery coordinator dispatch authorization failed: ${message}\n`,
   );
   process.exitCode = 1;
-});
+}
