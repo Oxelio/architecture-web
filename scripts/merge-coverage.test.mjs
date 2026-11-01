@@ -239,3 +239,17 @@ test("rejects malformed, duplicate or incomplete line counters", () => {
     );
   }
 });
+
+test("rejects a sourceless record even when global record and source counts match", () => {
+  const content =
+    "DA:1,1\nend_of_record\n" +
+    "SF:apps/api/src/index.ts\nSF:packages/contexts/iam/src/index.ts\nDA:1,1\nend_of_record\n";
+  assert.throws(
+    () =>
+      mergeCoverage(
+        [{ path: "coverage/scripts/lcov.info", sourceRoot: ".", content }],
+        root,
+      ),
+    /Invalid LCOV records/,
+  );
+});
