@@ -150,7 +150,10 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
             .where("verification_status", "=", "verified")
             .executeTakeFirst()
         : null;
-      if (!identity || identity.generation !== row.identity_generation) {
+      if (!identity) {
+        return null;
+      }
+      if (identity.generation !== row.identity_generation) {
         return null;
       }
       const id = UserIdentifierValueObject.create(row.user_id);

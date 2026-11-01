@@ -34,7 +34,7 @@ export function testWorkspaces(root) {
       cwd: root,
       exclude: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
     },
-  ).sort();
+  ).sort((a, b) => Number(a > b) - Number(a < b));
   const workspaces = manifests
     .map((path) => ({
       path: dirname(path),

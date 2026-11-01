@@ -100,20 +100,22 @@ function inlineTargets(line) {
   const targets = [];
   const angle = { end: -2, closing: undefined };
   let labelOpen = false;
-  for (let index = 0; index < line.length; index += 1) {
-    if (line[index] === "[") {
+  let index = 0;
+  while (index < line.length) {
+    const position = index++;
+    if (line[position] === "[") {
       labelOpen = true;
       continue;
     }
-    if (line[index] !== "]" || !labelOpen) continue;
+    if (line[position] !== "]" || !labelOpen) continue;
     labelOpen = false;
-    if (line[index + 1] !== "(") continue;
-    const closing = line.indexOf(")", index + 2);
+    if (line[position + 1] !== "(") continue;
+    const closing = line.indexOf(")", position + 2);
     if (closing === -1) break;
-    const target = inlineTarget(line, index + 2, closing, angle);
+    const target = inlineTarget(line, position + 2, closing, angle);
     if (target) {
       targets.push(line.slice(target.start, target.end));
-      index = target.closing;
+      index = target.closing + 1;
     }
   }
   return targets;

@@ -542,19 +542,11 @@ export function buildSecurityRoutes(
       try {
         const { authenticate } = admin as AuthenticatedFastifyInstance;
         admin.addHook("preValidation", authenticate);
-        admin.addHook("preValidation", (request, reply) => {
-          try {
-            if (request.auth?.role !== "admin") {
-              return Promise.resolve(
-                reply
-                  .status(403)
-                  .send({ error: { code: "authorization.forbidden" } }),
-              );
-            }
-
-            return Promise.resolve();
-          } catch (error: unknown) {
-            return Promise.reject(error);
+        admin.addHook("preValidation", async (request, reply) => {
+          if (request.auth?.role !== "admin") {
+            return reply
+              .status(403)
+              .send({ error: { code: "authorization.forbidden" } });
           }
         });
         admin.get("/admin/security/config", async (request, reply) => {
