@@ -168,6 +168,10 @@ describe("buildInventoryReport", () => {
           fields: [
             statusField,
             { ...statusField, id: "field-status-duplicate" },
+            { ...statusField, id: "field-z", name: "Z" },
+            { ...statusField, id: "field-z-duplicate", name: "Z" },
+            { ...statusField, id: "field-e", name: "é" },
+            { ...statusField, id: "field-e-duplicate", name: "é" },
           ],
           views: [
             workflowView,
@@ -180,7 +184,7 @@ describe("buildInventoryReport", () => {
     });
 
     expect(report.inspectionStatus).toBe("blocked");
-    expect(report.duplicateFields).toEqual(["Status"]);
+    expect(report.duplicateFields).toEqual(["Status", "Z", "é"]);
     expect(report.duplicateViews).toEqual(["Workflow"]);
   });
 

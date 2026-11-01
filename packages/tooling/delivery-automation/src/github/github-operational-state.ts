@@ -242,8 +242,7 @@ function toWorkItem(
   const content = node.content;
   if (
     node.isArchived ||
-    !content ||
-    content.__typename !== "Issue" ||
+    content?.__typename !== "Issue" ||
     typeof content.number !== "number" ||
     !content.state ||
     !content.repository ||
@@ -284,7 +283,14 @@ function toWorkItem(
     projectItemId: node.id,
     issueNumber: content.number,
     issueOpen: content.state === "OPEN",
-    labels: (content.labels?.nodes ?? []).map((label) => label.name).toSorted(),
+    labels: (content.labels?.nodes ?? [])
+      .map((label) => label.name)
+      .toSorted((a, b) => {
+        if (a === b) {
+          return 0;
+        }
+        return a < b ? -1 : 1;
+      }),
     fields,
   };
 }
@@ -300,40 +306,12 @@ export async function readProjectWorkItems(input: {
   let after: string | null = null;
 
   do {
-    const response = await fetchImpl("https://api.github.com/graphql", {
-      method: "POST",
-      headers: {
-        accept: "application/vnd.github+json",
-        authorization: `Bearer ${input.projectsToken}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        query: projectItemsQuery,
-        variables: { projectId: input.projectId, after },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `GitHub Project item query failed with HTTP ${response.status}`,
-      );
-    }
-
-    const payload = (await response.json()) as ProjectItemsQueryResponse;
-    if (payload.errors && payload.errors.length > 0) {
-      throw new Error(
-        `GitHub Project item query failed: ${payload.errors.map((error) => error.message).join("; ")}`,
-      );
-    }
-
-    const node = payload.data?.node;
-    const connection =
-      node?.__typename === "ProjectV2" ? node.items : undefined;
-    if (!connection) {
-      throw new Error(
-        `GitHub Project '${input.projectId}' was not returned as a ProjectV2`,
-      );
-    }
+    const connection = await readProjectItemsPage(
+      input.projectId,
+      input.projectsToken,
+      after,
+      fetchImpl,
+    );
 
     for (const itemNode of connection.nodes) {
       const item = toWorkItem(itemNode, input.repository);
@@ -516,7 +494,12 @@ function issueLabels(issue: RestIssueSnapshot): readonly string[] {
   return issue.labels
     .map((label) => (typeof label === "string" ? label : label.name))
     .filter((label): label is string => typeof label === "string")
-    .toSorted();
+    .toSorted((a, b) => {
+      if (a === b) {
+        return 0;
+      }
+      return a < b ? -1 : 1;
+    });
 }
 
 async function readTaskParentState(input: {
@@ -560,31 +543,14 @@ export async function resolveWorkIntegrationPr(input: {
   }
 
   const fetchImpl = input.fetchImpl ?? fetch;
-  const referencedNumbers = new Set<number>();
-
-  for (let page = 1; page <= 20; page += 1) {
-    const response = await fetchImpl(
-      `https://api.github.com/repos/${input.repository}/issues/${input.workNumber}/timeline?per_page=100&page=${page}`,
-      { headers: headers(input.repositoryToken) },
-    );
-    if (!response.ok) {
-      return { status: "unavailable" };
-    }
-
-    const events = (await response.json()) as readonly TimelineEvent[];
-    for (const event of events) {
-      const sourceIssue =
-        event.event === "cross-referenced" ? event.source?.issue : undefined;
-      if (sourceIssue?.pull_request) {
-        referencedNumbers.add(sourceIssue.number);
-      }
-    }
-    if (events.length < 100) {
-      break;
-    }
-    if (page === 20) {
-      return { status: "unavailable" };
-    }
+  const referencedNumbers = await readReferencedPullRequests(
+    input.repository,
+    input.workNumber,
+    input.repositoryToken,
+    fetchImpl,
+  );
+  if (!referencedNumbers) {
+    return { status: "unavailable" };
   }
 
   const candidates: WorkIntegrationPrSnapshot[] = [];
@@ -735,4 +701,83 @@ export function repositoryCoordinates(repository: string): {
   readonly name: string;
 } {
   return repositoryParts(repository);
+}
+
+async function readProjectItemsPage(
+  projectId: string,
+  projectsToken: string,
+  after: string | null,
+  fetchImpl: FetchLike,
+) {
+  const response = await fetchImpl("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${projectsToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      query: projectItemsQuery,
+      variables: { projectId: projectId, after },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `GitHub Project item query failed with HTTP ${response.status}`,
+    );
+  }
+
+  const payload = (await response.json()) as ProjectItemsQueryResponse;
+  if (payload.errors && payload.errors.length > 0) {
+    throw new Error(
+      `GitHub Project item query failed: ${payload.errors.map((error) => error.message).join("; ")}`,
+    );
+  }
+
+  const node = payload.data?.node;
+  const connection = node?.__typename === "ProjectV2" ? node.items : undefined;
+  if (!connection) {
+    throw new Error(
+      `GitHub Project '${projectId}' was not returned as a ProjectV2`,
+    );
+  }
+
+  return connection;
+}
+
+async function readReferencedPullRequests(
+  repository: string,
+  workNumber: number,
+  token: string,
+  fetchImpl: FetchLike,
+): Promise<Set<number> | null> {
+  const referencedNumbers = new Set<number>();
+
+  for (let page = 1; page <= 20; page += 1) {
+    const response = await fetchImpl(
+      `https://api.github.com/repos/${repository}/issues/${workNumber}/timeline?per_page=100&page=${page}`,
+      { headers: headers(token) },
+    );
+    if (!response.ok) {
+      return null;
+    }
+
+    const events = (await response.json()) as readonly TimelineEvent[];
+    for (const event of events) {
+      const sourceIssue =
+        event.event === "cross-referenced" ? event.source?.issue : undefined;
+      if (sourceIssue?.pull_request) {
+        referencedNumbers.add(sourceIssue.number);
+      }
+    }
+    if (events.length < 100) {
+      break;
+    }
+    if (page === 20) {
+      return null;
+    }
+  }
+
+  return referencedNumbers;
 }

@@ -468,3 +468,46 @@ describe("readTaskDispatchCandidate", () => {
     });
   });
 });
+
+describe("integration PR timeline failure boundaries", () => {
+  it.each(["http", "pagination-limit"] as const)(
+    "refuses %s timeline state",
+    async (mode) => {
+      let calls = 0;
+      const result = await resolveWorkIntegrationPr({
+        repository: "example/fixture",
+        workNumber: 1,
+        repositoryToken: "test-token",
+        active: true,
+        fetchImpl: async () => {
+          calls += 1;
+          return mode === "http"
+            ? jsonResponse({}, 503)
+            : jsonResponse(
+                Array.from({ length: 100 }, () => ({ event: "commented" })),
+              );
+        },
+      });
+      expect(result).toEqual({ status: "unavailable" });
+      expect(calls).toBe(mode === "http" ? 1 : 20);
+    },
+  );
+
+  it.each([
+    [503, {}],
+    [200, { errors: [{ message: "denied" }] }],
+    [200, { data: { node: { __typename: "Issue" } } }],
+  ])(
+    "rejects unavailable or malformed GraphQL pages (%s)",
+    async (status, payload) => {
+      await expect(
+        readProjectWorkItems({
+          repository: "example/fixture",
+          projectId: "PVT_fixture",
+          projectsToken: "test-token",
+          fetchImpl: async () => jsonResponse(payload, status),
+        }),
+      ).rejects.toThrow(/GitHub Project/);
+    },
+  );
+});
