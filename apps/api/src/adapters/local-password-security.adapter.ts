@@ -23,58 +23,77 @@ const compromisedPasswords = new Set([
 ]);
 
 export class LocalCommonPasswordChecker extends CommonPasswordChecker {
-  async isCommon(password: string): Promise<boolean> {
-    return commonPasswords.has(password.toLocaleLowerCase());
+  isCommon(password: string): Promise<boolean> {
+    try {
+      return Promise.resolve(commonPasswords.has(password.toLocaleLowerCase()));
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   }
 }
 
 export class LocalCompromisedPasswordChecker extends CompromisedPasswordChecker {
-  async isCompromised(password: string): Promise<boolean> {
-    return compromisedPasswords.has(password.toLocaleLowerCase());
+  isCompromised(password: string): Promise<boolean> {
+    try {
+      return Promise.resolve(
+        compromisedPasswords.has(password.toLocaleLowerCase()),
+      );
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   }
 }
 
 export class HeuristicPasswordStrengthEvaluator extends PasswordStrengthEvaluator {
-  async evaluate(
+  evaluate(
     password: string,
     _context?: PasswordContext,
   ): Promise<PasswordStrength> {
-    const length = [...password].length;
-    let score = length >= 15 ? 2 : length >= 10 ? 1 : 0;
+    try {
+      const length = [...password].length;
+      let score = length >= 10 ? 1 : 0;
+      if (length >= 15) {
+        score = 2;
+      }
 
-    if (length >= 20) {
-      score += 1;
-    }
-    if (length >= 28) {
-      score += 1;
-    }
+      if (length >= 20) {
+        score += 1;
+      }
+      if (length >= 28) {
+        score += 1;
+      }
 
-    const categories = [
-      /\p{Ll}/u.test(password),
-      /\p{Lu}/u.test(password),
-      /\p{N}/u.test(password),
-      /[^\p{L}\p{N}]/u.test(password),
-    ].filter(Boolean).length;
-    if (categories >= 3 && length >= 15) {
-      score += 1;
-    }
+      const categories = [
+        /\p{Ll}/u.test(password),
+        /\p{Lu}/u.test(password),
+        /\p{N}/u.test(password),
+        /[^\p{L}\p{N}]/u.test(password),
+      ].filter(Boolean).length;
+      if (categories >= 3 && length >= 15) {
+        score += 1;
+      }
 
-    if (
-      /(.)\1{4,}/u.test(password) ||
-      /(012345|123456|234567|345678|456789|abcdef|azerty|qwerty)/iu.test(
-        password,
-      )
-    ) {
-      score -= 1;
-    }
+      if (
+        /(.)\1{4,}/u.test(password) ||
+        /(012345|123456|234567|345678|456789|abcdef|azerty|qwerty)/iu.test(
+          password,
+        )
+      ) {
+        score -= 1;
+      }
 
-    const strengths: PasswordStrength[] = [
-      "too_weak",
-      "weak",
-      "acceptable",
-      "strong",
-      "very_strong",
-    ];
-    return strengths[Math.max(0, Math.min(4, score))] ?? "too_weak";
+      const strengths: PasswordStrength[] = [
+        "too_weak",
+        "weak",
+        "acceptable",
+        "strong",
+        "very_strong",
+      ];
+      return Promise.resolve(
+        strengths[Math.max(0, Math.min(4, score))] ?? "too_weak",
+      );
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   }
 }

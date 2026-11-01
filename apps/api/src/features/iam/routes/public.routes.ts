@@ -12,20 +12,26 @@ import { signUpRouteOptions } from "#iam/sign-up/sign-up.route-options";
 import { verifyEmailRouteOptions } from "#iam/verify-email/verify-email.route-options";
 
 export function registerPublicRoutes(controllers: IamControllers) {
-  return async (app: FastifyInstance) => {
-    app.get("/verify", verifyEmailRouteOptions, controllers.verifyEmail);
-    app.post("/signup", signUpRouteOptions, controllers.signUp);
-    app.get(
-      "/password-policy",
-      getPasswordPolicyRouteOptions,
-      controllers.getPasswordPolicy,
-    );
-    app.post<EvaluatePasswordRoute>(
-      "/password-policy/evaluate",
-      evaluatePasswordRouteOptions,
-      controllers.evaluatePassword,
-    );
-    app.post("/signin", signInRouteOptions, controllers.signIn);
-    app.post("/signout", signOutRouteOptions, controllers.signOut);
+  return (app: FastifyInstance) => {
+    try {
+      app.get("/verify", verifyEmailRouteOptions, controllers.verifyEmail);
+      app.post("/signup", signUpRouteOptions, controllers.signUp);
+      app.get(
+        "/password-policy",
+        getPasswordPolicyRouteOptions,
+        controllers.getPasswordPolicy,
+      );
+      app.post<EvaluatePasswordRoute>(
+        "/password-policy/evaluate",
+        evaluatePasswordRouteOptions,
+        controllers.evaluatePassword,
+      );
+      app.post("/signin", signInRouteOptions, controllers.signIn);
+      app.post("/signout", signOutRouteOptions, controllers.signOut);
+
+      return Promise.resolve();
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   };
 }

@@ -26,65 +26,79 @@ import {
 } from "#iam/suspend-user/suspend-user.route-options";
 
 export function registerAdminRoutes(controllers: IamControllers) {
-  return async (app: FastifyInstance) => {
-    const { authenticate } = app as AuthenticatedFastifyInstance;
+  return (app: FastifyInstance) => {
+    try {
+      const { authenticate } = app as AuthenticatedFastifyInstance;
 
-    app.addHook("preHandler", authenticate);
+      app.addHook("preHandler", authenticate);
 
-    app.addHook("preHandler", async (request, reply) => {
-      if (request.auth?.role !== "admin") {
-        return reply.status(403).send({
-          error: { code: "authorization.forbidden" },
-        });
-      }
-    });
+      app.addHook("preHandler", (request, reply) => {
+        try {
+          if (request.auth?.role !== "admin") {
+            return Promise.resolve(
+              reply.status(403).send({
+                error: { code: "authorization.forbidden" },
+              }),
+            );
+          }
 
-    app.patch(
-      "/users/:userId/activate",
-      activateUserRouteOptions,
-      controllers.activateUser,
-    );
+          return Promise.resolve();
+        } catch (error: unknown) {
+          return Promise.reject(error);
+        }
+      });
 
-    app.patch<SuspendUserRoute>(
-      "/users/:userId/suspend",
-      suspendUserRouteOptions,
-      controllers.suspendUser,
-    );
+      app.patch(
+        "/users/:userId/activate",
+        activateUserRouteOptions,
+        controllers.activateUser,
+      );
 
-    app.patch<AssignUserRoleRoute>(
-      "/users/:userId/role",
-      assignUserRoleRouteOptions,
-      controllers.assignUserRole,
-    );
+      app.patch<SuspendUserRoute>(
+        "/users/:userId/suspend",
+        suspendUserRouteOptions,
+        controllers.suspendUser,
+      );
 
-    app.get(
-      "/users/overview",
-      getUserAdministrationOverviewRouteOptions,
-      controllers.getUserAdministrationOverview,
-    );
+      app.patch<AssignUserRoleRoute>(
+        "/users/:userId/role",
+        assignUserRoleRouteOptions,
+        controllers.assignUserRole,
+      );
 
-    app.get<ListUsersRoute>(
-      "/users",
-      listUsersRouteOptions,
-      controllers.listUsers,
-    );
+      app.get(
+        "/users/overview",
+        getUserAdministrationOverviewRouteOptions,
+        controllers.getUserAdministrationOverview,
+      );
 
-    app.get<ListUserSessionsRoute>(
-      "/users/:userId/sessions",
-      listUserSessionsRouteOptions,
-      controllers.listUserSessions,
-    );
+      app.get<ListUsersRoute>(
+        "/users",
+        listUsersRouteOptions,
+        controllers.listUsers,
+      );
 
-    app.delete<RevokeUserSessionRoute>(
-      "/users/:userId/sessions",
-      revokeUserSessionRouteOptions,
-      controllers.revokeUserSession,
-    );
+      app.get<ListUserSessionsRoute>(
+        "/users/:userId/sessions",
+        listUserSessionsRouteOptions,
+        controllers.listUserSessions,
+      );
 
-    app.delete<RevokeUserSessionRoute>(
-      "/users/:userId/sessions/:sessionId",
-      revokeUserSessionRouteOptions,
-      controllers.revokeUserSession,
-    );
+      app.delete<RevokeUserSessionRoute>(
+        "/users/:userId/sessions",
+        revokeUserSessionRouteOptions,
+        controllers.revokeUserSession,
+      );
+
+      app.delete<RevokeUserSessionRoute>(
+        "/users/:userId/sessions/:sessionId",
+        revokeUserSessionRouteOptions,
+        controllers.revokeUserSession,
+      );
+
+      return Promise.resolve();
+    } catch (error: unknown) {
+      return Promise.reject(error);
+    }
   };
 }
