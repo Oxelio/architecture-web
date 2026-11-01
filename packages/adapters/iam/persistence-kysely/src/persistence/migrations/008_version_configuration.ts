@@ -7,8 +7,10 @@ export const iamConfigurationVersionMigrations: Record<string, Migration> = {
         db,
       );
     },
-    async down() {
-      throw new Error("Configuration history requires a forward migration");
+    down() {
+      return Promise.reject(
+        new Error("Configuration history requires a forward migration"),
+      );
     },
   },
 };
