@@ -22,7 +22,7 @@ export default [
                 "@architecture/*-bcrypt",
                 "@architecture/*-nodemailer",
                 "@architecture/*-postmark",
-                "\\#adapters/**",
+                String.raw`\#adapters/**`,
                 "kysely",
                 "kysely/*",
                 "pg",

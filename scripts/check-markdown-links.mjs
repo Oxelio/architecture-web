@@ -33,30 +33,35 @@ async function collectMarkdownFiles(
   repoRoot,
   sourcePaths = DEFAULT_SOURCE_PATHS,
 ) {
-  const files = [];
-
   async function visit(candidate) {
     const info = await pathStat(candidate);
-    if (!info) return;
+    if (!info) return [];
 
     if (info.isDirectory()) {
       const entries = await readdir(candidate, { withFileTypes: true });
-      for (const entry of entries.sort((a, b) =>
-        a.name.localeCompare(b.name),
-      )) {
-        await visit(resolve(candidate, entry.name));
-      }
-      return;
+      const nested = await Promise.allSettled(
+        entries
+          .toSorted((a, b) => a.name.localeCompare(b.name))
+          .map((entry) => visit(resolve(candidate, entry.name))),
+      );
+      return collectedFiles(nested);
     }
 
-    if (info.isFile() && candidate.endsWith(".md")) files.push(candidate);
+    return info.isFile() && candidate.endsWith(".md") ? [candidate] : [];
   }
 
-  for (const sourcePath of sourcePaths) {
-    await visit(resolve(repoRoot, sourcePath));
-  }
+  const groups = await Promise.allSettled(
+    sourcePaths.map((sourcePath) => visit(resolve(repoRoot, sourcePath))),
+  );
+  // Preserve default UTF-16 ordering, independent of filesystem completion order.
+  return collectedFiles(groups).sort((a, b) => Number(a > b) - Number(a < b));
+}
 
-  return files.sort();
+function collectedFiles(results) {
+  return results.flatMap((result) => {
+    if (result.status === "rejected") throw result.reason;
+    return result.value;
+  });
 }
 
 function fenceMarker(line) {
@@ -129,63 +134,79 @@ export async function validateMarkdownLinks({
   const errors = [];
   let linksChecked = 0;
 
-  for (const source of files) {
-    const markdown = await readFile(source, "utf8");
-    for (const rawTarget of extractTargets(markdown)) {
-      const normalized = normalizeTarget(rawTarget);
-      if (normalized.ignored) continue;
+  const results = await Promise.allSettled(
+    files.map(async (source) => {
+      const markdown = await readFile(source, "utf8");
+      return Promise.allSettled(
+        extractTargets(markdown).map((rawTarget) =>
+          validateTarget(root, source, rawTarget),
+        ),
+      );
+    }),
+  );
+  for (const result of results) {
+    if (result.status === "rejected") throw result.reason;
+    for (const target of result.value) {
+      if (target.status === "rejected") throw target.reason;
+      if (!target.value.checked) continue;
       linksChecked += 1;
-
-      const sourceLabel = toPosix(relative(root, source));
-      if (normalized.invalidEncoding) {
-        errors.push(
-          `${sourceLabel}: invalid URI encoding in link target ${rawTarget}`,
-        );
-        continue;
-      }
-
-      const targetPath = normalized.path.startsWith("/")
-        ? resolve(root, `.${normalized.path}`)
-        : resolve(dirname(source), normalized.path);
-
-      if (!isWithin(root, targetPath)) {
-        errors.push(
-          `${sourceLabel}: link escapes repository root: ${rawTarget}`,
-        );
-        continue;
-      }
-
-      const targetLabel = toPosix(relative(root, targetPath));
-      if (
-        targetLabel === "docs/method" ||
-        targetLabel.startsWith("docs/method/")
-      ) {
-        errors.push(
-          `${sourceLabel}: removed legacy Method path is forbidden: ${rawTarget}`,
-        );
-        continue;
-      }
-
-      const targetInfo = await pathStat(targetPath);
-      if (!targetInfo) {
-        if (
-          targetLabel === "external/software-engineering-method" ||
-          targetLabel.startsWith("external/software-engineering-method/")
-        ) {
-          errors.push(
-            `${sourceLabel}: Method submodule target is unavailable: ${rawTarget} ` +
-              "(initialize external/software-engineering-method before validation)",
-          );
-        } else {
-          errors.push(
-            `${sourceLabel}: missing repository-relative target: ${rawTarget}`,
-          );
-        }
-      }
+      if (target.value.error) errors.push(target.value.error);
     }
   }
-
   return { errors, filesChecked: files.length, linksChecked };
+}
+
+async function validateTarget(root, source, rawTarget) {
+  const normalized = normalizeTarget(rawTarget);
+  if (normalized.ignored) return { checked: false };
+
+  const sourceLabel = toPosix(relative(root, source));
+  if (normalized.invalidEncoding) {
+    return {
+      checked: true,
+      error: `${sourceLabel}: invalid URI encoding in link target ${rawTarget}`,
+    };
+  }
+
+  const targetPath = normalized.path.startsWith("/")
+    ? resolve(root, `.${normalized.path}`)
+    : resolve(dirname(source), normalized.path);
+
+  if (!isWithin(root, targetPath)) {
+    return {
+      checked: true,
+      error: `${sourceLabel}: link escapes repository root: ${rawTarget}`,
+    };
+  }
+
+  const targetLabel = toPosix(relative(root, targetPath));
+  if (targetLabel === "docs/method" || targetLabel.startsWith("docs/method/")) {
+    return {
+      checked: true,
+      error: `${sourceLabel}: removed legacy Method path is forbidden: ${rawTarget}`,
+    };
+  }
+
+  const targetInfo = await pathStat(targetPath);
+  if (!targetInfo) {
+    if (
+      targetLabel === "external/software-engineering-method" ||
+      targetLabel.startsWith("external/software-engineering-method/")
+    ) {
+      return {
+        checked: true,
+        error:
+          `${sourceLabel}: Method submodule target is unavailable: ${rawTarget} ` +
+          "(initialize external/software-engineering-method before validation)",
+      };
+    } else {
+      return {
+        checked: true,
+        error: `${sourceLabel}: missing repository-relative target: ${rawTarget}`,
+      };
+    }
+  }
+  return { checked: true };
 }
 
 async function main() {
