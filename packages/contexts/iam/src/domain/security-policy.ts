@@ -125,48 +125,12 @@ export function parseSecurityPolicy(
     if (Object.keys(fields).some((key) => !Object.hasOwn(defaults, key))) {
       return invalid();
     }
-    for (const [key, example] of Object.entries(defaults)) {
-      const value = fields[key];
-      const name = `${category}.${key}`;
-      if (Array.isArray(example)) {
-        const choices =
-          name === "accounts.allowedLoginIdentifiers"
-            ? ["username", "email"]
-            : ["user", "admin"];
-        if (
-          !Array.isArray(value) ||
-          value.some((item) => !choices.includes(item)) ||
-          new Set(value).size !== value.length ||
-          (name === "accounts.allowedLoginIdentifiers" && value.length === 0)
-        ) {
-          return invalid();
-        }
-      } else if (typeof example === "number") {
-        const limit = bounds[name];
-        if (
-          typeof value !== "number" ||
-          !Number.isSafeInteger(value) ||
-          !limit ||
-          value < limit[0] ||
-          value > limit[1]
-        ) {
-          return invalid();
-        }
-      } else if (typeof example === "boolean") {
-        if (typeof value !== "boolean") {
-          return invalid();
-        }
-      } else {
-        const choices = key.endsWith("Level")
-          ? ["standard", "elevated", "critical", "custom"]
-          : PasswordStrengths;
-        if (
-          typeof value !== "string" ||
-          !(choices as readonly string[]).includes(value)
-        ) {
-          return invalid();
-        }
-      }
+    if (
+      !Object.entries(defaults).every(([key, example]) =>
+        validPolicyField(`${category}.${key}`, key, example, fields[key]),
+      )
+    ) {
+      return invalid();
     }
   }
   const policy = structuredClone(input) as SecurityPolicy;
@@ -266,4 +230,43 @@ export function parseStoredSecurityPolicy(
     }
   }
   return parseSecurityPolicy(legacy);
+}
+
+function validPolicyField(
+  name: string,
+  key: string,
+  example: unknown,
+  value: unknown,
+): boolean {
+  if (Array.isArray(example)) {
+    const choices =
+      name === "accounts.allowedLoginIdentifiers"
+        ? ["username", "email"]
+        : ["user", "admin"];
+    return (
+      Array.isArray(value) &&
+      !value.some((item) => !choices.includes(item)) &&
+      new Set(value).size === value.length &&
+      (name !== "accounts.allowedLoginIdentifiers" || value.length > 0)
+    );
+  }
+  if (typeof example === "number") {
+    const limit = bounds[name];
+    return (
+      typeof value === "number" &&
+      Number.isSafeInteger(value) &&
+      limit !== undefined &&
+      value >= limit[0] &&
+      value <= limit[1]
+    );
+  }
+  if (typeof example === "boolean") {
+    return typeof value === "boolean";
+  }
+  const choices = key.endsWith("Level")
+    ? ["standard", "elevated", "critical", "custom"]
+    : PasswordStrengths;
+  return (
+    typeof value === "string" && (choices as readonly string[]).includes(value)
+  );
 }
