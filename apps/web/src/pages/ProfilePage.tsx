@@ -175,7 +175,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     [...password].length >= 28,
     new Set(password).size >= 10,
   ].filter(Boolean).length;
-  const completedSteps = user.email === null ? 2 : user.isEmailVerified ? 3 : 2;
+  const completedSteps = user.email !== null && user.isEmailVerified ? 3 : 2;
   const profileLabel = accountDisplayIdentifier(user);
   const profileInitial = profileLabel.charAt(0).toUpperCase();
 
@@ -207,62 +207,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
       transition={{ duration: 0.4 }}
       className="mx-auto max-w-6xl space-y-6"
     >
-      <section className="relative overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/85 p-6 shadow-2xl shadow-slate-950/40 sm:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl" />
-
-        <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-center">
-          <div className="flex min-w-0 items-center gap-5">
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-sky-400 via-indigo-500 to-violet-600 text-3xl font-semibold text-white shadow-lg shadow-indigo-950/50">
-              {profileInitial}
-              <span
-                className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-4 border-slate-900 ${
-                  user.isEmailVerified ? "bg-emerald-400" : "bg-amber-400"
-                }`}
-              >
-                {user.isEmailVerified ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-950" />
-                ) : (
-                  <CircleAlert className="h-3.5 w-3.5 text-amber-950" />
-                )}
-              </span>
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-400">
-                  {t("profile.title")}
-                </p>
-                <span className="rounded-full border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-medium text-slate-300">
-                  {t(`profile.role.${user.role}`)}
-                </span>
-              </div>
-              <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                {profileLabel}
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-                {t("profile.description")}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => signOutMutation.mutate()}
-            disabled={signOutMutation.isPending}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-rose-400/50 hover:bg-rose-500/10 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {signOutMutation.isPending ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogOut className="h-4 w-4" />
-            )}
-            {signOutMutation.isPending
-              ? t("profile.signOutPending")
-              : t("profile.signOut")}
-          </button>
-        </div>
-      </section>
+      {renderProfileHeader()}
 
       {user.email !== null && !user.isEmailVerified ? (
         <section className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-400/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -561,13 +506,10 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                 {[1, 2, 3, 4].map((level) => (
                   <div
                     key={level}
-                    className={`h-1.5 rounded-full transition ${
-                      passwordScore >= level
-                        ? passwordScore <= 2
-                          ? "bg-amber-400"
-                          : "bg-emerald-400"
-                        : "bg-slate-800"
-                    }`}
+                    className={`h-1.5 rounded-full transition ${passwordStrengthColor(
+                      passwordScore,
+                      level,
+                    )}`}
                   />
                 ))}
               </div>
@@ -652,86 +594,169 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
               </button>
             </div>
 
-            <div className="p-3 sm:p-4">
-              {sessionsQuery.isLoading ? (
-                <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                  {t("profile.sessionsLoading")}
-                </div>
-              ) : sessionsQuery.isError ? (
-                <div className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.06] p-5 text-sm text-rose-200">
-                  {t("profile.sessionsError")}
-                </div>
-              ) : sessionsQuery.data?.length ? (
-                <div className="divide-y divide-slate-800">
-                  {sessionsQuery.data.map((session) => (
-                    <div
-                      key={session.sessionId}
-                      className="flex flex-col gap-4 rounded-2xl px-3 py-4 transition hover:bg-slate-800/30 sm:flex-row sm:items-center"
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 text-slate-400">
-                        <Laptop className="h-5 w-5" />
-                      </div>
-                      <SessionSummary session={session} />
-                      <button
-                        type="button"
-                        onClick={() => handleRevokeSession(session.sessionId)}
-                        disabled={
-                          revokeSessionMutation.isPending &&
-                          revokeSessionMutation.variables === session.sessionId
-                        }
-                        className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-400 transition hover:border-rose-400/40 hover:bg-rose-400/10 hover:text-rose-200 disabled:opacity-40"
-                      >
-                        {revokeSessionMutation.isPending &&
-                        revokeSessionMutation.variables === session.sessionId
-                          ? t("profile.revokingSession")
-                          : t("profile.revokeSession")}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center">
-                  <Laptop className="mx-auto h-6 w-6 text-slate-700" />
-                  <p className="mt-3 text-sm text-slate-500">
-                    {t("profile.noSessions")}
-                  </p>
-                </div>
-              )}
-            </div>
+            <div className="p-3 sm:p-4">{renderSessions()}</div>
           </section>
         </div>
       </div>
 
-      {feedback ? (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          role="status"
-          aria-live="polite"
-          className={`fixed bottom-5 right-5 z-50 flex max-w-sm items-start gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur ${
-            feedback.tone === "success"
-              ? "border-emerald-400/20 bg-emerald-950/95 text-emerald-100"
-              : "border-rose-400/20 bg-rose-950/95 text-rose-100"
-          }`}
-        >
-          {feedback.tone === "success" ? (
-            <Check className="mt-0.5 h-4 w-4 shrink-0" />
-          ) : (
-            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          )}
-          <p className="text-sm leading-5">{feedback.message}</p>
-          <button
-            type="button"
-            onClick={() => setFeedback(null)}
-            className="ml-2 text-xs opacity-60 transition hover:opacity-100"
-            aria-label={t("profile.dismissFeedback")}
-          >
-            ×
-          </button>
-        </motion.div>
-      ) : null}
+      {renderFeedback()}
       <SecurityCenter />
     </motion.div>
   );
+
+  function renderSessions() {
+    if (sessionsQuery.isLoading) {
+      return (
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          {t("profile.sessionsLoading")}
+        </div>
+      );
+    }
+    if (sessionsQuery.isError) {
+      return (
+        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.06] p-5 text-sm text-rose-200">
+          {t("profile.sessionsError")}
+        </div>
+      );
+    }
+    if (sessionsQuery.data?.length) {
+      return (
+        <div className="divide-y divide-slate-800">
+          {sessionsQuery.data.map((session) => (
+            <div
+              key={session.sessionId}
+              className="flex flex-col gap-4 rounded-2xl px-3 py-4 transition hover:bg-slate-800/30 sm:flex-row sm:items-center"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 text-slate-400">
+                <Laptop className="h-5 w-5" />
+              </div>
+              <SessionSummary session={session} />
+              <button
+                type="button"
+                onClick={() => handleRevokeSession(session.sessionId)}
+                disabled={
+                  revokeSessionMutation.isPending &&
+                  revokeSessionMutation.variables === session.sessionId
+                }
+                className="inline-flex items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-400 transition hover:border-rose-400/40 hover:bg-rose-400/10 hover:text-rose-200 disabled:opacity-40"
+              >
+                {revokeSessionMutation.isPending &&
+                revokeSessionMutation.variables === session.sessionId
+                  ? t("profile.revokingSession")
+                  : t("profile.revokeSession")}
+              </button>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="py-10 text-center">
+        <Laptop className="mx-auto h-6 w-6 text-slate-700" />
+        <p className="mt-3 text-sm text-slate-500">{t("profile.noSessions")}</p>
+      </div>
+    );
+  }
+
+  function passwordStrengthColor(score: number, level: number): string {
+    if (score < level) {
+      return "bg-slate-800";
+    }
+    return score <= 2 ? "bg-amber-400" : "bg-emerald-400";
+  }
+  function renderProfileHeader() {
+    return (
+      <section className="relative overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/85 p-6 shadow-2xl shadow-slate-950/40 sm:p-8">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-violet-500/10 blur-3xl" />
+
+        <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-center">
+          <div className="flex min-w-0 items-center gap-5">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.6rem] border border-white/10 bg-gradient-to-br from-sky-400 via-indigo-500 to-violet-600 text-3xl font-semibold text-white shadow-lg shadow-indigo-950/50">
+              {profileInitial}
+              <span
+                className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-4 border-slate-900 ${
+                  user.isEmailVerified ? "bg-emerald-400" : "bg-amber-400"
+                }`}
+              >
+                {user.isEmailVerified ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-950" />
+                ) : (
+                  <CircleAlert className="h-3.5 w-3.5 text-amber-950" />
+                )}
+              </span>
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-400">
+                  {t("profile.title")}
+                </p>
+                <span className="rounded-full border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-medium text-slate-300">
+                  {t(`profile.role.${user.role}`)}
+                </span>
+              </div>
+              <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                {profileLabel}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                {t("profile.description")}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => signOutMutation.mutate()}
+            disabled={signOutMutation.isPending}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:border-rose-400/50 hover:bg-rose-500/10 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {signOutMutation.isPending ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4" />
+            )}
+            {signOutMutation.isPending
+              ? t("profile.signOutPending")
+              : t("profile.signOut")}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  function renderFeedback() {
+    if (!feedback) {
+      return null;
+    }
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        role="status"
+        aria-live="polite"
+        className={`fixed bottom-5 right-5 z-50 flex max-w-sm items-start gap-3 rounded-2xl border p-4 shadow-2xl backdrop-blur ${
+          feedback.tone === "success"
+            ? "border-emerald-400/20 bg-emerald-950/95 text-emerald-100"
+            : "border-rose-400/20 bg-rose-950/95 text-rose-100"
+        }`}
+      >
+        {feedback.tone === "success" ? (
+          <Check className="mt-0.5 h-4 w-4 shrink-0" />
+        ) : (
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+        )}
+        <p className="text-sm leading-5">{feedback.message}</p>
+        <button
+          type="button"
+          onClick={() => setFeedback(null)}
+          className="ml-2 text-xs opacity-60 transition hover:opacity-100"
+          aria-label={t("profile.dismissFeedback")}
+        >
+          ×
+        </button>
+      </motion.div>
+    );
+  }
 }

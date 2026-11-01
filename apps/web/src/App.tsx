@@ -60,6 +60,70 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      {renderHeader()}
+
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <Suspense
+          fallback={
+            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-10 text-center text-slate-300">
+              {t("common.loading")}
+            </div>
+          }
+        >
+          <Routes location={location}>
+            <Route
+              path="/"
+              element={<HomePage user={user} loading={isLoading} />}
+            />
+            <Route
+              path="/admin"
+              element={
+                user?.role === "admin" ? (
+                  <AdminPage currentUserId={user.userId} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+            <Route
+              path="/signin"
+              element={
+                user ? <Navigate to="/profile" replace /> : <SignInPage />
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                user ? <Navigate to="/profile" replace /> : <SignUpPage />
+              }
+            />
+            <Route path="/verify" element={<VerifyEmailPage />} />
+            <Route path="/recovery" element={<RecoveryPage />} />
+            <Route path="/cancel-deletion" element={<CancelDeletionPage />} />
+            <Route
+              path="/profile"
+              element={
+                user ? (
+                  <ProfilePage user={user} />
+                ) : (
+                  <Navigate to="/signin" replace />
+                )
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                user ? <NotificationsPage /> : <Navigate to="/signin" replace />
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </main>
+    </div>
+  );
+  function renderHeader() {
+    return (
       <header className="border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-3">
@@ -160,67 +224,8 @@ function App() {
           </nav>
         </div>
       </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <Suspense
-          fallback={
-            <div className="rounded-3xl border border-slate-800/90 bg-slate-900/80 p-10 text-center text-slate-300">
-              {t("common.loading")}
-            </div>
-          }
-        >
-          <Routes location={location}>
-            <Route
-              path="/"
-              element={<HomePage user={user} loading={isLoading} />}
-            />
-            <Route
-              path="/admin"
-              element={
-                user?.role === "admin" ? (
-                  <AdminPage currentUserId={user.userId} />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
-            />
-            <Route
-              path="/signin"
-              element={
-                user ? <Navigate to="/profile" replace /> : <SignInPage />
-              }
-            />
-            <Route
-              path="/signup"
-              element={
-                user ? <Navigate to="/profile" replace /> : <SignUpPage />
-              }
-            />
-            <Route path="/verify" element={<VerifyEmailPage />} />
-            <Route path="/recovery" element={<RecoveryPage />} />
-            <Route path="/cancel-deletion" element={<CancelDeletionPage />} />
-            <Route
-              path="/profile"
-              element={
-                user ? (
-                  <ProfilePage user={user} />
-                ) : (
-                  <Navigate to="/signin" replace />
-                )
-              }
-            />
-            <Route
-              path="/notifications"
-              element={
-                user ? <NotificationsPage /> : <Navigate to="/signin" replace />
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
-    </div>
-  );
+    );
+  }
 }
 
 export default App;
