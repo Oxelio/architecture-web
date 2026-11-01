@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { testWorkspaces } from "./run-workspace-tests.mjs";
 
 export const CI_SOURCES = [
+  "scripts/check-markdown-links.mjs",
   "scripts/merge-coverage.mjs",
   "scripts/quality-gate.mjs",
   "scripts/run-integration-tests.mjs",

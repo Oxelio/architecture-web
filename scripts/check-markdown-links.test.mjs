@@ -15,6 +15,32 @@ async function withRepo(run) {
   }
 }
 
+for (const marker of ["`", "~"]) {
+  test(`long Unicode-indented ${marker} fences hide links and preserve the following link`, async () => {
+    await withRepo(async (root) => {
+      await writeFile(join(root, "target.md"), "# Target\n");
+      const fence = marker.repeat(3);
+      await writeFile(
+        join(root, "README.md"),
+        [
+          `${"\u00a0".repeat(100_000)}${fence} text`,
+          "[Hidden](missing.md)",
+          marker === "`" ? "~~~" : "```",
+          "[Still hidden](also-missing.md)",
+          fence,
+          "[Visible](target.md)",
+        ].join("\n"),
+      );
+      const result = await validateMarkdownLinks({
+        repoRoot: root,
+        sourcePaths: ["README.md"],
+      });
+      assert.deepEqual(result.errors, []);
+      assert.equal(result.linksChecked, 1);
+    });
+  });
+}
+
 test("valid repository-relative links pass", async () => {
   await withRepo(async (root) => {
     await mkdir(join(root, "docs"), { recursive: true });
