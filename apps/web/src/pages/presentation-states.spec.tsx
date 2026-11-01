@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import App from "../App";
+import { SecurityCenter } from "../components/SecurityCenter";
 import type { CurrentUser, CurrentUserSession } from "../services/api";
 import { AdminPage } from "./AdminPage";
 import { NotificationsPage } from "./NotificationsPage";
@@ -124,6 +125,17 @@ function queryState(
 }
 
 describe("profile presentation states", () => {
+  it.each([true, false])(
+    "preserves native MFA controls for enabled=%s",
+    (enabled) => {
+      const html = renderPage(<SecurityCenter />, (client) =>
+        client.setQueryData(["mfa"], { enabled, backupCodesRemaining: 3 }),
+      );
+      expect(html).toContain(
+        enabled ? "Désactiver le MFA" : "Configurer le MFA",
+      );
+    },
+  );
   it.each(["loading", "error", "empty"] as const)(
     "preserves the %s session state",
     (state) => {
