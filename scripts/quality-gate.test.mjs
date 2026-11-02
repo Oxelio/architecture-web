@@ -434,6 +434,107 @@ test("retention is bounded by original evidence age and actual platform expirati
   }
 });
 
+test("newer metadata-named full validations cannot hide behind an older green run", async () => {
+  for (const conclusion of ["failure", "cancelled", null]) {
+    const f = fixture();
+    const run = {
+      ...f.source,
+      id: 11,
+      run_number: 11,
+      display_title: "Repository CI [metadata] PR #90",
+      conclusion,
+    };
+    f.runs.push(run);
+    const pages = f.api.pages;
+    f.api.pages = async (path, key) =>
+      path === "/actions/runs/11/attempts/2/jobs"
+        ? [
+            {
+              name: "Select validation route",
+              run_id: 11,
+              head_sha: sha("a"),
+              status: "completed",
+              conclusion: "success",
+              steps: [
+                {
+                  name: "Selected validation route (full)",
+                  conclusion: "success",
+                },
+              ],
+            },
+          ]
+        : pages(path, key);
+    await assert.rejects(f.resolve(), /Newest full/u);
+  }
+  const f = fixture();
+  f.runs.push({ ...f.source, id: 9, run_number: 9 });
+  f.source.display_title = "Repository CI [metadata] PR #90";
+  f.jobs.push({
+    name: "Select validation route",
+    run_id: 10,
+    head_sha: sha("a"),
+    status: "completed",
+    conclusion: "success",
+    steps: [
+      { name: "Selected validation route (full)", conclusion: "success" },
+    ],
+  });
+  assert.equal((await f.resolve()).runId, 10);
+});
+
+test("only a verified newer metadata route permits reuse of an original full run", async () => {
+  for (const mutate of [
+    () => null,
+    (run) => {
+      run.status = "in_progress";
+    },
+    (_, route) => {
+      route.conclusion = "cancelled";
+    },
+    (_, route) => {
+      route.steps = [];
+    },
+    (_, route) => {
+      route.steps[0].conclusion = "skipped";
+    },
+    (_, route) => {
+      route.run_id = 12;
+    },
+  ]) {
+    const f = fixture();
+    const run = {
+      ...f.source,
+      id: 11,
+      run_number: 11,
+      display_title: "Repository CI [metadata] PR #90",
+      conclusion: "failure",
+    };
+    const route = {
+      name: "Select validation route",
+      run_id: 11,
+      head_sha: sha("a"),
+      status: "completed",
+      conclusion: "success",
+      steps: [
+        { name: "Selected validation route (metadata)", conclusion: "success" },
+      ],
+    };
+    f.runs.push(run);
+    const pages = f.api.pages;
+    f.api.pages = async (path, key) =>
+      path === "/actions/runs/11/attempts/2/jobs" ? [route] : pages(path, key);
+    mutate(run, route);
+    if (
+      run.status === "completed" &&
+      route.conclusion === "success" &&
+      route.steps[0]?.conclusion === "success" &&
+      route.run_id === 11
+    )
+      assert.equal((await f.resolve()).runId, 10);
+    else await assert.rejects(f.resolve(), /Newer validation route/u);
+  }
+});
+
 test("a source rerun beginning during evidence resolution invalidates the result", async () => {
   const f = fixture(),
     request = f.api.request;
@@ -444,26 +545,29 @@ test("a source rerun beginning during evidence resolution invalidates the result
   await assert.rejects(f.resolve(), /attempt changed/u);
 });
 
-test("a newer full run starting during resolution cannot be ignored", async () => {
-  const f = fixture();
-  const pages = f.api.pages;
-  let lists = 0;
-  f.api.pages = async (path, key) => {
-    if (key === "workflow_runs" && ++lists === 2) {
-      return [
-        ...f.runs,
-        {
-          ...f.source,
-          id: 11,
-          run_number: 11,
-          status: "in_progress",
-          conclusion: null,
-        },
-      ];
-    }
-    return pages(path, key);
-  };
-  await assert.rejects(f.resolve(), /Newer full/u);
+test("a newer full or metadata-named run starting during resolution cannot be ignored", async () => {
+  for (const mode of ["full", "metadata"]) {
+    const f = fixture();
+    const pages = f.api.pages;
+    let lists = 0;
+    f.api.pages = async (path, key) => {
+      if (key === "workflow_runs" && ++lists === 2) {
+        return [
+          ...f.runs,
+          {
+            ...f.source,
+            id: 11,
+            run_number: 11,
+            display_title: `Repository CI [${mode}] PR #90`,
+            status: "in_progress",
+            conclusion: null,
+          },
+        ];
+      }
+      return pages(path, key);
+    };
+    await assert.rejects(f.resolve(), /Newer full/u);
+  }
 });
 
 test("valid metadata edits reuse the original complete evidence", async () => {

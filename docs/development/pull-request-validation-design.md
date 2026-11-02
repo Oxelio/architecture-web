@@ -66,6 +66,11 @@ identity artifact IDs belonging to that run/attempt and compares every identity
 with the live candidate and the source metadata. Missing/ambiguous associations
 or incomplete pagination are errors. Reuse never searches past a newer full
 failure/cancellation/pending run and never chains through metadata runs.
+For newer metadata-named runs, the successful router's selected-route step
+establishes the actual route. A title/body edit with an unknown field can run full
+validation despite its discovery name; it cannot hide a newer failed full run.
+Missing or pending route evidence fails closed. New runs or attempts appearing
+during verification invalidate the snapshot.
 
 This preserves the existing trust boundary of reviewed repository workflows:
 the source workflow revision is immutable and must match the current candidate;
@@ -89,6 +94,8 @@ full pull_request run only if its original candidate/base still match, or a fres
 full PR event (reopen, or synchronize after updating the branch). Partial reruns
 cannot mix identity records from different attempts. A workflow_dispatch on main
 or the PR branch is not a guaranteed source of required PR checks.
+Reopening can regenerate the merge ref after the event captures its candidate;
+if freshness fails, synchronize the PR branch rather than rerun that obsolete SHA.
 
 The external SonarCloud Code Analysis check remains independent and is never
 fabricated or republished. Fork and Dependabot credential exclusions remain.

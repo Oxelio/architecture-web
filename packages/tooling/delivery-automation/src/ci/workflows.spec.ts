@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 interface Step {
+  id?: string;
+  name?: string;
   uses?: string;
   run?: string;
   if?: string;
@@ -244,9 +246,13 @@ describe("CI trust and failure boundaries", () => {
   });
 
   it("runs metadata routing without expensive validation and isolates cancellation groups", () => {
-    expect(ci.jobs["route"]?.steps?.at(-1)?.run).toBe(
-      "node scripts/quality-gate.mjs route",
+    expect(
+      ci.jobs["route"]?.steps?.find((step) => step.id === "route")?.run,
+    ).toBe("node scripts/quality-gate.mjs route");
+    expect(ci.jobs["route"]?.steps?.at(-1)?.name).toBe(
+      "Selected validation route (${{ steps.route.outputs.mode }})",
     );
+    expect(ci.jobs["route"]?.steps?.at(-1)?.run).toBe(":");
     expect(ci.jobs["validate"]?.if).toBe("needs.route.outputs.mode == 'full'");
     expect(ci.jobs["dependency-review"]?.if).toContain(
       "needs.route.outputs.mode == 'full'",

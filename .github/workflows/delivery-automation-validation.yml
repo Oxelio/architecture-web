@@ -38,6 +38,8 @@ jobs:
           node-version-file: .nvmrc
       - id: route
         run: node scripts/quality-gate.mjs route
+      - name: Selected validation route (${{ steps.route.outputs.mode }})
+        run: ":"
 
   validate:
     needs: route

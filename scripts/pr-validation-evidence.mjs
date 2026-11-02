@@ -260,18 +260,65 @@ export async function resolveEvidence({
     `/actions/runs?event=pull_request&head_sha=${identity.head}`,
     "workflow_runs",
   );
-  const sources = runs.filter(
-    (run) =>
-      run.id !== runId &&
-      run.workflow_id === current.workflow_id &&
-      run.display_title === `Repository CI [full] PR #${identity.pr}`,
-  );
+  const relevant = (items) =>
+    items.filter(
+      (run) =>
+        run.id !== runId &&
+        run.workflow_id === current.workflow_id &&
+        ["full", "metadata"].some(
+          (mode) =>
+            run.display_title === `Repository CI [${mode}] PR #${identity.pr}`,
+        ),
+    );
+  const sources = relevant(runs);
   sources.sort((a, b) => b.run_number - a.run_number);
-  const source = sources[0];
+  let source = sources.find(
+    (run) => run.display_title === `Repository CI [full] PR #${identity.pr}`,
+  );
   check(
     source,
     "No original full PR validation evidence; run full PR validation",
   );
+  // A title/body edit plus an unknown field may have a metadata discovery name
+  // but actually execute full validation. Never search past that newer run.
+  const newer = await Promise.all(
+    sources
+      .filter((run) => run.run_number > source.run_number)
+      .map(async (run) => {
+        check(
+          run.status === "completed" &&
+            Number.isSafeInteger(run.run_attempt) &&
+            run.run_attempt > 0,
+          "Newer validation route is pending or unavailable",
+        );
+        const jobs = await api.pages(
+          `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
+          "jobs",
+        );
+        const routes = jobs.filter(
+          (job) => job.name === "Select validation route",
+        );
+        const route = routes[0];
+        check(
+          routes.length === 1 &&
+            route.run_id === run.id &&
+            route.head_sha === identity.head &&
+            route.status === "completed" &&
+            route.conclusion === "success",
+          "Newer validation route is unverified",
+        );
+        const modes = ["full", "metadata"].filter((mode) =>
+          route.steps?.some(
+            (step) =>
+              step.name === `Selected validation route (${mode})` &&
+              step.conclusion === "success",
+          ),
+        );
+        check(modes.length === 1, "Newer validation route is unverified");
+        return { run, mode: modes[0] };
+      }),
+  );
+  source = newer.find((item) => item.mode === "full")?.run ?? source;
   check(
     source.event === "pull_request" &&
       source.path === caller &&
@@ -390,14 +437,15 @@ export async function resolveEvidence({
     "workflow_runs",
   );
   check(
-    !refreshed.some(
+    !relevant(refreshed).some(
       (run) =>
-        run.id !== runId &&
-        run.workflow_id === current.workflow_id &&
-        run.display_title === `Repository CI [full] PR #${identity.pr}` &&
-        run.run_number > source.run_number,
+        run.run_number > source.run_number &&
+        !sources.some(
+          (previous) =>
+            previous.id === run.id && previous.run_attempt === run.run_attempt,
+        ),
     ),
-    "Newer full validation started during evidence verification",
+    "Newer full validation or metadata verification started during evidence verification",
   );
   return {
     verified: true,

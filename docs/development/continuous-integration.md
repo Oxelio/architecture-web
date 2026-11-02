@@ -73,6 +73,10 @@ Archive digests and JSON identities must match. Contents are never executed.
 Truncation, ambiguity, missing data and API errors fail closed. Older green runs
 cannot override newer unsuccessful full runs. Metadata runs cannot become new
 sources of evidence.
+Newer runs with a metadata discovery name must also expose a successful router's
+exact selected-route step. An edit with an unknown field can execute full
+validation despite that name; its pending, failed or cancelled result must not
+be ignored. Missing route proof fails closed.
 
 Identity artifacts request seven days of retention, separately from the existing
 one-day coverage/type-context artifacts. Evidence older than seven days or
@@ -90,6 +94,9 @@ Do not mix artifacts from different attempts. Reruns retain their original
 SHA/ref and cannot refresh an obsolete base. Verify both required PR checks.
 A **workflow_dispatch** on main or the PR head is not guaranteed to satisfy PR
 required checks; see [GitHub's event eligibility rules](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+GitHub can regenerate the merge ref after a reopen event captures its SHA. If
+that run fails candidate freshness, synchronize the PR branch to obtain a fresh
+candidate-bound full run; reopening or rerunning an obsolete SHA is insufficient.
 
 Real concurrency acceptance must start full validation, make the title invalid,
 observe lightweight Quality checks failing, then let full validation finish.
