@@ -390,18 +390,32 @@ export async function resolveEvidence({
   };
 }
 
-export function assertLiveCandidate(pr, identity) {
+export function assertLiveCandidate(pr, identity, candidate) {
   const actual = candidateIdentity(
     {
       repository: { id: identity.repositoryId, full_name: identity.repository },
       pull_request: pr,
     },
-    pr.merge_commit_sha,
+    candidate,
   );
   check(
     pr.state === "open" && JSON.stringify(actual) === JSON.stringify(identity),
     "Live PR candidate/base changed or is unavailable",
   );
+}
+
+async function readLivePr(api, identity) {
+  const pr = await api.request(`/pulls/${identity.pr}`);
+  // REST 2026-03-10 removes merge_commit_sha from PR responses. Read the
+  // actual synthetic merge ref instead of inferring a candidate from the head.
+  const merge = await api.request(`/git/ref/pull/${identity.pr}/merge`);
+  check(
+    merge.ref === `refs/pull/${identity.pr}/merge` &&
+      merge.object?.type === "commit",
+    "Live PR merge reference is unavailable or invalid",
+  );
+  assertLiveCandidate(pr, identity, merge.object.sha);
+  return pr;
 }
 
 export async function evaluatePr({
@@ -413,8 +427,7 @@ export async function evaluatePr({
   runId,
   accept,
 }) {
-  const before = await api.request(`/pulls/${identity.pr}`);
-  assertLiveCandidate(before, identity);
+  const before = await readLivePr(api, identity);
   check(
     typeof before.title === "string" && lint(before.title),
     "Current PR title failed commitlint",
@@ -433,8 +446,7 @@ export async function evaluatePr({
     }),
     "Required repository validation did not succeed",
   );
-  const after = await api.request(`/pulls/${identity.pr}`);
-  assertLiveCandidate(after, identity);
+  const after = await readLivePr(api, identity);
   check(
     after.title === before.title,
     "PR title changed during final verification",

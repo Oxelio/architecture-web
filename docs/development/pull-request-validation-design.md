@@ -32,6 +32,9 @@ live PR title with locked commitlint, then verifies the applicable local results
 or original full-run evidence. The title and candidate are reread immediately
 before success. Missing data, changed snapshots, unsuccessful results, and
 unexpected skips fail closed. Non-PR validation retains its existing contract.
+Live candidate freshness uses the exact `refs/pull/<number>/merge` Git reference,
+whose ref name, commit type and SHA are verified; it does not depend on the
+removed `merge_commit_sha` field in REST 2026-03-10 PR responses.
 
 Full and metadata runs use separate concurrency groups. Metadata edits cannot
 cancel running or pending full validation. Superseded metadata runs may cancel

@@ -34,6 +34,8 @@ Node 24 version. Its opt-in integration scenarios remain skipped.
 `Quality checks` validates the live PR title using locked commitlint and stdin,
 without shell evaluation. It rereads title/head/base/candidate before success;
 a changed snapshot fails. Final GitHub squash-message enforcement is out of scope.
+The live merge candidate is read from `refs/pull/<number>/merge` through the
+Git refs API; REST version `2026-03-10` omits `merge_commit_sha` from PR responses.
 Dependency Review fails for high/critical
 vulnerabilities in changed dependencies. Its dependency graph prerequisite must
 be activated separately; an unavailable service is a failure, not a clean review.

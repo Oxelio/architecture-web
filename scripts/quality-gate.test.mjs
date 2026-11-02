@@ -160,8 +160,14 @@ function fixture() {
     runs,
     checks,
     live: structuredClone(payload.pull_request),
+    mergeRef: {
+      ref: "refs/pull/90/merge",
+      object: { type: "commit", sha: sha("c") },
+    },
     reads: [],
   };
+  // Match the actual REST 2026-03-10 wire response, which omits this field.
+  delete state.live.merge_commit_sha;
   state.api = {
     async request(path) {
       state.reads.push(path);
@@ -170,6 +176,8 @@ function fixture() {
       if (path.startsWith("/check-runs/"))
         return state.checks[Number(path.split("/").at(-1)) - 100];
       if (path === "/pulls/90") return structuredClone(state.live);
+      if (path === "/git/ref/pull/90/merge")
+        return structuredClone(state.mergeRef);
       throw new Error(`Unexpected request: ${path}`);
     },
     async pages(path, key) {
@@ -522,7 +530,7 @@ test("a title or candidate change during final verification fails closed", async
       pr.base.sha = sha("d");
     },
     (pr) => {
-      pr.merge_commit_sha = null;
+      pr.number = 91;
     },
     (pr) => {
       pr.state = "closed";
@@ -582,6 +590,51 @@ test("API pagination is complete and API failures are never clean evidence", asy
     /limit/u,
   );
   assert.throws(() => githubClient(repo, ""), /unavailable/u);
+});
+
+test("REST without merge_commit_sha uses the live merge ref and rejects stale or invalid refs", async () => {
+  const evaluate = (f, lint = () => true) =>
+    evaluatePr({
+      api: f.api,
+      identity,
+      mode: "full",
+      results: { validation: "success", dependencyReview: "success" },
+      lint,
+      runId: 99,
+      accept: qualityGate,
+    });
+  const good = fixture();
+  assert.equal(Object.hasOwn(good.live, "merge_commit_sha"), false);
+  await evaluate(good);
+  assert.equal(
+    good.reads.filter((path) => path === "/git/ref/pull/90/merge").length,
+    2,
+  );
+  for (const mutate of [
+    (f) => {
+      f.mergeRef.ref = "refs/pull/91/merge";
+    },
+    (f) => {
+      f.mergeRef.object.type = "blob";
+    },
+    (f) => {
+      f.mergeRef.object.sha = sha("d");
+    },
+    (f) => {
+      f.mergeRef.object.sha = null;
+    },
+  ]) {
+    const f = fixture();
+    mutate(f);
+    await assert.rejects(evaluate(f));
+  }
+  const changed = fixture();
+  await assert.rejects(
+    evaluate(changed, () => {
+      changed.mergeRef.object.sha = sha("d");
+      return true;
+    }),
+  );
 });
 
 test("artifact downloads check digest and do not forward credentials to storage", async () => {
