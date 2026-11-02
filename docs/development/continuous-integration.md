@@ -96,7 +96,7 @@ A successful local report does not prove its remote import or Quality Gate.
 
 ## SonarQube Cloud: informational job and required external check
 
-`SonarQube (informational)` is a separate read-only Actions job with
+`SonarQube Cloud analysis` is a separate read-only Actions job with
 `continue-on-error: true`. It imports the primary job's coverage from the same
 workflow run, waits for the remote Quality Gate and reports scan/gate errors
 through warnings and a job summary. Transfer or scanner failures stay visible.
