@@ -184,7 +184,7 @@ rejected. Workspace execution counts and native coverage are separate evidence:
 passing tests alone do not establish coverage import. `pnpm ci:test:tooling` verifies runner/service failures, required
 check outcomes and coverage handling. The [CI guide](continuous-integration.md)
 describes shared validation and same-run artifact transfer. The Actions job
-`SonarQube (informational)` retains `continue-on-error: true`; the separate external
+`SonarQube Cloud analysis` retains `continue-on-error: true`; the separate external
 `SonarCloud Code Analysis` check is required for merge into `main` under the
 [delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
 Verify the current candidate's external result as well as `Quality checks`;

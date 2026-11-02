@@ -73,7 +73,7 @@ jobs:
         run: node scripts/quality-gate.mjs
 
   sonar:
-    name: SonarQube (informational)
+    name: SonarQube Cloud analysis
     needs: validate
     # Never give a fork or Dependabot candidate access to the analysis credential.
     if: >-
@@ -160,7 +160,7 @@ jobs:
           SCAN_OUTCOME: ${{ steps.scan.outcome }}
         run: |
           {
-            echo '## SonarQube — informational'
+            echo '## SonarQube Cloud analysis'
             echo "Candidate: ${GITHUB_SHA}"
             echo "Configured: ${CONFIGURED:-false}; scan/Quality Gate: ${SCAN_OUTCOME:-skipped}"
             echo 'Sonar findings, failed Quality Gates and analysis errors do not block repository validation or source publication.'

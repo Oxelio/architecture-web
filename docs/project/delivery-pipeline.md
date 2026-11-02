@@ -91,7 +91,7 @@ policy. Updating the candidate or integration base requires current check eviden
 stale success is insufficient. Check names and provider identities are part of
 the requirement.
 
-The Actions job `SonarQube (informational)` retains `continue-on-error: true` and
+The Actions job `SonarQube Cloud analysis` retains `continue-on-error: true` and
 is excluded from the `Quality checks` aggregate. Its tolerated failure or skip
 does not satisfy the separate required external `SonarCloud Code Analysis`
 check. A failed external Sonar Quality Gate blocks merge. A missing, pending,
