@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 interface Step {
+  id?: string;
+  name?: string;
   uses?: string;
   run?: string;
   if?: string;
@@ -23,6 +25,7 @@ interface Job {
   steps?: Step[];
 }
 interface Workflow {
+  concurrency: { group: string; "cancel-in-progress": string };
   on: Record<
     string,
     { branches?: string[]; types?: string[]; secrets?: unknown }
@@ -85,9 +88,12 @@ describe("CI trust and failure boundaries", () => {
       expect(definition.on).not.toHaveProperty("pull_request_target");
       expect(definition.on).not.toHaveProperty("workflow_run");
       expect(definition.permissions).toEqual({ contents: "read" });
-      for (const job of Object.values(definition.jobs)) {
+      for (const [name, job] of Object.entries(definition.jobs)) {
         expect(job.permissions ?? definition.permissions).toEqual({
           contents: "read",
+          ...(definition === ci && name === "quality"
+            ? { actions: "read", checks: "read", "pull-requests": "read" }
+            : {}),
         });
       }
     }
@@ -124,9 +130,9 @@ describe("CI trust and failure boundaries", () => {
       }
     }
     expect(ci.jobs["quality"]?.needs).toEqual([
+      "route",
       "validate",
       "dependency-review",
-      "commitlint",
     ]);
     expect(ci.jobs["quality"]?.if).toBe("always()");
     expect(release.jobs["generate"]?.needs).toEqual(["plan", "validate"]);
@@ -184,7 +190,7 @@ describe("CI trust and failure boundaries", () => {
       expect(
         runInNewContext(
           ci.jobs["sonar"]?.if ?? "false",
-          { github },
+          { github, needs: { route: { outputs: { mode: "full" } } } },
           { timeout: 100 },
         ),
       ).toBe(allowed);
@@ -209,8 +215,8 @@ describe("CI trust and failure boundaries", () => {
     const merge = steps.findIndex(
       (step) => step.run === "node scripts/merge-coverage.mjs",
     );
-    const upload = steps.findIndex((step) =>
-      step.uses?.startsWith("actions/upload-artifact@"),
+    const upload = steps.findIndex(
+      (step) => step.with?.["name"] === "sonar-coverage",
     );
     expect(collect).toBeGreaterThan(
       steps.findIndex((step) => step.run === "pnpm ci:test:integration"),
@@ -236,6 +242,80 @@ describe("CI trust and failure boundaries", () => {
     );
     expect(command).toContain("scripts/run-workspace-tests.test.mjs");
     expect(command).toContain("scripts/merge-coverage.test.mjs");
+    expect(command).toContain("scripts/quality-gate.test.mjs");
+  });
+
+  it("runs metadata routing without expensive validation and isolates cancellation groups", () => {
+    expect(
+      ci.jobs["route"]?.steps?.find((step) => step.id === "route")?.run,
+    ).toBe("node scripts/quality-gate.mjs route");
+    expect(ci.jobs["route"]?.steps?.at(-1)?.name).toBe(
+      "Selected validation route (${{ steps.route.outputs.mode }})",
+    );
+    expect(ci.jobs["route"]?.steps?.at(-1)?.run).toBe(":");
+    expect(ci.jobs["validate"]?.if).toBe("needs.route.outputs.mode == 'full'");
+    expect(ci.jobs["dependency-review"]?.if).toContain(
+      "needs.route.outputs.mode == 'full'",
+    );
+    expect(ci.jobs["sonar"]?.if).toContain(
+      "needs.route.outputs.mode == 'full'",
+    );
+    expect(ci.concurrency.group).toContain(
+      "github.event.action == 'edited' && github.run_id",
+    );
+    expect(ci.jobs).not.toHaveProperty("commitlint");
+    const quality = ci.jobs["quality"]?.steps ?? [];
+    expect(
+      quality.some(
+        (step) =>
+          step.run === "pnpm install --frozen-lockfile --ignore-scripts",
+      ),
+    ).toBe(true);
+    const gate = quality.at(-1);
+    expect(gate?.run).toBe("node scripts/quality-gate.mjs");
+    expect(gate?.env?.["GITHUB_TOKEN"]).toBe("${{ github.token }}");
+    expect(gate?.env?.["VALIDATION_MODE"]).toBe(
+      "${{ needs.route.outputs.mode }}",
+    );
+    expect(JSON.stringify(quality)).not.toContain(
+      "github.event.pull_request.title",
+    );
+  });
+
+  it("records actual PR inputs before candidate installation in both supported runtimes", () => {
+    for (const [name, role] of [
+      ["validate", "primary"],
+      ["node-compatibility", "node24"],
+    ] as const) {
+      const steps = shared.jobs[name]?.steps ?? [];
+      const identity = steps.findIndex(
+        (step) => step.run === "node scripts/quality-gate.mjs identity",
+      );
+      const upload = steps.findIndex(
+        (step) =>
+          step.with?.["name"] ===
+          `pr-validation-identity-\${{ github.run_attempt }}-${role}`,
+      );
+      const install = steps.findIndex(
+        (step) => step.run === "pnpm install --frozen-lockfile",
+      );
+      expect(identity).toBeGreaterThanOrEqual(0);
+      expect(upload).toBeGreaterThan(identity);
+      expect(install).toBeGreaterThan(upload);
+      expect(steps[identity]?.if).toBe("github.event_name == 'pull_request'");
+      expect(steps[identity]?.env?.["CANDIDATE_SHA"]).toBe(
+        "${{ inputs.candidate_sha }}",
+      );
+      expect(steps[identity]?.env?.["COMPARISON_BASE"]).toBe(
+        "${{ inputs.comparison_base }}",
+      );
+      expect(steps[upload]?.if).toBe("github.event_name == 'pull_request'");
+      expect(steps[upload]?.with?.["retention-days"]).toBe(7);
+      expect(steps[upload]?.with?.["if-no-files-found"]).toBe("error");
+      expect(steps.some((step) => step.run === "pnpm ci:test:tooling")).toBe(
+        true,
+      );
+    }
   });
 
   it("keeps source execution and publication credentials separate", () => {

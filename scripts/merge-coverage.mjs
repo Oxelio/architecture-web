@@ -8,6 +8,7 @@ export const CI_SOURCES = [
   "scripts/check-markdown-links.mjs",
   "scripts/merge-coverage.mjs",
   "scripts/quality-gate.mjs",
+  "scripts/pr-validation-evidence.mjs",
   "scripts/run-integration-tests.mjs",
   "scripts/run-workspace-tests.mjs",
 ];

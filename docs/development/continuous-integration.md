@@ -8,8 +8,12 @@ merge authority or Work completion.
 ## Entry points and shared validation
 
 `delivery-automation-validation.yml` runs on all PRs into `main`, including drafts,
-on pushes to `main`, and on manual dispatch. Editing a PR title also reruns CI.
-Superseded PR runs are cancelled; main runs are not deliberately cancelled.
+on pushes to `main`, and on manual dispatch. Edits containing only title/body
+changes use lightweight metadata validation: no builds, tests, coverage,
+Dependency Review or Sonar scan. Open, reopen, synchronize, ready-for-review,
+base edits and unknown edits retain full validation, including drafts.
+Edited runs cannot displace active or pending full runs. Quality jobs use
+separate full/metadata concurrency groups; main runs are not deliberately cancelled.
 
 `repository-validation.yml` is the shared read-only workflow used by CI and release
 validation. Its required inputs are `candidate_sha` (a full immutable commit SHA)
@@ -27,15 +31,21 @@ transfer within the same run. All these checks fail on errors. A second job
 builds, checks both sets of types and runs unit tests on the minimum supported
 Node 24 version. Its opt-in integration scenarios remain skipped.
 
-The `commitlint` job validates the prospective squash header using the PR title
-and locked commitlint configuration. Dependency Review fails for high/critical
+`Quality checks` validates the live PR title using locked commitlint and stdin,
+without shell evaluation. It rereads title/head/base/candidate before success;
+a changed snapshot fails. Final GitHub squash-message enforcement is out of scope.
+The live merge candidate is read from `refs/pull/<number>/merge` through the
+Git refs API; REST version `2026-03-10` omits `merge_commit_sha` from PR responses.
+Dependency Review fails for high/critical
 vulnerabilities in changed dependencies. Its dependency graph prerequisite must
 be activated separately; an unavailable service is a failure, not a clean review.
 
-`Quality checks` requires shared validation, Dependency Review and commitlint to
-succeed on PRs. On pushes/manual runs, the two PR-only jobs must be skipped and
-shared validation must succeed. Failures, cancellations, missing results and
-unexpected skips fail the gate. Sonar is excluded from this aggregate result.
+`Quality checks` always executes. Full PR validation requires shared validation,
+Dependency Review and the current title to succeed. Metadata runs require the
+current title plus original full-run evidence; their skipped expensive jobs are
+not evidence. On pushes/manual runs, Dependency Review must be skipped and shared
+validation must succeed. Failed routing, failures, cancellations, missing results
+and unexpected skips fail the gate. Sonar is excluded from this aggregate result.
 The separate external `SonarCloud Code Analysis` check is nevertheless required
 for merge into `main`, under the strict policy owned by the
 [delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
@@ -44,7 +54,57 @@ The release workflow independently selects an immutable source SHA, calls the
 same validation, then generates source assets and invokes its isolated trusted
 publisher. Both Node validation jobs must succeed. Revalidation is deliberate:
 recovery can select a different SHA from the triggering commit. No cross-run
-search or reuse of stale evidence is implemented. See [releases](releases.md).
+reuse is added to releases. See [releases](releases.md).
+
+## Metadata evidence and recovery
+
+The [technical design](pull-request-validation-design.md) defines identity and
+trust boundaries. Run-name markers are discovery hints, never proof. Run APIs
+are not assumed to reveal effective workflow_call inputs. Before candidate
+installation, each reusable PR job records actual inputs, verified checkout,
+PR/repository/head/base/candidate, workflow ref/SHA and run/attempt/job in a small
+immutable identity artifact. The primary job verifies merge base/head parents.
+
+The resolver requires the newest full PR run's latest attempt to succeed, with
+the expected immutable workflow/reusable revision, both validation jobs,
+Dependency Review and Quality checks. It verifies provider and check-suite
+association, then downloads the exact source run/attempt's identity artifacts.
+Archive digests and JSON identities must match. Contents are never executed.
+Truncation, ambiguity, missing data and API errors fail closed. Older green runs
+cannot override newer unsuccessful full runs. Metadata runs cannot become new
+sources of evidence.
+Newer runs with a metadata discovery name must also expose a successful router's
+exact selected-route step. An edit with an unknown field can execute full
+validation despite that name; its pending, failed or cancelled result must not
+be ignored. Missing route proof fails closed.
+
+Identity artifacts request seven days of retention, separately from the existing
+one-day coverage/type-context artifacts. Evidence older than seven days or
+actually expired/deleted is rejected. Actual platform retention may shorten this
+window. Metadata runs never extend source evidence lifetime. Older runs without
+manifests and partial attempts without matching identities are ineligible.
+Missing proof fails without automatically starting expensive recovery. A full
+run still in progress is not proof; allow it to finish and repeat lightweight
+verification if necessary.
+
+For recovery, use **Re-run all jobs** on an original full **pull_request** run
+only when its original candidate/base still match the PR. Otherwise request a
+new full PR run by reopening the PR, or synchronizing after updating the branch.
+Do not mix artifacts from different attempts. Reruns retain their original
+SHA/ref and cannot refresh an obsolete base. Verify both required PR checks.
+A **workflow_dispatch** on main or the PR head is not guaranteed to satisfy PR
+required checks; see [GitHub's event eligibility rules](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+GitHub can regenerate the merge ref after a reopen event captures its SHA. If
+that run fails candidate freshness, synchronize the PR branch to obtain a fresh
+candidate-bound full run; reopening or rerunning an obsolete SHA is insufficient.
+
+Real concurrency acceptance must start full validation, make the title invalid,
+observe lightweight Quality checks failing, then let full validation finish.
+Its final Quality checks must also fail and GitHub must retain the required-check
+block. Record run/check IDs, attempts, title snapshots, timestamps and the actual
+PR check state. Also verify title correction and full recovery. Mocks alone do
+not establish native GitHub result selection; do not merge or weaken checks to
+perform this verification.
 
 ## Tests and coverage
 
@@ -70,7 +130,7 @@ coverage artifact. No coverage-conversion dependency or separate analysis
 pipeline is introduced.
 
 The LCOV merger requires a nonempty valid report from every expected test
-workspace and the native report containing all four CI scripts, converts source paths to repository-relative paths and rejects missing
+workspace and the native report containing all declared CI scripts, converts source paths to repository-relative paths and rejects missing
 or escaping sources. The resulting artifact is uploaded, downloaded and compared
 in the same run even when Sonar is unavailable. The tests cover the
 runner, real command exit/launch failures, service lifecycle, CLI cleanup,
@@ -88,8 +148,10 @@ pnpm ci:test:tooling
 node scripts/merge-coverage.mjs
 ```
 
-The four required native sources are `merge-coverage.mjs`, `quality-gate.mjs`,
-`run-integration-tests.mjs` and `run-workspace-tests.mjs` under `scripts/`.
+Required native sources are declared by `CI_SOURCES` in
+`scripts/merge-coverage.mjs`, including the metadata evidence resolver.
+`scripts/quality-gate.test.mjs` is explicitly included in `ci:test:tooling`,
+executed in both primary and Node 24 validation.
 Local V8 percentages describe the executed test suite; Sonar's new-code coverage
 is a separate server-side measure over the PR diff and its coverable conditions.
 A successful local report does not prove its remote import or Quality Gate.

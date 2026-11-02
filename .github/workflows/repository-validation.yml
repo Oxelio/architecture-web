@@ -52,6 +52,24 @@ jobs:
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Record PR validation identity
+        if: github.event_name == 'pull_request'
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          COMPARISON_BASE: ${{ inputs.comparison_base }}
+          VALIDATION_JOB: primary
+          IDENTITY_PATH: ${{ runner.temp }}/pr-validation-identity/identity.json
+        run: node scripts/quality-gate.mjs identity
+
+      - name: Publish PR validation identity
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: pr-validation-identity-${{ github.run_attempt }}-primary
+          path: ${{ runner.temp }}/pr-validation-identity/identity.json
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -146,13 +164,30 @@ jobs:
         with:
           ref: ${{ inputs.candidate_sha }}
           persist-credentials: false
+      - name: Record PR validation identity
+        if: github.event_name == 'pull_request'
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          COMPARISON_BASE: ${{ inputs.comparison_base }}
+          VALIDATION_JOB: node24
+          IDENTITY_PATH: ${{ runner.temp }}/pr-validation-identity/identity.json
+        run: node scripts/quality-gate.mjs identity
+      - name: Publish PR validation identity
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: pr-validation-identity-${{ github.run_attempt }}-node24
+          path: ${{ runner.temp }}/pr-validation-identity/identity.json
+          retention-days: 7
+          if-no-files-found: error
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24.15.0"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with:
           install: false
-      - run: pnpm install --frozen-lockfile
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm typecheck:test
