@@ -34,8 +34,10 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  runQualityCli(qualityGate).catch((error) => {
+  try {
+    await runQualityCli(qualityGate);
+  } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
-  });
+  }
 }

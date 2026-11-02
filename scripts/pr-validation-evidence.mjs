@@ -10,11 +10,24 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const EVIDENCE_DAYS = 7;
 const lifetime = EVIDENCE_DAYS * 86400000;
 const caller = ".github/workflows/delivery-automation-validation.yml";
 const reusable = ".github/workflows/repository-validation.yml";
+// CI uses Ubuntu system tools. Local Windows verification uses Git for Windows.
+const git =
+  process.platform === "win32"
+    ? "C:/Program Files/Git/cmd/git.exe"
+    : "/usr/bin/git";
+const unzip =
+  process.platform === "win32"
+    ? "C:/Program Files/Git/usr/bin/unzip.exe"
+    : "/usr/bin/unzip";
+const commitlint = fileURLToPath(
+  new URL("../node_modules/@commitlint/cli/cli.js", import.meta.url),
+);
 const validationJobs = {
   primary: "validate / Validate repository and delivery tooling",
   node24: "validate / Node 24 compatibility",
@@ -185,14 +198,14 @@ export function githubClient(repository, token, fetchImpl = fetch) {
       const archive = join(directory, "identity.zip");
       writeFileSync(archive, bytes);
       check(
-        execFileSync("unzip", ["-Z1", archive], {
+        execFileSync(unzip, ["-Z1", archive], {
           encoding: "utf8",
           maxBuffer: 65536,
         }).trim() === "identity.json",
         "Unexpected identity artifact contents",
       );
       return JSON.parse(
-        execFileSync("unzip", ["-p", archive, "identity.json"], {
+        execFileSync(unzip, ["-p", archive, "identity.json"], {
           encoding: "utf8",
           maxBuffer: 65536,
         }),
@@ -287,80 +300,84 @@ export async function resolveEvidence({
     `/actions/runs/${source.id}/artifacts`,
     "artifacts",
   );
-  for (const name of [
-    ...Object.values(validationJobs),
-    "Dependency review",
-    "Quality checks",
-  ]) {
-    const matches = jobs.filter((job) => job.name === name);
-    check(matches.length === 1, `Missing or ambiguous source job: ${name}`);
-    const job = matches[0];
-    const prefix = `https://api.github.com/repos/${identity.repository}/check-runs/`;
-    check(
-      job.run_id === source.id &&
-        job.head_sha === identity.head &&
-        job.status === "completed" &&
-        job.conclusion === "success" &&
-        job.check_run_url?.startsWith(prefix) &&
-        /^\d+$/u.test(job.check_run_url.slice(prefix.length)),
-      `Source job did not succeed: ${name}`,
-    );
-    const result = await api.request(
-      `/check-runs/${job.check_run_url.slice(prefix.length)}`,
-    );
-    check(
-      result.name === name &&
-        result.app?.id === 15368 &&
-        result.check_suite?.id === source.check_suite_id &&
-        result.head_sha === identity.head &&
-        result.status === "completed" &&
-        result.conclusion === "success",
-      `Source check provenance mismatch: ${name}`,
-    );
-  }
-  for (const [job, name] of Object.entries(validationJobs)) {
-    const steps = jobs.find((item) => item.name === name).steps ?? [];
-    const recordStep = steps.findIndex(
-      (step) =>
-        step.name === "Record PR validation identity" &&
-        step.conclusion === "success",
-    );
-    const uploadStep = steps.findIndex(
-      (step) =>
-        step.name === "Publish PR validation identity" &&
-        step.conclusion === "success",
-    );
-    const installStep = steps.findIndex(
-      (step) => step.name === "Install locked dependencies",
-    );
-    check(
-      recordStep >= 0 && uploadStep > recordStep && installStep > uploadStep,
-      "Source identity was not published before candidate installation",
-    );
-    const matches = artifacts.filter(
-      (item) =>
-        item.name === `pr-validation-identity-${source.run_attempt}-${job}`,
-    );
-    check(
-      matches.length === 1,
-      "Missing or ambiguous source identity artifact",
-    );
-    const artifact = matches[0];
-    check(
-      Number.isSafeInteger(artifact.id) &&
-        artifact.id > 0 &&
-        artifact.size_in_bytes <= 65536 &&
-        artifact.expired === false,
-      "Unavailable identity artifact",
-    );
-    verifyIdentity(await api.artifact(artifact.id, artifact.digest), {
-      identity,
-      source,
-      job,
-      artifact,
-      now,
-    });
-  }
+  await Promise.all(
+    [
+      ...Object.values(validationJobs),
+      "Dependency review",
+      "Quality checks",
+    ].map(async (name) => {
+      const matches = jobs.filter((job) => job.name === name);
+      check(matches.length === 1, `Missing or ambiguous source job: ${name}`);
+      const job = matches[0];
+      const prefix = `https://api.github.com/repos/${identity.repository}/check-runs/`;
+      check(
+        job.run_id === source.id &&
+          job.head_sha === identity.head &&
+          job.status === "completed" &&
+          job.conclusion === "success" &&
+          job.check_run_url?.startsWith(prefix) &&
+          /^\d+$/u.test(job.check_run_url.slice(prefix.length)),
+        `Source job did not succeed: ${name}`,
+      );
+      const result = await api.request(
+        `/check-runs/${job.check_run_url.slice(prefix.length)}`,
+      );
+      check(
+        result.name === name &&
+          result.app?.id === 15368 &&
+          result.check_suite?.id === source.check_suite_id &&
+          result.head_sha === identity.head &&
+          result.status === "completed" &&
+          result.conclusion === "success",
+        `Source check provenance mismatch: ${name}`,
+      );
+    }),
+  );
+  await Promise.all(
+    Object.entries(validationJobs).map(async ([job, name]) => {
+      const steps = jobs.find((item) => item.name === name).steps ?? [];
+      const recordStep = steps.findIndex(
+        (step) =>
+          step.name === "Record PR validation identity" &&
+          step.conclusion === "success",
+      );
+      const uploadStep = steps.findIndex(
+        (step) =>
+          step.name === "Publish PR validation identity" &&
+          step.conclusion === "success",
+      );
+      const installStep = steps.findIndex(
+        (step) => step.name === "Install locked dependencies",
+      );
+      check(
+        recordStep >= 0 && uploadStep > recordStep && installStep > uploadStep,
+        "Source identity was not published before candidate installation",
+      );
+      const matches = artifacts.filter(
+        (item) =>
+          item.name === `pr-validation-identity-${source.run_attempt}-${job}`,
+      );
+      check(
+        matches.length === 1,
+        "Missing or ambiguous source identity artifact",
+      );
+      const artifact = matches[0];
+      check(
+        Number.isSafeInteger(artifact.id) &&
+          artifact.id > 0 &&
+          artifact.size_in_bytes <= 65536 &&
+          artifact.expired === false,
+        "Unavailable identity artifact",
+      );
+      verifyIdentity(await api.artifact(artifact.id, artifact.digest), {
+        identity,
+        source,
+        job,
+        artifact,
+        now,
+      });
+    }),
+  );
   const latest = await api.request(`/actions/runs/${source.id}`);
   check(
     latest.run_attempt === source.run_attempt &&
@@ -451,7 +468,7 @@ export async function evaluatePr({
     after.title === before.title,
     "PR title changed during final verification",
   );
-  return { title: before.title, identity, mode, evidence };
+  return { identity, mode, evidence };
 }
 
 export function lintTitle(title) {
@@ -460,13 +477,12 @@ export function lintTitle(title) {
       ([name]) => !["GITHUB_TOKEN", "GH_TOKEN", "SONAR_TOKEN"].includes(name),
     ),
   );
-  const result = spawnSync("pnpm", ["exec", "commitlint"], {
+  const result = spawnSync(process.execPath, [commitlint], {
     input: `${title}\n`,
     encoding: "utf8",
     env,
   });
-  process.stdout.write(result.stdout ?? "");
-  process.stderr.write(result.stderr ?? "");
+  // commitlint echoes the untrusted title; expose only its exit result to Actions.
   return result.status === 0 && !result.error;
 }
 
@@ -489,10 +505,10 @@ export async function runQualityCli(
     const record = createIdentity({
       env,
       payload,
-      checkout: execFileSync("git", ["rev-parse", "HEAD"], {
+      checkout: execFileSync(git, ["rev-parse", "HEAD"], {
         encoding: "utf8",
       }).trim(),
-      parents: execFileSync("git", ["show", "-s", "--format=%P", "HEAD"], {
+      parents: execFileSync(git, ["show", "-s", "--format=%P", "HEAD"], {
         encoding: "utf8",
       })
         .trim()
@@ -531,7 +547,7 @@ export async function runQualityCli(
     runId: Number(env.GITHUB_RUN_ID),
     accept,
   });
-  console.log(JSON.stringify(report, null, 2));
+  console.log("Current PR title and candidate validation verified.");
   if (env.GITHUB_STEP_SUMMARY)
     appendFileSync(
       env.GITHUB_STEP_SUMMARY,

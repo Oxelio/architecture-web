@@ -13,6 +13,7 @@ import {
   EVIDENCE_DAYS,
   evaluatePr,
   githubClient,
+  lintTitle,
   resolveEvidence,
   runQualityCli,
   validationRoute,
@@ -515,7 +516,13 @@ test("title correction passes with complete evidence; shell text is passed as ti
     accept: qualityGate,
   });
   assert.equal(seen, f.live.title);
-  assert.equal(result.title, seen);
+  assert.equal(Object.hasOwn(result, "title"), false);
+  assert.equal(JSON.stringify(result).includes(seen), false);
+});
+
+test("locked commitlint validates title data without echoing Actions commands", () => {
+  assert.equal(lintTitle("ci: validate metadata $(literal) `text`"), true);
+  assert.equal(lintTitle("invalid title\n::warning::untrusted title"), false);
 });
 
 test("a title or candidate change during final verification fails closed", async () => {
