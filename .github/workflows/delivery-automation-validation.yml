@@ -1,4 +1,9 @@
 name: Repository CI
+run-name: >-
+  ${{ github.event_name == 'pull_request' && format('Repository CI [{0}] PR #{1}',
+      github.event.action == 'edited' && !github.event.changes.base &&
+      (github.event.changes.title || github.event.changes.body) && 'metadata' || 'full',
+      github.event.pull_request.number) || 'Repository CI [full]' }}
 
 on:
   push:
@@ -12,11 +17,31 @@ permissions:
   contents: read
 
 concurrency:
-  group: repository-validation-${{ github.event.pull_request.number || github.ref }}
+  # Edited runs cannot displace a running OR pending full candidate validation.
+  group: repository-validation-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'edited' && github.run_id || 'candidate' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  route:
+    name: Select validation route
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.route.outputs.mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - id: route
+        run: node scripts/quality-gate.mjs route
+
   validate:
+    needs: route
+    if: needs.route.outputs.mode == 'full'
     uses: ./.github/workflows/repository-validation.yml
     with:
       candidate_sha: ${{ github.sha }}
@@ -24,7 +49,8 @@ jobs:
 
   dependency-review:
     name: Dependency review
-    if: github.event_name == 'pull_request'
+    needs: route
+    if: github.event_name == 'pull_request' && needs.route.outputs.mode == 'full'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -35,52 +61,53 @@ jobs:
           license-check: false
           show-patched-versions: true
 
-  commitlint:
-    if: github.event_name == 'pull_request'
+  quality:
+    name: Quality checks
+    needs: [route, validate, dependency-review]
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    concurrency:
+      group: repository-quality-${{ github.event.pull_request.number || github.ref }}-${{ needs.route.outputs.mode }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+      - if: github.event_name == 'pull_request'
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with:
           install: false
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Validate the prospective squash commit header
+      - if: github.event_name == 'pull_request'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate current PR title and require candidate-bound evidence
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: printf '%s\n' "${PR_TITLE}" | pnpm exec commitlint
-
-  quality:
-    name: Quality checks
-    needs: [validate, dependency-review, commitlint]
-    if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Require every applicable blocking check
-        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ROUTE_RESULT: ${{ needs.route.result }}
+          VALIDATION_MODE: ${{ needs.route.outputs.mode }}
           VALIDATION_RESULT: ${{ needs.validate.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
-          COMMITLINT_RESULT: ${{ needs.commitlint.result }}
         run: node scripts/quality-gate.mjs
 
   sonar:
     name: SonarQube Cloud analysis
-    needs: validate
+    needs: [route, validate]
     # Never give a fork or Dependabot candidate access to the analysis credential.
     if: >-
-      (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       github.event.pull_request.user.login != 'dependabot[bot]')
+      needs.route.outputs.mode == 'full' &&
+      ((github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'dependabot[bot]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     continue-on-error: true

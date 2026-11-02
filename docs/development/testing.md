@@ -178,7 +178,7 @@ coverage and emits `coverage/scripts/lcov.info`, including tested CLI child
 processes. Both supported Node lines exercise this collection. The merger
 combines that repository-relative report with all workspace reports to prepare
 `coverage/lcov.info`. A valid nonempty LCOV report is required from every expected
-test workspace and all four expected CI-script sources; partial coverage,
+test workspace and all declared CI-script sources; partial coverage,
 malformed records/counters, duplicate sources and missing/escaping sources are
 rejected. Workspace execution counts and native coverage are separate evidence:
 passing tests alone do not establish coverage import. `pnpm ci:test:tooling` verifies runner/service failures, required
@@ -192,6 +192,17 @@ a tolerated job failure, skipped analysis or missing result does not satisfy
 that merge requirement. The CI guide documents failure handling and the current
 fork/Dependabot analysis limitation. These checks do not replace the Work Merge
 Gate or applicable review and authority gates.
+
+## Pull request validation tooling
+
+The native quality-gate tests are explicitly included in `ci:test:tooling`, which
+both supported Node validation jobs execute. They cover PR event routing,
+effective-input/checkout identity records, original-run provenance, attempt and
+retention failures, API errors, and live title/candidate changes. Workflow
+contract tests verify their pipeline inclusion and credential boundaries.
+The [CI guide](continuous-integration.md#metadata-evidence-and-recovery) specifies
+the mandatory real GitHub concurrency scenario and recovery procedure; local
+mocks alone do not satisfy that acceptance criterion.
 
 ## Isolated IAM PostgreSQL/Redis integration
 
