@@ -84,3 +84,18 @@ governance target remains unchanged.
   requester and supplies no Codex delegation. Live gate issuer isolation,
   external prerequisite stability and downstream workflow delivery are still
   operational acceptance criteria for each mutation mode.
+
+## Coverage follow-up
+
+**Candidate:** Test-only follow-up to
+`235b3453a4ebaa955795120a235c8295e1d396bb`.
+The reviewed CLI test file has SHA-256
+`8047aee4209ea0257dc6e8367e7588aa78763b5b89501baf8bc282bf8dc73168`.
+
+- **Code Reviewer:** Accepted the new cases for mismatched login, mismatched
+  numeric identity, invalid mode and a valid maintainer dispatch with a
+  mismatched PR. The tests verify the separate read credentials and exact
+  request scope. All 53 focused tests, TypeScript and targeted lint passed.
+- **Software Architect:** Accepted the test-only follow-up. It exercises the
+  existing boundary without changing the identity model, permissions, or
+  operational activation requirements.
