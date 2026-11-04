@@ -14,81 +14,93 @@ function json(value: unknown, status = 200): Response {
 }
 
 describe("readWorkMergeGateLiveEvidence", () => {
-  it("combines live Project, dependency, Work Integration PR and mergeability state", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === "https://api.github.com/graphql") {
-        return json({
-          data: {
-            node: {
-              __typename: "ProjectV2",
-              items: {
-                nodes: [
-                  {
-                    id: "PVTI_work",
-                    isArchived: false,
-                    content: {
-                      __typename: "Issue",
-                      number: 9,
-                      state: "OPEN",
-                      repository: { nameWithOwner: repository },
-                      parent: null,
-                      labels: {
-                        nodes: [],
-                        pageInfo: { hasNextPage: false },
+  it.each([
+    { scenario: "ready PR", draft: false, baseRef: "main", outcome: true },
+    { scenario: "Draft PR", draft: true, baseRef: "main", outcome: false },
+    {
+      scenario: "PR retargeted after discovery",
+      draft: false,
+      baseRef: "other",
+      outcome: null,
+    },
+    {
+      scenario: "PR without readiness information",
+      draft: undefined,
+      baseRef: "main",
+      outcome: null,
+    },
+  ])("gate: $scenario", async ({ draft, baseRef, outcome }) => {
+    let pullRequestReads = 0;
+    const fetchImpl = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === "https://api.github.com/graphql") {
+          expect(JSON.parse(String(init?.body)).variables).toEqual({
+            owner: "Oxelio",
+            name: "Architecture-Web",
+            number: 9,
+          });
+          return json({
+            data: {
+              repository: {
+                nameWithOwner: repository,
+                issue: {
+                  number: 9,
+                  state: "OPEN",
+                  parent: null,
+                  projectItems: {
+                    nodes: [
+                      {
+                        project: { id: "PVT_project", closed: false },
+                        status: { name: "Validating" },
                       },
-                    },
-                    fieldValues: {
-                      nodes: [
-                        {
-                          __typename: "ProjectV2ItemFieldSingleSelectValue",
-                          name: "Validating",
-                          field: { name: "Status" },
-                        },
-                      ],
-                      pageInfo: { hasNextPage: false },
-                    },
+                    ],
+                    pageInfo: { hasNextPage: false },
                   },
-                ],
-                pageInfo: { hasNextPage: false, endCursor: null },
+                },
               },
             },
-          },
-        });
-      }
-      if (url.includes("/issues/9/dependencies/blocked_by")) {
-        return json([]);
-      }
-      if (url.includes("/issues/9/timeline")) {
-        return json([
-          {
-            event: "cross-referenced",
-            source: {
-              issue: {
-                number: 13,
-                repository_url: repositoryUrl,
-                pull_request: {},
+          });
+        }
+        if (url.includes("/issues/9/dependencies/blocked_by")) {
+          return json([]);
+        }
+        if (url.includes("/issues/9/timeline")) {
+          return json([
+            {
+              event: "cross-referenced",
+              source: {
+                issue: {
+                  number: 13,
+                  repository_url: repositoryUrl,
+                  pull_request: {},
+                },
               },
             },
-          },
-        ]);
-      }
-      if (url.endsWith("/pulls/13")) {
-        return json({
-          number: 13,
-          state: "open",
-          merged: false,
-          mergeable: true,
-          base: { ref: "main" },
-          head: {
-            ref: "technical/agent-aware-delivery-activation",
-            sha: headSha,
-            repo: { full_name: repository },
-          },
-        });
-      }
-      throw new Error(`Unexpected URL ${url}`);
-    });
+          ]);
+        }
+        if (url.endsWith("/pulls/13")) {
+          pullRequestReads += 1;
+          return json({
+            number: 13,
+            state: "open",
+            draft,
+            merged: false,
+            mergeable: true,
+            base: {
+              ref: pullRequestReads < 3 ? "main" : baseRef,
+              sha: "b".repeat(40),
+            },
+            head: {
+              ref: "technical/agent-aware-delivery-activation",
+              sha: headSha,
+              repo: { full_name: repository },
+            },
+          });
+        }
+        throw new Error(`Unexpected URL ${url}`);
+      },
+    );
 
     await expect(
       readWorkMergeGateLiveEvidence({
@@ -108,18 +120,27 @@ describe("readWorkMergeGateLiveEvidence", () => {
         },
         fetchImpl,
       }),
-    ).resolves.toEqual({
-      status: "ready",
-      workState: "Validating",
-      dependenciesResolved: true,
-      pullRequestMergeable: true,
-      target: {
-        pullRequestNumber: 13,
-        headRef: "technical/agent-aware-delivery-activation",
-        headSha,
-        baseRef: "main",
-      },
-    });
+    ).resolves.toEqual(
+      outcome === null
+        ? {
+            status: "blocked",
+            reason: "PR_MERGEABILITY_UNAVAILABLE",
+          }
+        : {
+            status: "ready",
+            workState: "Validating",
+            dependenciesResolved: true,
+            pullRequestMergeable: outcome,
+            baseSha: "b".repeat(40),
+            target: {
+              pullRequestNumber: 13,
+              headRef: "technical/agent-aware-delivery-activation",
+              headSha,
+              baseRef: "main",
+            },
+          },
+    );
+    expect(pullRequestReads).toBe(3);
   });
 
   it("fails closed before GitHub reads when a required owner is inactive", async () => {

@@ -24,6 +24,7 @@ export async function publishGateCheck(input: {
   readonly repositoryToken: string;
   readonly name: string;
   readonly headSha: string;
+  readonly externalId?: string;
   readonly title: string;
   readonly summary: string;
   readonly pass: boolean;
@@ -42,6 +43,7 @@ export async function publishGateCheck(input: {
       body: JSON.stringify({
         name: input.name,
         head_sha: input.headSha,
+        external_id: input.externalId,
         status: "completed",
         conclusion: input.pass ? "success" : "failure",
         output: {

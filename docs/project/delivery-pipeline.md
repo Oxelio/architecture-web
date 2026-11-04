@@ -554,6 +554,24 @@ Automatic merge authority is not granted by this delivery policy. Merge remains
 subject to repository/project permissions and any explicitly established human
 or AI authority policy.
 
+#### Accepted autonomous integration target
+
+The maintainer [accepted the target in Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6633272317).
+Once operationally activated, an explicitly delegated agent may request GitHub
+auto-merge or perform a direct squash through the trusted publisher for an
+ordinary Work Integration Pull Request within its grant. The delegation applies
+independently of the Workflow Coordinator Role. The publisher must verify the
+grant, candidate, applicable Method gates and repository protections before
+using the permitted operation. An eligible request within an active grant needs
+no per-PR human merge confirmation. Human-only decisions retain their assigned
+authority.
+
+This target remains inactive. Effective grants and each integration mode require
+implementation review, successful validation and an authorized GitHub pilot.
+Until activation is verified, the existing operational permission matrix applies.
+See the [Technical Design](../architecture/ci-driven-work-integration.md) for the
+pilot requirements and remaining technical bindings.
+
 ### Work Integration Branch and Pull Request
 
 Meaningful repository Work SHOULD use one primary temporary Work Integration Branch and

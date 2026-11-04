@@ -1,9 +1,11 @@
+import { workMergeObservationCheckName } from "../control/work-merge-gate.js";
 import { publishGateCheck } from "../github/gate-check-publisher.js";
 import { requiredEnvironment, writeJson } from "./gate-publication-support.js";
 
 interface GateCheckPayload {
   readonly name: string;
   readonly headSha: string;
+  readonly externalId: string;
   readonly title: string;
   readonly summary: string;
   readonly pass: boolean;
@@ -17,7 +19,7 @@ interface GateEvaluationEnvelope {
 }
 
 const checkNameByGate = {
-  "work-merge": "Architecture Web / Work Merge Gate",
+  "work-merge": workMergeObservationCheckName,
 } as const;
 
 function parseEnvelope(encoded: string): GateEvaluationEnvelope {
@@ -46,6 +48,7 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   const check = checkValue as Record<string, unknown>;
   const name = check["name"];
   const headSha = check["headSha"];
+  const externalId = check["externalId"];
   const title = check["title"];
   const summary = check["summary"];
   const pass = check["pass"];
@@ -55,6 +58,17 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
   }
   if (typeof headSha !== "string" || !/^[0-9a-f]{40}$/iu.test(headSha)) {
     throw new Error("Gate evaluation envelope has an invalid head SHA");
+  }
+  if (
+    typeof externalId !== "string" ||
+    !/^work:[1-9]\d*:pr:[1-9]\d*:[0-9a-f]{40}:[0-9a-f]{40}$/u.test(
+      externalId,
+    ) ||
+    externalId.split(":")[4] !== headSha
+  ) {
+    throw new Error(
+      "Gate evaluation envelope has an invalid candidate identity",
+    );
   }
   if (typeof title !== "string" || title.length === 0) {
     throw new Error("Gate evaluation envelope has an invalid title");
@@ -68,7 +82,7 @@ function parseEnvelope(encoded: string): GateEvaluationEnvelope {
 
   return {
     gate,
-    check: { name, headSha, title, summary, pass },
+    check: { name, headSha, externalId, title, summary, pass },
     result: record["result"],
     context: record["context"],
   };
@@ -84,6 +98,7 @@ async function main(): Promise<void> {
     repositoryToken,
     name: envelope.check.name,
     headSha: envelope.check.headSha,
+    externalId: envelope.check.externalId,
     title: envelope.check.title,
     summary: envelope.check.summary,
     pass: envelope.check.pass,

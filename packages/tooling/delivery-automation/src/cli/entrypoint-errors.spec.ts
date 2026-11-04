@@ -57,8 +57,9 @@ describe("delivery CLI failure contracts", () => {
         JSON.stringify({
           gate: "work-merge",
           check: {
-            name: "Architecture Web / Work Merge Gate",
+            name: "Architecture Web / Work Merge Gate (observation)",
             headSha: "a".repeat(40),
+            externalId: `work:91:pr:92:${"a".repeat(40)}:${"b".repeat(40)}`,
             title: "Check",
             summary: "Evidence",
             pass: "true",
@@ -72,6 +73,20 @@ describe("delivery CLI failure contracts", () => {
     await import("./gate-check-publish.js");
     expect(process.exitCode).toBe(1);
     expect(String(stderr.mock.calls[0]?.[0])).toContain("invalid pass result");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses observation reruns before contacting any owner", async () => {
+    vi.resetModules();
+    vi.stubEnv("GITHUB_EVENT_NAME", "workflow_dispatch");
+    vi.stubEnv("GITHUB_REF", "refs/heads/main");
+    vi.stubEnv("GITHUB_RUN_ATTEMPT", "2");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    await import("./work-merge-observe.js");
+    expect(process.exitCode).toBe(1);
+    expect(String(stderr.mock.calls[0]?.[0])).toContain("fresh dispatch");
     expect(fetch).not.toHaveBeenCalled();
   });
 });

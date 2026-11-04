@@ -1,0 +1,63 @@
+name: Delivery Work Integration Observation
+
+on:
+  workflow_dispatch:
+    inputs:
+      work_number:
+        description: Owning Work Issue number
+        required: true
+        type: string
+      pull_number:
+        description: Work Integration Pull Request number
+        required: true
+        type: string
+      head_sha:
+        description: Expected PR head SHA
+        required: true
+        type: string
+      base_sha:
+        description: Expected main base SHA
+        required: true
+        type: string
+      merge_mode:
+        description: Integration mode to evaluate
+        required: true
+        type: choice
+        options: [direct, auto]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  observe:
+    if: github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == github.repository_owner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: delivery-integration-observation
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Observe integration without mutations
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+          DELIVERY_OBSERVATION_GRANT: ${{ vars.DELIVERY_OBSERVATION_GRANT }}
+          WORK_NUMBER: ${{ inputs.work_number }}
+          PULL_NUMBER: ${{ inputs.pull_number }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          MERGE_MODE: ${{ inputs.merge_mode }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-merge-observe.ts

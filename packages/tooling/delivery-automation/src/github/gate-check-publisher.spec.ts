@@ -18,6 +18,7 @@ describe("publishGateCheck", () => {
         repositoryToken: "repo-token",
         name: "Architecture Web / Work Merge Gate",
         headSha: "a".repeat(40),
+        externalId: `work:91:pr:92:${"a".repeat(40)}:${"b".repeat(40)}`,
         title: "Work Merge Gate: PASS",
         summary: "Gate passed.",
         pass: true,
@@ -30,6 +31,7 @@ describe("publishGateCheck", () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({
       name: "Architecture Web / Work Merge Gate",
       head_sha: "a".repeat(40),
+      external_id: `work:91:pr:92:${"a".repeat(40)}:${"b".repeat(40)}`,
       status: "completed",
       conclusion: "success",
     });
