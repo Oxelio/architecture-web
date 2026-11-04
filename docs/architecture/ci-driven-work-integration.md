@@ -197,7 +197,10 @@ closed. The existing ruleset remains in effect throughout observation.
 The manual gate publishes a separately named observation check. The observation
 workflow checks its issuer and candidate identity without requiring that check
 in the ruleset. A positive result establishes neither writer exclusion nor merge
-authority. For the later mutation pilot, verify separately that an isolated
+authority. GitHub can omit `bypass_actors` from a read-only ruleset response.
+Observation reports that omission as `bypassActors: "unverified"`. Mutation
+requires an explicitly empty list. An explicit bypass or altered protection
+blocks observation as well. For the later mutation pilot, verify separately that an isolated
 publisher can issue the required gate, that freshness holds for each mode, and
 that each actual merge triggers the downstream runs described above. Use an App
 only if the verified permission or event behavior requires one.

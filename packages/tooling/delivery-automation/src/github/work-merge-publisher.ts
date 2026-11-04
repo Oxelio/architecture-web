@@ -103,7 +103,10 @@ export interface WorkMergePublisher {
 export type WorkMergeOutcome =
   | { readonly status: "merged" | "already-merged"; readonly sha: string }
   | { readonly status: "auto-merge-requested" }
-  | { readonly status: "observed-checks-passed" }
+  | {
+      readonly status: "observed-checks-passed";
+      readonly bypassActors: "none" | "unverified";
+    }
   | { readonly status: "blocked" | "uncertain"; readonly reason: string };
 
 const blocked = (reason: string): WorkMergeOutcome => ({
@@ -298,7 +301,7 @@ async function verifyChecks(
   pr: PullRequest,
   mode: MergeMode,
   observe: boolean,
-): Promise<string | null> {
+): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
   if (
     !positiveId(grant.gateAppId) ||
     !positiveId(grant.rulesetId) ||
@@ -317,7 +320,7 @@ async function verifyChecks(
     readonly id: number;
     readonly enforcement: string;
     readonly target: string;
-    readonly bypass_actors: readonly unknown[];
+    readonly bypass_actors?: readonly unknown[];
     readonly conditions?: {
       readonly ref_name?: {
         readonly include: readonly string[];
@@ -346,13 +349,18 @@ async function verifyChecks(
     readonly id: number;
     readonly default_branch: string;
   }>(publisher, repoPath);
+  const bypassActors = ruleset.bypass_actors;
+  // GitHub omits this field for callers without ruleset write access. Only the
+  // read-only observer can continue, and it reports that fact as unverified.
+  const noBypassActors =
+    Array.isArray(bypassActors) && bypassActors.length === 0;
   if (
     repository.id !== publisher.repositoryId ||
     repository.default_branch !== "main" ||
     ruleset.id !== grant.rulesetId ||
     ruleset.enforcement !== "active" ||
     ruleset.target !== "branch" ||
-    ruleset.bypass_actors?.length !== 0 ||
+    (!noBypassActors && !(observe && bypassActors === undefined)) ||
     refs?.exclude.length !== 0 ||
     !refs.include.some(
       (ref) => ref === "refs/heads/main" || ref === "~DEFAULT_BRANCH",
@@ -427,7 +435,10 @@ async function verifyChecks(
     }
     return `CHECK_NOT_SUCCESSFUL:${name}`;
   }
-  return mode === "auto" && !pending ? "DIRECT_MERGE_REQUIRED" : null;
+  if (mode === "auto" && !pending) {
+    return "DIRECT_MERGE_REQUIRED";
+  }
+  return { bypassActors: noBypassActors ? "none" : "unverified" };
 }
 
 export async function publishWorkMerge(
@@ -526,7 +537,7 @@ async function evaluateWorkMergeRequest(
       if (evidenceFailure) {
         return blocked(evidenceFailure);
       }
-      const checkFailure = await verifyChecks(
+      const checks = await verifyChecks(
         publisher,
         grant,
         repoPath,
@@ -534,8 +545,8 @@ async function evaluateWorkMergeRequest(
         mode,
         observe,
       );
-      if (checkFailure) {
-        return blocked(checkFailure);
+      if (typeof checks === "string") {
+        return blocked(checks);
       }
 
       const current = await github<PullRequest>(publisher, prPath);
@@ -563,7 +574,10 @@ async function evaluateWorkMergeRequest(
       }
       const message = `Refs #${candidate.workNumber}`;
       if (observe) {
-        return { status: "observed-checks-passed" };
+        return {
+          status: "observed-checks-passed",
+          bypassActors: checks.bypassActors,
+        };
       }
 
       try {
