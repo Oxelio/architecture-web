@@ -1,8 +1,5 @@
 import type { WorkState } from "../control/eligibility.js";
-import {
-  type OperationalOwnerActivation,
-  readProjectWorkItems,
-} from "./github-operational-state.js";
+import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
 import {
   type AuthorizedWorkIntegrationTarget,
@@ -28,8 +25,11 @@ interface DependencyIssue {
 
 interface PullRequestMergeability {
   readonly number: number;
+  readonly state: "open" | "closed";
+  readonly draft: boolean;
   readonly mergeable: boolean | null;
   readonly head: { readonly sha: string };
+  readonly base: { readonly ref: string; readonly sha: string };
 }
 
 function headers(token: string): Record<string, string> {
@@ -44,6 +44,88 @@ function parseWorkState(value: string | undefined): WorkState | null {
   return value && validWorkStates.has(value as WorkState)
     ? (value as WorkState)
     : null;
+}
+
+async function readGateWorkItem(input: {
+  readonly repository: string;
+  readonly projectId: string;
+  readonly projectsToken: string;
+  readonly workNumber: number;
+  readonly fetchImpl: FetchLike;
+}): Promise<{ readonly status?: { readonly name?: string } | null } | null> {
+  const [owner, name] = input.repository.split("/");
+  const response = await input.fetchImpl("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      ...headers(input.projectsToken),
+      "content-type": "application/json",
+    },
+    redirect: "error",
+    body: JSON.stringify({
+      query: `query ArchitectureWebGateWorkItem($owner: String!, $name: String!, $number: Int!) {
+        repository(owner: $owner, name: $name) {
+          nameWithOwner
+          issue(number: $number) {
+            number state parent { id }
+            projectItems(first: 100, includeArchived: false) {
+              nodes {
+                project { id closed }
+                status: fieldValueByName(name: "Status") {
+                  ... on ProjectV2ItemFieldSingleSelectValue { name }
+                }
+              }
+              pageInfo { hasNextPage }
+            }
+          }
+        }
+      }`,
+      variables: { owner, name, number: input.workNumber },
+    }),
+  });
+  if (!response.ok) {
+    return null;
+  }
+  const payload = (await response.json()) as {
+    readonly errors?: readonly unknown[];
+    readonly data?: {
+      readonly repository?: {
+        readonly nameWithOwner: string;
+        readonly issue?: {
+          readonly number: number;
+          readonly state: string;
+          readonly parent: object | null;
+          readonly projectItems: {
+            readonly nodes: readonly ({
+              readonly project: {
+                readonly id: string;
+                readonly closed: boolean;
+              };
+              readonly status?: { readonly name?: string } | null;
+            } | null)[];
+            readonly pageInfo: { readonly hasNextPage: boolean };
+          };
+        } | null;
+      } | null;
+    };
+  };
+  const repository = payload.data?.repository;
+  const issue = repository?.issue;
+  if (
+    payload.errors?.length ||
+    repository?.nameWithOwner.toLowerCase() !==
+      input.repository.toLowerCase() ||
+    issue?.number !== input.workNumber ||
+    issue.state !== "OPEN" ||
+    issue.parent !== null ||
+    issue.projectItems.pageInfo.hasNextPage !== false
+  ) {
+    return null;
+  }
+  const items = issue.projectItems.nodes.filter(
+    (item) =>
+      item?.project.id === input.projectId && item.project.closed === false,
+  );
+  return items.length === 1 ? (items[0] ?? null) : null;
 }
 
 async function readDependencyResolution(input: {
@@ -75,13 +157,12 @@ async function readDependencyResolution(input: {
 
 async function readPullRequestMergeability(input: {
   readonly repository: string;
-  readonly pullRequestNumber: number;
-  readonly expectedHeadSha: string;
+  readonly target: AuthorizedWorkIntegrationTarget;
   readonly repositoryToken: string;
   readonly fetchImpl: FetchLike;
-}): Promise<boolean | null> {
+}): Promise<{ readonly mergeable: boolean; readonly baseSha: string } | null> {
   const response = await input.fetchImpl(
-    `https://api.github.com/repos/${input.repository}/pulls/${input.pullRequestNumber}`,
+    `https://api.github.com/repos/${input.repository}/pulls/${input.target.pullRequestNumber}`,
     { headers: headers(input.repositoryToken) },
   );
   if (!response.ok) {
@@ -90,12 +171,20 @@ async function readPullRequestMergeability(input: {
 
   const pullRequest = (await response.json()) as PullRequestMergeability;
   if (
-    pullRequest.number !== input.pullRequestNumber ||
-    pullRequest.head.sha !== input.expectedHeadSha
+    pullRequest.number !== input.target.pullRequestNumber ||
+    pullRequest.state !== "open" ||
+    pullRequest.head.sha !== input.target.headSha ||
+    pullRequest.base.ref !== input.target.baseRef ||
+    !/^[0-9a-f]{40}$/u.test(pullRequest.base.sha) ||
+    typeof pullRequest.draft !== "boolean" ||
+    (!pullRequest.draft && typeof pullRequest.mergeable !== "boolean")
   ) {
     return null;
   }
-  return pullRequest.mergeable;
+  return {
+    mergeable: !pullRequest.draft && pullRequest.mergeable === true,
+    baseSha: pullRequest.base.sha,
+  };
 }
 
 export type WorkMergeGateLiveEvidenceResolution =
@@ -104,6 +193,7 @@ export type WorkMergeGateLiveEvidenceResolution =
       readonly workState: WorkState;
       readonly dependenciesResolved: boolean;
       readonly pullRequestMergeable: boolean;
+      readonly baseSha: string;
       readonly target: AuthorizedWorkIntegrationTarget;
     }
   | {
@@ -142,11 +232,12 @@ export async function readWorkMergeGateLiveEvidence(input: {
   }
 
   const fetchImpl = input.fetchImpl ?? fetch;
-  const [items, target, dependenciesResolved] = await Promise.all([
-    readProjectWorkItems({
+  const [work, target, dependenciesResolved] = await Promise.all([
+    readGateWorkItem({
       repository: input.repository,
       projectId: input.projectId,
       projectsToken: input.projectsToken,
+      workNumber: input.workNumber,
       fetchImpl,
     }),
     readAuthorizedWorkIntegrationTarget({
@@ -168,12 +259,11 @@ export async function readWorkMergeGateLiveEvidence(input: {
     return { status: "blocked", reason: "WORK_INTEGRATION_PR_UNAVAILABLE" };
   }
 
-  const work = items.find((item) => item.issueNumber === input.workNumber);
-  if (!work?.issueOpen) {
+  if (!work) {
     return { status: "blocked", reason: "WORK_ITEM_UNAVAILABLE" };
   }
 
-  const workState = parseWorkState(work.fields["Status"]);
+  const workState = parseWorkState(work.status?.name);
   if (!workState) {
     return { status: "blocked", reason: "WORK_STATE_UNAVAILABLE" };
   }
@@ -183,8 +273,7 @@ export async function readWorkMergeGateLiveEvidence(input: {
 
   const pullRequestMergeable = await readPullRequestMergeability({
     repository: input.repository,
-    pullRequestNumber: target.target.pullRequestNumber,
-    expectedHeadSha: target.target.headSha,
+    target: target.target,
     repositoryToken: input.repositoryToken,
     fetchImpl,
   });
@@ -196,7 +285,8 @@ export async function readWorkMergeGateLiveEvidence(input: {
     status: "ready",
     workState,
     dependenciesResolved,
-    pullRequestMergeable,
+    pullRequestMergeable: pullRequestMergeable.mergeable,
+    baseSha: pullRequestMergeable.baseSha,
     target: target.target,
   };
 }

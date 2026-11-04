@@ -1,5 +1,8 @@
 import { resolveActivationContext } from "../config/activation-context.js";
-import { evaluateWorkMergeGate } from "../control/work-merge-gate.js";
+import {
+  evaluateWorkMergeGate,
+  workMergeObservationCheckName,
+} from "../control/work-merge-gate.js";
 import { readWorkMergeGateLiveEvidence } from "../github/gate-live-evidence.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import {
@@ -10,8 +13,6 @@ import {
   requiredEnvironment,
   writeJson,
 } from "./gate-publication-support.js";
-
-const checkName = "Architecture Web / Work Merge Gate";
 
 function evidenceLine(
   label: string,
@@ -105,7 +106,7 @@ async function main(): Promise<void> {
   const summary = [
     `Work: #${workNumber}`,
     `Work Integration PR: #${live.target.pullRequestNumber}`,
-    `Target: \`${live.target.headRef}@${live.target.headSha}\` -> \`${live.target.baseRef}\``,
+    `Target: \`${live.target.headRef}@${live.target.headSha}\` -> \`${live.target.baseRef}@${live.baseSha}\``,
     `Work State: \`${live.workState}\``,
     `Enforcement: \`${result.enforcement}\``,
     "",
@@ -129,8 +130,9 @@ async function main(): Promise<void> {
   writeJson({
     gate: "work-merge",
     check: {
-      name: checkName,
+      name: workMergeObservationCheckName,
       headSha: live.target.headSha,
+      externalId: `work:${workNumber}:pr:${live.target.pullRequestNumber}:${live.target.headSha}:${live.baseSha}`,
       title: `Work Merge Gate: ${result.pass ? "PASS" : "FAIL"}`,
       summary,
       pass: result.pass,

@@ -48,6 +48,17 @@ operational Work State owner only when the mapping assigned by
 `docs/project/delivery-pipeline.md` is effectively activated and readable;
 otherwise Work State is unavailable rather than inferred.
 
+Agents MAY use GitHub Projects MCP to read and update authorized fields in
+Oxelio's Architecture Web Project #3, including its native `Status`, when the
+current environment exposes the required operations. Inspect the tools available
+in the current ChatGPT or Codex session. Before writing, verify the Project, Work
+Issue, Project item, field and current value. Re-read the field after writing.
+Follow the active Method Role, applicable gates and the permission matrix in
+the [delivery profile](docs/project/delivery-pipeline.md), including its trusted
+path for privileged writes. Connector access does not grant decision authority.
+If the connector is unavailable, use another authorized and verified path when
+available or report that the operation is unavailable.
+
 ## Architecture
 
 Architecture Web uses DDD, Clean Architecture, Hexagonal Architecture, SOLID,
