@@ -42,6 +42,9 @@ function fixture() {
     merged: false,
     armed: false,
     observation: false,
+    bypassActors: [] as readonly unknown[] | null | undefined,
+    strictChecks: true,
+    mergeMethod: "squash",
     closingIssues: 0,
     title: "feat: integrate ordinary Work",
   };
@@ -199,19 +202,19 @@ function fixture() {
           id: 9,
           target: "branch",
           enforcement: "active",
-          bypass_actors: [],
+          bypass_actors: state.bypassActors,
           conditions: {
             ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] },
           },
           rules: [
             {
               type: "pull_request",
-              parameters: { allowed_merge_methods: ["squash"] },
+              parameters: { allowed_merge_methods: [state.mergeMethod] },
             },
             {
               type: "required_status_checks",
               parameters: {
-                strict_required_status_checks_policy: true,
+                strict_required_status_checks_policy: state.strictChecks,
                 required_status_checks: checks
                   .filter(({ name }) => !state.observation || name !== gate)
                   .map(({ name, id }) => ({
@@ -296,7 +299,60 @@ describe("trusted Work integration publisher", () => {
       f.state.check = mode === "auto" ? "pending" : "success";
       await expect(
         observeWorkMerge(f.publisher(), candidate, mode),
-      ).resolves.toEqual({ status: "observed-checks-passed" });
+      ).resolves.toEqual({
+        status: "observed-checks-passed",
+        bypassActors: "none",
+      });
+      expect(f.writes).toEqual([]);
+    },
+  );
+
+  it("reports omitted bypass actors as unverified in read-only observation", async () => {
+    const f = fixture();
+    f.state.observation = true;
+    f.state.bypassActors = undefined;
+    await expect(
+      observeWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual({
+      status: "observed-checks-passed",
+      bypassActors: "unverified",
+    });
+    expect(f.writes).toEqual([]);
+  });
+
+  it.each(["direct", "auto"] as const)(
+    "blocks a real %s operation when bypass actors are omitted",
+    async (mode) => {
+      const f = fixture();
+      f.state.bypassActors = undefined;
+      f.state.check = mode === "auto" ? "pending" : "success";
+      await expect(
+        publishWorkMerge(f.publisher(), candidate, mode),
+      ).resolves.toEqual({
+        status: "blocked",
+        reason: "REQUIRED_PROTECTIONS_UNVERIFIED",
+      });
+      expect(f.writes).toEqual([]);
+    },
+  );
+
+  it.each([
+    { bypassActors: [{ actor_id: 123 }] },
+    { bypassActors: null },
+    { bypassActors: undefined, strictChecks: false },
+    { bypassActors: undefined, mergeMethod: "merge" },
+  ])(
+    "rejects incompatible protection data in observation: %j",
+    async (change) => {
+      const f = fixture();
+      f.state.observation = true;
+      Object.assign(f.state, change);
+      await expect(
+        observeWorkMerge(f.publisher(), candidate, "direct"),
+      ).resolves.toEqual({
+        status: "blocked",
+        reason: "REQUIRED_PROTECTIONS_UNVERIFIED",
+      });
       expect(f.writes).toEqual([]);
     },
   );
