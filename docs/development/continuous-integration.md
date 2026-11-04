@@ -5,6 +5,11 @@ permissions and gates. [Testing and verification](testing.md) owns validation
 strategy and commands. CI does not establish review acceptance, Work State,
 merge authority or Work completion.
 
+After a squash merge, use the integrated commit SHA on `main` to find the
+`push` runs for repository CI and source-release processing. The pull request
+head SHA identifies the pre-merge candidate and can differ from the integrated
+commit.
+
 ## Entry points and shared validation
 
 `delivery-automation-validation.yml` runs on all PRs into `main`, including drafts,
