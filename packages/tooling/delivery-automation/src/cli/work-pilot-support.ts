@@ -30,7 +30,8 @@ export async function githubRepositoryRequest<T>(
         accept: "application/vnd.github+json",
         authorization: `Bearer ${requiredEnvironment("GITHUB_TOKEN")}`,
         "content-type": "application/json",
-        "x-github-api-version": "2026-03-10",
+        // Closure verifies the squash SHA from the pull request response.
+        "x-github-api-version": "2022-11-28",
       },
       redirect: "error",
       ...(body ? { body: JSON.stringify(body) } : {}),
