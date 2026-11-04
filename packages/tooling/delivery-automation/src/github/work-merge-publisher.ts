@@ -89,6 +89,7 @@ export interface WorkMergePublisher {
   readonly projectId: string;
   readonly projectsToken: string;
   readonly repositoryToken: string;
+  readonly mergeToken: string;
   readonly activation: OperationalOwnerActivation;
   readonly fetchImpl?: FetchLike;
   // These functions belong to the trusted composition, never the agent payload.
@@ -137,6 +138,7 @@ async function github<T>(
   path: string,
   method = "GET",
   body?: object,
+  token = publisher.repositoryToken,
 ): Promise<T> {
   const response = await (publisher.fetchImpl ?? fetch)(
     `https://api.github.com${path}`,
@@ -144,7 +146,7 @@ async function github<T>(
       method,
       headers: {
         accept: "application/vnd.github+json",
-        authorization: `Bearer ${publisher.repositoryToken}`,
+        authorization: `Bearer ${token}`,
         "content-type": "application/json",
         "x-github-api-version": "2022-11-28",
       },
@@ -450,12 +452,12 @@ export async function publishWorkMerge(
 }
 
 export async function observeWorkMerge(
-  publisher: Omit<WorkMergePublisher, "withinVerifiedBoundary">,
+  publisher: Omit<WorkMergePublisher, "withinVerifiedBoundary" | "mergeToken">,
   candidate: MergeCandidate,
   mode: MergeMode,
 ): Promise<WorkMergeOutcome> {
   return evaluateWorkMergeRequest(
-    { ...publisher, withinVerifiedBoundary: async () => null },
+    { ...publisher, mergeToken: "", withinVerifiedBoundary: async () => null },
     candidate,
     mode,
     true,
@@ -482,6 +484,13 @@ async function evaluateWorkMergeRequest(
 
   const repoPath = `/repos/${publisher.repository}`;
   const prPath = `${repoPath}/pulls/${candidate.pullNumber}`;
+  if (
+    !observe &&
+    (!publisher.mergeToken.trim() ||
+      publisher.mergeToken === publisher.repositoryToken)
+  ) {
+    return blocked("ISOLATED_MERGE_CREDENTIAL_REQUIRED");
+  }
   try {
     if (!authorized(await publisher.readGrant(), publisher, candidate, mode)) {
       return blocked("MERGE_NOT_DELEGATED");
@@ -585,12 +594,18 @@ async function evaluateWorkMergeRequest(
           const merged = await github<{
             readonly merged: boolean;
             readonly sha: string;
-          }>(publisher, `${prPath}/merge`, "PUT", {
-            sha: candidate.headSha,
-            merge_method: "squash",
-            commit_title: headline,
-            commit_message: message,
-          });
+          }>(
+            publisher,
+            `${prPath}/merge`,
+            "PUT",
+            {
+              sha: candidate.headSha,
+              merge_method: "squash",
+              commit_title: headline,
+              commit_message: message,
+            },
+            publisher.mergeToken,
+          );
           if (merged.merged === true && oid.test(merged.sha)) {
             return { status: "merged", sha: merged.sha };
           }
@@ -605,20 +620,26 @@ async function evaluateWorkMergeRequest(
               };
             };
             readonly errors?: readonly unknown[];
-          }>(publisher, "/graphql", "POST", {
-            query: `mutation($input: EnablePullRequestAutoMergeInput!) {
+          }>(
+            publisher,
+            "/graphql",
+            "POST",
+            {
+              query: `mutation($input: EnablePullRequestAutoMergeInput!) {
               enablePullRequestAutoMerge(input: $input) { pullRequest { id autoMergeRequest { enabledAt } } }
             }`,
-            variables: {
-              input: {
-                pullRequestId: current.node_id,
-                expectedHeadOid: candidate.headSha,
-                mergeMethod: "SQUASH",
-                commitHeadline: headline,
-                commitBody: message,
+              variables: {
+                input: {
+                  pullRequestId: current.node_id,
+                  expectedHeadOid: candidate.headSha,
+                  mergeMethod: "SQUASH",
+                  commitHeadline: headline,
+                  commitBody: message,
+                },
               },
             },
-          });
+            publisher.mergeToken,
+          );
           const armedPr = armed.data?.enablePullRequestAutoMerge?.pullRequest;
           if (
             !armed.errors?.length &&

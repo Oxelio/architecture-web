@@ -1,0 +1,38 @@
+name: Delivery Work Integration Request
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  authenticate:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/architecture-web direct-squash')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Authenticate the request without granting merge capability
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_DIRECT_GRANT_COMMENT_ID: ${{ vars.DELIVERY_DIRECT_GRANT_COMMENT_ID }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts
