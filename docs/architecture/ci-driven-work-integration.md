@@ -204,3 +204,59 @@ blocks observation as well. For the later mutation pilot, verify separately that
 publisher can issue the required gate, that freshness holds for each mode, and
 that each actual merge triggers the downstream runs described above. Use an App
 only if the verified permission or event behavior requires one.
+
+### Direct squash pilot adapter
+
+The [scoped decision](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6644521094)
+authorizes preparation and non-mutating validation for the Codex connector
+channel. The request workflow authenticates a new PR comment on trusted
+`main`. Use a first line of `/architecture-web direct-squash` followed by a
+JSON object with `workNumber`, `pullNumber`, `headSha`, and `baseSha`.
+GitHub-authored metadata must identify repository `1336937640`, author
+`83680141`, and app `1144995`. Authorship through the connector grants no
+human-only decision authority.
+
+`DELIVERY_DIRECT_GRANT_COMMENT_ID` identifies a separate, unedited maintainer
+record posted directly on Work #91. The JSON record binds the same candidate,
+`actorId`, `appId`, `repositoryId`, `operation: "direct-squash"`, and an
+`expiresAt` timestamp. The adapter rereads that record. Editing or removing
+the record revokes it. The listener has read-only permissions and never calls
+the merge publisher. A future mutation composition must bind one authorized
+invocation and keep the existing fail-closed writer boundary and check
+verification. An Actions rerun is ineligible; that guard alone is not
+cross-run replay prevention for a privileged operation.
+
+Use a dedicated gate issuer if the installed app inventory shows no issuer
+reserved for this check. Register a private GitHub App with its webhook
+disabled. Install it only on this repository and grant `Checks: write` and
+the default `Metadata: read`. Keep the private key in a protected environment
+restricted to `main` and the trusted publication job. Record its app ID and
+prove that an unrelated workflow cannot issue the accepted check. The squash
+publisher takes a separate credential with `Contents: write` scoped to this
+repository. It uses its read credential for verification and the merge
+credential only for the native mutation. Verify ruleset bypass metadata
+separately; unavailable metadata still blocks mutation.
+
+### Conditional completion pilot
+
+The closure workflow listens for the exact pilot PR's merged
+`pull_request_target: closed` event. An authenticated maintainer can dispatch
+a fresh recovery run with that PR number. Both paths run the same code on
+`main` and serialize attempts for the configured Work. Leave
+`DELIVERY_COMPLETION_PILOT_WORK` and `DELIVERY_COMPLETION_PILOT_PR` unset
+until the pilot is authorized. Configure the `delivery-work-completion-pilot`
+environment for `main` only, with a separate personal Project credential in
+`DELIVERY_COMPLETION_PROJECTS_TOKEN`. GitHub Actions provides repository
+`Issues: write` for the issue close and `Actions: read` for downstream runs.
+
+`DELIVERY_COMPLETION_COMMENT_ID` points to the pilot's attributable Done
+evidence on the owning Issue. The unedited, direct maintainer record has
+`kind: "work-completion"`, the Work/PR and head/base/merge SHAs, and the
+established Done invariants read by the completion publisher. It is a
+pilot-specific evidence anchor. The publisher independently confirms the
+squash on `main`, native Project membership, issue disposition, and
+successful push-triggered CI and source-release processing for the merge SHA.
+An initial event can arrive before those obligations finish. Use a fresh
+recovery dispatch once the evidence is available. The publisher verifies
+`Status = Done` before closing the Issue as completed and can retry that last
+step without reapplying a verified Done transition.
