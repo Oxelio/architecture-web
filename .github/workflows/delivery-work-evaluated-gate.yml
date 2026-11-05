@@ -3,8 +3,16 @@ name: Delivery Evaluated Work Merge Gate
 on:
   workflow_dispatch:
     inputs:
+      work_number:
+        description: Owning Work Issue number
+        required: true
+        type: string
+      pull_number:
+        description: Work Integration PR number
+        required: true
+        type: string
       head_sha:
-        description: Exact pilot PR head
+        description: Exact Work Integration PR head
         required: true
         type: string
       base_sha:
@@ -19,7 +27,7 @@ permissions:
   checks: read
 
 concurrency:
-  group: delivery-evaluated-work-merge-gate-pilot
+  group: delivery-evaluated-work-merge-gate-${{ inputs.pull_number }}
   cancel-in-progress: false
 
 jobs:
@@ -53,10 +61,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
           DELIVERY_EVALUATED_GATE_EVIDENCE: ${{ vars.DELIVERY_EVALUATED_GATE_EVIDENCE }}
-          PILOT_WORK_NUMBER: "96"
-          PILOT_PULL_NUMBER: "98"
-          PILOT_HEAD_SHA: ${{ inputs.head_sha }}
-          PILOT_BASE_SHA: ${{ inputs.base_sha }}
+          GATE_WORK_NUMBER: ${{ inputs.work_number }}
+          GATE_PULL_NUMBER: ${{ inputs.pull_number }}
+          GATE_HEAD_SHA: ${{ inputs.head_sha }}
+          GATE_BASE_SHA: ${{ inputs.base_sha }}
         run: |
           set -euo pipefail
           pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-evaluated-gate.ts > evaluation.json
@@ -97,12 +105,12 @@ jobs:
         env:
           TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
           GITHUB_TOKEN: ${{ github.token }}
-          PILOT_GATE_APP_TOKEN: ${{ steps.gate-token.outputs.token }}
-          PILOT_GATE_APP_ID: ${{ vars.DELIVERY_GATE_APP_ID }}
-          PILOT_GATE_INSTALLATION_ID: ${{ steps.gate-token.outputs.installation-id }}
-          PILOT_WORK_NUMBER: ${{ vars.DELIVERY_GATE_PILOT_WORK }}
-          PILOT_PULL_NUMBER: ${{ vars.DELIVERY_GATE_PILOT_PR }}
-          PILOT_HEAD_SHA: ${{ inputs.head_sha }}
-          PILOT_BASE_SHA: ${{ inputs.base_sha }}
+          GATE_APP_TOKEN: ${{ steps.gate-token.outputs.token }}
+          GATE_APP_ID: ${{ vars.DELIVERY_GATE_APP_ID }}
+          GATE_INSTALLATION_ID: ${{ steps.gate-token.outputs.installation-id }}
+          GATE_WORK_NUMBER: ${{ inputs.work_number }}
+          GATE_PULL_NUMBER: ${{ inputs.pull_number }}
+          GATE_HEAD_SHA: ${{ inputs.head_sha }}
+          GATE_BASE_SHA: ${{ inputs.base_sha }}
           GATE_RESULT_B64: ${{ needs.evaluate.outputs.evaluated }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-evaluated-gate-publish.ts

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  isPilotCompletionRecord,
+  isCompletionRecord,
   issueDisposition,
   matchesCompletedCandidate,
 } from "./work-completion-evidence.js";
@@ -36,16 +36,11 @@ const comparison = {
   merge_base_commit: { sha: record.mergeSha },
 };
 
-describe("completion pilot evidence", () => {
-  it("only accepts a separate pilot record", () => {
-    expect(isPilotCompletionRecord(record, 98)).toBe(true);
-    expect(isPilotCompletionRecord({ ...record, workNumber: 91 }, 98)).toBe(
-      false,
-    );
-    expect(isPilotCompletionRecord({ ...record, workNumber: 93 }, 98)).toBe(
-      false,
-    );
-    expect(isPilotCompletionRecord(record, 94)).toBe(false);
+describe("Work completion evidence", () => {
+  it("requires a valid Work and the exact PR", () => {
+    expect(isCompletionRecord(record, 98)).toBe(true);
+    expect(isCompletionRecord({ ...record, workNumber: 0 }, 98)).toBe(false);
+    expect(isCompletionRecord(record, 94)).toBe(false);
   });
 
   it("requires unique Work ownership and a candidate on main", () => {

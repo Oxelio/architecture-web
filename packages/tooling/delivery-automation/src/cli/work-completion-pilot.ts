@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { setTimeout } from "node:timers/promises";
 
 import {
   publishWorkCompletion,
@@ -6,9 +7,10 @@ import {
 } from "../control/work-completion.js";
 import {
   type CompletionRecord,
-  isPilotCompletionRecord,
+  isCompletionRecord,
   issueDisposition,
   matchesCompletedCandidate,
+  workReference,
 } from "../github/work-completion-evidence.js";
 import {
   positiveInteger,
@@ -18,13 +20,11 @@ import {
 } from "./gate-publication-support.js";
 import {
   githubRepositoryRequest,
-  readMaintainerRecord,
   requireTrustedMain,
 } from "./work-pilot-support.js";
 
 requireTrustedMain("pull_request_target", "workflow_dispatch");
-const pullNumber = positiveInteger("PILOT_PULL_NUMBER");
-const workNumber = positiveInteger("PILOT_WORK_NUMBER");
+const pullNumber = positiveInteger("COMPLETION_PULL_NUMBER");
 const event = JSON.parse(
   await readFile(requiredEnvironment("GITHUB_EVENT_PATH"), "utf8"),
 ) as {
@@ -43,9 +43,7 @@ if (
     : event.pull_request?.number !== pullNumber ||
       event.pull_request.merged !== true)
 ) {
-  throw new Error(
-    "The event does not authorize recovery for this pilot candidate",
-  );
+  throw new Error("The event does not authorize completion for this candidate");
 }
 const manifest = await readActivationManifest();
 if (
@@ -54,6 +52,37 @@ if (
   manifest.mappings.workState.status !== "verified"
 ) {
   throw new Error("The personal Project Work State owner is unavailable");
+}
+
+type MergedPullRequest = Parameters<typeof matchesCompletedCandidate>[1];
+const integrated = await githubRepositoryRequest<MergedPullRequest>(
+  `/pulls/${pullNumber}`,
+);
+const owner = workReference(integrated.body);
+if (
+  integrated.number !== pullNumber ||
+  integrated.state !== "closed" ||
+  integrated.merged !== true ||
+  integrated.base.ref !== "main" ||
+  integrated.base.repo.id !== 1336937640 ||
+  integrated.head.repo?.id !== 1336937640 ||
+  !/^[0-9a-f]{40}$/u.test(integrated.merge_commit_sha) ||
+  owner === null
+) {
+  throw new Error("An integrated Work PR with one owning Issue is required");
+}
+const workNumber = owner;
+const mergeSha = integrated.merge_commit_sha;
+
+if (process.env["COMPLETION_WAIT_FOR_DOWNSTREAM"] === "true") {
+  // Initial merge events can arrive before either push workflow has finished.
+  // The existing authenticated recovery remains available for longer runs.
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    if ((await downstreamResults(mergeSha)).every(Boolean)) {
+      break;
+    }
+    await setTimeout(20_000);
+  }
 }
 
 let verifiedItem: {
@@ -107,47 +136,69 @@ if (result.status === "blocked" || result.status === "retry") {
 
 async function readSnapshot(): Promise<WorkCompletionSnapshot | null> {
   verifiedItem = null;
-  const record = await readMaintainerRecord<CompletionRecord>(
-    "PILOT_COMPLETION_COMMENT_ID",
-    workNumber,
-  );
+  const record = await readCompletionRecord(workNumber, pullNumber, mergeSha);
   if (
-    !isPilotCompletionRecord(record, pullNumber) ||
+    !isCompletionRecord(record, pullNumber) ||
     record.workNumber !== workNumber
   ) {
     return null;
   }
-  const { mergeSha } = record;
-  const [pr, commit, comparison, issue, events, ci, release] =
-    await Promise.all([
-      githubRepositoryRequest<Parameters<typeof matchesCompletedCandidate>[1]>(
-        `/pulls/${pullNumber}`,
-      ),
-      githubRepositoryRequest<Parameters<typeof matchesCompletedCandidate>[2]>(
-        `/commits/${mergeSha}`,
-      ),
-      githubRepositoryRequest<Parameters<typeof matchesCompletedCandidate>[3]>(
-        `/compare/${mergeSha}...main?per_page=1`,
-      ),
-      githubRepositoryRequest<
-        Parameters<typeof issueDisposition>[0] & {
-          readonly number: number;
-          readonly pull_request?: object;
-          readonly repository_url: string;
-        }
-      >(`/issues/${workNumber}`),
-      githubRepositoryRequest<Parameters<typeof issueDisposition>[1]>(
-        `/issues/${workNumber}/events?per_page=100`,
-      ),
-      successfulPushRun("delivery-automation-validation.yml", mergeSha),
-      successfulPushRun("release.yml", mergeSha),
-    ]);
+  const [
+    pr,
+    commit,
+    comparison,
+    issue,
+    events,
+    [ci, release],
+    tasks,
+    dependencies,
+  ] = await Promise.all([
+    githubRepositoryRequest<Parameters<typeof matchesCompletedCandidate>[1]>(
+      `/pulls/${pullNumber}`,
+    ),
+    githubRepositoryRequest<Parameters<typeof matchesCompletedCandidate>[2]>(
+      `/commits/${mergeSha}`,
+    ),
+    githubRepositoryRequest<Parameters<typeof matchesCompletedCandidate>[3]>(
+      `/compare/${mergeSha}...main?per_page=1`,
+    ),
+    githubRepositoryRequest<
+      Parameters<typeof issueDisposition>[0] & {
+        readonly number: number;
+        readonly pull_request?: object;
+        readonly repository_url: string;
+      }
+    >(`/issues/${workNumber}`),
+    githubRepositoryRequest<Parameters<typeof issueDisposition>[1]>(
+      `/issues/${workNumber}/events?per_page=100`,
+    ),
+    downstreamResults(mergeSha),
+    githubRepositoryRequest<
+      readonly {
+        readonly state: string;
+        readonly state_reason: string | null;
+      }[]
+    >(`/issues/${workNumber}/sub_issues?per_page=100`),
+    githubRepositoryRequest<
+      readonly {
+        readonly state: string;
+      }[]
+    >(`/issues/${workNumber}/dependencies/blocked_by?per_page=100`),
+  ]);
   if (
     !matchesCompletedCandidate(record, pr, commit, comparison, 1336937640) ||
     issue.number !== workNumber ||
     issue.pull_request !== undefined ||
     issue.repository_url.toLowerCase() !==
-      "https://api.github.com/repos/oxelio/architecture-web"
+      "https://api.github.com/repos/oxelio/architecture-web" ||
+    !Array.isArray(tasks) ||
+    tasks.length >= 100 ||
+    tasks.some(
+      (task) => task.state !== "closed" || task.state_reason !== "completed",
+    ) ||
+    !Array.isArray(dependencies) ||
+    dependencies.length >= 100 ||
+    dependencies.some((dependency) => dependency.state !== "closed")
   ) {
     return null;
   }
@@ -255,6 +306,60 @@ async function readSnapshot(): Promise<WorkCompletionSnapshot | null> {
   };
 }
 
+async function readCompletionRecord(
+  work: number,
+  pull: number,
+  merge: string,
+): Promise<CompletionRecord | null> {
+  const comments = await githubRepositoryRequest<
+    readonly {
+      readonly issue_url: string;
+      readonly user?: { readonly id: number; readonly type: string };
+      readonly performed_via_github_app?: object | null;
+      readonly created_at: string;
+      readonly updated_at: string;
+      readonly body: string;
+    }[]
+  >(`/issues/${work}/comments?per_page=100`);
+  if (!Array.isArray(comments) || comments.length >= 100) {
+    return null;
+  }
+  for (const comment of [...comments].reverse()) {
+    if (
+      comment.user?.id !== 83680141 ||
+      comment.user.type !== "User" ||
+      comment.performed_via_github_app !== null ||
+      comment.issue_url.toLowerCase() !==
+        `https://api.github.com/repos/oxelio/architecture-web/issues/${work}`
+    ) {
+      continue;
+    }
+    let record: CompletionRecord | null;
+    try {
+      record = JSON.parse(comment.body) as CompletionRecord | null;
+    } catch {
+      continue;
+    }
+    if (
+      record?.kind === "work-completion" &&
+      record.pullNumber === pull &&
+      record.mergeSha === merge
+    ) {
+      return comment.created_at && comment.created_at === comment.updated_at
+        ? record
+        : null;
+    }
+  }
+  return null;
+}
+
+function downstreamResults(sha: string): Promise<[boolean, boolean]> {
+  return Promise.all([
+    successfulPushRun("delivery-automation-validation.yml", sha),
+    successfulPushRun("release.yml", sha),
+  ]);
+}
+
 async function successfulPushRun(
   workflow: string,
   sha: string,
@@ -287,7 +392,7 @@ async function projectGraphql<T>(
   const response = await fetch("https://api.github.com/graphql", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${requiredEnvironment("PILOT_COMPLETION_PROJECTS_TOKEN")}`,
+      authorization: `Bearer ${requiredEnvironment("COMPLETION_PROJECTS_TOKEN")}`,
       "content-type": "application/json",
     },
     redirect: "error",

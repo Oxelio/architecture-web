@@ -177,10 +177,8 @@ function completionFixture(recovery = false) {
       ? { inputs: { pull_number: "98" } }
       : { pull_request: { number: 98, merged: true } },
   );
-  vi.stubEnv("PILOT_PULL_NUMBER", "98");
-  vi.stubEnv("PILOT_WORK_NUMBER", "96");
-  vi.stubEnv("PILOT_COMPLETION_COMMENT_ID", "14");
-  vi.stubEnv("PILOT_COMPLETION_PROJECTS_TOKEN", "project-fixture");
+  vi.stubEnv("COMPLETION_PULL_NUMBER", "98");
+  vi.stubEnv("COMPLETION_PROJECTS_TOKEN", "project-fixture");
   const record = comment(
     14,
     96,
@@ -201,6 +199,8 @@ function completionFixture(recovery = false) {
     closed: false,
     release: true,
     closeFails: false,
+    tasks: [] as { state: string; state_reason: string | null }[],
+    dependencies: [] as { state: string }[],
     item: "PVTI",
   };
   const writes: string[] = [];
@@ -266,8 +266,12 @@ function completionFixture(recovery = false) {
     );
     const path = url.pathname.slice("/repos/Oxelio/architecture-web".length);
     switch (path) {
-      case "/issues/comments/14":
-        return Response.json(record);
+      case "/issues/96/comments":
+        return Response.json([record]);
+      case "/issues/96/sub_issues":
+        return Response.json(state.tasks);
+      case "/issues/96/dependencies/blocked_by":
+        return Response.json(state.dependencies);
       case "/pulls/98":
         return Response.json({
           number: 98,
@@ -333,12 +337,21 @@ function completionFixture(recovery = false) {
   return { result, state, writes };
 }
 
-it("verifies downstream runs and writes Done before closing the scoped Work", async () => {
+it("resolves the Work and verifies downstream runs before writing Done and closing", async () => {
   const { result, writes, state } = completionFixture();
   await import("./work-completion-pilot.js");
   expect(result()).toMatchObject({ result: { status: "completed" } });
   expect(writes).toEqual(["done", "close"]);
   expect(state.closed).toBe(true);
+});
+
+it("does not mark the Work Done while a Task or dependency is outstanding", async () => {
+  const { result, writes, state } = completionFixture();
+  state.tasks.push({ state: "open", state_reason: null });
+  state.dependencies.push({ state: "open" });
+  await import("./work-completion-pilot.js");
+  expect(result()).toMatchObject({ result: { status: "blocked" } });
+  expect(writes).toEqual([]);
 });
 
 it("waits for source processing without writing either owner", async () => {
@@ -371,7 +384,7 @@ it("rejects unauthorized recovery before using credentials", async () => {
   completionFixture(true);
   vi.stubEnv("GITHUB_ACTOR_ID", "2");
   await expect(import("./work-completion-pilot.js")).rejects.toThrow(
-    "does not authorize recovery",
+    "does not authorize completion",
   );
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
@@ -379,15 +392,15 @@ it("rejects unauthorized recovery before using credentials", async () => {
 function issuerFixture(pass = true) {
   const result = workflow("workflow_dispatch", {});
   for (const [key, value] of Object.entries({
-    PILOT_PULL_NUMBER: "98",
-    PILOT_WORK_NUMBER: "96",
-    PILOT_HEAD_SHA: candidate.headSha,
-    PILOT_BASE_SHA: candidate.baseSha,
+    GATE_PULL_NUMBER: "98",
+    GATE_WORK_NUMBER: "96",
+    GATE_HEAD_SHA: candidate.headSha,
+    GATE_BASE_SHA: candidate.baseSha,
     GITHUB_SHA: candidate.baseSha,
     TRUSTED_WORKFLOW_SHA: candidate.baseSha,
-    PILOT_GATE_APP_TOKEN: "checks-only-fixture",
-    PILOT_GATE_APP_ID: "5625775",
-    PILOT_GATE_INSTALLATION_ID: "178883123",
+    GATE_APP_TOKEN: "checks-only-fixture",
+    GATE_APP_ID: "5625775",
+    GATE_INSTALLATION_ID: "178883123",
     GATE_RESULT_B64: Buffer.from(
       JSON.stringify({
         candidate,
@@ -496,7 +509,7 @@ it("does not treat a check from another App as verified", async () => {
 
 it("rejects an unexpected installation before calling GitHub", async () => {
   const { fetch } = issuerFixture();
-  vi.stubEnv("PILOT_GATE_INSTALLATION_ID", "1");
+  vi.stubEnv("GATE_INSTALLATION_ID", "1");
   await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
     "verified GitHub App installation",
   );
@@ -530,6 +543,7 @@ it("evaluates only the current authorized Work and returns the shared Gate decis
       ...candidate,
       actorId: actor.id,
       repositoryId: repo.id,
+      purpose: "evaluate-work-merge-gate",
       expiresAt: "2099-01-01T00:00:00Z",
     }),
   );

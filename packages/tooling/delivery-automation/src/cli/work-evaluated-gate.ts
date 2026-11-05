@@ -2,8 +2,7 @@ import { resolveActivationContext } from "../config/activation-context.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import {
   evaluateScopedWorkGate,
-  type MergeCandidate,
-  type WorkMergeGrant,
+  type WorkGateEvaluationGrant,
 } from "../github/work-merge-publisher.js";
 import {
   positiveInteger,
@@ -18,16 +17,19 @@ const repository = requiredEnvironment("GITHUB_REPOSITORY");
 const repositoryId = positiveInteger("GITHUB_REPOSITORY_ID");
 const actorId = positiveInteger("GITHUB_ACTOR_ID");
 const candidate = {
-  workNumber: positiveInteger("PILOT_WORK_NUMBER"),
-  pullNumber: positiveInteger("PILOT_PULL_NUMBER"),
-  headSha: requiredEnvironment("PILOT_HEAD_SHA"),
-  baseSha: requiredEnvironment("PILOT_BASE_SHA"),
+  workNumber: positiveInteger("GATE_WORK_NUMBER"),
+  pullNumber: positiveInteger("GATE_PULL_NUMBER"),
+  headSha: requiredEnvironment("GATE_HEAD_SHA"),
+  baseSha: requiredEnvironment("GATE_BASE_SHA"),
 };
 const grant = JSON.parse(
   requiredEnvironment("DELIVERY_EVALUATED_GATE_EVIDENCE"),
-) as (WorkMergeGrant & MergeCandidate & { readonly expiresAt: string }) | null;
+) as WorkGateEvaluationGrant | null;
 if (
   actorId !== 83680141 ||
+  repository.toLowerCase() !== "oxelio/architecture-web" ||
+  repositoryId !== 1336937640 ||
+  grant?.purpose !== "evaluate-work-merge-gate" ||
   grant?.actorId !== actorId ||
   grant.repositoryId !== repositoryId ||
   grant.workNumber !== candidate.workNumber ||
