@@ -81,6 +81,7 @@ interface CheckRun {
   readonly conclusion: string | null;
   readonly external_id: string | null;
   readonly app: { readonly id: number } | null;
+  readonly started_at?: string | null;
 }
 
 interface IssueComment {
@@ -449,8 +450,30 @@ async function verifyChecks(
     const matches = candidates?.length
       ? candidates
       : checks.get(pr.head.sha)?.filter((check) => check.name === name);
-    const check = matches?.[0];
-    if (matches?.length !== 1 || !check || check.app?.id !== appId) {
+    if (!matches?.length || matches.some((check) => check.app?.id !== appId)) {
+      return `UNVERIFIED_CHECK:${name}`;
+    }
+    let check = matches[0];
+    if (matches.length > 1) {
+      // The PR workflow can cancel a Draft run and start a new suite for the
+      // same head when it becomes ready. GitHub lists both as latest per suite.
+      if (!evaluateGate) {
+        return `UNVERIFIED_CHECK:${name}`;
+      }
+      const attempts = matches.map((run) => ({
+        run,
+        started: Date.parse(run.started_at ?? ""),
+      }));
+      attempts.sort((a, b) => b.started - a.started);
+      if (
+        attempts.some(({ started }) => !Number.isFinite(started)) ||
+        attempts[0]?.started === attempts[1]?.started
+      ) {
+        return `UNVERIFIED_CHECK:${name}`;
+      }
+      check = attempts[0]?.run;
+    }
+    if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
     if (

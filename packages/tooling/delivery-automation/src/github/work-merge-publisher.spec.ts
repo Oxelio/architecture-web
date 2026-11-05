@@ -41,6 +41,10 @@ function fixture(scoped = false) {
     moving: "",
     check: "success",
     missingCheck: false,
+    supersededQualityCheck: null as {
+      conclusion: string;
+      startedAt: string;
+    } | null,
     untrustedGate: false,
     staleGate: false,
     mergeTimeout: false,
@@ -300,6 +304,7 @@ function fixture(scoped = false) {
                 ? `${gate} (observation)`
                 : name,
             head_sha: candidate.headSha,
+            started_at: "2026-01-02T00:00:00Z",
             status:
               name === "Quality checks" && state.check === "pending"
                 ? "in_progress"
@@ -316,6 +321,16 @@ function fixture(scoped = false) {
                 : null,
             app: { id: name === gate && state.untrustedGate ? 999 : id },
           }));
+        if (state.supersededQualityCheck) {
+          const quality = runs.find(({ name }) => name === "Quality checks");
+          if (quality) {
+            runs.push({
+              ...quality,
+              conclusion: state.supersededQualityCheck.conclusion,
+              started_at: state.supersededQualityCheck.startedAt,
+            });
+          }
+        }
         return Response.json({ total_count: runs.length, check_runs: runs });
       }
       throw new Error(`Unexpected fixture URL ${url}`);
@@ -365,6 +380,25 @@ function fixture(scoped = false) {
 }
 
 describe("evaluated Work Merge Gate", () => {
+  it("uses the newest same-issuer CI attempt, without accepting ambiguous ordering", async () => {
+    const f = fixture(true);
+    f.state.supersededQualityCheck = {
+      conclusion: "failure",
+      startedAt: "2026-01-01T00:00:00Z",
+    };
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: true });
+    f.state.supersededQualityCheck.startedAt = "2026-01-03T00:00:00Z";
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: false });
+    f.state.supersededQualityCheck.startedAt = "2026-01-02T00:00:00Z";
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: false });
+  });
+
   it("evaluates accepted evidence and existing CI without consulting a prior Gate or mutating GitHub", async () => {
     const f = fixture(true);
     f.state.observation = true;
