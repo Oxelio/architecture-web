@@ -361,3 +361,91 @@ it("rejects unauthorized recovery before using credentials", async () => {
   );
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
+
+function issuerFixture() {
+  const result = workflow("workflow_dispatch", {});
+  for (const [key, value] of Object.entries({
+    PILOT_PULL_NUMBER: "98",
+    PILOT_WORK_NUMBER: "96",
+    PILOT_HEAD_SHA: candidate.headSha,
+    PILOT_BASE_SHA: candidate.baseSha,
+    PILOT_GATE_APP_TOKEN: "checks-only-fixture",
+    PILOT_GATE_APP_ID: "7",
+  })) {
+    vi.stubEnv(key, value);
+  }
+  const issuer = { id: 7 };
+  const current = { sha: candidate.baseSha };
+  const published = vi.fn();
+  const fetch = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (input, init) => {
+      const authorization = new Headers(init?.headers).get("authorization");
+      switch (String(input).slice(root.length)) {
+        case "/pulls/98":
+          expect(authorization).toBe("Bearer repository-fixture");
+          return Response.json({
+            number: 98,
+            state: "open",
+            merged: false,
+            body: "Refs #96",
+            head: { repo, sha: candidate.headSha },
+            base: { repo, sha: candidate.baseSha, ref: "main" },
+          });
+        case "/branches/main":
+          expect(authorization).toBe("Bearer repository-fixture");
+          return Response.json({ commit: current });
+        case "/check-runs":
+          expect(authorization).toBe("Bearer checks-only-fixture");
+          expect(init?.redirect).toBe("error");
+          published(JSON.parse(String(init?.body)));
+          return Response.json({
+            id: 4,
+            html_url: "https://github.com/example/runs/4",
+            app: issuer,
+          });
+        default:
+          throw new Error("Unexpected GitHub request");
+      }
+    });
+  return { result, issuer, current, published, fetch };
+}
+
+it("publishes only the distinct non-required probe with a checks-only token", async () => {
+  const { result, published } = issuerFixture();
+  await import("./work-gate-issuer-probe.js");
+  expect(result()).toMatchObject({ appId: 7, published: { id: 4 } });
+  expect(published).toHaveBeenCalledWith(
+    expect.objectContaining({
+      name: "Architecture Web / Work Merge Gate (issuer probe)",
+      head_sha: candidate.headSha,
+      external_id: `work:96:pr:98:${candidate.headSha}:${candidate.baseSha}`,
+    }),
+  );
+});
+
+it("does not treat a probe from another App as verified", async () => {
+  const { issuer } = issuerFixture();
+  issuer.id = 8;
+  await expect(import("./work-gate-issuer-probe.js")).rejects.toThrow(
+    "invalid response",
+  );
+});
+
+it("does not publish for a stale base", async () => {
+  const { current, published } = issuerFixture();
+  current.sha = mergeSha;
+  await expect(import("./work-gate-issuer-probe.js")).rejects.toThrow(
+    "candidate does not match",
+  );
+  expect(published).not.toHaveBeenCalled();
+});
+
+it("rejects the wrong issuer probe requester before using a token", async () => {
+  const { fetch } = issuerFixture();
+  vi.stubEnv("GITHUB_ACTOR_ID", "2");
+  await expect(import("./work-gate-issuer-probe.js")).rejects.toThrow(
+    "authenticated maintainer",
+  );
+  expect(fetch).not.toHaveBeenCalled();
+});
