@@ -263,8 +263,8 @@ step without reapplying a verified Done transition.
 
 ### Issuer and one-shot pilot controls
 
-`delivery-work-gate-issuer-probe.yml` is disabled unless the repository
-variable `DELIVERY_GATE_ISSUER_PROBE_ENABLED` is `true`. Configure the
+`delivery-work-evaluated-gate.yml` is disabled unless the repository
+variable `DELIVERY_EVALUATED_GATE_ENABLED` is `true`. Configure the
 `delivery-work-gate-issuer` environment with a custom deployment branch policy
 allowing only `main`. Set environment variables `DELIVERY_GATE_APP_ID`,
 `DELIVERY_GATE_APP_CLIENT_ID`, `DELIVERY_GATE_PILOT_WORK` and
@@ -275,9 +275,22 @@ pinned token action issues a repository-scoped token for the single trusted
 job. No merge or Project credential belongs in this environment. Verify that
 a non-main workflow cannot read the key, that no other trusted job references
 it, and that the check's GitHub-authored App ID is the configured ID. The
-distinct `Architecture Web / Work Merge Gate (issuer probe)` is evidence of
-attribution only. The required Gate still needs an evaluated-evidence
-publication path and separate ruleset activation.
+[historical issuer probe](https://github.com/Oxelio/architecture-web/actions/runs/42015072247)
+established attribution. The current workflow uses the same App to publish
+`Architecture Web / Work Merge Gate` from the existing Gate evaluator.
+
+The separate evaluation job runs from `main` under the protected
+`delivery-integration-observation` environment. Configure an expiring
+`DELIVERY_EVALUATED_GATE_EVIDENCE` record there with the repository and actor
+IDs, Work #96, PR #98, both SHAs, ruleset `21839336`, App `5625775`,
+`direct: true`, `auto: false`, an empty required Task set, and attributable
+Code Review, validation and Working Decisions comment references. This record
+authorizes evaluation only. The evaluator verifies the immutable pilot diff,
+the live Work and PR relation, the scoped evidence and both existing CI
+publishers. It never requires its own check to evaluate. The publication job
+rechecks the candidate and refuses another publication for the same App and
+candidate. The pilot does not activate a required check, prove exclusion of
+concurrent external writers or make a successful check indefinitely fresh.
 
 Direct squash consumes the Work/PR/head/base tuple by creating a lightweight
 Git reference in `refs/tags/delivery-direct/`. It requires HTTP 201 and

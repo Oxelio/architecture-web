@@ -1,11 +1,15 @@
 import { isDeepStrictEqual } from "node:util";
 
-import { workMergeObservationCheckName } from "../control/work-merge-gate.js";
+import {
+  evaluateWorkMergeGate,
+  workMergeObservationCheckName,
+  workMergeRequiredCheckName,
+} from "../control/work-merge-gate.js";
 import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
 
-const gateName = "Architecture Web / Work Merge Gate";
+const gateName = workMergeRequiredCheckName;
 const oid = /^[0-9a-f]{40}$/u;
 
 export interface MergeCandidate {
@@ -101,6 +105,11 @@ export interface WorkMergePublisher {
   ) => Promise<T | null>;
 }
 
+type WorkMergeReader = Omit<
+  WorkMergePublisher,
+  "withinVerifiedBoundary" | "mergeToken"
+>;
+
 export type WorkMergeOutcome =
   | { readonly status: "merged" | "already-merged"; readonly sha: string }
   | { readonly status: "auto-merge-requested" }
@@ -134,7 +143,7 @@ function sameCandidate(
 }
 
 async function github<T>(
-  publisher: WorkMergePublisher,
+  publisher: Pick<WorkMergeReader, "repositoryToken" | "fetchImpl">,
   path: string,
   method = "GET",
   body?: object,
@@ -199,7 +208,7 @@ async function safeSquashHeadline(
 
 function authorized(
   grant: WorkMergeGrant | null,
-  publisher: WorkMergePublisher,
+  publisher: WorkMergeReader,
   candidate: MergeCandidate,
   mode: MergeMode,
 ): grant is WorkMergeGrant {
@@ -214,10 +223,11 @@ function authorized(
 }
 
 async function verifyEvidence(
-  publisher: WorkMergePublisher,
+  publisher: WorkMergeReader,
   candidate: MergeCandidate,
   grant: WorkMergeGrant,
   repoPath: string,
+  exactTasks = false,
 ): Promise<string | null> {
   const kinds = new Set(grant.evidence.map((reference) => reference.kind));
   if (
@@ -283,6 +293,7 @@ async function verifyEvidence(
   if (
     !Array.isArray(tasks) ||
     tasks.length >= 100 ||
+    (exactTasks && tasks.length !== grant.requiredTasks.length) ||
     grant.requiredTasks.some(
       (number) =>
         !tasks.some(
@@ -301,12 +312,13 @@ async function verifyEvidence(
 }
 
 async function verifyChecks(
-  publisher: WorkMergePublisher,
+  publisher: WorkMergeReader,
   grant: WorkMergeGrant,
   repoPath: string,
   pr: PullRequest,
   mode: MergeMode,
   observe: boolean,
+  evaluateGate = false,
 ): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
   if (
     !positiveId(grant.gateAppId) ||
@@ -321,7 +333,9 @@ async function verifyChecks(
     ["SonarCloud Code Analysis", 12526],
   ] as const;
   const expectedGateName = observe ? workMergeObservationCheckName : gateName;
-  const expected = [...ciChecks, [expectedGateName, grant.gateAppId] as const];
+  const expected = evaluateGate
+    ? ciChecks
+    : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
   const ruleset = await github<{
     readonly id: number;
     readonly enforcement: string;
@@ -466,6 +480,102 @@ export async function observeWorkMerge(
     mode,
     true,
   );
+}
+
+// This is the read-only, documentation-only pilot composition. The caller
+// establishes exact file scope before the no-human-authority route is used.
+export async function evaluateScopedWorkGate(
+  reader: WorkMergeReader,
+  candidate: MergeCandidate,
+) {
+  const grant = await reader.readGrant();
+  if (
+    !authorized(grant, reader, candidate, "direct") ||
+    grant.gateAppId !== 5625775 ||
+    grant.auto !== false ||
+    grant.requiredTasks.length !== 0 ||
+    !grant.evidence.some((record) => record.kind === "validation")
+  ) {
+    throw new Error("EVALUATED_GATE_NOT_AUTHORIZED");
+  }
+  const repo = `/repos/${reader.repository}`;
+  const pr = await github<PullRequest>(
+    reader,
+    `${repo}/pulls/${candidate.pullNumber}`,
+  );
+  if (
+    !sameCandidate(pr, candidate, reader.repositoryId) ||
+    pr.state !== "open" ||
+    pr.draft !== false ||
+    pr.merged !== false ||
+    pr.base.sha !== candidate.baseSha
+  ) {
+    throw new Error("CANDIDATE_CHANGED");
+  }
+  const comparison = await github<{
+    readonly files?: readonly {
+      readonly filename: string;
+      readonly status: string;
+    }[];
+  }>(
+    reader,
+    `${repo}/compare/${candidate.baseSha}...${candidate.headSha}?per_page=1`,
+  );
+  const files = comparison.files;
+  if (
+    candidate.workNumber !== 96 ||
+    candidate.pullNumber !== 98 ||
+    files?.length !== 1 ||
+    files[0]?.filename !== "docs/development/continuous-integration.md" ||
+    files[0].status !== "modified"
+  ) {
+    throw new Error("PILOT_SCOPE_UNVERIFIED");
+  }
+  const live = await readWorkMergeGateLiveEvidence({
+    ...reader,
+    workNumber: candidate.workNumber,
+  });
+  if (
+    live.status !== "ready" ||
+    live.target.pullRequestNumber !== candidate.pullNumber ||
+    live.target.headSha !== candidate.headSha ||
+    live.baseSha !== candidate.baseSha
+  ) {
+    throw new Error("WORK_INTEGRATION_PR_UNVERIFIED");
+  }
+  const evidence = await verifyEvidence(reader, candidate, grant, repo, true);
+  if (evidence && evidence !== "REQUIRED_TASKS_UNRESOLVED") {
+    throw new Error(evidence);
+  }
+  const checks = await verifyChecks(
+    reader,
+    grant,
+    repo,
+    pr,
+    "direct",
+    true,
+    true,
+  );
+  if (
+    checks === "REQUIRED_PROTECTIONS_UNVERIFIED" ||
+    checks === "CHECK_CANDIDATE_UNAVAILABLE" ||
+    checks === "CHECK_INVENTORY_INCOMPLETE"
+  ) {
+    throw new Error(checks);
+  }
+  return evaluateWorkMergeGate({
+    workIdentified: true,
+    workState: live.workState,
+    requiredTasksAcceptable: evidence === null,
+    dependenciesResolved: live.dependenciesResolved,
+    applicableReviewsAccepted: true,
+    validationSufficient: typeof checks !== "string",
+    priorAuthorityGatesSatisfied: true,
+    workingDecisionsResolved: true,
+    repositoryChecksSatisfied: typeof checks !== "string",
+    pullRequestMergeable: live.pullRequestMergeable,
+    enforcement: "unavailable",
+  });
 }
 
 async function evaluateWorkMergeRequest(
