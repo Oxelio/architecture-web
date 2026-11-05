@@ -99,6 +99,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PILOT_GATE_APP_TOKEN: ${{ steps.gate-token.outputs.token }}
           PILOT_GATE_APP_ID: ${{ vars.DELIVERY_GATE_APP_ID }}
+          PILOT_GATE_INSTALLATION_ID: ${{ steps.gate-token.outputs.installation-id }}
           PILOT_WORK_NUMBER: ${{ vars.DELIVERY_GATE_PILOT_WORK }}
           PILOT_PULL_NUMBER: ${{ vars.DELIVERY_GATE_PILOT_PR }}
           PILOT_HEAD_SHA: ${{ inputs.head_sha }}

@@ -24,6 +24,14 @@ const pullNumber = positiveInteger("PILOT_PULL_NUMBER");
 const headSha = requiredEnvironment("PILOT_HEAD_SHA");
 const baseSha = requiredEnvironment("PILOT_BASE_SHA");
 const appId = positiveInteger("PILOT_GATE_APP_ID");
+if (
+  appId !== 5625775 ||
+  positiveInteger("PILOT_GATE_INSTALLATION_ID") !== 178883123
+) {
+  throw new Error(
+    "The evaluated Gate requires the verified GitHub App installation",
+  );
+}
 const evaluated = JSON.parse(
   Buffer.from(requiredEnvironment("GATE_RESULT_B64"), "base64").toString(
     "utf8",
@@ -35,7 +43,6 @@ const evaluated = JSON.parse(
 };
 const { candidate, result } = evaluated;
 if (
-  appId !== 5625775 ||
   workNumber !== 96 ||
   pullNumber !== 98 ||
   candidate.workNumber !== workNumber ||

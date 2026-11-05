@@ -387,6 +387,7 @@ function issuerFixture(pass = true) {
     TRUSTED_WORKFLOW_SHA: candidate.baseSha,
     PILOT_GATE_APP_TOKEN: "checks-only-fixture",
     PILOT_GATE_APP_ID: "5625775",
+    PILOT_GATE_INSTALLATION_ID: "178883123",
     GATE_RESULT_B64: Buffer.from(
       JSON.stringify({
         candidate,
@@ -491,6 +492,15 @@ it("does not treat a check from another App as verified", async () => {
   await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
     "invalid response",
   );
+});
+
+it("rejects an unexpected installation before calling GitHub", async () => {
+  const { fetch } = issuerFixture();
+  vi.stubEnv("PILOT_GATE_INSTALLATION_ID", "1");
+  await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
+    "verified GitHub App installation",
+  );
+  expect(fetch).not.toHaveBeenCalled();
 });
 
 it("does not publish for a stale base", async () => {
