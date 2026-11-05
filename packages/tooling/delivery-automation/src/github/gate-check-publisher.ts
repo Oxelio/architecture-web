@@ -8,6 +8,7 @@ export interface PublishedGateCheck {
 interface CheckRunResponse {
   readonly id?: number;
   readonly html_url?: string;
+  readonly app?: { readonly id?: number } | null;
 }
 
 function headers(token: string): Record<string, string> {
@@ -28,6 +29,7 @@ export async function publishGateCheck(input: {
   readonly title: string;
   readonly summary: string;
   readonly pass: boolean;
+  readonly expectedAppId?: number;
   readonly fetchImpl?: FetchLike;
 }): Promise<PublishedGateCheck> {
   if (!/^[0-9a-f]{40}$/i.test(input.headSha)) {
@@ -39,6 +41,7 @@ export async function publishGateCheck(input: {
     `https://api.github.com/repos/${input.repository}/check-runs`,
     {
       method: "POST",
+      redirect: "error",
       headers: headers(input.repositoryToken),
       body: JSON.stringify({
         name: input.name,
@@ -66,7 +69,9 @@ export async function publishGateCheck(input: {
     !Number.isSafeInteger(payload.id) ||
     payload.id <= 0 ||
     typeof payload.html_url !== "string" ||
-    payload.html_url.length === 0
+    payload.html_url.length === 0 ||
+    (input.expectedAppId !== undefined &&
+      payload.app?.id !== input.expectedAppId)
   ) {
     throw new Error(
       "GitHub gate check publication returned an invalid response",
