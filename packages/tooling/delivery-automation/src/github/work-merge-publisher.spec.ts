@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  evaluateScopedWorkGate,
   observeWorkMerge,
   publishWorkMerge,
   type WorkMergeGrant,
@@ -24,7 +25,10 @@ const checks = [
   { name: gate, id: 7 },
 ];
 
-function fixture() {
+const pilotCandidate = { ...candidate, workNumber: 96, pullNumber: 98 };
+
+function fixture(scoped = false) {
+  const target = scoped ? pilotCandidate : candidate;
   const state = {
     actorId: 12,
     boundary: true,
@@ -49,21 +53,32 @@ function fixture() {
     mergeMethod: "squash",
     closingIssues: 0,
     title: "feat: integrate ordinary Work",
+    files: [
+      {
+        filename: "docs/development/continuous-integration.md",
+        status: "modified",
+      },
+    ],
+    tasks: [] as unknown[],
   };
   const grant: WorkMergeGrant = {
     actorId: 12,
     repositoryId: 8,
-    workNumber: 91,
-    pullNumber: 92,
+    workNumber: target.workNumber,
+    pullNumber: target.pullNumber,
     requiredTasks: [],
-    gateAppId: 7,
+    gateAppId: scoped ? 5625775 : 7,
     rulesetId: 9,
     direct: true,
-    auto: true,
+    auto: !scoped,
     evidence: [
       { kind: "code-review", commentId: 1, authorId: 12 },
       { kind: "working-decisions", commentId: 2, authorId: 12 },
-      { kind: "functional-approval", commentId: 3, authorId: 13 },
+      {
+        kind: scoped ? "validation" : "functional-approval",
+        commentId: 3,
+        authorId: 13,
+      },
     ],
   };
   const writes: { url: string; method: string; body: unknown }[] = [];
@@ -82,7 +97,7 @@ function fixture() {
             repository: {
               nameWithOwner: repository,
               issue: {
-                number: 91,
+                number: target.workNumber,
                 state: "OPEN",
                 parent: null,
                 projectItems: {
@@ -170,10 +185,10 @@ function fixture() {
           },
         });
       }
-      if (url.endsWith("/pulls/92")) {
+      if (url.endsWith(`/pulls/${target.pullNumber}`)) {
         const changed = ++prReads >= 5;
         return Response.json({
-          number: 92,
+          number: target.pullNumber,
           node_id: "pr-node",
           title: state.title,
           draft: false,
@@ -195,12 +210,16 @@ function fixture() {
           },
         });
       }
-      if (url.includes("/issues/91/timeline")) {
+      if (url.includes(`/issues/${target.workNumber}/timeline`)) {
         return Response.json([
           {
             event: "cross-referenced",
             source: {
-              issue: { number: 92, repository_url: repoUrl, pull_request: {} },
+              issue: {
+                number: target.pullNumber,
+                repository_url: repoUrl,
+                pull_request: {},
+              },
             },
           },
         ]);
@@ -209,7 +228,10 @@ function fixture() {
         return Response.json(state.dependencyOpen ? [{ state: "open" }] : []);
       }
       if (url.includes("/sub_issues")) {
-        return Response.json([]);
+        return Response.json(state.tasks);
+      }
+      if (url.includes("/compare/")) {
+        return Response.json({ files: state.files });
       }
       if (url.includes("/issues/comments/")) {
         const id = Number(url.split("/").at(-1));
@@ -222,11 +244,11 @@ function fixture() {
         const reference = grant.evidence.find((item) => item.commentId === id);
         return Response.json({
           id,
-          issue_url: `${repoUrl}/issues/91`,
+          issue_url: `${repoUrl}/issues/${target.workNumber}`,
           user: { id: reference?.authorId, type: "User" },
           performed_via_github_app: null,
           body: JSON.stringify({
-            ...candidate,
+            ...target,
             kind: reference?.kind,
             decision:
               id === 2 && state.revokedDecision ? "revoked" : "accepted",
@@ -326,6 +348,63 @@ function fixture() {
   }
   return { state, writes, fetchImpl, publisher, receipts };
 }
+
+describe("evaluated Work Merge Gate pilot", () => {
+  it("evaluates accepted evidence and existing CI without consulting a prior Gate or mutating GitHub", async () => {
+    const f = fixture(true);
+    f.state.observation = true;
+    f.state.bypassActors = undefined;
+    await expect(
+      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+    ).resolves.toMatchObject({
+      pass: true,
+      grantsMergeAuthority: false,
+      impliesDone: false,
+    });
+    expect(f.writes).toEqual([]);
+    expect(f.receipts.size).toBe(0);
+  });
+
+  it("reflects failed Work evidence and CI in the Gate decision", async () => {
+    const f = fixture(true);
+    f.state.workState = "Reviewing";
+    f.state.check = "failure";
+    f.state.tasks.push({ number: 100 });
+    await expect(
+      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+    ).resolves.toMatchObject({
+      pass: false,
+      blockers: expect.arrayContaining([
+        "WORK_NOT_VALIDATING",
+        "TASK_DISPOSITION_INCOMPLETE",
+        "REPOSITORY_CHECKS_UNSATISFIED",
+      ]),
+    });
+  });
+
+  it("rejects stale or out-of-scope candidates and unaccepted evidence", async () => {
+    const f = fixture(true);
+    await expect(
+      evaluateScopedWorkGate(f.publisher(), {
+        ...pilotCandidate,
+        headSha: mergeSha,
+      }),
+    ).rejects.toThrow("CANDIDATE_CHANGED");
+    await expect(
+      evaluateScopedWorkGate(f.publisher(), candidate),
+    ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
+    f.state.revokedDecision = true;
+    await expect(
+      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+    ).rejects.toThrow("STALE_OR_UNACCEPTED_EVIDENCE");
+    f.state.files = [
+      { filename: ".github/workflows/ci.yml", status: "modified" },
+    ];
+    await expect(
+      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+    ).rejects.toThrow("PILOT_SCOPE_UNVERIFIED");
+  });
+});
 
 describe("trusted Work integration publisher", () => {
   it("requires a credential separate from the read token before attempting mutation", async () => {

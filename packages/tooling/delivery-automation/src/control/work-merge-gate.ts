@@ -2,6 +2,7 @@ import type { WorkState } from "./eligibility.js";
 
 export const workMergeObservationCheckName =
   "Architecture Web / Work Merge Gate (observation)";
+export const workMergeRequiredCheckName = "Architecture Web / Work Merge Gate";
 
 export type EnforcementState = "active" | "unavailable";
 
