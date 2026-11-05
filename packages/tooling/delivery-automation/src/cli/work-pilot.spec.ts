@@ -1,14 +1,28 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-const { readFile, manifest, readTarget } = vi.hoisted(() => ({
+const { readFile, manifest, readTarget, evaluateGate } = vi.hoisted(() => ({
   readFile: vi.fn(),
   manifest: vi.fn(),
   readTarget: vi.fn(),
+  evaluateGate: vi.fn(),
 }));
 
 vi.mock("node:fs/promises", () => ({ readFile }));
 vi.mock("../github/work-integration-target.js", () => ({
   readAuthorizedWorkIntegrationTarget: readTarget,
+}));
+vi.mock("../github/work-merge-publisher.js", () => ({
+  evaluateScopedWorkGate: evaluateGate,
+}));
+vi.mock("../github/github-project-inventory.js", () => ({
+  readGitHubInventory: async () => ({}),
+}));
+vi.mock("../config/activation-context.js", () => ({
+  resolveActivationContext: () => ({
+    status: "available",
+    project: { id: "PVT" },
+    activation: {},
+  }),
 }));
 vi.mock("./gate-publication-support.js", async (original) => ({
   ...(await original<typeof import("./gate-publication-support.js")>()),
@@ -362,31 +376,57 @@ it("rejects unauthorized recovery before using credentials", async () => {
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 
-function issuerFixture() {
+function issuerFixture(pass = true) {
   const result = workflow("workflow_dispatch", {});
   for (const [key, value] of Object.entries({
     PILOT_PULL_NUMBER: "98",
     PILOT_WORK_NUMBER: "96",
     PILOT_HEAD_SHA: candidate.headSha,
     PILOT_BASE_SHA: candidate.baseSha,
+    GITHUB_SHA: candidate.baseSha,
+    TRUSTED_WORKFLOW_SHA: candidate.baseSha,
     PILOT_GATE_APP_TOKEN: "checks-only-fixture",
-    PILOT_GATE_APP_ID: "7",
+    PILOT_GATE_APP_ID: "5625775",
+    GATE_RESULT_B64: Buffer.from(
+      JSON.stringify({
+        candidate,
+        expiresAt: "2099-01-01T00:00:00Z",
+        result: {
+          pass,
+          blockers: pass ? [] : ["WORK_NOT_VALIDATING"],
+          grantsMergeAuthority: false,
+          impliesDone: false,
+        },
+      }),
+    ).toString("base64"),
   })) {
     vi.stubEnv(key, value);
   }
-  const issuer = { id: 7 };
+  const issuer = { id: 5625775 };
   const current = { sha: candidate.baseSha };
+  const existing: unknown[] = [];
   const published = vi.fn();
   const fetch = vi
     .spyOn(globalThis, "fetch")
     .mockImplementation(async (input, init) => {
       const authorization = new Headers(init?.headers).get("authorization");
+      if (
+        String(input).includes("/commits/") &&
+        String(input).includes("/check-runs?")
+      ) {
+        expect(authorization).toBe("Bearer repository-fixture");
+        return Response.json({
+          total_count: existing.length,
+          check_runs: existing,
+        });
+      }
       switch (String(input).slice(root.length)) {
         case "/pulls/98":
           expect(authorization).toBe("Bearer repository-fixture");
           return Response.json({
             number: 98,
             state: "open",
+            draft: false,
             merged: false,
             body: "Refs #96",
             head: { repo, sha: candidate.headSha },
@@ -408,26 +448,47 @@ function issuerFixture() {
           throw new Error("Unexpected GitHub request");
       }
     });
-  return { result, issuer, current, published, fetch };
+  return { result, issuer, current, published, fetch, existing };
 }
 
-it("publishes only the distinct non-required probe with a checks-only token", async () => {
+it("publishes the evaluated result with a checks-only token", async () => {
   const { result, published } = issuerFixture();
-  await import("./work-gate-issuer-probe.js");
-  expect(result()).toMatchObject({ appId: 7, published: { id: 4 } });
+  await import("./work-evaluated-gate-publish.js");
+  expect(result()).toMatchObject({ appId: 5625775, published: { id: 4 } });
   expect(published).toHaveBeenCalledWith(
     expect.objectContaining({
-      name: "Architecture Web / Work Merge Gate (issuer probe)",
+      name: "Architecture Web / Work Merge Gate",
+      conclusion: "success",
       head_sha: candidate.headSha,
       external_id: `work:96:pr:98:${candidate.headSha}:${candidate.baseSha}`,
     }),
   );
 });
 
-it("does not treat a probe from another App as verified", async () => {
+it("publishes failure when the evaluated Gate blocks", async () => {
+  const { published } = issuerFixture(false);
+  await import("./work-evaluated-gate-publish.js");
+  expect(published).toHaveBeenCalledWith(
+    expect.objectContaining({ conclusion: "failure" }),
+  );
+});
+
+it("rejects a second publication of the same candidate", async () => {
+  const { existing, published } = issuerFixture();
+  existing.push({
+    app: { id: 5625775 },
+    external_id: `work:96:pr:98:${candidate.headSha}:${candidate.baseSha}`,
+  });
+  await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
+    "already been published",
+  );
+  expect(published).not.toHaveBeenCalled();
+});
+
+it("does not treat a check from another App as verified", async () => {
   const { issuer } = issuerFixture();
   issuer.id = 8;
-  await expect(import("./work-gate-issuer-probe.js")).rejects.toThrow(
+  await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
     "invalid response",
   );
 });
@@ -435,17 +496,55 @@ it("does not treat a probe from another App as verified", async () => {
 it("does not publish for a stale base", async () => {
   const { current, published } = issuerFixture();
   current.sha = mergeSha;
-  await expect(import("./work-gate-issuer-probe.js")).rejects.toThrow(
+  await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
     "candidate does not match",
   );
   expect(published).not.toHaveBeenCalled();
 });
 
-it("rejects the wrong issuer probe requester before using a token", async () => {
+it("rejects the wrong Gate requester before using a token", async () => {
   const { fetch } = issuerFixture();
   vi.stubEnv("GITHUB_ACTOR_ID", "2");
-  await expect(import("./work-gate-issuer-probe.js")).rejects.toThrow(
+  await expect(import("./work-evaluated-gate-publish.js")).rejects.toThrow(
     "authenticated maintainer",
   );
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("evaluates only the current authorized Work and returns the shared Gate decision", async () => {
+  const { result } = issuerFixture();
+  vi.stubEnv("DELIVERY_OBSERVATION_PROJECTS_TOKEN", "project-fixture");
+  vi.stubEnv(
+    "DELIVERY_EVALUATED_GATE_EVIDENCE",
+    JSON.stringify({
+      ...candidate,
+      actorId: actor.id,
+      repositoryId: repo.id,
+      expiresAt: "2099-01-01T00:00:00Z",
+    }),
+  );
+  evaluateGate.mockResolvedValue({
+    pass: true,
+    blockers: [],
+    grantsMergeAuthority: false,
+    impliesDone: false,
+  });
+  await import("./work-evaluated-gate.js");
+  expect(evaluateGate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      projectId: "PVT",
+      repositoryToken: "repository-fixture",
+      projectsToken: "project-fixture",
+    }),
+    candidate,
+  );
+  expect(result()).toMatchObject({ candidate, result: { pass: true } });
+});
+
+it("rejects a missing or mismatched protected Gate authorization", async () => {
+  issuerFixture();
+  vi.stubEnv("DELIVERY_EVALUATED_GATE_EVIDENCE", "{}");
+  await expect(import("./work-evaluated-gate.js")).rejects.toThrow(
+    "EVALUATED_GATE_NOT_AUTHORIZED",
+  );
 });
