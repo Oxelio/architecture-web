@@ -1,0 +1,116 @@
+name: Delivery Evaluated Work Merge Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      work_number:
+        description: Owning Work Issue number
+        required: true
+        type: string
+      pull_number:
+        description: Work Integration PR number
+        required: true
+        type: string
+      head_sha:
+        description: Exact Work Integration PR head
+        required: true
+        type: string
+      base_sha:
+        description: Exact main base
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: delivery-evaluated-work-merge-gate-${{ inputs.pull_number }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.actor_id == '83680141' &&
+      vars.DELIVERY_EVALUATED_GATE_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    environment: delivery-integration-observation
+    outputs:
+      evaluated: ${{ steps.evidence.outputs.evaluated }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - id: evidence
+        name: Evaluate candidate-bound Work evidence
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+          DELIVERY_EVALUATED_GATE_EVIDENCE: ${{ vars.DELIVERY_EVALUATED_GATE_EVIDENCE }}
+          GATE_WORK_NUMBER: ${{ inputs.work_number }}
+          GATE_PULL_NUMBER: ${{ inputs.pull_number }}
+          GATE_HEAD_SHA: ${{ inputs.head_sha }}
+          GATE_BASE_SHA: ${{ inputs.base_sha }}
+        run: |
+          set -euo pipefail
+          pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-evaluated-gate.ts > evaluation.json
+          printf 'evaluated=%s\n' "$(base64 -w0 evaluation.json)" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: evaluate
+    if: >-
+      needs.evaluate.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.actor_id == '83680141' &&
+      vars.DELIVERY_EVALUATED_GATE_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    environment: delivery-work-gate-issuer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: gate-token
+        with:
+          client-id: ${{ vars.DELIVERY_GATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_GATE_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-checks: write
+      - name: Publish the evaluated Work Merge Gate
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GATE_APP_TOKEN: ${{ steps.gate-token.outputs.token }}
+          GATE_APP_ID: ${{ vars.DELIVERY_GATE_APP_ID }}
+          GATE_INSTALLATION_ID: ${{ steps.gate-token.outputs.installation-id }}
+          GATE_WORK_NUMBER: ${{ inputs.work_number }}
+          GATE_PULL_NUMBER: ${{ inputs.pull_number }}
+          GATE_HEAD_SHA: ${{ inputs.head_sha }}
+          GATE_BASE_SHA: ${{ inputs.base_sha }}
+          GATE_RESULT_B64: ${{ needs.evaluate.outputs.evaluated }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-evaluated-gate-publish.ts

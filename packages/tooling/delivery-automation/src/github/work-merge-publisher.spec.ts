@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  evaluateScopedWorkGate,
   observeWorkMerge,
   publishWorkMerge,
+  type WorkGateEvaluationGrant,
   type WorkMergeGrant,
   type WorkMergePublisher,
 } from "./work-merge-publisher.js";
@@ -24,7 +26,10 @@ const checks = [
   { name: gate, id: 7 },
 ];
 
-function fixture() {
+const evaluationCandidate = { ...candidate, workNumber: 101, pullNumber: 102 };
+
+function fixture(scoped = false) {
+  const target = scoped ? evaluationCandidate : candidate;
   const state = {
     actorId: 12,
     boundary: true,
@@ -36,9 +41,15 @@ function fixture() {
     moving: "",
     check: "success",
     missingCheck: false,
+    supersededQualityCheck: null as {
+      conclusion: string;
+      startedAt: string;
+    } | null,
     untrustedGate: false,
     staleGate: false,
     mergeTimeout: false,
+    receiptTimeout: false,
+    receiptUnexpected: false,
     merged: false,
     armed: false,
     observation: false,
@@ -47,24 +58,31 @@ function fixture() {
     mergeMethod: "squash",
     closingIssues: 0,
     title: "feat: integrate ordinary Work",
+    evidenceEdited: false,
+    tasks: [] as unknown[],
   };
   const grant: WorkMergeGrant = {
     actorId: 12,
     repositoryId: 8,
-    workNumber: 91,
-    pullNumber: 92,
+    workNumber: target.workNumber,
+    pullNumber: target.pullNumber,
     requiredTasks: [],
-    gateAppId: 7,
+    gateAppId: scoped ? 5625775 : 7,
     rulesetId: 9,
     direct: true,
-    auto: true,
+    auto: !scoped,
     evidence: [
       { kind: "code-review", commentId: 1, authorId: 12 },
       { kind: "working-decisions", commentId: 2, authorId: 12 },
-      { kind: "functional-approval", commentId: 3, authorId: 13 },
+      {
+        kind: scoped ? "validation" : "functional-approval",
+        commentId: 3,
+        authorId: 13,
+      },
     ],
   };
   const writes: { url: string; method: string; body: unknown }[] = [];
+  const receipts = new Set<string>();
   let prReads = 0;
   const fetchImpl = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -79,7 +97,7 @@ function fixture() {
             repository: {
               nameWithOwner: repository,
               issue: {
-                number: 91,
+                number: target.workNumber,
                 state: "OPEN",
                 parent: null,
                 projectItems: {
@@ -96,7 +114,37 @@ function fixture() {
           },
         });
       }
+      if (url.endsWith("/git/refs")) {
+        expect(init?.method).toBe("POST");
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
+        const request = body as { ref: string; sha: string };
+        expect(request.ref).toBe(
+          `refs/tags/delivery-direct/work-91-pr-92/${candidate.headSha}-${candidate.baseSha}`,
+        );
+        if (receipts.has(request.ref)) {
+          return new Response(null, { status: 422 });
+        }
+        receipts.add(request.ref);
+        if (state.receiptTimeout) {
+          throw new Error("lost receipt response");
+        }
+        return Response.json(
+          {
+            ref: request.ref,
+            object: {
+              type: "commit",
+              sha: state.receiptUnexpected ? mergeSha : request.sha,
+            },
+          },
+          { status: 201 },
+        );
+      }
       if (url.endsWith("/pulls/92/merge")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
         writes.push({ url, method: "PUT", body });
         state.merged = true;
         if (state.mergeTimeout) {
@@ -108,6 +156,9 @@ function fixture() {
         url === "https://api.github.com/graphql" &&
         String(init?.body).includes("enablePullRequestAutoMerge")
       ) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
         writes.push({ url, method: "POST", body });
         state.armed = true;
         return Response.json({
@@ -134,10 +185,10 @@ function fixture() {
           },
         });
       }
-      if (url.endsWith("/pulls/92")) {
+      if (url.endsWith(`/pulls/${target.pullNumber}`)) {
         const changed = ++prReads >= 5;
         return Response.json({
-          number: 92,
+          number: target.pullNumber,
           node_id: "pr-node",
           title: state.title,
           draft: false,
@@ -159,12 +210,16 @@ function fixture() {
           },
         });
       }
-      if (url.includes("/issues/91/timeline")) {
+      if (url.includes(`/issues/${target.workNumber}/timeline`)) {
         return Response.json([
           {
             event: "cross-referenced",
             source: {
-              issue: { number: 92, repository_url: repoUrl, pull_request: {} },
+              issue: {
+                number: target.pullNumber,
+                repository_url: repoUrl,
+                pull_request: {},
+              },
             },
           },
         ]);
@@ -173,7 +228,7 @@ function fixture() {
         return Response.json(state.dependencyOpen ? [{ state: "open" }] : []);
       }
       if (url.includes("/sub_issues")) {
-        return Response.json([]);
+        return Response.json(state.tasks);
       }
       if (url.includes("/issues/comments/")) {
         const id = Number(url.split("/").at(-1));
@@ -186,11 +241,15 @@ function fixture() {
         const reference = grant.evidence.find((item) => item.commentId === id);
         return Response.json({
           id,
-          issue_url: `${repoUrl}/issues/91`,
+          issue_url: `${repoUrl}/issues/${target.workNumber}`,
           user: { id: reference?.authorId, type: "User" },
           performed_via_github_app: null,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: state.evidenceEdited
+            ? "2026-01-02T00:00:00Z"
+            : "2026-01-01T00:00:00Z",
           body: JSON.stringify({
-            ...candidate,
+            ...target,
             kind: reference?.kind,
             decision:
               id === 2 && state.revokedDecision ? "revoked" : "accepted",
@@ -216,10 +275,12 @@ function fixture() {
               parameters: {
                 strict_required_status_checks_policy: state.strictChecks,
                 required_status_checks: checks
-                  .filter(({ name }) => !state.observation || name !== gate)
+                  .filter(
+                    ({ name }) => scoped || !state.observation || name !== gate,
+                  )
                   .map(({ name, id }) => ({
                     context: name,
-                    integration_id: id,
+                    integration_id: scoped && name === gate ? 5625775 : id,
                   })),
               },
             },
@@ -243,6 +304,7 @@ function fixture() {
                 ? `${gate} (observation)`
                 : name,
             head_sha: candidate.headSha,
+            started_at: "2026-01-02T00:00:00Z",
             status:
               name === "Quality checks" && state.check === "pending"
                 ? "in_progress"
@@ -259,6 +321,16 @@ function fixture() {
                 : null,
             app: { id: name === gate && state.untrustedGate ? 999 : id },
           }));
+        if (state.supersededQualityCheck) {
+          const quality = runs.find(({ name }) => name === "Quality checks");
+          if (quality) {
+            runs.push({
+              ...quality,
+              conclusion: state.supersededQualityCheck.conclusion,
+              started_at: state.supersededQualityCheck.startedAt,
+            });
+          }
+        }
         return Response.json({ total_count: runs.length, check_runs: runs });
       }
       throw new Error(`Unexpected fixture URL ${url}`);
@@ -272,6 +344,7 @@ function fixture() {
       projectId: "project",
       projectsToken: "fixture",
       repositoryToken: "fixture",
+      mergeToken: "isolated-merge-fixture",
       fetchImpl,
       activation: {
         workState: true,
@@ -287,10 +360,132 @@ function fixture() {
         state.boundary ? action() : null,
     };
   }
-  return { state, writes, fetchImpl, publisher };
+  const evaluationGrant: WorkGateEvaluationGrant = {
+    ...target,
+    actorId: grant.actorId,
+    repositoryId: grant.repositoryId,
+    evidence: grant.evidence,
+    requiredTasks: grant.requiredTasks,
+    gateAppId: grant.gateAppId,
+    rulesetId: grant.rulesetId,
+    purpose: "evaluate-work-merge-gate",
+    expiresAt: "2099-01-01T00:00:00Z",
+    requiredEvidence: grant.evidence.map(({ kind }) => kind),
+  };
+  const evaluator = (overrides: Partial<WorkGateEvaluationGrant> = {}) => ({
+    ...publisher(),
+    readGrant: async () => ({ ...evaluationGrant, ...overrides }),
+  });
+  return { state, writes, fetchImpl, publisher, evaluator, receipts };
 }
 
+describe("evaluated Work Merge Gate", () => {
+  it("uses the newest same-issuer CI attempt, without accepting ambiguous ordering", async () => {
+    const f = fixture(true);
+    f.state.supersededQualityCheck = {
+      conclusion: "failure",
+      startedAt: "2026-01-01T00:00:00Z",
+    };
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: true });
+    f.state.supersededQualityCheck.startedAt = "2026-01-03T00:00:00Z";
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: false });
+    f.state.supersededQualityCheck.startedAt = "2026-01-02T00:00:00Z";
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: false });
+  });
+
+  it("evaluates accepted evidence and existing CI without consulting a prior Gate or mutating GitHub", async () => {
+    const f = fixture(true);
+    f.state.observation = true;
+    f.state.bypassActors = undefined;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({
+      pass: true,
+      grantsMergeAuthority: false,
+      impliesDone: false,
+    });
+    expect(f.writes).toEqual([]);
+    expect(f.receipts.size).toBe(0);
+  });
+
+  it("reflects failed Work evidence and CI in the Gate decision", async () => {
+    const f = fixture(true);
+    f.state.workState = "Reviewing";
+    f.state.check = "failure";
+    f.state.tasks.push({ number: 100 });
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({
+      pass: false,
+      blockers: expect.arrayContaining([
+        "WORK_NOT_VALIDATING",
+        "TASK_DISPOSITION_INCOMPLETE",
+        "REPOSITORY_CHECKS_UNSATISFIED",
+      ]),
+    });
+  });
+
+  it("rejects stale or out-of-scope candidates and unaccepted evidence", async () => {
+    const f = fixture(true);
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), {
+        ...evaluationCandidate,
+        headSha: mergeSha,
+      }),
+    ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), candidate),
+    ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
+    f.state.revokedDecision = true;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).rejects.toThrow("STALE_OR_UNACCEPTED_EVIDENCE");
+  });
+
+  it("rejects missing applicable human authority evidence and edited evidence", async () => {
+    const f = fixture(true);
+    await expect(
+      evaluateScopedWorkGate(
+        f.evaluator({
+          requiredEvidence: [
+            "code-review",
+            "validation",
+            "working-decisions",
+            "functional-approval",
+          ],
+        }),
+        evaluationCandidate,
+      ),
+    ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
+    f.state.evidenceEdited = true;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).rejects.toThrow("UNVERIFIED_EVIDENCE");
+  });
+});
+
 describe("trusted Work integration publisher", () => {
+  it("requires a credential separate from the read token before attempting mutation", async () => {
+    const f = fixture();
+    await expect(
+      publishWorkMerge(
+        { ...f.publisher(), mergeToken: "fixture" },
+        candidate,
+        "direct",
+      ),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "ISOLATED_MERGE_CREDENTIAL_REQUIRED",
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
   it.each(["direct", "auto"] as const)(
     "observes %s without any mutation",
     async (mode) => {
@@ -365,6 +560,7 @@ describe("trusted Work integration publisher", () => {
     await expect(
       publishWorkMerge(f.publisher(), candidate, "direct"),
     ).resolves.toEqual({ status: "already-merged", sha: mergeSha });
+    expect(f.receipts.size).toBe(1);
     expect(f.writes).toEqual([
       {
         url: `${repoUrl}/pulls/92/merge`,
@@ -377,6 +573,46 @@ describe("trusted Work integration publisher", () => {
         },
       },
     ]);
+  });
+
+  it("keeps the receipt across runs even if GitHub's create response was lost", async () => {
+    const f = fixture();
+    f.state.receiptTimeout = true;
+    const expected = {
+      status: "blocked",
+      reason: "DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED",
+    };
+    await expect(
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual(expected);
+    f.state.receiptTimeout = false;
+    await expect(
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual(expected);
+    expect(f.receipts.size).toBe(1);
+    expect(f.writes).toEqual([]);
+  });
+
+  it("does not squash when the receipt response identifies another object", async () => {
+    const f = fixture();
+    f.state.receiptUnexpected = true;
+    await expect(
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED",
+    });
+    expect(f.writes).toEqual([]);
+  });
+
+  it("allows at most one squash attempt across concurrent publishers", async () => {
+    const f = fixture();
+    await Promise.all([
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ]);
+    expect(f.receipts.size).toBe(1);
+    expect(f.writes).toHaveLength(1);
   });
 
   it.each([

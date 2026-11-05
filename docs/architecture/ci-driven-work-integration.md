@@ -204,3 +204,122 @@ blocks observation as well. For the later mutation pilot, verify separately that
 publisher can issue the required gate, that freshness holds for each mode, and
 that each actual merge triggers the downstream runs described above. Use an App
 only if the verified permission or event behavior requires one.
+
+### Direct squash pilot adapter
+
+The [scoped decision](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6644521094)
+authorizes preparation and non-mutating validation for the Codex connector
+channel. The request workflow authenticates a new PR comment on trusted
+`main`. Use a first line of `/architecture-web direct-squash` followed by a
+JSON object with `workNumber`, `pullNumber`, `headSha`, and `baseSha`.
+GitHub-authored metadata must identify repository `1336937640`, author
+`83680141`, and app `1144995`. Authorship through the connector grants no
+human-only decision authority.
+
+`DELIVERY_DIRECT_GRANT_COMMENT_ID` identifies a separate, unedited maintainer
+record posted directly on Work #91. The JSON record binds the same candidate,
+`actorId`, `appId`, `repositoryId`, `operation: "direct-squash"`, and an
+`expiresAt` timestamp. The adapter rereads that record. Editing or removing
+the record revokes it. The listener has read-only permissions and never calls
+the merge publisher. A future mutation composition must bind one authorized
+invocation and keep the existing fail-closed writer boundary and check
+verification. An Actions rerun is ineligible; that guard alone is not
+cross-run replay prevention for a privileged operation.
+
+Use a dedicated gate issuer if the installed app inventory shows no issuer
+reserved for this check. Register a private GitHub App with its webhook
+disabled. Install it only on this repository and grant `Checks: write` and
+the default `Metadata: read`. Keep the private key in a protected environment
+restricted to `main` and the trusted publication job. Record its app ID and
+prove that an unrelated workflow cannot issue the accepted check. The squash
+publisher takes a separate credential with `Contents: write` scoped to this
+repository. It uses its read credential for verification and the merge
+credential only for the native mutation. Verify ruleset bypass metadata
+separately; unavailable metadata still blocks mutation.
+
+### Conditional completion pilot
+
+The closure workflow listens for the exact pilot PR's merged
+`pull_request_target: closed` event. An authenticated maintainer can dispatch
+a fresh recovery run with that PR number. Both paths run the same code on
+`main` and serialize attempts for the configured Work. Leave
+`DELIVERY_COMPLETION_PILOT_WORK` and `DELIVERY_COMPLETION_PILOT_PR` unset
+until the pilot is authorized. Configure the `delivery-work-completion-pilot`
+environment for `main` only, with a separate personal Project credential in
+`DELIVERY_COMPLETION_PROJECTS_TOKEN`. GitHub Actions provides repository
+`Issues: write` for the issue close and `Actions: read` for downstream runs.
+
+`DELIVERY_COMPLETION_COMMENT_ID` points to the pilot's attributable Done
+evidence on the owning Issue. The unedited, direct maintainer record has
+`kind: "work-completion"`, the Work/PR and head/base/merge SHAs, and the
+established Done invariants read by the completion publisher. It is a
+pilot-specific evidence anchor. The publisher independently confirms the
+squash on `main`, native Project membership, issue disposition, and
+successful push-triggered CI and source-release processing for the merge SHA.
+An initial event can arrive before those obligations finish. Use a fresh
+recovery dispatch once the evidence is available. The publisher verifies
+`Status = Done` before closing the Issue as completed and can retry that last
+step without reapplying a verified Done transition.
+
+### Issuer and one-shot pilot controls
+
+`delivery-work-evaluated-gate.yml` is disabled unless the repository
+variable `DELIVERY_EVALUATED_GATE_ENABLED` is `true`. Configure the
+`delivery-work-gate-issuer` environment with a custom deployment branch policy
+allowing only `main`. Set environment variables `DELIVERY_GATE_APP_ID`,
+`DELIVERY_GATE_APP_CLIENT_ID`, `DELIVERY_GATE_PILOT_WORK` and
+`DELIVERY_GATE_PILOT_PR`, and set `DELIVERY_GATE_APP_PRIVATE_KEY` as an
+environment secret. The App is private, uses no webhook and is installed on
+this repository only with `Checks: write` and implicit `Metadata: read`. The
+pinned token action issues a repository-scoped token for the single trusted
+job. No merge or Project credential belongs in this environment. Verify that
+a non-main workflow cannot read the key, that no other trusted job references
+it, and that the check's GitHub-authored App ID is the configured ID. The
+[historical issuer probe](https://github.com/Oxelio/architecture-web/actions/runs/42015072247)
+established attribution. The current workflow uses the same App to publish
+`Architecture Web / Work Merge Gate` from the existing Gate evaluator.
+
+The separate evaluation job runs from `main` under the protected
+`delivery-integration-observation` environment. Configure an expiring
+`DELIVERY_EVALUATED_GATE_EVIDENCE` record there with the repository and actor
+IDs, Work #96, PR #98, both SHAs, ruleset `21839336`, App `5625775`,
+`direct: true`, `auto: false`, an empty required Task set, and attributable
+Code Review, validation and Working Decisions comment references. This record
+authorizes evaluation only. The evaluator verifies the immutable pilot diff,
+the live Work and PR relation, the scoped evidence and both existing CI
+publishers. It never requires its own check to evaluate. The publication job
+rechecks the candidate and refuses another publication for the same App and
+candidate. The pilot does not activate a required check, prove exclusion of
+concurrent external writers or make a successful check indefinitely fresh.
+
+Direct squash consumes the Work/PR/head/base tuple by creating a lightweight
+Git reference in `refs/tags/delivery-direct/`. It requires HTTP 201 and
+verifies the returned reference and commit SHA. Conflicts, ambiguous responses
+and unexpected objects stop before the squash call. This does not need another
+credential beyond the isolated repository `Contents: write` token. The
+publisher never updates or deletes the receipt and does not retry a consumed
+candidate after an uncertain result. Reconcile the PR, receipt and main
+before any separately authorized recovery. These are operational receipts;
+the source release workflow only triggers on pushes to main. Before live use,
+verify create-only behavior on a disposable ref and ensure no independent
+writer can delete the receipt or change an external prerequisite during the
+entire read, reservation and squash window.
+
+For the bypass check, a maintainer can independently read ruleset
+`21839336` from an administrative session, recording its ID, target,
+conditions, enforcement, rule parameters and an explicitly empty
+`bypass_actors` list. Use that observation to verify the baseline and the
+proposed ruleset diff. A read-only omission is insufficient. Runtime use of
+an independent administrative evidence path requires an accepted binding to
+the effective ruleset and a verified exclusion of ruleset writes. The merge
+credential itself must not receive `Administration: write`.
+
+For the closure test, record the current native
+[Auto-close issue](https://github.com/users/Oxelio/projects/3/workflows/111737365)
+setting and its `Done` trigger. In a separately authorized window, suspend
+other completion writers, turn off that one workflow and verify that it is
+off before writing Done through the publisher. After verifying the Issue
+readback or aborting before any closure mutation, restore the original setting
+and verify it. If Done was written but closure is unconfirmed, reconcile that
+Work first. Restoring the workflow is not a substitute for the recovery
+dispatch. Leave all other Project automations unchanged.
