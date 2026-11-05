@@ -1,0 +1,60 @@
+name: Delivery Work Completion Pilot
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: Exact authorized pilot PR to recover
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  complete:
+    if: >-
+      vars.DELIVERY_COMPLETION_PILOT_PR != '' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      (
+        (github.event_name == 'pull_request_target' &&
+          github.event.pull_request.merged == true &&
+          format('{0}', github.event.pull_request.number) == vars.DELIVERY_COMPLETION_PILOT_PR) ||
+        (github.event_name == 'workflow_dispatch' &&
+          github.actor_id == '83680141' &&
+          inputs.pull_number == vars.DELIVERY_COMPLETION_PILOT_PR)
+      )
+    concurrency:
+      group: delivery-work-completion-${{ vars.DELIVERY_COMPLETION_PILOT_WORK }}
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    environment: delivery-work-completion-pilot
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify and publish the scoped completion
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PILOT_PULL_NUMBER: ${{ vars.DELIVERY_COMPLETION_PILOT_PR }}
+          PILOT_WORK_NUMBER: ${{ vars.DELIVERY_COMPLETION_PILOT_WORK }}
+          PILOT_COMPLETION_COMMENT_ID: ${{ vars.DELIVERY_COMPLETION_COMMENT_ID }}
+          PILOT_COMPLETION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_COMPLETION_PROJECTS_TOKEN }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-completion-pilot.ts

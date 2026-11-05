@@ -46,6 +46,28 @@ function environment() {
   vi.stubEnv("ARCHITECTURE_WEB_PROJECTS_TOKEN", "test-token");
 }
 
+it("pins the pilot repository reader to the API that exposes the merge SHA", async () => {
+  environment();
+  const mergeSha = "a".repeat(40);
+  const fetch = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(Response.json({ merge_commit_sha: mergeSha }));
+  const { githubRepositoryRequest } = await import("./work-pilot-support.js");
+  await expect(githubRepositoryRequest("/pulls/98")).resolves.toEqual({
+    merge_commit_sha: mergeSha,
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    "https://api.github.com/repos/Oxelio/architecture-web/pulls/98",
+    expect.objectContaining({
+      headers: expect.objectContaining({
+        "x-github-api-version": "2022-11-28",
+      }),
+      method: "GET",
+      redirect: "error",
+    }),
+  );
+});
+
 it.each([
   [[], "--claimant is required"],
   [

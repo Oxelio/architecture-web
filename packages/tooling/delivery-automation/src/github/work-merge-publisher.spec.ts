@@ -97,6 +97,9 @@ function fixture() {
         });
       }
       if (url.endsWith("/pulls/92/merge")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
         writes.push({ url, method: "PUT", body });
         state.merged = true;
         if (state.mergeTimeout) {
@@ -108,6 +111,9 @@ function fixture() {
         url === "https://api.github.com/graphql" &&
         String(init?.body).includes("enablePullRequestAutoMerge")
       ) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
         writes.push({ url, method: "POST", body });
         state.armed = true;
         return Response.json({
@@ -272,6 +278,7 @@ function fixture() {
       projectId: "project",
       projectsToken: "fixture",
       repositoryToken: "fixture",
+      mergeToken: "isolated-merge-fixture",
       fetchImpl,
       activation: {
         workState: true,
@@ -291,6 +298,21 @@ function fixture() {
 }
 
 describe("trusted Work integration publisher", () => {
+  it("requires a credential separate from the read token before attempting mutation", async () => {
+    const f = fixture();
+    await expect(
+      publishWorkMerge(
+        { ...f.publisher(), mergeToken: "fixture" },
+        candidate,
+        "direct",
+      ),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "ISOLATED_MERGE_CREDENTIAL_REQUIRED",
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
   it.each(["direct", "auto"] as const)(
     "observes %s without any mutation",
     async (mode) => {
