@@ -260,3 +260,53 @@ An initial event can arrive before those obligations finish. Use a fresh
 recovery dispatch once the evidence is available. The publisher verifies
 `Status = Done` before closing the Issue as completed and can retry that last
 step without reapplying a verified Done transition.
+
+### Issuer and one-shot pilot controls
+
+`delivery-work-gate-issuer-probe.yml` is disabled unless the repository
+variable `DELIVERY_GATE_ISSUER_PROBE_ENABLED` is `true`. Configure the
+`delivery-work-gate-issuer` environment with a custom deployment branch policy
+allowing only `main`. Set environment variables `DELIVERY_GATE_APP_ID`,
+`DELIVERY_GATE_APP_CLIENT_ID`, `DELIVERY_GATE_PILOT_WORK` and
+`DELIVERY_GATE_PILOT_PR`, and set `DELIVERY_GATE_APP_PRIVATE_KEY` as an
+environment secret. The App is private, uses no webhook and is installed on
+this repository only with `Checks: write` and implicit `Metadata: read`. The
+pinned token action issues a repository-scoped token for the single trusted
+job. No merge or Project credential belongs in this environment. Verify that
+a non-main workflow cannot read the key, that no other trusted job references
+it, and that the check's GitHub-authored App ID is the configured ID. The
+distinct `Architecture Web / Work Merge Gate (issuer probe)` is evidence of
+attribution only. The required Gate still needs an evaluated-evidence
+publication path and separate ruleset activation.
+
+Direct squash consumes the Work/PR/head/base tuple by creating a lightweight
+Git reference in `refs/tags/delivery-direct/`. It requires HTTP 201 and
+verifies the returned reference and commit SHA. Conflicts, ambiguous responses
+and unexpected objects stop before the squash call. This does not need another
+credential beyond the isolated repository `Contents: write` token. The
+publisher never updates or deletes the receipt and does not retry a consumed
+candidate after an uncertain result. Reconcile the PR, receipt and main
+before any separately authorized recovery. These are operational receipts;
+the source release workflow only triggers on pushes to main. Before live use,
+verify create-only behavior on a disposable ref and ensure no independent
+writer can delete the receipt or change an external prerequisite during the
+entire read, reservation and squash window.
+
+For the bypass check, a maintainer can independently read ruleset
+`21839336` from an administrative session, recording its ID, target,
+conditions, enforcement, rule parameters and an explicitly empty
+`bypass_actors` list. Use that observation to verify the baseline and the
+proposed ruleset diff. A read-only omission is insufficient. Runtime use of
+an independent administrative evidence path requires an accepted binding to
+the effective ruleset and a verified exclusion of ruleset writes. The merge
+credential itself must not receive `Administration: write`.
+
+For the closure test, record the current native
+[Auto-close issue](https://github.com/users/Oxelio/projects/3/workflows/111737365)
+setting and its `Done` trigger. In a separately authorized window, suspend
+other completion writers, turn off that one workflow and verify that it is
+off before writing Done through the publisher. After verifying the Issue
+readback or aborting before any closure mutation, restore the original setting
+and verify it. If Done was written but closure is unconfirmed, reconcile that
+Work first. Restoring the workflow is not a substitute for the recovery
+dispatch. Leave all other Project automations unchanged.

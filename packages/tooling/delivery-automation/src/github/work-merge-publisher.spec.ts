@@ -39,6 +39,8 @@ function fixture() {
     untrustedGate: false,
     staleGate: false,
     mergeTimeout: false,
+    receiptTimeout: false,
+    receiptUnexpected: false,
     merged: false,
     armed: false,
     observation: false,
@@ -65,6 +67,7 @@ function fixture() {
     ],
   };
   const writes: { url: string; method: string; body: unknown }[] = [];
+  const receipts = new Set<string>();
   let prReads = 0;
   const fetchImpl = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -95,6 +98,33 @@ function fixture() {
             },
           },
         });
+      }
+      if (url.endsWith("/git/refs")) {
+        expect(init?.method).toBe("POST");
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
+        const request = body as { ref: string; sha: string };
+        expect(request.ref).toBe(
+          `refs/tags/delivery-direct/work-91-pr-92/${candidate.headSha}-${candidate.baseSha}`,
+        );
+        if (receipts.has(request.ref)) {
+          return new Response(null, { status: 422 });
+        }
+        receipts.add(request.ref);
+        if (state.receiptTimeout) {
+          throw new Error("lost receipt response");
+        }
+        return Response.json(
+          {
+            ref: request.ref,
+            object: {
+              type: "commit",
+              sha: state.receiptUnexpected ? mergeSha : request.sha,
+            },
+          },
+          { status: 201 },
+        );
       }
       if (url.endsWith("/pulls/92/merge")) {
         expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -294,7 +324,7 @@ function fixture() {
         state.boundary ? action() : null,
     };
   }
-  return { state, writes, fetchImpl, publisher };
+  return { state, writes, fetchImpl, publisher, receipts };
 }
 
 describe("trusted Work integration publisher", () => {
@@ -387,6 +417,7 @@ describe("trusted Work integration publisher", () => {
     await expect(
       publishWorkMerge(f.publisher(), candidate, "direct"),
     ).resolves.toEqual({ status: "already-merged", sha: mergeSha });
+    expect(f.receipts.size).toBe(1);
     expect(f.writes).toEqual([
       {
         url: `${repoUrl}/pulls/92/merge`,
@@ -399,6 +430,46 @@ describe("trusted Work integration publisher", () => {
         },
       },
     ]);
+  });
+
+  it("keeps the receipt across runs even if GitHub's create response was lost", async () => {
+    const f = fixture();
+    f.state.receiptTimeout = true;
+    const expected = {
+      status: "blocked",
+      reason: "DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED",
+    };
+    await expect(
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual(expected);
+    f.state.receiptTimeout = false;
+    await expect(
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual(expected);
+    expect(f.receipts.size).toBe(1);
+    expect(f.writes).toEqual([]);
+  });
+
+  it("does not squash when the receipt response identifies another object", async () => {
+    const f = fixture();
+    f.state.receiptUnexpected = true;
+    await expect(
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED",
+    });
+    expect(f.writes).toEqual([]);
+  });
+
+  it("allows at most one squash attempt across concurrent publishers", async () => {
+    const f = fixture();
+    await Promise.all([
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+      publishWorkMerge(f.publisher(), candidate, "direct"),
+    ]);
+    expect(f.receipts.size).toBe(1);
+    expect(f.writes).toHaveLength(1);
   });
 
   it.each([

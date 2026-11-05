@@ -139,6 +139,7 @@ async function github<T>(
   method = "GET",
   body?: object,
   token = publisher.repositoryToken,
+  expectedStatus?: number,
 ): Promise<T> {
   const response = await (publisher.fetchImpl ?? fetch)(
     `https://api.github.com${path}`,
@@ -154,7 +155,10 @@ async function github<T>(
       ...(body ? { body: JSON.stringify(body) } : {}),
     },
   );
-  if (!response.ok) {
+  if (
+    !response.ok ||
+    (expectedStatus !== undefined && response.status !== expectedStatus)
+  ) {
     throw new Error(`GitHub ${method} failed with HTTP ${response.status}`);
   }
   return (await response.json()) as T;
@@ -591,6 +595,31 @@ async function evaluateWorkMergeRequest(
 
       try {
         if (mode === "direct") {
+          // Only a new, confirmed create authorizes a squash attempt. A lost
+          // response consumes the candidate without authorizing an API retry.
+          const ref = `refs/tags/delivery-direct/work-${candidate.workNumber}-pr-${candidate.pullNumber}/${candidate.headSha}-${candidate.baseSha}`;
+          try {
+            const receipt = await github<{
+              readonly ref: string;
+              readonly object: { readonly sha: string; readonly type: string };
+            }>(
+              publisher,
+              `${repoPath}/git/refs`,
+              "POST",
+              { ref, sha: candidate.headSha },
+              publisher.mergeToken,
+              201,
+            );
+            if (
+              receipt.ref !== ref ||
+              receipt.object?.type !== "commit" ||
+              receipt.object.sha !== candidate.headSha
+            ) {
+              return blocked("DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED");
+            }
+          } catch {
+            return blocked("DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED");
+          }
           const merged = await github<{
             readonly merged: boolean;
             readonly sha: string;
