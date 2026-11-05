@@ -31,7 +31,16 @@ interface MergedPullRequest {
   };
 }
 
-export function isPilotCompletionRecord(
+export function workReference(body: string | null): number | null {
+  const references = body?.match(/^Refs #[1-9]\d*\r?$/gmu);
+  if (references?.length !== 1) {
+    return null;
+  }
+  const number = Number(references[0]?.trim().slice("Refs #".length));
+  return Number.isSafeInteger(number) ? number : null;
+}
+
+export function isCompletionRecord(
   record: CompletionRecord | null,
   pullNumber: number,
 ): record is CompletionRecord {
@@ -40,11 +49,7 @@ export function isPilotCompletionRecord(
     record.kind === "work-completion" &&
     Number.isSafeInteger(record.workNumber) &&
     record.workNumber > 0 &&
-    record.workNumber !== 91 &&
-    record.workNumber !== 93 &&
     record.pullNumber === pullNumber &&
-    pullNumber !== 92 &&
-    pullNumber !== 94 &&
     [record.headSha, record.baseSha, record.mergeSha].every(
       (sha) => typeof sha === "string" && /^[0-9a-f]{40}$/u.test(sha),
     )
@@ -64,7 +69,6 @@ export function matchesCompletedCandidate(
   },
   repositoryId: number,
 ): boolean {
-  const references = pr.body?.match(/^Refs #[1-9]\d*\r?$/gmu);
   return (
     pr.number === record.pullNumber &&
     pr.state === "closed" &&
@@ -74,8 +78,7 @@ export function matchesCompletedCandidate(
     pr.head.repo?.id === repositoryId &&
     pr.head.sha === record.headSha &&
     pr.merge_commit_sha === record.mergeSha &&
-    references?.length === 1 &&
-    references[0]?.trim() === `Refs #${record.workNumber}` &&
+    workReference(pr.body) === record.workNumber &&
     commit.sha === record.mergeSha &&
     commit.parents.length === 1 &&
     commit.parents[0]?.sha === record.baseSha &&

@@ -19,14 +19,14 @@ if (positiveInteger("GITHUB_ACTOR_ID") !== 83680141) {
   throw new Error("The evaluated Gate requires the authenticated maintainer");
 }
 
-const workNumber = positiveInteger("PILOT_WORK_NUMBER");
-const pullNumber = positiveInteger("PILOT_PULL_NUMBER");
-const headSha = requiredEnvironment("PILOT_HEAD_SHA");
-const baseSha = requiredEnvironment("PILOT_BASE_SHA");
-const appId = positiveInteger("PILOT_GATE_APP_ID");
+const workNumber = positiveInteger("GATE_WORK_NUMBER");
+const pullNumber = positiveInteger("GATE_PULL_NUMBER");
+const headSha = requiredEnvironment("GATE_HEAD_SHA");
+const baseSha = requiredEnvironment("GATE_BASE_SHA");
+const appId = positiveInteger("GATE_APP_ID");
 if (
   appId !== 5625775 ||
-  positiveInteger("PILOT_GATE_INSTALLATION_ID") !== 178883123
+  positiveInteger("GATE_INSTALLATION_ID") !== 178883123
 ) {
   throw new Error(
     "The evaluated Gate requires the verified GitHub App installation",
@@ -43,8 +43,6 @@ const evaluated = JSON.parse(
 };
 const { candidate, result } = evaluated;
 if (
-  workNumber !== 96 ||
-  pullNumber !== 98 ||
   candidate.workNumber !== workNumber ||
   candidate.pullNumber !== pullNumber ||
   candidate.headSha !== headSha ||
@@ -131,7 +129,7 @@ if (
 }
 const published = await publishGateCheck({
   repository: "Oxelio/architecture-web",
-  repositoryToken: requiredEnvironment("PILOT_GATE_APP_TOKEN"),
+  repositoryToken: requiredEnvironment("GATE_APP_TOKEN"),
   name: workMergeRequiredCheckName,
   headSha,
   externalId,

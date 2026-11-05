@@ -47,6 +47,13 @@ export interface WorkMergeGrant {
   readonly auto: boolean;
 }
 
+export type WorkGateEvaluationGrant = Omit<WorkMergeGrant, "direct" | "auto"> &
+  MergeCandidate & {
+    readonly purpose: "evaluate-work-merge-gate";
+    readonly expiresAt: string;
+    readonly requiredEvidence: readonly EvidenceReference["kind"][];
+  };
+
 interface PullRequest {
   readonly node_id: string;
   readonly title: string;
@@ -74,6 +81,7 @@ interface CheckRun {
   readonly conclusion: string | null;
   readonly external_id: string | null;
   readonly app: { readonly id: number } | null;
+  readonly started_at?: string | null;
 }
 
 interface IssueComment {
@@ -82,6 +90,8 @@ interface IssueComment {
   readonly body: string;
   readonly user: { readonly id: number; readonly type: string } | null;
   readonly performed_via_github_app?: object | null;
+  readonly created_at?: string;
+  readonly updated_at?: string;
 }
 
 type MergeMode = "direct" | "auto";
@@ -109,6 +119,7 @@ type WorkMergeReader = Omit<
   WorkMergePublisher,
   "withinVerifiedBoundary" | "mergeToken"
 >;
+type WorkGateReader = Omit<WorkMergeReader, "readGrant">;
 
 export type WorkMergeOutcome =
   | { readonly status: "merged" | "already-merged"; readonly sha: string }
@@ -223,11 +234,12 @@ function authorized(
 }
 
 async function verifyEvidence(
-  publisher: WorkMergeReader,
+  publisher: WorkGateReader,
   candidate: MergeCandidate,
-  grant: WorkMergeGrant,
+  grant: Pick<WorkMergeGrant, "evidence" | "requiredTasks">,
   repoPath: string,
   exactTasks = false,
+  requireUnedited = false,
 ): Promise<string | null> {
   const kinds = new Set(grant.evidence.map((reference) => reference.kind));
   if (
@@ -252,6 +264,8 @@ async function verifyEvidence(
       comment.user?.id !== reference.authorId ||
       (issueUrl !== `${prefix}${candidate.workNumber}` &&
         issueUrl !== `${prefix}${candidate.pullNumber}`) ||
+      (requireUnedited &&
+        (!comment.created_at || comment.created_at !== comment.updated_at)) ||
       (reference.kind.endsWith("-approval") &&
         (comment.user.type !== "User" ||
           comment.performed_via_github_app !== null))
@@ -312,8 +326,11 @@ async function verifyEvidence(
 }
 
 async function verifyChecks(
-  publisher: WorkMergeReader,
-  grant: WorkMergeGrant,
+  publisher: WorkGateReader,
+  grant: Pick<
+    WorkMergeGrant,
+    "gateAppId" | "rulesetId" | "workNumber" | "pullNumber"
+  >,
   repoPath: string,
   pr: PullRequest,
   mode: MergeMode,
@@ -388,7 +405,12 @@ async function verifyChecks(
     methods?.length !== 1 ||
     methods[0] !== "squash" ||
     statusRule?.strict_required_status_checks_policy !== true ||
-    (observe ? ciChecks : expected).some(
+    (evaluateGate
+      ? [...ciChecks, [gateName, grant.gateAppId] as const]
+      : observe
+        ? ciChecks
+        : expected
+    ).some(
       ([context, appId]) =>
         !statusRule.required_status_checks?.some(
           (check) =>
@@ -428,8 +450,30 @@ async function verifyChecks(
     const matches = candidates?.length
       ? candidates
       : checks.get(pr.head.sha)?.filter((check) => check.name === name);
-    const check = matches?.[0];
-    if (matches?.length !== 1 || !check || check.app?.id !== appId) {
+    if (!matches?.length || matches.some((check) => check.app?.id !== appId)) {
+      return `UNVERIFIED_CHECK:${name}`;
+    }
+    let check = matches[0];
+    if (matches.length > 1) {
+      // The PR workflow can cancel a Draft run and start a new suite for the
+      // same head when it becomes ready. GitHub lists both as latest per suite.
+      if (!evaluateGate) {
+        return `UNVERIFIED_CHECK:${name}`;
+      }
+      const attempts = matches.map((run) => ({
+        run,
+        started: Date.parse(run.started_at ?? ""),
+      }));
+      attempts.sort((a, b) => b.started - a.started);
+      if (
+        attempts.some(({ started }) => !Number.isFinite(started)) ||
+        attempts[0]?.started === attempts[1]?.started
+      ) {
+        return `UNVERIFIED_CHECK:${name}`;
+      }
+      check = attempts[0]?.run;
+    }
+    if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
     if (
@@ -482,19 +526,53 @@ export async function observeWorkMerge(
   );
 }
 
-// This is the read-only, documentation-only pilot composition. The caller
-// establishes exact file scope before the no-human-authority route is used.
+// The protected authorization identifies applicable evidence for one exact
+// candidate. It grants evaluation only and cannot be used as a merge grant.
 export async function evaluateScopedWorkGate(
-  reader: WorkMergeReader,
+  reader: WorkGateReader & {
+    readonly readGrant: () => Promise<WorkGateEvaluationGrant | null>;
+  },
   candidate: MergeCandidate,
 ) {
   const grant = await reader.readGrant();
+  const mandatory = ["code-review", "validation", "working-decisions"];
+  const supported = new Set([
+    ...mandatory,
+    "architecture-review",
+    "functional-review",
+    "specialist-review",
+    "functional-approval",
+    "governance-approval",
+    "adr-approval",
+  ]);
   if (
-    !authorized(grant, reader, candidate, "direct") ||
+    grant?.purpose !== "evaluate-work-merge-gate" ||
+    "direct" in grant ||
+    "auto" in grant ||
+    grant.actorId !== reader.actorId ||
+    grant.repositoryId !== reader.repositoryId ||
+    grant.workNumber !== candidate.workNumber ||
+    grant.pullNumber !== candidate.pullNumber ||
+    grant.headSha !== candidate.headSha ||
+    grant.baseSha !== candidate.baseSha ||
+    !oid.test(candidate.headSha) ||
+    !oid.test(candidate.baseSha) ||
+    !(Date.parse(grant.expiresAt) > Date.now()) ||
     grant.gateAppId !== 5625775 ||
-    grant.auto !== false ||
-    grant.requiredTasks.length !== 0 ||
-    !grant.evidence.some((record) => record.kind === "validation")
+    !Array.isArray(grant.requiredEvidence) ||
+    !Array.isArray(grant.evidence) ||
+    !Array.isArray(grant.requiredTasks) ||
+    new Set(grant.requiredTasks).size !== grant.requiredTasks.length ||
+    !grant.requiredTasks.every(positiveId) ||
+    !mandatory.every((kind) =>
+      grant.requiredEvidence.some((value) => value === kind),
+    ) ||
+    new Set(grant.requiredEvidence).size !== grant.requiredEvidence.length ||
+    !grant.requiredEvidence.every((kind) => supported.has(kind)) ||
+    grant.requiredEvidence.length !== grant.evidence.length ||
+    !grant.requiredEvidence.every((kind) =>
+      grant.evidence.some((reference) => reference?.kind === kind),
+    )
   ) {
     throw new Error("EVALUATED_GATE_NOT_AUTHORIZED");
   }
@@ -512,25 +590,6 @@ export async function evaluateScopedWorkGate(
   ) {
     throw new Error("CANDIDATE_CHANGED");
   }
-  const comparison = await github<{
-    readonly files?: readonly {
-      readonly filename: string;
-      readonly status: string;
-    }[];
-  }>(
-    reader,
-    `${repo}/compare/${candidate.baseSha}...${candidate.headSha}?per_page=1`,
-  );
-  const files = comparison.files;
-  if (
-    candidate.workNumber !== 96 ||
-    candidate.pullNumber !== 98 ||
-    files?.length !== 1 ||
-    files[0]?.filename !== "docs/development/continuous-integration.md" ||
-    files[0].status !== "modified"
-  ) {
-    throw new Error("PILOT_SCOPE_UNVERIFIED");
-  }
   const live = await readWorkMergeGateLiveEvidence({
     ...reader,
     workNumber: candidate.workNumber,
@@ -543,7 +602,14 @@ export async function evaluateScopedWorkGate(
   ) {
     throw new Error("WORK_INTEGRATION_PR_UNVERIFIED");
   }
-  const evidence = await verifyEvidence(reader, candidate, grant, repo, true);
+  const evidence = await verifyEvidence(
+    reader,
+    candidate,
+    grant,
+    repo,
+    true,
+    true,
+  );
   if (evidence && evidence !== "REQUIRED_TASKS_UNRESOLVED") {
     throw new Error(evidence);
   }

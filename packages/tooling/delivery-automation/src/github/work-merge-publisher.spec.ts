@@ -4,6 +4,7 @@ import {
   evaluateScopedWorkGate,
   observeWorkMerge,
   publishWorkMerge,
+  type WorkGateEvaluationGrant,
   type WorkMergeGrant,
   type WorkMergePublisher,
 } from "./work-merge-publisher.js";
@@ -25,10 +26,10 @@ const checks = [
   { name: gate, id: 7 },
 ];
 
-const pilotCandidate = { ...candidate, workNumber: 96, pullNumber: 98 };
+const evaluationCandidate = { ...candidate, workNumber: 101, pullNumber: 102 };
 
 function fixture(scoped = false) {
-  const target = scoped ? pilotCandidate : candidate;
+  const target = scoped ? evaluationCandidate : candidate;
   const state = {
     actorId: 12,
     boundary: true,
@@ -40,6 +41,10 @@ function fixture(scoped = false) {
     moving: "",
     check: "success",
     missingCheck: false,
+    supersededQualityCheck: null as {
+      conclusion: string;
+      startedAt: string;
+    } | null,
     untrustedGate: false,
     staleGate: false,
     mergeTimeout: false,
@@ -53,12 +58,7 @@ function fixture(scoped = false) {
     mergeMethod: "squash",
     closingIssues: 0,
     title: "feat: integrate ordinary Work",
-    files: [
-      {
-        filename: "docs/development/continuous-integration.md",
-        status: "modified",
-      },
-    ],
+    evidenceEdited: false,
     tasks: [] as unknown[],
   };
   const grant: WorkMergeGrant = {
@@ -230,9 +230,6 @@ function fixture(scoped = false) {
       if (url.includes("/sub_issues")) {
         return Response.json(state.tasks);
       }
-      if (url.includes("/compare/")) {
-        return Response.json({ files: state.files });
-      }
       if (url.includes("/issues/comments/")) {
         const id = Number(url.split("/").at(-1));
         if (
@@ -247,6 +244,10 @@ function fixture(scoped = false) {
           issue_url: `${repoUrl}/issues/${target.workNumber}`,
           user: { id: reference?.authorId, type: "User" },
           performed_via_github_app: null,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: state.evidenceEdited
+            ? "2026-01-02T00:00:00Z"
+            : "2026-01-01T00:00:00Z",
           body: JSON.stringify({
             ...target,
             kind: reference?.kind,
@@ -274,10 +275,12 @@ function fixture(scoped = false) {
               parameters: {
                 strict_required_status_checks_policy: state.strictChecks,
                 required_status_checks: checks
-                  .filter(({ name }) => !state.observation || name !== gate)
+                  .filter(
+                    ({ name }) => scoped || !state.observation || name !== gate,
+                  )
                   .map(({ name, id }) => ({
                     context: name,
-                    integration_id: id,
+                    integration_id: scoped && name === gate ? 5625775 : id,
                   })),
               },
             },
@@ -301,6 +304,7 @@ function fixture(scoped = false) {
                 ? `${gate} (observation)`
                 : name,
             head_sha: candidate.headSha,
+            started_at: "2026-01-02T00:00:00Z",
             status:
               name === "Quality checks" && state.check === "pending"
                 ? "in_progress"
@@ -317,6 +321,16 @@ function fixture(scoped = false) {
                 : null,
             app: { id: name === gate && state.untrustedGate ? 999 : id },
           }));
+        if (state.supersededQualityCheck) {
+          const quality = runs.find(({ name }) => name === "Quality checks");
+          if (quality) {
+            runs.push({
+              ...quality,
+              conclusion: state.supersededQualityCheck.conclusion,
+              started_at: state.supersededQualityCheck.startedAt,
+            });
+          }
+        }
         return Response.json({ total_count: runs.length, check_runs: runs });
       }
       throw new Error(`Unexpected fixture URL ${url}`);
@@ -346,16 +360,51 @@ function fixture(scoped = false) {
         state.boundary ? action() : null,
     };
   }
-  return { state, writes, fetchImpl, publisher, receipts };
+  const evaluationGrant: WorkGateEvaluationGrant = {
+    ...target,
+    actorId: grant.actorId,
+    repositoryId: grant.repositoryId,
+    evidence: grant.evidence,
+    requiredTasks: grant.requiredTasks,
+    gateAppId: grant.gateAppId,
+    rulesetId: grant.rulesetId,
+    purpose: "evaluate-work-merge-gate",
+    expiresAt: "2099-01-01T00:00:00Z",
+    requiredEvidence: grant.evidence.map(({ kind }) => kind),
+  };
+  const evaluator = (overrides: Partial<WorkGateEvaluationGrant> = {}) => ({
+    ...publisher(),
+    readGrant: async () => ({ ...evaluationGrant, ...overrides }),
+  });
+  return { state, writes, fetchImpl, publisher, evaluator, receipts };
 }
 
-describe("evaluated Work Merge Gate pilot", () => {
+describe("evaluated Work Merge Gate", () => {
+  it("uses the newest same-issuer CI attempt, without accepting ambiguous ordering", async () => {
+    const f = fixture(true);
+    f.state.supersededQualityCheck = {
+      conclusion: "failure",
+      startedAt: "2026-01-01T00:00:00Z",
+    };
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: true });
+    f.state.supersededQualityCheck.startedAt = "2026-01-03T00:00:00Z";
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: false });
+    f.state.supersededQualityCheck.startedAt = "2026-01-02T00:00:00Z";
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: false });
+  });
+
   it("evaluates accepted evidence and existing CI without consulting a prior Gate or mutating GitHub", async () => {
     const f = fixture(true);
     f.state.observation = true;
     f.state.bypassActors = undefined;
     await expect(
-      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
     ).resolves.toMatchObject({
       pass: true,
       grantsMergeAuthority: false,
@@ -371,7 +420,7 @@ describe("evaluated Work Merge Gate pilot", () => {
     f.state.check = "failure";
     f.state.tasks.push({ number: 100 });
     await expect(
-      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
     ).resolves.toMatchObject({
       pass: false,
       blockers: expect.arrayContaining([
@@ -385,24 +434,39 @@ describe("evaluated Work Merge Gate pilot", () => {
   it("rejects stale or out-of-scope candidates and unaccepted evidence", async () => {
     const f = fixture(true);
     await expect(
-      evaluateScopedWorkGate(f.publisher(), {
-        ...pilotCandidate,
+      evaluateScopedWorkGate(f.evaluator(), {
+        ...evaluationCandidate,
         headSha: mergeSha,
       }),
-    ).rejects.toThrow("CANDIDATE_CHANGED");
+    ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
     await expect(
-      evaluateScopedWorkGate(f.publisher(), candidate),
+      evaluateScopedWorkGate(f.evaluator(), candidate),
     ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
     f.state.revokedDecision = true;
     await expect(
-      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
     ).rejects.toThrow("STALE_OR_UNACCEPTED_EVIDENCE");
-    f.state.files = [
-      { filename: ".github/workflows/ci.yml", status: "modified" },
-    ];
+  });
+
+  it("rejects missing applicable human authority evidence and edited evidence", async () => {
+    const f = fixture(true);
     await expect(
-      evaluateScopedWorkGate(f.publisher(), pilotCandidate),
-    ).rejects.toThrow("PILOT_SCOPE_UNVERIFIED");
+      evaluateScopedWorkGate(
+        f.evaluator({
+          requiredEvidence: [
+            "code-review",
+            "validation",
+            "working-decisions",
+            "functional-approval",
+          ],
+        }),
+        evaluationCandidate,
+      ),
+    ).rejects.toThrow("EVALUATED_GATE_NOT_AUTHORIZED");
+    f.state.evidenceEdited = true;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).rejects.toThrow("UNVERIFIED_EVIDENCE");
   });
 });
 
