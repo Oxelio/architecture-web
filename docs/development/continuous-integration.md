@@ -5,6 +5,10 @@ permissions and gates. [Testing and verification](testing.md) owns validation
 strategy and commands. CI does not establish review acceptance, Work State,
 merge authority or Work completion.
 
+The [read-only integration pilot](../architecture/ci-driven-work-integration.md)
+checks evidence for a selected Work and PR. Its result grants no permission to
+merge and does not replace a required check.
+
 After a squash merge, use the integrated commit SHA on `main` to find the
 `push` runs for repository CI and source-release processing. The pull request
 head SHA identifies the pre-merge candidate and can differ from the integrated
