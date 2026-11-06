@@ -6,31 +6,44 @@ import { errorHandler } from "#types/error-handler";
 
 import { buildNotificationRoutes } from "./notification.routes.js";
 
-async function server() {
+const notification = {
+  id: "notification",
+  type: "security",
+  severity: "warning",
+  title: "title",
+  message: "message",
+  action: "view_account",
+  createdAt: new Date("2026-01-01"),
+  readAt: null,
+};
+
+async function server({
+  principal = "owner",
+  parsedQuery,
+}: {
+  principal?: string | null;
+  parsedQuery?: Record<string, unknown>;
+} = {}) {
   const execute = vi
     .fn()
     .mockResolvedValue({ success: true, value: undefined });
   const list = vi.fn().mockResolvedValue({
     success: true,
-    value: [
-      {
-        id: "notification",
-        type: "security",
-        severity: "warning",
-        title: "title",
-        message: "message",
-        action: "view_account",
-        createdAt: new Date("2026-01-01"),
-        readAt: null,
-      },
-    ],
+    value: [notification],
   });
   const app = Fastify();
   app.setErrorHandler(errorHandler);
   app.decorateRequest("auth", null);
   app.decorate("authenticate", async (request) => {
-    request.auth = { userId: "owner", sessionId: "session", role: "user" };
+    if (principal !== null) {
+      request.auth = { userId: principal, sessionId: "session", role: "user" };
+    }
   });
+  if (parsedQuery) {
+    app.addHook("preValidation", async (request) => {
+      Object.assign(request.query as Record<string, unknown>, parsedQuery);
+    });
+  }
   await app.register(
     buildNotificationRoutes({
       listNotifications: { execute: list },
@@ -55,6 +68,62 @@ describe("Notifications HTTP contracts", () => {
         page: 2,
         pageSize: 10,
       });
+    } finally {
+      await app.close();
+    }
+  });
+  it("lists only the authenticated account's notifications", async () => {
+    const { app, list } = await server({
+      parsedQuery: { actorUserId: "other" },
+    });
+    const notificationsByAccount = new Map([
+      ["owner", [{ ...notification, id: "owner-notification" }]],
+      ["other", [{ ...notification, id: "other-notification" }]],
+    ]);
+    list.mockImplementation(
+      async ({ actorUserId }: { actorUserId: string }) => ({
+        success: true,
+        value: notificationsByAccount.get(actorUserId) ?? [],
+      }),
+    );
+    try {
+      const response = await app.inject({ url: "/?page=2&pageSize=10" });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data).toEqual([
+        expect.objectContaining({ id: "owner-notification" }),
+      ]);
+      expect(list).toHaveBeenCalledExactlyOnceWith({
+        actorUserId: "owner",
+        page: 2,
+        pageSize: 10,
+      });
+    } finally {
+      await app.close();
+    }
+  });
+  it.each([null, ""])(
+    "rejects notification listing without a valid principal (%j)",
+    async (principal) => {
+      const { app, list } = await server({ principal });
+      try {
+        expect((await app.inject({ url: "/" })).statusCode).toBe(401);
+        expect(list).not.toHaveBeenCalled();
+      } finally {
+        await app.close();
+      }
+    },
+  );
+  it.each([
+    ["/", {}],
+    ["/?page=1", { page: 1 }],
+    ["/?pageSize=100", { pageSize: 100 }],
+  ])("preserves pagination for %s", async (url, pagination) => {
+    const { app, list } = await server();
+    try {
+      expect((await app.inject({ url })).statusCode).toBe(200);
+      expect(list.mock.calls).toStrictEqual([
+        [{ actorUserId: "owner", ...pagination }],
+      ]);
     } finally {
       await app.close();
     }
