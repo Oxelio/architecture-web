@@ -6,9 +6,8 @@
 >
 > **Domain:** Delivery / Architecture
 
-> Work #58's explicitly accepted policy becomes effective when integrated through
-> its history-preserving transition PR. Platform enforcement/publication activation
-> still requires separate verification; document presence does not prove it.
+> Work #58 established the main-only delivery policy. The effective GitHub
+> controls are documented below with their operational evidence.
 
 ## 1. Purpose
 
@@ -75,15 +74,16 @@ same branch; their activation does not require adding permanent branches.
 
 #### Required checks on `main`
 
-The maintainer explicitly accepted and activated the following merge requirements
-on 2026-11-01. Direct verification of the active
+The maintainer activated the CI requirements under Work #58 and the evaluated
+Work Merge Gate under Work #91. The active
 [`protected` ruleset](https://github.com/Oxelio/architecture-web/rules/21839336)
 confirmed that it targets the default branch (`main`) and requires:
 
-| Required check             | Expected provider | Integration ID |
-| -------------------------- | ----------------- | -------------- |
-| `Quality checks`           | GitHub Actions    | `15368`        |
-| `SonarCloud Code Analysis` | SonarQube Cloud   | `12526`        |
+| Required check                       | Expected provider                    | Integration ID |
+| ------------------------------------ | ------------------------------------ | -------------- |
+| `Quality checks`                     | GitHub Actions                       | `15368`        |
+| `SonarCloud Code Analysis`           | SonarQube Cloud                      | `12526`        |
+| `Architecture Web / Work Merge Gate` | Dedicated Work Merge Gate GitHub App | `5625775`      |
 
 Strict required-status-check policy is enabled. The PR branch must be up to date
 with `main`, and required results must apply to the current candidate under that
@@ -105,7 +105,7 @@ accepted and activated. Do not expose secrets, weaken checks or infer a bypass
 from this limitation. The [CI guide](../development/continuous-integration.md)
 owns analysis diagnostics and configuration instructions.
 
-These required checks are one part of the [Work Merge Gate](#work-merge-gate).
+The two CI results are inputs to the evaluated [Work Merge Gate](#work-merge-gate).
 They do not accept reviews, establish validation sufficiency, grant merge
 authority or complete the Work. Verification of this ruleset does not activate
 other external mappings or approve other governance decisions. Source-release
@@ -554,23 +554,26 @@ Automatic merge authority is not granted by this delivery policy. Merge remains
 subject to repository/project permissions and any explicitly established human
 or AI authority policy.
 
-#### Accepted autonomous integration target
+#### Effective native auto-merge and delegation
 
-The maintainer [accepted the target in Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6633272317).
-Once operationally activated, an explicitly delegated agent may request GitHub
-auto-merge or perform a direct squash through the trusted publisher for an
-ordinary Work Integration Pull Request within its grant. The delegation applies
-independently of the Workflow Coordinator Role. The publisher must verify the
-grant, candidate, applicable Method gates and repository protections before
-using the permitted operation. An eligible request within an active grant needs
-no per-PR human merge confirmation. Human-only decisions retain their assigned
-authority.
+GitHub-native squash auto-merge is active for explicitly authorized Work
+Integration candidates. Work #91 verified it on
+[PR #94](https://github.com/Oxelio/architecture-web/pull/94) and
+[PR #103](https://github.com/Oxelio/architecture-web/pull/103). The exact
+candidate must satisfy the required checks, Method gates and repository
+protections.
 
-This target remains inactive. Effective grants and each integration mode require
-implementation review, successful validation and an authorized GitHub pilot.
-Until activation is verified, the existing operational permission matrix applies.
-See the [Technical Design](../architecture/ci-driven-work-integration.md) for the
-pilot requirements and remaining technical bindings.
+The maintainer [accepted the standing-delegation target in Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6633272317).
+The approved target delegates only native squash auto-merge requests for
+ordinary eligible Work to an authenticated control workflow running on
+protected main in repository 1336937640. The workflow must use a restricted
+credential and verify the delegation is still effective before arming
+auto-merge. The delegation must be revocable. Until GitHub can enforce the
+applicable prerequisites throughout the wait, use explicit candidate
+authorization and verify that those prerequisites remain stable. Human
+Functional Approval and material governance decisions
+remain with their assigned authorities. Custom delegated direct squash was
+closed as `not planned` in [Work #102](https://github.com/Oxelio/architecture-web/issues/102).
 
 ### Work Integration Branch and Pull Request
 
@@ -626,6 +629,11 @@ Before moving to `Done` and closing as completed, verify:
 - required validation evidence is sufficient;
 - affected durable owners are synchronized with the truth they own;
 - no unresolved Working Decision remains for the completed scope.
+
+The trusted workflow requires attributable completion evidence and successful
+CI and source-release processing for the integrated SHA. It verifies Project
+`Status = Done` before closing the owning Issue as `completed`. See the
+[implementation controls](../architecture/ci-driven-work-integration.md#conditional-work-completion).
 
 ### Cancelled / abandoned Work
 

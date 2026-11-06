@@ -20,15 +20,20 @@ import {
 } from "./gate-publication-support.js";
 import {
   githubRepositoryRequest,
+  readDirectMaintainerRecord,
   requireTrustedMain,
 } from "./work-pilot-support.js";
 
-requireTrustedMain("pull_request_target", "workflow_dispatch");
+const eventName = process.env["GITHUB_EVENT_NAME"];
+requireTrustedMain("pull_request_target", "workflow_dispatch", "issue_comment");
 const pullNumber = positiveInteger("COMPLETION_PULL_NUMBER");
 const event = JSON.parse(
   await readFile(requiredEnvironment("GITHUB_EVENT_PATH"), "utf8"),
 ) as {
   readonly repository?: { readonly id?: number };
+  readonly action?: string;
+  readonly issue?: { readonly number: number; readonly pull_request?: object };
+  readonly comment?: { readonly id: number };
   readonly pull_request?: {
     readonly number?: number;
     readonly merged?: boolean;
@@ -37,13 +42,46 @@ const event = JSON.parse(
 };
 if (
   event.repository?.id !== 1336937640 ||
-  (process.env["GITHUB_EVENT_NAME"] === "workflow_dispatch"
-    ? positiveInteger("GITHUB_ACTOR_ID") !== 83680141 ||
-      event.inputs?.pull_number !== String(pullNumber)
-    : event.pull_request?.number !== pullNumber ||
-      event.pull_request.merged !== true)
+  (eventName === "workflow_dispatch" &&
+    (positiveInteger("GITHUB_ACTOR_ID") !== 83680141 ||
+      event.inputs?.pull_number !== String(pullNumber))) ||
+  (eventName === "pull_request_target" &&
+    (event.pull_request?.number !== pullNumber ||
+      event.pull_request.merged !== true))
 ) {
   throw new Error("The event does not authorize completion for this candidate");
+}
+let triggerRecord: CompletionRecord | null = null;
+if (eventName === "issue_comment") {
+  const issue = event.issue;
+  const comment = event.comment;
+  if (
+    event.action !== "created" ||
+    positiveInteger("GITHUB_ACTOR_ID") !== 83680141 ||
+    !issue ||
+    issue.pull_request !== undefined ||
+    !Number.isSafeInteger(issue.number) ||
+    issue.number <= 0 ||
+    !comment ||
+    !Number.isSafeInteger(comment.id) ||
+    comment.id <= 0
+  ) {
+    throw new Error(
+      "The event does not authorize completion for this candidate",
+    );
+  }
+  triggerRecord = await readDirectMaintainerRecord<CompletionRecord>(
+    comment.id,
+    issue.number,
+  );
+  if (
+    !isCompletionRecord(triggerRecord, pullNumber) ||
+    triggerRecord.workNumber !== issue.number
+  ) {
+    throw new Error(
+      "The comment does not authorize completion for this candidate",
+    );
+  }
 }
 const manifest = await readActivationManifest();
 if (
@@ -67,7 +105,11 @@ if (
   integrated.base.repo.id !== 1336937640 ||
   integrated.head.repo?.id !== 1336937640 ||
   !/^[0-9a-f]{40}$/u.test(integrated.merge_commit_sha) ||
-  owner === null
+  owner === null ||
+  (triggerRecord !== null &&
+    (triggerRecord.workNumber !== owner ||
+      triggerRecord.headSha !== integrated.head.sha ||
+      triggerRecord.mergeSha !== integrated.merge_commit_sha))
 ) {
   throw new Error("An integrated Work PR with one owning Issue is required");
 }
@@ -91,7 +133,7 @@ let verifiedItem: {
   readonly fieldId: string;
   readonly doneId: string;
 } | null = null;
-const result = await publishWorkCompletion({
+const publisher: Parameters<typeof publishWorkCompletion>[0] = {
   read: readSnapshot,
   writeDone: async (itemId) => {
     const item = verifiedItem;
@@ -128,7 +170,17 @@ const result = await publishWorkCompletion({
       state_reason: "completed",
     });
   },
-});
+};
+let result = await publishWorkCompletion(publisher);
+if (eventName !== "workflow_dispatch") {
+  for (const delay of [5_000, 10_000]) {
+    if (result.status !== "retry" || result.reason !== "CLOSURE_NOT_VERIFIED") {
+      break;
+    }
+    await setTimeout(delay);
+    result = await publishWorkCompletion(publisher);
+  }
+}
 writeJson({ workNumber, pullNumber, result });
 if (result.status === "blocked" || result.status === "retry") {
   process.exitCode = 2;

@@ -170,12 +170,18 @@ it("does not accept a connector-authored maintainer grant", async () => {
   });
 });
 
-function completionFixture(recovery = false) {
+function completionFixture(recovery: boolean | "comment" = false) {
   const result = workflow(
-    recovery ? "workflow_dispatch" : "pull_request_target",
-    recovery
-      ? { inputs: { pull_number: "98" } }
-      : { pull_request: { number: 98, merged: true } },
+    recovery === "comment"
+      ? "issue_comment"
+      : recovery
+        ? "workflow_dispatch"
+        : "pull_request_target",
+    recovery === "comment"
+      ? { action: "created", issue: { number: 96 }, comment: { id: 14 } }
+      : recovery
+        ? { inputs: { pull_number: "98" } }
+        : { pull_request: { number: 98, merged: true } },
   );
   vi.stubEnv("COMPLETION_PULL_NUMBER", "98");
   vi.stubEnv("COMPLETION_PROJECTS_TOKEN", "project-fixture");
@@ -266,6 +272,8 @@ function completionFixture(recovery = false) {
     );
     const path = url.pathname.slice("/repos/Oxelio/architecture-web".length);
     switch (path) {
+      case "/issues/comments/14":
+        return Response.json(record);
       case "/issues/96/comments":
         return Response.json([record]);
       case "/issues/96/sub_issues":
@@ -334,7 +342,7 @@ function completionFixture(recovery = false) {
         throw new Error(`Unexpected GitHub request ${path}`);
     }
   });
-  return { result, state, writes };
+  return { result, state, writes, record };
 }
 
 it("resolves the Work and verifies downstream runs before writing Done and closing", async () => {
@@ -389,6 +397,40 @@ it("rejects unauthorized recovery before using credentials", async () => {
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
 
+it("recovers completion from an authentic maintainer Issue comment", async () => {
+  const { result, writes } = completionFixture("comment");
+  await import("./work-completion-pilot.js");
+  expect(result()).toMatchObject({ result: { status: "completed" } });
+  expect(writes).toEqual(["done", "close"]);
+});
+
+it("replays a completion comment without writing either owner twice", async () => {
+  const { result, writes, state } = completionFixture("comment");
+  state.status = "Done";
+  state.closed = true;
+  await import("./work-completion-pilot.js");
+  expect(result()).toMatchObject({ result: { status: "already-completed" } });
+  expect(writes).toEqual([]);
+});
+
+it("rejects an edited completion comment before touching either owner", async () => {
+  const { record, writes } = completionFixture("comment");
+  record.updated_at = now;
+  await expect(import("./work-completion-pilot.js")).rejects.toThrow(
+    "The comment does not authorize completion",
+  );
+  expect(writes).toEqual([]);
+});
+
+it("rejects a completion event from an unexpected actor before using credentials", async () => {
+  const { writes } = completionFixture("comment");
+  vi.stubEnv("GITHUB_ACTOR_ID", "2");
+  await expect(import("./work-completion-pilot.js")).rejects.toThrow(
+    "does not authorize completion",
+  );
+  expect(globalThis.fetch).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
 function issuerFixture(pass = true) {
   const result = workflow("workflow_dispatch", {});
   for (const [key, value] of Object.entries({
