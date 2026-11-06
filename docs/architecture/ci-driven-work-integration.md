@@ -93,10 +93,10 @@ Both paths keep the existing ruleset protections. The publisher records the
 GitHub result and rereads the PR after a conflict or uncertain response before
 considering a new request.
 
-The initial publisher requires a successful Work Merge Gate even when native
-CI checks are pending. The current manual gate evaluator expects established
-repository check evidence. A live auto-merge pilot must demonstrate a real,
-safe pending-CI case with valid gate evidence or leave that mode inactive.
+For the maintainer-authorized native auto-merge demonstration, both CI checks
+passed before the native request was armed. The evaluated Work Merge Gate
+was the final pending required check. The candidate was bound to its reviewed
+head and current base, and GitHub performed the squash after publication.
 
 GitHub enforces the protected target's rules at merge time and the direct
 endpoint compares the head SHA. The endpoint does not condition the merge on
@@ -237,60 +237,57 @@ repository. It uses its read credential for verification and the merge
 credential only for the native mutation. Verify ruleset bypass metadata
 separately; unavailable metadata still blocks mutation.
 
-### Conditional completion pilot
+### Conditional Work completion
 
-The closure workflow listens for the exact pilot PR's merged
-`pull_request_target: closed` event. An authenticated maintainer can dispatch
-a fresh recovery run with that PR number. Both paths run the same code on
-`main` and serialize attempts for the configured Work. Leave
-`DELIVERY_COMPLETION_PILOT_WORK` and `DELIVERY_COMPLETION_PILOT_PR` unset
-until the pilot is authorized. Configure the `delivery-work-completion-pilot`
-environment for `main` only, with a separate personal Project credential in
-`DELIVERY_COMPLETION_PROJECTS_TOKEN`. GitHub Actions provides repository
-`Issues: write` for the issue close and `Actions: read` for downstream runs.
+The `Delivery Work Completion` workflow starts on merged Work Integration PRs
+targeting `main` when the repository variable `DELIVERY_COMPLETION_ENABLED` is
+`true`. It reads the owning Work from the PR's `Refs #<work>` line and runs
+from trusted `main` code. The `delivery-work-completion-pilot` environment
+allows only `main` and stores the personal Project write credential in
+`DELIVERY_COMPLETION_PROJECTS_TOKEN`. The job uses repository `Actions: read`
+to verify downstream runs and `Issues: write` to close the owning Issue.
 
-`DELIVERY_COMPLETION_COMMENT_ID` points to the pilot's attributable Done
-evidence on the owning Issue. The unedited, direct maintainer record has
-`kind: "work-completion"`, the Work/PR and head/base/merge SHAs, and the
-established Done invariants read by the completion publisher. It is a
-pilot-specific evidence anchor. The publisher independently confirms the
-squash on `main`, native Project membership, issue disposition, and
-successful push-triggered CI and source-release processing for the merge SHA.
-An initial event can arrive before those obligations finish. Use a fresh
-recovery dispatch once the evidence is available. The publisher verifies
-`Status = Done` before closing the Issue as completed and can retry that last
-step without reapplying a verified Done transition.
+A direct, unedited maintainer JSON comment on the owning Issue records
+`kind: "work-completion"`, `workNumber`, `pullNumber`, `headSha`, `baseSha`,
+`mergeSha`, and the established completion predicates `scopeConcluded`,
+`reviewsAccepted`, `validationSufficient`, `durableOwnersSynchronized`,
+`workingDecisionsResolved` and `postMergeObligationsSatisfied`. The publisher
+independently checks the squash on `main`, native Project membership,
+Issue disposition, required Tasks, dependencies and successful push-triggered
+CI and source-release processing for the merged SHA. It verifies
+`Status = Done` before closing the Issue as completed. A maintainer can
+dispatch a fresh recovery run with the merged `pull_number` after missing
+evidence arrives or to retry a partial closure.
 
-### Issuer and one-shot pilot controls
+### Evaluated Work Merge Gate
 
-`delivery-work-evaluated-gate.yml` is disabled unless the repository
-variable `DELIVERY_EVALUATED_GATE_ENABLED` is `true`. Configure the
-`delivery-work-gate-issuer` environment with a custom deployment branch policy
-allowing only `main`. Set environment variables `DELIVERY_GATE_APP_ID`,
-`DELIVERY_GATE_APP_CLIENT_ID`, `DELIVERY_GATE_PILOT_WORK` and
-`DELIVERY_GATE_PILOT_PR`, and set `DELIVERY_GATE_APP_PRIVATE_KEY` as an
-environment secret. The App is private, uses no webhook and is installed on
-this repository only with `Checks: write` and implicit `Metadata: read`. The
-pinned token action issues a repository-scoped token for the single trusted
-job. No merge or Project credential belongs in this environment. Verify that
-a non-main workflow cannot read the key, that no other trusted job references
-it, and that the check's GitHub-authored App ID is the configured ID. The
-[historical issuer probe](https://github.com/Oxelio/architecture-web/actions/runs/42015072247)
-established attribution. The current workflow uses the same App to publish
-`Architecture Web / Work Merge Gate` from the existing Gate evaluator.
+`delivery-work-evaluated-gate.yml` is enabled with the repository variable
+`DELIVERY_EVALUATED_GATE_ENABLED`. The `delivery-work-gate-issuer` environment
+allows only `main` and uses `DELIVERY_GATE_APP_ID`,
+`DELIVERY_GATE_APP_CLIENT_ID` and the environment secret
+`DELIVERY_GATE_APP_PRIVATE_KEY`. The dedicated App `5625775` issues
+`Architecture Web / Work Merge Gate` using a short-lived token with
+`Checks: write` for this repository. The ruleset requires this exact issuer,
+along with the existing CI publishers.
 
-The separate evaluation job runs from `main` under the protected
-`delivery-integration-observation` environment. Configure an expiring
-`DELIVERY_EVALUATED_GATE_EVIDENCE` record there with the repository and actor
-IDs, Work #96, PR #98, both SHAs, ruleset `21839336`, App `5625775`,
-`direct: true`, `auto: false`, an empty required Task set, and attributable
-Code Review, validation and Working Decisions comment references. This record
-authorizes evaluation only. The evaluator verifies the immutable pilot diff,
-the live Work and PR relation, the scoped evidence and both existing CI
-publishers. It never requires its own check to evaluate. The publication job
-rechecks the candidate and refuses another publication for the same App and
-candidate. The pilot does not activate a required check, prove exclusion of
-concurrent external writers or make a successful check indefinitely fresh.
+The separate evaluation job uses the protected
+`delivery-integration-observation` environment. Set an expiring
+`DELIVERY_EVALUATED_GATE_EVIDENCE` record for the exact authorized candidate.
+Include the evaluation purpose `evaluate-work-merge-gate`, repository, actor,
+Work and PR IDs, both SHAs, ruleset and App IDs, expiration, required Task IDs,
+and the required evidence kinds and their attributable comment references.
+Dispatch the workflow from `main` with `work_number`, `pull_number`,
+`head_sha` and `base_sha`. The record authorizes evaluation. The workflow
+verifies the candidate, Work state, applicable evidence and the two existing
+CI publishers before publishing the result for that head and base.
+
+[PR #94](https://github.com/Oxelio/architecture-web/pull/94) verified native
+squash auto-merge with the evaluated Gate as the final required check. The
+[Gate run](https://github.com/Oxelio/architecture-web/actions/runs/42186121466)
+and the recorded integration evidence are linked from
+[Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6680412784).
+[Work #102](https://github.com/Oxelio/architecture-web/issues/102) owns the
+remaining custom delegated direct-squash work.
 
 Direct squash consumes the Work/PR/head/base tuple by creating a lightweight
 Git reference in `refs/tags/delivery-direct/`. It requires HTTP 201 and
