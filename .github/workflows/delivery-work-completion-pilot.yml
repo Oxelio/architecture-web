@@ -4,6 +4,8 @@ on:
   pull_request_target:
     branches: [main]
     types: [closed]
+  issue_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       pull_number:
@@ -18,8 +20,37 @@ permissions:
   pull-requests: read
 
 jobs:
-  complete:
+  resolve-comment:
     if: >-
+      vars.DELIVERY_COMPLETION_ENABLED == 'true' &&
+      github.event_name == 'issue_comment' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.actor_id == '83680141' &&
+      github.event.comment.user.id == 83680141 &&
+      github.event.comment.performed_via_github_app == null &&
+      !github.event.issue.pull_request &&
+      contains(github.event.comment.body, 'work-completion')
+    permissions: {}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      pull_number: ${{ steps.record.outputs.pull_number }}
+    steps:
+      - id: record
+        name: Resolve a concurrency key from the comment
+        run: |
+          pull_number=$(jq -r 'try (. as $event | (.comment.body | fromjson) |
+            select(.kind == "work-completion" and .workNumber == $event.issue.number) |
+            .pullNumber | select(type == "number" and . > 0 and . <= 9007199254740991 and floor == .)) catch empty' "$GITHUB_EVENT_PATH")
+          if [[ $pull_number =~ ^[1-9][0-9]*$ ]]; then
+            printf 'pull_number=%s\n' "$pull_number" >> "$GITHUB_OUTPUT"
+          fi
+
+  complete:
+    needs: resolve-comment
+    if: >-
+      !cancelled() &&
       vars.DELIVERY_COMPLETION_ENABLED == 'true' &&
       github.ref == 'refs/heads/main' &&
       github.run_attempt == 1 &&
@@ -27,10 +58,13 @@ jobs:
         (github.event_name == 'pull_request_target' &&
           github.event.pull_request.merged == true) ||
         (github.event_name == 'workflow_dispatch' &&
-          github.actor_id == '83680141')
+          github.actor_id == '83680141') ||
+        (github.event_name == 'issue_comment' &&
+          needs.resolve-comment.result == 'success' &&
+          needs.resolve-comment.outputs.pull_number != '')
       )
     concurrency:
-      group: delivery-work-completion-${{ github.event.pull_request.number || inputs.pull_number }}
+      group: delivery-work-completion-${{ github.event.pull_request.number || inputs.pull_number || needs.resolve-comment.outputs.pull_number }}
       cancel-in-progress: false
     runs-on: ubuntu-24.04
     environment: delivery-work-completion-pilot
@@ -51,7 +85,7 @@ jobs:
         env:
           TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
           GITHUB_TOKEN: ${{ github.token }}
-          COMPLETION_PULL_NUMBER: ${{ github.event.pull_request.number || inputs.pull_number }}
-          COMPLETION_WAIT_FOR_DOWNSTREAM: ${{ github.event_name == 'pull_request_target' }}
+          COMPLETION_PULL_NUMBER: ${{ github.event.pull_request.number || inputs.pull_number || needs.resolve-comment.outputs.pull_number }}
+          COMPLETION_WAIT_FOR_DOWNSTREAM: ${{ github.event_name != 'workflow_dispatch' }}
           COMPLETION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_COMPLETION_PROJECTS_TOKEN }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-completion-pilot.ts

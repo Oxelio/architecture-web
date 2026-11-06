@@ -52,7 +52,13 @@ export async function readMaintainerRecord<T>(
   if (!process.env[variable]) {
     return null;
   }
-  const id = positiveInteger(variable);
+  return readDirectMaintainerRecord<T>(positiveInteger(variable), workNumber);
+}
+
+export async function readDirectMaintainerRecord<T>(
+  id: number,
+  workNumber: number,
+): Promise<T | null> {
   const record = await githubRepositoryRequest<{
     readonly id: number;
     readonly issue_url: string;

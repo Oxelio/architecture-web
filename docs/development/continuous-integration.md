@@ -9,6 +9,20 @@ The [read-only integration pilot](../architecture/ci-driven-work-integration.md)
 checks evidence for a selected Work and PR. Its result grants no permission to
 merge and does not replace a required check.
 
+For an authorized Work Integration PR, CI supplies the candidate evidence.
+The trusted evaluated Gate workflow on `main` verifies the Work, exact head and
+base, reviews and applicable approvals. For the verified native squash path,
+arm auto-merge for the authorized candidate while the Gate is pending. GitHub
+merges once all required checks pass. The [delivery profile](../project/delivery-pipeline.md)
+owns authority and the [integration design](../architecture/ci-driven-work-integration.md)
+owns workflow inputs and recovery controls.
+
+If the Gate fails, inspect its evaluation, candidate SHAs, live Work state
+and evidence. A changed candidate requires current evidence and authority.
+After merge, publishing a valid direct maintainer completion record starts
+recovery. Use a maintainer recovery dispatch if the automatic window expires
+or the event was missed.
+
 After a squash merge, use the integrated commit SHA on `main` to find the
 `push` runs for repository CI and source-release processing. The pull request
 head SHA identifies the pre-merge candidate and can differ from the integrated
@@ -252,10 +266,12 @@ No arbitrary global coverage threshold is introduced.
 
 The maintainer-activated required checks and strict `main` policy are recorded
 in the [delivery profile](../project/delivery-pipeline.md#required-checks-on-main).
-`Quality checks` is the CI aggregate; `SonarCloud Code Analysis` is the separate
-required external result. The Work Merge Gate remains independent of both.
+`Quality checks` is the GitHub Actions aggregate (App `15368`).
+`SonarCloud Code Analysis` is the external result (App `12526`).
+`Architecture Web / Work Merge Gate` is published by the dedicated Gate App
+`5625775` after evaluating the two CI results and Work evidence.
 Dependency graph availability, analysis credentials/configuration and actual
 check publication must still be diagnosed when unavailable. Changes to
 protections, secrets, merge settings or analysis paths require their own applicable
-authorization. Activation of these two checks does not approve other governance
+authorization. Activation of these checks does not approve other governance
 decisions or establish Work State.

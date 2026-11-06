@@ -1,8 +1,8 @@
 # Technical Design — CI-driven Work integration
 
-**Artifact status:** Proposed
+**Artifact status:** Implemented in part
 
-**Content status:** Proposed
+**Content status:** Current behavior, accepted target, and historical rationale
 
 **Document type:** Technical Design
 
@@ -16,12 +16,18 @@ package and its GitHub Actions workflows. It has no product behavior scope. The
 adopted Method and the human governance authority. The
 [delivery profile](../project/delivery-pipeline.md) owns lifecycle, role permissions,
 the required checks and release separation. [Testing and verification](../development/testing.md)
-owns evidence requirements. This design proposes implementation mechanisms and
-records open decisions for those owners.
+owns evidence requirements. The operational sections below describe the verified
+native path. The delegated publisher sections retain historical design rationale
+and constraints for the accepted standing-delegation target.
 
 The maintainer [accepted the governance target in Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6633272317).
-The acceptance covers the target policy for explicitly delegated ordinary Work.
-The concrete principal, grant scope and verified activation remain separate.
+The approved standing principal is a trusted control workflow on protected
+main in repository 1336937640. Its scope is ordinary eligible Work and the
+native squash auto-merge request. Standing delegation remains inactive.
+The candidate-specific native path was verified on [PR #94](https://github.com/Oxelio/architecture-web/pull/94)
+and [PR #103](https://github.com/Oxelio/architecture-web/pull/103). Conditional
+closure succeeded for [Work #93](https://github.com/Oxelio/architecture-web/actions/runs/42189090779)
+and [Work #91](https://github.com/Oxelio/architecture-web/actions/runs/42190641824).
 
 ## Delegated request identity
 
@@ -143,7 +149,7 @@ closure. It does not infer missing post-merge evidence. If the pilot shows a
 missing automatic event for a merge mode, that mode stays inactive until a
 verified event path is available.
 
-## Increment and activation boundaries
+## Historical increment and activation boundaries
 
 1. Clarify optional Projects MCP usage and harden the existing read-only gate
    evidence. Verify the live-reader regression cases and documentation links.
@@ -162,9 +168,9 @@ closure sequence in `delivery-automation`. The publisher requires a trusted
 grant reader and a verified execution boundary that covers the entire merge
 window for the chosen mode. The closure sequence requires a trusted reader
 that resolves the confirmed `main` merge, its unique Work and the Done evidence,
-plus serialized writes to the two existing owners. These components currently
-run against test fixtures. Live workflow composition and operational activation
-depend on verification of those bindings and the downstream events above.
+plus serialized writes to the two existing owners. The delegated publisher was
+verified against fixtures. The native candidate-specific
+workflow and conditional closure were subsequently verified on GitHub.
 
 The observation workflow exercises the publisher's reads and decisions without
 executing a mutation. It only accepts a fresh dispatch on `main` and checks out
@@ -255,9 +261,20 @@ A direct, unedited maintainer JSON comment on the owning Issue records
 independently checks the squash on `main`, native Project membership,
 Issue disposition, required Tasks, dependencies and successful push-triggered
 CI and source-release processing for the merged SHA. It verifies
-`Status = Done` before closing the Issue as completed. A maintainer can
-dispatch a fresh recovery run with the merged `pull_number` after missing
-evidence arrives or to retry a partial closure.
+`Status = Done` before closing the Issue as completed. An eligible
+`issue_comment.created` event starts recovery when the maintainer
+publishes that record after merge. The job groups attempts by PR, rereads the
+comment through the API and rejects an edited, app-authored or mismatched record.
+Automatic runs wait up to six minutes for downstream workflows and retry an
+previously attempted Issue closure at most twice when its read-back is inconclusive. A maintainer
+can dispatch a fresh run
+with `pull_number` if the automatic window expires.
+
+For this user-owned Project, retain the verified personal token with `project`
+scope. To rotate it, create a replacement with an expiry, verify access to
+Project #3, replace only the completion environment secret, verify an eligible
+closure run and revoke the old token. The Gate App token and repository workflow
+token remain separate.
 
 ### Evaluated Work Merge Gate
 
@@ -286,8 +303,8 @@ squash auto-merge with the evaluated Gate as the final required check. The
 [Gate run](https://github.com/Oxelio/architecture-web/actions/runs/42186121466)
 and the recorded integration evidence are linked from
 [Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6680412784).
-[Work #102](https://github.com/Oxelio/architecture-web/issues/102) owns the
-remaining custom delegated direct-squash work.
+[Work #102](https://github.com/Oxelio/architecture-web/issues/102) records the
+closed, `not planned` disposition of custom delegated direct squash.
 
 Direct squash consumes the Work/PR/head/base tuple by creating a lightweight
 Git reference in `refs/tags/delivery-direct/`. It requires HTTP 201 and
