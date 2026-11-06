@@ -60,9 +60,11 @@ export function buildNotificationRoutes(
         },
       },
       async (request, reply) => {
+        const { page, pageSize } = request.query;
         const result = await notifications.listNotifications.execute({
           actorUserId: authenticatedUserId(request),
-          ...request.query,
+          ...(page === undefined ? {} : { page }),
+          ...(pageSize === undefined ? {} : { pageSize }),
         });
         return result.success
           ? reply.send({ data: result.value })
