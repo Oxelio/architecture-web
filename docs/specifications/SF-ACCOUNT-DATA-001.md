@@ -91,6 +91,17 @@ Before confirmation, the interface explains:
 - data that may be retained and why;
 - consequences for an administrator account.
 
+### Approved target — Disclosure for previously authorized deliveries
+
+The pre-confirmation disclosure also explains: “A notification attempt authorized
+before final account erasure may still be sent or arrive afterward.” This is the
+[approved Work #120 target](https://github.com/Oxelio/architecture-web/issues/120#issuecomment-6744329606)
+pending implementation and validation. The disclosure belongs in the existing
+deletion-request flow. Final erasure generates no confirmation message. Delivery
+eligibility is owned by [SF-NOTIFICATIONS-001](SF-NOTIFICATIONS-001.md#approved-target--delivery-eligibility-after-final-account-erasure).
+
+### Deletion request confirmation
+
 After strengthened verification, the user explicitly confirms deletion. The
 account then remains pending deletion for 14 days:
 
