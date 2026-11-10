@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 
 import type {
   AccountDeletionStore,
+  AffectedUserDeliveryEligibility,
+  AffectedUserDeliveryEligibilityReader,
   DeletionRequest,
 } from "@architecture/iam/application";
 import { createIamSecurityEvent } from "@architecture/iam/application";
@@ -15,6 +17,15 @@ import {
   hasAdministrativeAccess,
 } from "./administrative-access.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
+
+function erasureWitnessKey(userId: string): Buffer {
+  // ADR-0010 requires preserving this derivation while v1 records exist.
+  return createHash("sha256")
+    .update("iam-account-erasure:v1:")
+    .update(userId.toLowerCase())
+    .digest();
+}
+
 function deletion(row: IamAccountDeletionTable): DeletionRequest {
   return {
     id: row.id,
@@ -25,11 +36,44 @@ function deletion(row: IamAccountDeletionTable): DeletionRequest {
     executedAt: row.executed_at,
   };
 }
-export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
+export class KyselyAccountDeletionAdapter
+  implements AccountDeletionStore, AffectedUserDeliveryEligibilityReader
+{
   constructor(
     private readonly db: Kysely<IamDatabase>,
     private readonly outbox: (trx: Kysely<IamDatabase>) => OutboxWriter,
   ) {}
+
+  async readAffectedUserDeliveryEligibility(
+    userId: string,
+  ): Promise<AffectedUserDeliveryEligibility> {
+    try {
+      const result = await this.db
+        .selectNoFrom((eb) => [
+          eb
+            .exists(
+              eb.selectFrom("iam_users").select("id").where("id", "=", userId),
+            )
+            .as("account_exists"),
+          eb
+            .exists(
+              eb
+                .selectFrom("iam_account_erasure_evidence")
+                .select("subject_key")
+                .where("subject_key", "=", erasureWitnessKey(userId)),
+            )
+            .as("witness_exists"),
+        ])
+        .executeTakeFirstOrThrow({ signal: AbortSignal.timeout(5_000) });
+      if (result.account_exists === result.witness_exists) {
+        return "unresolved";
+      }
+      return result.account_exists ? "eligible" : "erased";
+    } catch {
+      return "unresolved";
+    }
+  }
+
   async request(input: Parameters<AccountDeletionStore["request"]>[0]) {
     return this.db.transaction().execute(async (trx) => {
       await sql`select pg_advisory_xact_lock(728194002)`.execute(trx);
@@ -206,6 +250,10 @@ export class KyselyAccountDeletionAdapter implements AccountDeletionStore {
         return null;
       }
       await trx.deleteFrom("iam_users").where("id", "=", row.user_id).execute();
+      await trx
+        .insertInto("iam_account_erasure_evidence")
+        .values({ subject_key: erasureWitnessKey(row.user_id) })
+        .execute();
       const pseudonym = createHash("sha256").update(row.user_id).digest("hex");
       await this.outbox(trx).append([
         createIamSecurityEvent({
