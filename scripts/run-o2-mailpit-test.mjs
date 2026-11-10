@@ -188,6 +188,7 @@ async function verifyIsolation() {
 }
 
 async function runFixture(mode) {
+  let smokePassed = false;
   try {
     await docker(
       [...compose, "up", "--build", "-d", "--wait", "--wait-timeout", "90"],
@@ -210,11 +211,14 @@ async function runFixture(mode) {
       throw new Error("Fixture did not report a successful smoke");
     }
     console.log(output);
+    smokePassed = true;
     if (mode === "--abort") stop();
     if (mode === "--timeout") timeout();
     controller.signal.throwIfAborted();
   } catch (error) {
-    if (!mode || error !== controller.signal.reason) throw error;
+    if (!smokePassed || !mode || error !== controller.signal.reason)
+      throw error;
+    console.log(`Verified fixture ${mode.slice(2)} path`);
   } finally {
     await cleanup();
   }
