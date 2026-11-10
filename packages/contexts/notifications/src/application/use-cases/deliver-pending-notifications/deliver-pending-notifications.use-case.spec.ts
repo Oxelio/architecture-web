@@ -185,6 +185,78 @@ describe("DeliverPendingNotificationsUseCase", () => {
       expect(finalizeDelivery).toHaveBeenCalledOnce();
     },
   );
+
+  it.each(["stale", "expired"] as const)(
+    "withholds an admitted affected-user attempt that becomes %s before handoff",
+    async (outcome) => {
+      const notification = createClaimedNotification("affected_user");
+      const claim = {
+        notification,
+        delivery: notification.deliveries[0],
+        claimToken: "owner",
+      };
+      const reservation = {
+        deliveryId: "delivery",
+        recipientId: "user-1",
+        claimToken: "owner",
+      };
+      const deadline = new Date(Date.now() + 60_000);
+      const clock = vi.spyOn(Date, "now");
+      const repository = {
+        recoverStaleDeliveries: vi.fn(),
+        claimDelivery: vi
+          .fn()
+          .mockResolvedValueOnce(reservation)
+          .mockResolvedValue(null),
+        resolveDeliveryEligibility: vi.fn().mockResolvedValue(claim),
+        ownsAuthorizedDelivery: vi.fn(async () => {
+          if (outcome === "expired") {
+            clock.mockReturnValue(deadline.getTime());
+          }
+          return outcome !== "stale";
+        }),
+        expireDeliveryAuthorization: vi.fn(),
+        finalizeDelivery: vi.fn(),
+      };
+      const send = vi.fn();
+      try {
+        await new DeliverPendingNotificationsUseCase(
+          repository as never,
+          [{ channel: "email", send }],
+          directory,
+          deadline,
+        ).execute();
+      } finally {
+        clock.mockRestore();
+      }
+      expect(send).not.toHaveBeenCalled();
+      expect(repository.finalizeDelivery).not.toHaveBeenCalled();
+      expect(repository.expireDeliveryAuthorization).toHaveBeenCalledTimes(
+        outcome === "expired" ? 1 : 0,
+      );
+    },
+  );
+
+  it("records a minimized failure when the provider adapter is unavailable", async () => {
+    const notification = createClaimedNotification();
+    const delivery = notification.deliveries[0];
+    const repository = {
+      recoverStaleDeliveries: vi.fn(),
+      claimDelivery: vi
+        .fn()
+        .mockResolvedValueOnce({ notification, delivery, claimToken: "owner" })
+        .mockResolvedValue(null),
+      finalizeDelivery: vi.fn().mockResolvedValue(true),
+    };
+    await new DeliverPendingNotificationsUseCase(
+      repository as never,
+      [],
+      directory,
+    ).execute();
+    expect(delivery?.status).toBe("failed");
+    expect(delivery?.lastError).toBe("delivery_adapter_unavailable");
+  });
+
   it("reports a lost claim without attempting another item in that run", async () => {
     const notification = createClaimedNotification();
     const claimDelivery = vi.fn().mockResolvedValue({

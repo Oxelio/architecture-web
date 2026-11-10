@@ -6,7 +6,10 @@ import {
   type DeliveryEligibilityClaim,
   NotificationRepository,
 } from "@architecture/notifications/application";
-import type { NotificationEntity } from "@architecture/notifications/domain";
+import type {
+  NotificationEntity,
+  NotificationSuppressionReason,
+} from "@architecture/notifications/domain";
 import { type Kysely, sql } from "kysely";
 
 import {
@@ -141,13 +144,15 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
       throw new Error("Only a completed delivery attempt can be finalized");
     }
     const affected = delivery.audience !== "administrator";
-    const lastError =
-      delivery.status === "failed" || delivery.status === "dead_letter"
-        ? delivery.lastError === "delivery_adapter_unavailable" ||
-          delivery.lastError === "administrator_eligibility_unavailable"
-          ? delivery.lastError
-          : "provider_outcome_unknown"
-        : null;
+    let lastError: string | null = null;
+    if (delivery.status === "failed" || delivery.status === "dead_letter") {
+      const code = delivery.lastError;
+      lastError =
+        code === "delivery_adapter_unavailable" ||
+        code === "administrator_eligibility_unavailable"
+          ? code
+          : "provider_outcome_unknown";
+    }
     const result = await this.db
       .updateTable("notification_deliveries")
       .set({
@@ -360,16 +365,14 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
       }
       const unresolved = eligibility === "unresolved";
       const checks = row.unresolved_eligibility_checks - (unresolved ? 0 : 1);
-      const reason =
-        eligibility === "erased"
-          ? "account_erased"
-          : unresolved
-            ? checks >= ELIGIBILITY_CHECK_LIMIT
-              ? "eligibility_unverified"
-              : null
-            : row.authorization_expired
-              ? "authorization_expired"
-              : null;
+      let reason: NotificationSuppressionReason | null = null;
+      if (eligibility === "erased") {
+        reason = "account_erased";
+      } else if (unresolved && checks >= ELIGIBILITY_CHECK_LIMIT) {
+        reason = "eligibility_unverified";
+      } else if (eligibility === "eligible" && row.authorization_expired) {
+        reason = "authorization_expired";
+      }
       const update = transaction
         .updateTable("notification_deliveries")
         .where("id", "=", claim.deliveryId);

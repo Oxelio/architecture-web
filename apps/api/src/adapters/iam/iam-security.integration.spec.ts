@@ -766,6 +766,9 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     expect(await store.readAffectedUserDeliveryEligibility(randomUUID())).toBe(
       "unresolved",
     );
+    expect(await store.readAffectedUserDeliveryEligibility("invalid-id")).toBe(
+      "unresolved",
+    );
     f.user.requestDeletion();
     await store.request({
       user: f.user,

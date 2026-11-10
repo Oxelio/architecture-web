@@ -107,8 +107,8 @@ uses fictitious accounts and simulated providers by default. Use the existing
 disposable PostgreSQL/Redis integration fixture for database tests. Add a
 separate disposable Compose project for API-to-Mailpit checks with temporary
 PostgreSQL and Mailpit storage, Redis persistence disabled, and an internal
-network without published ports. The smoke runner queries Mailpit from the
-API container. The fixture has no Mailpit relay or external webhooks and
+network without published ports. The API and Mailpit share a network namespace.
+The smoke runner reaches Mailpit over loopback. The fixture has no Mailpit relay or external webhooks and
 uses separate storage from the regular application.
 
 Use a supervised 30-minute timeout for the optional controlled-address run.

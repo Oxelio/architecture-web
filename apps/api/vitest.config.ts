@@ -11,6 +11,12 @@ export default defineConfig({
           import.meta.url,
         ),
       ),
+      "@architecture/iam-persistence-kysely": fileURLToPath(
+        new URL(
+          "../../packages/adapters/iam/persistence-kysely/src/index.ts",
+          import.meta.url,
+        ),
+      ),
       "@architecture/notifications-persistence-kysely": fileURLToPath(
         new URL(
           "../../packages/adapters/notifications/persistence-kysely/src/index.ts",
@@ -30,6 +36,7 @@ export default defineConfig({
       include: [
         "src/**/*.ts",
         "../../packages/adapters/audit/persistence-kysely/src/**/*.ts",
+        "../../packages/adapters/iam/persistence-kysely/src/**/*.ts",
         "../../packages/adapters/notifications/persistence-kysely/src/**/*.ts",
       ],
       exclude: [
@@ -37,6 +44,7 @@ export default defineConfig({
         "**/*.test.ts",
         "**/index.ts",
         "../../packages/adapters/**/persistence-kysely/src/schema.ts",
+        "../../packages/adapters/iam/persistence-kysely/src/persistence/schema.ts",
       ],
     },
   },

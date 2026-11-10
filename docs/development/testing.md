@@ -74,7 +74,7 @@ pnpm --filter @architecture/messaging test
 
 Workspace and API integration tests consume public package exports; run
 `pnpm build` first so compiled dependencies represent the candidate under
-validation. The API test configuration resolves the Audit and Notifications
+validation. The API test configuration resolves the IAM, Audit and Notifications
 persistence public entrypoints to their current sources and includes those
 external executable files in coverage. This attributes real PostgreSQL tests to
 the adapters they exercise instead of leaving their source coverage at zero.
