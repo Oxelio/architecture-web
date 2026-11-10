@@ -154,7 +154,7 @@ export function SecurityCenter() {
           onClick={() => {
             if (
               window.confirm(
-                "L’accès sera immédiatement révoqué. Confirmer la demande de suppression ?",
+                "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
               )
             ) {
               deletion.mutate();
