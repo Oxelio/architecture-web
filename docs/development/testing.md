@@ -80,10 +80,15 @@ external executable files in coverage. This attributes real PostgreSQL tests to
 the adapters they exercise instead of leaving their source coverage at zero.
 Pure type-only persistence schemas are excluded from executable coverage.
 IAM's internal event alias also resolves to source during unit tests.
-Outbox and notification delivery attempts count successful claims, including
-abandoned claims, rather than only recorded failures. New items start at zero;
-success/failure finalization does not increment the count. The tenth failed or
-abandoned attempt reaches `dead_letter`.
+Outbox and administrator-only delivery claims count toward their attempt
+budgets. For affected-user and mixed-basis deliveries, a claim reserves an
+eligibility check. A fresh favorable IAM decision can admit a provider attempt
+under the current claim. Conclusive eligibility results release the check
+reservation, and unresolved or abandoned checks consume the separate
+eligibility budget. The tenth unresolved check closes the delivery as
+eligibility unverified. The tenth failed or abandoned provider attempt reaches
+`dead_letter`. Finalization does not increment either counter. See the
+[delivery eligibility design](../architecture/delivery-eligibility-after-account-erasure.md).
 
 ## Proportional verification
 
