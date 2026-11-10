@@ -11,6 +11,10 @@ async function violates(config, filePath, dependency) {
     overrideConfigFile: true,
     overrideConfig: [...base, ...config],
   });
+  return rejectsImport(eslint, filePath, dependency);
+}
+
+async function rejectsImport(eslint, filePath, dependency) {
   const [result] = await eslint.lintText(
     `import type { Contract } from "${dependency}"; export type Used = Contract;`,
     { filePath },
@@ -20,6 +24,105 @@ async function violates(config, filePath, dependency) {
       message.ruleId === "no-restricted-imports" && message.severity === 2,
   );
 }
+
+describe("Effective workspace dependency presets", () => {
+  it.each([
+    [
+      "packages/contexts/messaging",
+      "src/domain/probe.ts",
+      "@architecture/iam/domain",
+      true,
+    ],
+    [
+      "packages/contexts/audit",
+      "src/domain/probe.ts",
+      "@architecture/messaging/domain",
+      true,
+    ],
+    [
+      "packages/contexts/notifications",
+      "src/domain/probe.ts",
+      "@architecture/audit/domain",
+      true,
+    ],
+    [
+      "packages/contexts/iam",
+      "src/domain/probe.ts",
+      "@architecture/audit/application",
+      true,
+    ],
+    [
+      "packages/contexts/audit",
+      "src/application/probe.ts",
+      "@architecture/notifications/domain",
+      true,
+    ],
+    [
+      "packages/contexts/notifications",
+      "src/application/probe.ts",
+      "@architecture/iam/application",
+      true,
+    ],
+    [
+      "packages/contexts/notifications",
+      "src/application/probe.ts",
+      "@architecture/messaging/domain",
+      false,
+    ],
+    [
+      "packages/contexts/iam",
+      "src/application/probe.ts",
+      "@architecture/messaging/application",
+      false,
+    ],
+    [
+      "apps/api",
+      "src/features/iam/probe.ts",
+      "@architecture/iam-email-verification-sha256",
+      true,
+    ],
+    [
+      "apps/api",
+      "src/features/iam/probe.ts",
+      "@architecture/notifications-delivery-sms-webhook",
+      true,
+    ],
+    [
+      "apps/api",
+      "src/features/iam/probe.ts",
+      "../../adapters/iam/adapter.js",
+      true,
+    ],
+    [
+      "apps/api",
+      "src/composition-root/probe.ts",
+      "@architecture/iam-email-verification-sha256",
+      false,
+    ],
+    [
+      "packages/adapters/iam/email-verification-sha256",
+      "src/probe.ts",
+      "@architecture/iam/src/domain/user",
+      true,
+    ],
+    [
+      "packages/adapters/iam/email-verification-sha256",
+      "src/probe.ts",
+      "@architecture/iam/application",
+      false,
+    ],
+  ])(
+    "%s %s checks %s (rejected=%s)",
+    async (workspace, file, dependency, rejected) => {
+      const cwd = fileURLToPath(
+        new URL(`../../../${workspace}/`, import.meta.url),
+      );
+      expect(await rejectsImport(new ESLint({ cwd }), file, dependency)).toBe(
+        rejected,
+      );
+    },
+  );
+});
 describe("IAM dependency boundaries", () => {
   it.each([
     "kysely",
