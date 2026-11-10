@@ -9,15 +9,12 @@
 
 [Work #120](https://github.com/Oxelio/architecture-web/issues/120) is a Complex
 Product Behavior Change. The approved target belongs to
-[SF-NOTIFICATIONS-001](../specifications/SF-NOTIFICATIONS-001.md#approved-target--delivery-eligibility-after-final-account-erasure)
+[SF-NOTIFICATIONS-001](../specifications/SF-NOTIFICATIONS-001.md#delivery-eligibility-after-final-account-erasure)
 and the disclosure to
-[SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md#approved-target--disclosure-for-previously-authorized-deliveries).
+[SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md#disclosure-for-previously-authorized-deliveries).
 The independent architecture review accepted the design direction, and the
 maintainer accepted [ADR-0010](decisions/0010-iam-erasure-evidence.md) for
-the scoped development/demo target. This document describes the target.
-On the design baseline,
-Notifications claims count toward delivery attempts before provider invocation,
-and the existing eligibility check covers administrator-only deliveries.
+the scoped development/demo target.
 
 ## Authoritative eligibility
 
@@ -109,10 +106,10 @@ The [scoped testing approval](https://github.com/Oxelio/architecture-web/issues/
 uses fictitious accounts and simulated providers by default. Use the existing
 disposable PostgreSQL/Redis integration fixture for database tests. Add a
 separate disposable Compose project for API-to-Mailpit checks with temporary
-PostgreSQL and Mailpit storage, Redis persistence disabled, restricted
-loopback UI access, and private database and SMTP endpoints. Disable Mailpit
-relay and external webhooks in this fixture. Keep the regular application
-volumes out of it.
+PostgreSQL and Mailpit storage, Redis persistence disabled, and an internal
+network without published ports. The smoke runner queries Mailpit from the
+API container. The fixture has no Mailpit relay or external webhooks and
+uses separate storage from the regular application.
 
 Use a supervised 30-minute timeout for the optional controlled-address run.
 The approved **24-hour maximum from creation** applies to local copies
@@ -159,7 +156,10 @@ The capture Task adds `compose.o2-mailpit-test.yml` and a one-shot
 smoke and teardown checks on an authorized Docker runner. The entry point
 starts a uniquely named project, verifies API-to-Mailpit delivery, and
 tears down that project on completion or failure. Capture evidence records
-the candidate SHA, run identity, command, and teardown result.
+the candidate SHA, run identity, command, and teardown result. Pass `--abort` or
+`--timeout` to exercise the corresponding shutdown path after the fictitious
+smoke. This fixture accepts only `@example.test` recipients. Use the approved
+manual exception only on a separately supervised host that meets the
+storage and cleanup conditions above.
 
-Synchronize current architecture and accounting documentation when the
-implementation becomes effective.
+The code and owner updates travel in the same Work Integration change.

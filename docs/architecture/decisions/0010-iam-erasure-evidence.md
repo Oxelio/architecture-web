@@ -10,7 +10,7 @@
 [Work #120](https://github.com/Oxelio/architecture-web/issues/120) introduces
 fresh IAM eligibility for each new affected-user delivery attempt. A missing
 account alone does not establish final erasure. The approved
-[Notifications target](../../specifications/SF-NOTIFICATIONS-001.md#approved-target--delivery-eligibility-after-final-account-erasure)
+[Notifications specification](../../specifications/SF-NOTIFICATIONS-001.md#delivery-eligibility-after-final-account-erasure)
 allows a previously authorized attempt to transmit after commit and preserves
 IAM erasure independence from Notifications and the provider.
 [ADR-0005](0005-domain-events-messaging.md) assigns the outbox to cross-context

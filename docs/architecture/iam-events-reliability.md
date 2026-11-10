@@ -23,6 +23,10 @@ The implementation baseline is `938bfa28d4ba5d890daa8d47588a1b4ec9a2c223`.
 
 ## Processing ownership
 
+The rules in this section describe the baseline for Outbox and administrator
+delivery. The [affected-user delivery design](delivery-eligibility-after-account-erasure.md)
+adds a separate eligibility reservation ahead of provider-attempt admission.
+
 Each PostgreSQL claim has a fresh UUID token, a database-clock timestamp and an
 incremented attempt count. Claims expire after five minutes. A finalization
 updates only a processing row with the expected token and an unexpired claim;

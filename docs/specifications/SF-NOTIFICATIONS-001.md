@@ -193,12 +193,11 @@ An accepted delivery records its affected-user and/or administrator selection
 basis. Before each administrator-only delivery attempt, current active
 administrator membership is checked. A refusal permanently suppresses that
 delivery with a minimized reason; a technical lookup failure is retried without
-sending. A delivery also justified for the affected user remains eligible on
-that basis. Suppression never changes the accepted destination, notification
-acknowledgement or other deliveries, and replay never recreates it. The check is
-not atomic with an external provider or concurrent membership changes.
-The approved target below adds an attempt-authorization rule for the
-affected-user basis.
+sending. A delivery also justified for the affected user follows the
+[affected-user attempt rule](#delivery-eligibility-after-final-account-erasure).
+Suppression preserves the accepted selection, notification acknowledgement and
+other deliveries. Replay never recreates a suppressed delivery. Administrator
+membership evaluation and provider submission are separate operations.
 
 ## Preferences
 
@@ -277,12 +276,11 @@ original destinations. Provider configuration and credentials remain technical
 configuration, not part of the recipient snapshot. Carrier delivery remains at
 least once when a send succeeds but its response or finalization is lost.
 
-### Approved target — Delivery eligibility after final account erasure
+### Delivery eligibility after final account erasure
 
 [Work #120](https://github.com/Oxelio/architecture-web/issues/120) records
 [Human Functional Approval](https://github.com/Oxelio/architecture-web/issues/120#issuecomment-6741023837)
 and the [approved functional details](https://github.com/Oxelio/architecture-web/issues/120#issuecomment-6744329606).
-This section describes the approved target pending implementation and validation.
 
 Every new provider attempt using the affected-user basis requires a fresh,
 authoritative IAM eligibility decision against committed account state. The
