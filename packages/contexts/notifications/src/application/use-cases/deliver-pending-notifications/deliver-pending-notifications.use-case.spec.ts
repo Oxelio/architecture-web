@@ -13,10 +13,11 @@ const directory = {
   findUser: vi.fn(),
   listAdministratorIds: vi.fn(),
   isActiveAdministrator: vi.fn().mockResolvedValue(true),
+  readAffectedUserDeliveryEligibility: vi.fn().mockResolvedValue("eligible"),
 };
 
 function createClaimedNotification(
-  audience: NotificationDeliveryAudience = "affected_user",
+  audience: NotificationDeliveryAudience = "administrator",
 ): NotificationEntity {
   const severity = NotificationSeverityValueObject.create("warning");
   if (!severity.success) {
@@ -50,16 +51,23 @@ describe("DeliverPendingNotificationsUseCase", () => {
         .fn()
         .mockRejectedValue(new Error("unavailable"));
       const send = vi.fn();
+      const reservation = {
+        deliveryId: "delivery",
+        recipientId: "user-1",
+        claimToken: "owner",
+      };
       const repository = {
         recoverStaleDeliveries: vi.fn(),
         claimDelivery: vi
           .fn()
-          .mockResolvedValueOnce({
-            notification,
-            delivery: notification.deliveries[0],
-            claimToken: "owner",
-          })
+          .mockResolvedValueOnce(reservation)
           .mockResolvedValue(null),
+        resolveDeliveryEligibility: vi.fn().mockResolvedValue({
+          notification,
+          delivery: notification.deliveries[0],
+          claimToken: "owner",
+        }),
+        ownsAuthorizedDelivery: vi.fn().mockResolvedValue(true),
         finalizeDelivery: vi.fn().mockResolvedValue(true),
       };
       await new DeliverPendingNotificationsUseCase(
@@ -68,8 +76,61 @@ describe("DeliverPendingNotificationsUseCase", () => {
         { ...directory, isActiveAdministrator },
       ).execute();
       expect(isActiveAdministrator).not.toHaveBeenCalled();
+      expect(repository.resolveDeliveryEligibility).toHaveBeenCalledWith(
+        reservation,
+        "eligible",
+        undefined,
+      );
       expect(send).toHaveBeenCalledOnce();
       expect(notification.deliveries[0]?.status).toBe("sent");
+    },
+  );
+
+  it.each(["erased", "unresolved", "unavailable"] as const)(
+    "does not invoke a provider when the affected-user decision is %s",
+    async (decision) => {
+      const reservation = {
+        deliveryId: "delivery",
+        recipientId: "user-1",
+        claimToken: "owner",
+      };
+      const repository = {
+        recoverStaleDeliveries: vi.fn(),
+        claimDelivery: vi
+          .fn()
+          .mockResolvedValueOnce(reservation)
+          .mockResolvedValue(null),
+        resolveDeliveryEligibility: vi.fn().mockResolvedValue(null),
+      };
+      const readAffectedUserDeliveryEligibility = vi.fn();
+      if (decision === "unavailable") {
+        readAffectedUserDeliveryEligibility.mockRejectedValue(
+          new Error("unavailable"),
+        );
+      } else {
+        readAffectedUserDeliveryEligibility.mockResolvedValue(decision);
+      }
+      const send = vi.fn();
+      const isActiveAdministrator = vi.fn();
+      await new DeliverPendingNotificationsUseCase(
+        repository as never,
+        [{ channel: "email", send }],
+        {
+          ...directory,
+          readAffectedUserDeliveryEligibility,
+          isActiveAdministrator,
+        },
+      ).execute();
+      expect(readAffectedUserDeliveryEligibility).toHaveBeenCalledWith(
+        "user-1",
+      );
+      expect(repository.resolveDeliveryEligibility).toHaveBeenCalledWith(
+        reservation,
+        decision === "erased" ? "erased" : "unresolved",
+        undefined,
+      );
+      expect(isActiveAdministrator).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
     },
   );
 
@@ -239,5 +300,8 @@ describe("DeliverPendingNotificationsUseCase", () => {
 
     expect(notification.deliveries[0]?.status).toBe("failed");
     expect(notification.deliveries[0]?.attempts).toBe(1);
+    expect(notification.deliveries[0]?.lastError).toBe(
+      "provider_outcome_unknown",
+    );
   });
 });

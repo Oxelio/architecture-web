@@ -8,7 +8,11 @@ export type NotificationDeliveryStatus =
 
 export type NotificationDeliveryAudience =
   "affected_user" | "administrator" | "affected_user_and_administrator";
-export type NotificationSuppressionReason = "administrator_not_authorized";
+export type NotificationSuppressionReason =
+  | "administrator_not_authorized"
+  | "account_erased"
+  | "eligibility_unverified"
+  | "authorization_expired";
 
 interface NotificationDeliveryProperties {
   readonly identifier: NotificationDeliveryIdentifierValueObject;
@@ -69,7 +73,12 @@ export class NotificationDeliveryEntity extends Entity<NotificationDeliveryPrope
         "suppressed",
       ].includes(properties.status) ||
       (properties.status === "suppressed"
-        ? properties.suppressionReason !== "administrator_not_authorized"
+        ? ![
+            "administrator_not_authorized",
+            "account_erased",
+            "eligibility_unverified",
+            "authorization_expired",
+          ].some((reason) => reason === properties.suppressionReason)
         : properties.suppressionReason !== null)
     ) {
       throw new Error("Invalid notification delivery state");

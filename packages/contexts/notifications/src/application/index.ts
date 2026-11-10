@@ -5,11 +5,15 @@ export {
 } from "./create-notifications.js";
 export {
   type ClaimedNotificationDelivery,
+  type DeliveryEligibilityClaim,
   NotificationRepository,
 } from "./repositories/notification.repository.js";
 export { NotificationPreferenceRepository } from "./repositories/notification-preference.repository.js";
 export { NotificationDelivery } from "./services/notification-delivery.service.js";
-export { NotificationRecipientDirectory } from "./services/notification-recipient-directory.service.js";
+export {
+  type AffectedUserDeliveryEligibility,
+  NotificationRecipientDirectory,
+} from "./services/notification-recipient-directory.service.js";
 export type {
   DeliverPendingNotifications,
   DeliverPendingNotificationsError,
