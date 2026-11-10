@@ -107,6 +107,6 @@ also breaking.
 
 ## Current enforcement and limitation
 
-Context ESLint presets reject application/technical imports in the domain and concrete database, cache, HTTP, crypto and provider dependencies in application code. The TypeScript baseline applies to all four contexts and the reviewed adapters. IAM domain restrictions include its effective `#ports`, `#events` and `#test` aliases. API transport cannot import concrete adapters or context domain models; adapter and composition directories have explicit technical responsibilities. Tests verify both rejected and legitimate dependencies.
+Context ESLint presets reject application and technical imports in the domain and concrete database, cache, HTTP, crypto and provider dependencies in application code. The effective workspace presets also reject disallowed imports from the other bounded contexts. Application code may use the public Messaging contracts where the matrix permits them. IAM domain restrictions include its effective `#ports`, `#events` and `#test` aliases. API transport checks include webhook and SHA-256 adapters and relative imports from adapter directories. The SHA-256 adapter uses the public-contract adapter preset. Tests exercise rejected and legitimate imports through the effective configurations.
 
 Package exports and TypeScript enforce public contracts. These targeted static rules do not resolve every possible dependency path or replace review against the complete matrix.
