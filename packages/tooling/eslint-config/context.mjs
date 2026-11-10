@@ -19,10 +19,25 @@ const technical = [
   "@architecture/*-nodemailer",
   "@architecture/*-postmark",
   "@architecture/*-webhook",
+  "@architecture/iam-email-verification-sha256",
   "@architecture/*/src/**",
+  "**/contexts/**/src/**",
   "**/adapters/**",
   "**/apps/**",
 ];
+
+const boundedContexts = ["iam", "messaging", "audit", "notifications"];
+
+export function foreignContextImports(...allowedContexts) {
+  return boundedContexts
+    .filter((context) => !allowedContexts.includes(context))
+    .flatMap((context) => [
+      `@architecture/${context}`,
+      `@architecture/${context}/**`,
+      `**/contexts/${context}/**`,
+    ]);
+}
+
 const restriction = (patterns) => [
   "error",
   {
@@ -38,30 +53,38 @@ const restriction = (patterns) => [
   },
 ];
 
-export default [
-  {
-    files: ["src/domain/**/*.ts"],
-    ignores: ["**/*.spec.ts"],
-    rules: {
-      "no-restricted-imports": restriction([
-        ...technical,
-        "@architecture/*/application",
-        "#application/**",
-        "#repositories/**",
-        "#services/**",
-        "#policies/**",
-        "#use-cases/**",
-        "#ports/**",
-        "#events/**",
-        "**/application/**",
-      ]),
+export function forContext(owner) {
+  return [
+    {
+      files: ["src/domain/**/*.ts"],
+      ignores: ["**/*.spec.ts"],
+      rules: {
+        "no-restricted-imports": restriction([
+          ...technical,
+          ...(owner ? foreignContextImports(owner) : []),
+          "@architecture/*/application",
+          "#application/**",
+          "#repositories/**",
+          "#services/**",
+          "#policies/**",
+          "#use-cases/**",
+          "#ports/**",
+          "#events/**",
+          "**/application/**",
+        ]),
+      },
     },
-  },
-  {
-    files: ["src/application/**/*.ts"],
-    ignores: ["**/*.spec.ts"],
-    rules: {
-      "no-restricted-imports": restriction(technical),
+    {
+      files: ["src/application/**/*.ts"],
+      ignores: ["**/*.spec.ts"],
+      rules: {
+        "no-restricted-imports": restriction([
+          ...technical,
+          ...(owner ? foreignContextImports(owner, "messaging") : []),
+        ]),
+      },
     },
-  },
-];
+  ];
+}
+
+export default forContext();

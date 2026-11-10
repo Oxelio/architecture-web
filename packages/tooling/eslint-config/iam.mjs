@@ -1,3 +1,5 @@
+import { foreignContextImports } from "./context.mjs";
+
 const technical = [
   "kysely",
   "kysely/*",
@@ -18,6 +20,9 @@ const technical = [
   "@architecture/*-bcrypt",
   "@architecture/*-nodemailer",
   "@architecture/*-postmark",
+  "@architecture/*-webhook",
+  "@architecture/iam-email-verification-sha256",
+  "**/contexts/**/src/**",
 ];
 const restricted = (patterns) => [
   "error",
@@ -40,6 +45,7 @@ export default [
     rules: {
       "no-restricted-imports": restricted([
         ...technical,
+        ...foreignContextImports("iam"),
         "#accounts/**",
         "#authentication/**",
         "#access-administration/**",
@@ -62,6 +68,7 @@ export default [
     rules: {
       "no-restricted-imports": restricted([
         ...technical,
+        ...foreignContextImports("iam", "messaging"),
         "@architecture/*/src/**",
         "**/adapters/**",
         "**/apps/**",
