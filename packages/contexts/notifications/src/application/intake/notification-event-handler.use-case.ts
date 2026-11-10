@@ -1,6 +1,10 @@
 import type { IntegrationEventHandler } from "@architecture/messaging/application";
 import type { IntegrationEvent } from "@architecture/messaging/domain";
 
+import {
+  notificationPolicies,
+  type NotificationPolicy,
+} from "#application/policies/notification.policies";
 import type { NotificationDelivery } from "#application/ports/notification-delivery.port";
 import type { NotificationRecipientDirectory } from "#application/ports/notification-recipient-directory.port";
 import type { NotificationRecipientEntity } from "#domain/entities/notification-recipient.entity";
@@ -11,11 +15,6 @@ import {
 } from "#domain/index";
 import type { NotificationRepository } from "#repositories/notification.repository";
 import type { NotificationPreferenceRepository } from "#repositories/notification-preference.repository";
-
-import {
-  notificationPolicies,
-  type NotificationPolicy,
-} from "./notification.policies.js";
 
 export class NotificationEventHandlerUseCase implements IntegrationEventHandler {
   readonly topics = Object.keys(notificationPolicies);
