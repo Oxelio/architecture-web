@@ -1,24 +1,24 @@
 import type { IntegrationEventHandler } from "@architecture/messaging/application";
 
-import type { DeliverPendingNotifications } from "#application/use-cases/deliver-pending-notifications/deliver-pending-notifications.contracts";
-import { DeliverPendingNotificationsUseCase } from "#application/use-cases/deliver-pending-notifications/deliver-pending-notifications.use-case";
-import type { GetNotificationPreferences } from "#application/use-cases/get-notification-preferences/get-notification-preferences.contracts";
-import { GetNotificationPreferencesUseCase } from "#application/use-cases/get-notification-preferences/get-notification-preferences.use-case";
-import type { GetUnreadNotificationCount } from "#application/use-cases/get-unread-notification-count/get-unread-notification-count.contracts";
-import { GetUnreadNotificationCountUseCase } from "#application/use-cases/get-unread-notification-count/get-unread-notification-count.use-case";
-import type { ListNotifications } from "#application/use-cases/list-notifications/list-notifications.contracts";
-import { ListNotificationsUseCase } from "#application/use-cases/list-notifications/list-notifications.use-case";
-import type { MarkAllNotificationsRead } from "#application/use-cases/mark-all-notifications-read/mark-all-notifications-read.contracts";
-import { MarkAllNotificationsReadUseCase } from "#application/use-cases/mark-all-notifications-read/mark-all-notifications-read.use-case";
-import type { MarkNotificationRead } from "#application/use-cases/mark-notification-read/mark-notification-read.contracts";
-import { MarkNotificationReadUseCase } from "#application/use-cases/mark-notification-read/mark-notification-read.use-case";
-import type { UpdateNotificationPreference } from "#application/use-cases/update-notification-preference/update-notification-preference.contracts";
-import { UpdateNotificationPreferenceUseCase } from "#application/use-cases/update-notification-preference/update-notification-preference.use-case";
+import type { DeliverPendingNotifications } from "#application/delivery/deliver-pending-notifications/deliver-pending-notifications.contracts";
+import { DeliverPendingNotificationsUseCase } from "#application/delivery/deliver-pending-notifications/deliver-pending-notifications.use-case";
+import type { GetUnreadNotificationCount } from "#application/inbox/get-unread-notification-count/get-unread-notification-count.contracts";
+import { GetUnreadNotificationCountUseCase } from "#application/inbox/get-unread-notification-count/get-unread-notification-count.use-case";
+import type { ListNotifications } from "#application/inbox/list-notifications/list-notifications.contracts";
+import { ListNotificationsUseCase } from "#application/inbox/list-notifications/list-notifications.use-case";
+import type { MarkAllNotificationsRead } from "#application/inbox/mark-all-notifications-read/mark-all-notifications-read.contracts";
+import { MarkAllNotificationsReadUseCase } from "#application/inbox/mark-all-notifications-read/mark-all-notifications-read.use-case";
+import type { MarkNotificationRead } from "#application/inbox/mark-notification-read/mark-notification-read.contracts";
+import { MarkNotificationReadUseCase } from "#application/inbox/mark-notification-read/mark-notification-read.use-case";
+import { NotificationEventHandlerUseCase } from "#application/intake/notification-event-handler.use-case";
+import type { NotificationDelivery } from "#application/ports/notification-delivery.port";
+import type { NotificationRecipientDirectory } from "#application/ports/notification-recipient-directory.port";
+import type { GetNotificationPreferences } from "#application/preferences/get-notification-preferences/get-notification-preferences.contracts";
+import { GetNotificationPreferencesUseCase } from "#application/preferences/get-notification-preferences/get-notification-preferences.use-case";
+import type { UpdateNotificationPreference } from "#application/preferences/update-notification-preference/update-notification-preference.contracts";
+import { UpdateNotificationPreferenceUseCase } from "#application/preferences/update-notification-preference/update-notification-preference.use-case";
 import type { NotificationRepository } from "#repositories/notification.repository";
 import type { NotificationPreferenceRepository } from "#repositories/notification-preference.repository";
-import type { NotificationDelivery } from "#services/notification-delivery.service";
-import type { NotificationRecipientDirectory } from "#services/notification-recipient-directory.service";
-import { NotificationEventHandlerUseCase } from "#use-cases/notification-event-handler.use-case";
 
 export interface NotificationsDependencies {
   readonly notificationRepository: NotificationRepository;

@@ -76,6 +76,12 @@ it is a workspace package but not a product/runtime public API.
 
 ## Ports and selected implementations
 
+Notifications groups its application operations under `inbox`, `preferences`,
+`intake` and `delivery`. Its outbound recipient and provider contracts live
+under `ports`, alongside the existing `repositories` persistence contracts.
+External callers use the existing `@architecture/notifications/application`
+and `@architecture/notifications/domain` entry points.
+
 | Application port                 | Composed implementation                               |
 | -------------------------------- | ----------------------------------------------------- |
 | `UserRepository`                 | `KyselyUserAdapter`                                   |
