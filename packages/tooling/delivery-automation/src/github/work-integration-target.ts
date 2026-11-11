@@ -1,5 +1,6 @@
 import { resolveWorkIntegrationPr } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
+import { workReference } from "./work-reference.js";
 
 export interface AuthorizedWorkIntegrationTarget {
   readonly pullRequestNumber: number;
@@ -23,6 +24,7 @@ interface PullRequestDetail {
   readonly number: number;
   readonly state: "open" | "closed";
   readonly merged: boolean;
+  readonly body: string | null;
   readonly base: { readonly ref: string };
   readonly head: {
     readonly ref: string;
@@ -196,6 +198,12 @@ export async function readAuthorizedWorkIntegrationTarget(input: {
     !actual.head.sha
   ) {
     return { status: "unavailable", reason: "WORK_INTEGRATION_PR_CHANGED" };
+  }
+  if (workReference(actual.body) !== input.workNumber) {
+    return {
+      status: "unavailable",
+      reason: "WORK_INTEGRATION_PR_OWNERSHIP_CHANGED",
+    };
   }
 
   return {
