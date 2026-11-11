@@ -25,10 +25,10 @@ function fixture(
   };
   const listForSubject = vi.fn().mockResolvedValue([entry]),
     query = vi.fn().mockResolvedValue([entry]),
-    record = vi.fn();
+    accept = vi.fn();
   const application = createAuditQueries({
     repository: { listForSubject, query } as unknown as AuditRepository,
-    recorder: { record },
+    acceptance: { accept },
     access: {
       resolveActor: async () => ({
         active: true,
@@ -39,7 +39,7 @@ function fixture(
       }),
     },
   });
-  return { application, entry, listForSubject, query, record };
+  return { application, entry, listForSubject, query, accept };
 }
 
 describe("Audit query authorization and disclosure", () => {
@@ -62,7 +62,7 @@ describe("Audit query authorization and disclosure", () => {
     });
     expect(f.listForSubject).toHaveBeenCalledWith("owner", 1, 25);
     expect(JSON.stringify(result)).not.toMatch(/private|internal|canary/);
-    expect(f.record).toHaveBeenCalledWith(
+    expect(f.accept).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "security.audit.consulted",
         context: { actorType: "user", actorId: "owner", subjectId: "owner" },
@@ -101,7 +101,7 @@ describe("Audit query authorization and disclosure", () => {
     });
     expect(result.success).toBe(true);
     expect(JSON.stringify(result)).not.toContain("canary");
-    expect(f.record).toHaveBeenCalledOnce();
+    expect(f.accept).toHaveBeenCalledOnce();
   });
   it.each([
     { page: 0, pageSize: 25 },

@@ -3,14 +3,16 @@ export {
   AuditAcceptanceEventHandler,
 } from "./accept-audit-entry.use-case.js";
 export type {
+  AuditAcceptance,
   AuditEntry,
   AuditEventConsumer,
   AuditQuery,
-  AuditRecorder,
+  AuditRetention,
 } from "./audit.contracts.js";
 export type { AuditPseudonymizer } from "./audit-pseudonymizer.js";
 export type {
   AuditAccess,
+  AuditAccountExporter,
   AuditQueriesApplication,
   AuditQueryError,
   ListAdministrativeAuditEntries,
@@ -29,4 +31,8 @@ export {
   IAM_AUDITED_TOPICS,
 } from "./events/audit-integration-event.handler.js";
 export { AuditRepository } from "./repositories/audit.repository.js";
-export { AuditApplication } from "./services/audit.application.js";
+export {
+  createAuditAccountExporter,
+  createAuditEventConsumer,
+  createAuditRetention,
+} from "./services/audit-capabilities.js";

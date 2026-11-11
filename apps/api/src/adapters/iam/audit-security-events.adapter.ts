@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import type {
-  AuditApplication,
-  AuditRecorder,
+  AuditAcceptance,
+  AuditAccountExporter,
 } from "@architecture/audit/application";
 import type {
   AccountAuditData,
@@ -15,9 +15,9 @@ export class AuditSecurityEventsAdapter
   implements SecurityEventRecorder, RecoveryOriginLimiter, AccountAuditData
 {
   constructor(
-    private readonly audit: AuditApplication,
+    private readonly accountExporter: AuditAccountExporter,
     private readonly policies: PublishedConfigurationReader,
-    private readonly acceptance: AuditRecorder,
+    private readonly acceptance: AuditAcceptance,
     private readonly origins: RecoveryOriginLimiter,
   ) {}
   async record(
@@ -30,7 +30,7 @@ export class AuditSecurityEventsAdapter
     try {
       const policy = await this.policies.readPublished(),
         occurredAt = new Date();
-      await this.acceptance.record({
+      await this.acceptance.accept({
         id,
         type,
         occurredAt,
@@ -47,7 +47,7 @@ export class AuditSecurityEventsAdapter
     return this.origins.countRecent(fingerprint, since);
   }
   async exportFor(userId: string) {
-    return (await this.audit.exportFor(userId)).map((entry) => ({
+    return (await this.accountExporter.exportFor(userId)).map((entry) => ({
       id: entry.id,
       type: entry.type,
       occurred_at: entry.occurredAt,

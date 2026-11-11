@@ -30,7 +30,7 @@ vi.mock("./background-polling.js", () => ({
   startBackgroundPolling: state.poll,
 }));
 
-import { AuditApplication } from "@architecture/audit/application";
+import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 
 import { buildApplicationModule } from "./application.module.js";
 
@@ -62,7 +62,7 @@ describe("application worker lifecycle", () => {
       .mockReturnValueOnce(async () => undefined)
       .mockReturnValueOnce(stopRetention);
     const purge = vi
-      .spyOn(AuditApplication.prototype, "purge")
+      .spyOn(KyselyAuditRepositoryAdapter.prototype, "purgeExpired")
       .mockResolvedValue(0);
     try {
       const app = await buildApplicationModule();

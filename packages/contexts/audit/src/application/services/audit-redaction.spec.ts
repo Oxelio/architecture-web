@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { AuditRepository } from "#repositories/audit.repository";
 
 import { createAuditQueries } from "../create-audit-queries.js";
-import { AuditApplication } from "./audit.application.js";
+import {
+  createAuditAccountExporter,
+  createAuditEventConsumer,
+} from "./audit-capabilities.js";
 describe("Audit disclosure boundaries", () => {
   it("redacts persisted credentials on both recording and disclosure", async () => {
     const entry = {
@@ -28,12 +31,13 @@ describe("Audit disclosure boundaries", () => {
         query: async () => [entry],
         exportForSubject: async () => [entry],
       } as unknown as AuditRepository;
-    const audit = new AuditApplication(repository, {
+    const audit = createAuditEventConsumer(repository, {
       reference: (id) => `pseudonym-${id}`,
     });
+    const accountExporter = createAuditAccountExporter(repository);
     const queries = createAuditQueries({
       repository,
-      recorder: audit,
+      acceptance: { accept: audit.record },
       access: {
         resolveActor: async () => ({
           active: true,
@@ -61,13 +65,13 @@ describe("Audit disclosure boundaries", () => {
         actorUserId: "actor",
         filters: { page: 1, pageSize: 25 },
       }),
-      await audit.exportFor("actor"),
+      await accountExporter.exportFor("actor"),
     ]) {
       expect(JSON.stringify(output)).not.toContain("bearer-canary");
       expect(JSON.stringify(output)).not.toContain("password-canary");
     }
     expect(JSON.stringify(append.mock.calls)).toContain("visible");
-    expect(await audit.exportFor("actor")).toEqual([
+    expect(await accountExporter.exportFor("actor")).toEqual([
       {
         id: entry.id,
         type: entry.type,

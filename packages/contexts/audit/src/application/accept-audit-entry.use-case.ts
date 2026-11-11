@@ -9,13 +9,13 @@ import type { AuditEntryInput } from "#domain/audit-entry";
 import { redactAuditMetadata } from "#domain/audit-redaction.policy";
 import { MAX_AUDIT_RETENTION_DAYS } from "#domain/audit-retention.policy";
 
-import type { AuditRecorder } from "./audit.contracts.js";
+import type { AuditAcceptance, AuditEventConsumer } from "./audit.contracts.js";
 import type { AuditPseudonymizer } from "./audit-pseudonymizer.js";
 
 const TOPIC = "audit.entry-accepted";
 
 /** Explicit loss policy: a failed durable append is reported, never a business rollback. */
-export class AcceptAuditEntryUseCase implements AuditRecorder {
+export class AcceptAuditEntryUseCase implements AuditAcceptance {
   constructor(
     private readonly outbox: OutboxWriter,
     private readonly pseudonymizer: AuditPseudonymizer,
@@ -24,7 +24,7 @@ export class AcceptAuditEntryUseCase implements AuditRecorder {
     } = console,
   ) {}
 
-  async record(input: AuditEntryInput): Promise<void> {
+  async accept(input: AuditEntryInput): Promise<void> {
     const eventId = input.id ?? randomUUID();
     const { ipAddress, ...context } = input.context;
     const event: IntegrationEvent = {
@@ -59,7 +59,7 @@ export class AcceptAuditEntryUseCase implements AuditRecorder {
 
 export class AuditAcceptanceEventHandler implements IntegrationEventHandler {
   readonly topics = [TOPIC];
-  constructor(private readonly audit: AuditRecorder) {}
+  constructor(private readonly audit: Pick<AuditEventConsumer, "record">) {}
   async handle(event: IntegrationEvent): Promise<void> {
     if (event.topic !== TOPIC) {
       return;

@@ -26,7 +26,7 @@ describe("Durable Audit acceptance", () => {
       { append },
       { reference: (value) => `hash-${value}` },
     );
-    await acceptance.record(input);
+    await acceptance.accept(input);
     const event = append.mock.calls[0]?.[0]?.[0];
     expect(event.eventId).toBe("event");
     expect(JSON.stringify(event)).not.toContain("canary");
@@ -52,7 +52,7 @@ describe("Durable Audit acceptance", () => {
         { append },
         { reference: (value) => value },
         { error },
-      ).record(input),
+      ).accept(input),
     ).resolves.toBeUndefined();
     expect(error).toHaveBeenCalledWith(
       { eventId: "event" },
@@ -68,7 +68,7 @@ describe("Durable Audit acceptance", () => {
     await new AcceptAuditEntryUseCase(
       { append },
       { reference: (value) => value },
-    ).record(input);
+    ).accept(input);
     const event = append.mock.calls[0]?.[0]?.[0];
     const handler = new AuditAcceptanceEventHandler({ record });
     await expect(handler.handle({ ...event, version: 999 })).rejects.toThrow(
