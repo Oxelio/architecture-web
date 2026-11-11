@@ -92,6 +92,19 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
     const acceptance = new AcceptAuditEntryUseCase(outbox, pseudonymizer);
     const auditRepository = new KyselyAuditRepositoryAdapter(auditDb);
     const audit = new AuditApplication(auditRepository, pseudonymizer);
+    const iamModule = await buildIamModule(
+      db,
+      redis,
+      email,
+      outbox,
+      audit,
+      acceptance,
+      {
+        encryptionKey: config.security.encryptionKey,
+        recoveryUrl: config.smtp.recoveryUrl,
+        deletionCancellationUrl: config.smtp.deletionCancellationUrl,
+      },
+    );
     const deliveries: NotificationDelivery[] = [
       new NodemailerNotificationDeliveryAdapter(
         config.smtp.host,
@@ -124,22 +137,13 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       ),
       recipientDirectory: new KyselyIamNotificationRecipientDirectoryAdapter(
         iamDb,
+        (userId) =>
+          iamModule.deliveryEligibility.readAffectedUserDeliveryEligibility(
+            userId,
+          ),
       ),
       deliveries,
     });
-    const iamModule = await buildIamModule(
-      db,
-      redis,
-      email,
-      outbox,
-      audit,
-      acceptance,
-      {
-        encryptionKey: config.security.encryptionKey,
-        recoveryUrl: config.smtp.recoveryUrl,
-        deletionCancellationUrl: config.smtp.deletionCancellationUrl,
-      },
-    );
     const router = new IntegrationEventRouter([
       new AuditAcceptanceEventHandler(audit),
       new AuditIntegrationEventHandler(audit, {
@@ -169,8 +173,8 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
     );
     const stopNotifications = startBackgroundPolling(
       () => notifications.deliverPending.execute(),
-      (error) => {
-        console.error("Notification delivery polling failed", error);
+      () => {
+        console.error("Notification delivery polling failed");
       },
     );
     const stopAudit = startBackgroundPolling(
@@ -182,7 +186,9 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
     );
 
     return {
-      ...iamModule,
+      iam: iamModule.iam,
+      configuration: iamModule.configuration,
+      securityEvents: iamModule.securityEvents,
       audit,
       auditQueries,
       notifications,

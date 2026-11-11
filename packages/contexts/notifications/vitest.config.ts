@@ -15,17 +15,8 @@ export default defineConfig({
       "#application": fileURLToPath(
         new URL("./src/application", import.meta.url),
       ),
-      "#policies": fileURLToPath(
-        new URL("./src/application/policies", import.meta.url),
-      ),
       "#repositories": fileURLToPath(
         new URL("./src/application/repositories", import.meta.url),
-      ),
-      "#services": fileURLToPath(
-        new URL("./src/application/services", import.meta.url),
-      ),
-      "#use-cases": fileURLToPath(
-        new URL("./src/application/use-cases", import.meta.url),
       ),
     },
   },

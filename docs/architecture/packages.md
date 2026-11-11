@@ -76,6 +76,12 @@ it is a workspace package but not a product/runtime public API.
 
 ## Ports and selected implementations
 
+Notifications groups its application operations under `inbox`, `preferences`,
+`intake` and `delivery`. Its outbound recipient and provider contracts live
+under `ports`, alongside the existing `repositories` persistence contracts.
+External callers use the existing `@architecture/notifications/application`
+and `@architecture/notifications/domain` entry points.
+
 | Application port                 | Composed implementation                               |
 | -------------------------------- | ----------------------------------------------------- |
 | `UserRepository`                 | `KyselyUserAdapter`                                   |
@@ -156,11 +162,15 @@ false after ownership loss. `recoverStale()` uses PostgreSQL time. Attempts coun
 at claim, including abandoned attempts. The former batch claim and unconditional
 save/release methods are removed.
 
-`NotificationRepository.claimDelivery()` similarly returns one
-`ClaimedNotificationDelivery` or null. `finalizeDelivery(claim)` updates only that
-delivery and returns false after ownership loss. `saveState(notification)` writes
-acknowledgement/archive state only; `recoverStaleDeliveries()` handles abandoned
-attempts. The former combined save and batch claim contracts are removed.
+`NotificationRepository.claimDelivery()` returns an administrator send claim,
+an affected-user eligibility reservation, or null. An eligibility reservation
+exposes claim and recipient identifiers. The worker consults IAM through the
+recipient directory and passes the fresh result to `resolveDeliveryEligibility`.
+Only a current eligible reservation admits an affected-user provider attempt.
+`finalizeDelivery(claim)` settles only that delivery and returns false after
+ownership loss. `saveState(notification)` writes acknowledgement/archive state.
+`recoverStaleDeliveries()` applies the separate budgets to abandoned checks and
+admissions. See the [delivery eligibility design](delivery-eligibility-after-account-erasure.md).
 
 Notification creation uses `hasConsumedEvent(sourceEventId)` and
 `createForEvent(sourceEventId, notifications)` instead of single-notification

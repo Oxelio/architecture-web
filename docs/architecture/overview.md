@@ -63,13 +63,16 @@ Redis session creation enforces the ten-session maximum atomically. Password rep
 
 Outbox and notification delivery workers claim one item immediately before
 processing it. PostgreSQL timestamps and claim tokens fence finalization after
-expiry or reassignment; abandoned attempts count toward the ten-attempt limit.
+expiry or reassignment. Affected-user deliveries reserve a check before a
+separate provider attempt is admitted. Abandoned checks count toward the
+eligibility budget and abandoned admissions count toward the provider budget.
 Delivery persistence cannot rewrite notification acknowledgement state. Process
 polling is non-overlapping and shutdown waits for active runs before closing
 connections. IAM application owns the current integration projections; consumers
 reject unsupported subscribed versions. See the bounded
 [event reliability design](iam-events-reliability.md) for contracts and remaining
-consistency limits.
+consistency limits and the
+[affected-user eligibility design](delivery-eligibility-after-account-erasure.md).
 
 ## Verification limits
 

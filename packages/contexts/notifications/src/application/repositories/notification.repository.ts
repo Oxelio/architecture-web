@@ -1,3 +1,4 @@
+import type { AffectedUserDeliveryEligibility } from "#application/ports/notification-recipient-directory.port";
 import type {
   NotificationDeliveryEntity,
   NotificationEntity,
@@ -6,6 +7,12 @@ import type {
 export interface ClaimedNotificationDelivery {
   readonly notification: NotificationEntity;
   readonly delivery: NotificationDeliveryEntity;
+  readonly claimToken: string;
+}
+
+export interface DeliveryEligibilityClaim {
+  readonly deliveryId: string;
+  readonly recipientId: string;
   readonly claimToken: string;
 }
 
@@ -32,7 +39,20 @@ export abstract class NotificationRepository {
   ): Promise<NotificationEntity[]>;
   abstract unreadCount(recipientId: string): Promise<number>;
   abstract markAllRead(recipientId: string): Promise<void>;
-  abstract claimDelivery(): Promise<ClaimedNotificationDelivery | null>;
+  abstract claimDelivery(): Promise<
+    ClaimedNotificationDelivery | DeliveryEligibilityClaim | null
+  >;
+  abstract resolveDeliveryEligibility(
+    claim: DeliveryEligibilityClaim,
+    eligibility: AffectedUserDeliveryEligibility,
+    dataUseDeadline?: Date,
+  ): Promise<ClaimedNotificationDelivery | null>;
+  abstract ownsAuthorizedDelivery(
+    claim: ClaimedNotificationDelivery,
+  ): Promise<boolean>;
+  abstract expireDeliveryAuthorization(
+    claim: ClaimedNotificationDelivery,
+  ): Promise<void>;
   abstract recoverStaleDeliveries(): Promise<void>;
   abstract finalizeDelivery(
     claim: ClaimedNotificationDelivery,
