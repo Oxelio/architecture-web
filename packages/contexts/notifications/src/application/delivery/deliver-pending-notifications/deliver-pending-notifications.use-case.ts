@@ -1,12 +1,12 @@
 import { Result } from "@architecture/foundation";
 
+import type { NotificationDelivery } from "#application/ports/notification-delivery.port";
+import type { NotificationRecipientDirectory } from "#application/ports/notification-recipient-directory.port";
 import type {
   ClaimedNotificationDelivery,
   DeliveryEligibilityClaim,
   NotificationRepository,
 } from "#repositories/notification.repository";
-import type { NotificationDelivery } from "#services/notification-delivery.service";
-import type { NotificationRecipientDirectory } from "#services/notification-recipient-directory.service";
 
 import type {
   DeliverPendingNotifications,

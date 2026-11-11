@@ -1,8 +1,8 @@
+import type { AffectedUserDeliveryEligibility } from "#application/ports/notification-recipient-directory.port";
 import type {
   NotificationDeliveryEntity,
   NotificationEntity,
 } from "#domain/index";
-import type { AffectedUserDeliveryEligibility } from "#services/notification-recipient-directory.service";
 
 export interface ClaimedNotificationDelivery {
   readonly notification: NotificationEntity;

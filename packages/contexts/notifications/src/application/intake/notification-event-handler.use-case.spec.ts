@@ -6,9 +6,9 @@ import {
   NotificationRecipientIdentifierValueObject,
 } from "#domain/index";
 
+import type { NotificationRecipientDirectory } from "../ports/notification-recipient-directory.port.js";
 import type { NotificationRepository } from "../repositories/notification.repository.js";
 import type { NotificationPreferenceRepository } from "../repositories/notification-preference.repository.js";
-import type { NotificationRecipientDirectory } from "../services/notification-recipient-directory.service.js";
 import { NotificationEventHandlerUseCase } from "./notification-event-handler.use-case.js";
 
 function fixture(topic = "security.suspicious-activity-detected") {
