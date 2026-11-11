@@ -12,6 +12,7 @@ import type {
 } from "../control/eligibility.js";
 import { parseTaskClaim } from "../control/task-claim.js";
 import type { FetchLike } from "./github-project-inventory.js";
+import { workReferences } from "./work-reference.js";
 
 export interface OperationalOwnerActivation {
   readonly workState: boolean;
@@ -105,6 +106,7 @@ interface TimelineEvent {
   readonly event: string;
   readonly source?: {
     readonly issue?: RestIssueSnapshot & {
+      readonly repository_url?: string;
       readonly pull_request?: object;
     };
   };
@@ -113,6 +115,7 @@ interface TimelineEvent {
 interface PullRequestSnapshot {
   readonly number: number;
   readonly state: "open" | "closed";
+  readonly body: string | null;
   readonly base: { readonly ref: string };
   readonly head: {
     readonly ref: string;
@@ -554,6 +557,7 @@ export async function resolveWorkIntegrationPr(input: {
   }
 
   const candidates: WorkIntegrationPrSnapshot[] = [];
+  let hasConflictingReferences = false;
   for (const number of referencedNumbers) {
     const response = await fetchImpl(
       `https://api.github.com/repos/${input.repository}/pulls/${number}`,
@@ -563,6 +567,9 @@ export async function resolveWorkIntegrationPr(input: {
       return { status: "unavailable" };
     }
     const pullRequest = (await response.json()) as PullRequestSnapshot;
+    if (pullRequest.number !== number) {
+      return { status: "unavailable" };
+    }
     if (
       pullRequest.state !== "open" ||
       normalizeRepository(pullRequest.head.repo?.full_name ?? "") !==
@@ -571,6 +578,14 @@ export async function resolveWorkIntegrationPr(input: {
     ) {
       continue;
     }
+    if (pullRequest.body !== null && typeof pullRequest.body !== "string") {
+      return { status: "unavailable" };
+    }
+    const references = workReferences(pullRequest.body);
+    if (!references.includes(input.workNumber)) {
+      continue;
+    }
+    hasConflictingReferences ||= references.length > 1;
     candidates.push({
       number: pullRequest.number,
       headRef: pullRequest.head.ref,
@@ -584,7 +599,7 @@ export async function resolveWorkIntegrationPr(input: {
   if (sorted.length === 0) {
     return { status: "unavailable" };
   }
-  if (sorted.length > 1) {
+  if (hasConflictingReferences || sorted.length > 1) {
     return { status: "ambiguous", candidates: sorted };
   }
 
@@ -753,6 +768,7 @@ async function readReferencedPullRequests(
   fetchImpl: FetchLike,
 ): Promise<Set<number> | null> {
   const referencedNumbers = new Set<number>();
+  const repositoryUrl = `https://api.github.com/repos/${normalizeRepository(repository)}`;
 
   for (let page = 1; page <= 20; page += 1) {
     const response = await fetchImpl(
@@ -768,7 +784,17 @@ async function readReferencedPullRequests(
       const sourceIssue =
         event.event === "cross-referenced" ? event.source?.issue : undefined;
       if (sourceIssue?.pull_request) {
-        referencedNumbers.add(sourceIssue.number);
+        if (typeof sourceIssue.repository_url !== "string") {
+          return null;
+        }
+        if (
+          normalizeRepository(sourceIssue.repository_url).replace(
+            /\/+$/u,
+            "",
+          ) === repositoryUrl
+        ) {
+          referencedNumbers.add(sourceIssue.number);
+        }
       }
     }
     if (events.length < 100) {

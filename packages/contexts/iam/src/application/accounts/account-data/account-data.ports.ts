@@ -29,6 +29,15 @@ export interface AccountArchiveBuilder {
 export interface AccountAuditData {
   exportFor(userId: string): Promise<readonly Record<string, unknown>[]>;
 }
+export type AffectedUserDeliveryEligibility =
+  "eligible" | "erased" | "unresolved";
+
+export interface AffectedUserDeliveryEligibilityReader {
+  readAffectedUserDeliveryEligibility(
+    userId: string,
+  ): Promise<AffectedUserDeliveryEligibility>;
+}
+
 export interface DeletionRequest {
   readonly id: string;
   readonly userId: string;

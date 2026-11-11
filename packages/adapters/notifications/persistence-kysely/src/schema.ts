@@ -6,6 +6,7 @@ import type {
   NotificationSeverity,
   NotificationSuppressionReason,
 } from "@architecture/notifications/domain";
+import type { Generated } from "kysely";
 
 export interface NotificationTable {
   id: string;
@@ -25,7 +26,7 @@ export interface NotificationDeliveryTable {
   id: string;
   notification_id: string;
   channel: NotificationChannelType;
-  destination: string;
+  destination: string | null;
   audience: NotificationDeliveryAudience;
   suppression_reason: NotificationSuppressionReason | null;
   status: NotificationDeliveryStatus;
@@ -35,6 +36,9 @@ export interface NotificationDeliveryTable {
   claim_token: string | null;
   sent_at: Date | null;
   last_error: string | null;
+  unresolved_eligibility_checks: Generated<number>;
+  processing_phase: "checking_eligibility" | "provider_admitted" | null;
+  last_provider_outcome: "sent" | "unknown" | null;
 }
 
 export interface NotificationPreferenceTable {

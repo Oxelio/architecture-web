@@ -55,6 +55,9 @@ adapters, calls `createIam`, and exposes `dispose`. This keeps the startup
 graph explicit and framework-free. Replacing a technology changes the
 composition point, which is the intended extension seam.
 
+[ADR-0010](0010-iam-erasure-evidence.md) records the accepted target for
+IAM-owned erasure evidence for delivery eligibility.
+
 ## Open decisions
 
 The following topics are not established decisions merely because they are

@@ -26,7 +26,7 @@ const checks = [
   { name: gate, id: 7 },
 ];
 
-const evaluationCandidate = { ...candidate, workNumber: 101, pullNumber: 102 };
+const evaluationCandidate = { ...candidate, workNumber: 120, pullNumber: 125 };
 
 function fixture(scoped = false) {
   const target = scoped ? evaluationCandidate : candidate;
@@ -60,6 +60,8 @@ function fixture(scoped = false) {
     title: "feat: integrate ordinary Work",
     evidenceEdited: false,
     tasks: [] as unknown[],
+    owningPullBody: `Refs #${target.workNumber}`,
+    additionalPullBody: null as string | null,
   };
   const grant: WorkMergeGrant = {
     actorId: 12,
@@ -191,6 +193,7 @@ function fixture(scoped = false) {
           number: target.pullNumber,
           node_id: "pr-node",
           title: state.title,
+          body: state.owningPullBody,
           draft: false,
           state: state.merged ? "closed" : "open",
           mergeable: true,
@@ -210,19 +213,32 @@ function fixture(scoped = false) {
           },
         });
       }
+      if (url.endsWith("/pulls/131") && state.additionalPullBody !== null) {
+        return Response.json({
+          number: 131,
+          body: state.additionalPullBody,
+          state: "open",
+          base: { ref: "main" },
+          head: { ref: "codex/111", repo: { full_name: repository } },
+        });
+      }
       if (url.includes(`/issues/${target.workNumber}/timeline`)) {
-        return Response.json([
-          {
+        const numbers =
+          state.additionalPullBody === null
+            ? [target.pullNumber]
+            : [target.pullNumber, 131];
+        return Response.json(
+          numbers.map((number) => ({
             event: "cross-referenced",
             source: {
               issue: {
-                number: target.pullNumber,
+                number,
                 repository_url: repoUrl,
                 pull_request: {},
               },
             },
-          },
-        ]);
+          })),
+        );
       }
       if (url.includes("/dependencies/blocked_by")) {
         return Response.json(state.dependencyOpen ? [{ state: "open" }] : []);
@@ -380,6 +396,33 @@ function fixture(scoped = false) {
 }
 
 describe("evaluated Work Merge Gate", () => {
+  it("ignores incidental references by a PR that declares a different owning Work", async () => {
+    const f = fixture(true);
+    f.state.additionalPullBody = `Refs #111\n\nReconcile with #${evaluationCandidate.workNumber} before merging.`;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).resolves.toMatchObject({ pass: true });
+    expect(f.writes).toEqual([]);
+  });
+
+  it("reports competing ownership before any mutation", async () => {
+    const f = fixture(true);
+    f.state.additionalPullBody = `Refs #${evaluationCandidate.workNumber}`;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).rejects.toThrow("WORK_INTEGRATION_PR_AMBIGUOUS");
+    expect(f.writes).toEqual([]);
+  });
+
+  it("reports unavailable ownership when the candidate has only an incidental reference", async () => {
+    const f = fixture(true);
+    f.state.owningPullBody = `Related to #${evaluationCandidate.workNumber}`;
+    await expect(
+      evaluateScopedWorkGate(f.evaluator(), evaluationCandidate),
+    ).rejects.toThrow("WORK_INTEGRATION_PR_UNAVAILABLE");
+    expect(f.writes).toEqual([]);
+  });
+
   it("uses the newest same-issuer CI attempt, without accepting ambiguous ordering", async () => {
     const f = fixture(true);
     f.state.supersededQualityCheck = {

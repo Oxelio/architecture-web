@@ -262,6 +262,8 @@ describe("resolveWorkIntegrationPr", () => {
             source: {
               issue: {
                 number: 13,
+                repository_url:
+                  "https://api.github.com/repos/Oxelio/Architecture-Web",
                 state: "open",
                 labels: [],
                 pull_request: {},
@@ -273,6 +275,8 @@ describe("resolveWorkIntegrationPr", () => {
             source: {
               issue: {
                 number: 8,
+                repository_url:
+                  "https://api.github.com/repos/Oxelio/Architecture-Web",
                 state: "closed",
                 labels: [],
                 pull_request: {},
@@ -284,6 +288,7 @@ describe("resolveWorkIntegrationPr", () => {
       if (url.endsWith("/pulls/13")) {
         return jsonResponse({
           number: 13,
+          body: "Refs #9",
           state: "open",
           base: { ref: "main" },
           head: {
@@ -321,7 +326,7 @@ describe("resolveWorkIntegrationPr", () => {
     });
   });
 
-  it("fails closed when more than one open integration PR is referenced", async () => {
+  it("fails closed when more than one open integration PR declares the same Work", async () => {
     const fetchImpl: FetchLike = async (input) => {
       const url = String(input);
       if (url.includes("/timeline")) {
@@ -331,6 +336,8 @@ describe("resolveWorkIntegrationPr", () => {
             source: {
               issue: {
                 number: 13,
+                repository_url:
+                  "https://api.github.com/repos/Oxelio/Architecture-Web",
                 state: "open",
                 labels: [],
                 pull_request: {},
@@ -342,6 +349,8 @@ describe("resolveWorkIntegrationPr", () => {
             source: {
               issue: {
                 number: 14,
+                repository_url:
+                  "https://api.github.com/repos/Oxelio/Architecture-Web",
                 state: "open",
                 labels: [],
                 pull_request: {},
@@ -353,6 +362,7 @@ describe("resolveWorkIntegrationPr", () => {
       const number = url.endsWith("/14") ? 14 : 13;
       return jsonResponse({
         number,
+        body: "Refs #9",
         state: "open",
         base: { ref: "main" },
         head: {
@@ -371,6 +381,54 @@ describe("resolveWorkIntegrationPr", () => {
     });
 
     expect(resolution.status).toBe("ambiguous");
+  });
+
+  it.each([
+    {
+      body: "Refs #111\n\nCoordinates with Work #120.",
+      expected: "unavailable",
+    },
+    { body: "References #120", expected: "unavailable" },
+    { body: null, expected: "unavailable" },
+    { body: undefined, expected: "unavailable" },
+    { body: "Refs #120\nRefs #111", expected: "ambiguous" },
+    { body: "Refs #120\nRefs #120", expected: "ambiguous" },
+  ])("refuses ownership for PR body $body", async ({ body, expected }) => {
+    const repository = "Oxelio/Architecture-Web";
+    const result = await resolveWorkIntegrationPr({
+      repository,
+      workNumber: 120,
+      repositoryToken: "repo-token",
+      active: true,
+      fetchImpl: async (input) => {
+        const url = String(input);
+        if (url.includes("/issues/120/timeline")) {
+          return jsonResponse([
+            {
+              event: "cross-referenced",
+              source: {
+                issue: {
+                  number: 131,
+                  repository_url: `https://api.github.com/repos/${repository}`,
+                  pull_request: {},
+                },
+              },
+            },
+          ]);
+        }
+        if (url.endsWith("/pulls/131")) {
+          return jsonResponse({
+            number: 131,
+            state: "open",
+            body,
+            base: { ref: "main" },
+            head: { ref: "codex/work-111", repo: { full_name: repository } },
+          });
+        }
+        throw new Error(`Unexpected URL ${url}`);
+      },
+    });
+    expect(result.status).toBe(expected);
   });
 });
 
@@ -416,6 +474,8 @@ describe("readTaskDispatchCandidate", () => {
             source: {
               issue: {
                 number: 13,
+                repository_url:
+                  "https://api.github.com/repos/Oxelio/Architecture-Web",
                 state: "open",
                 labels: [],
                 pull_request: {},
@@ -427,6 +487,7 @@ describe("readTaskDispatchCandidate", () => {
       if (url.endsWith("/pulls/13")) {
         return jsonResponse({
           number: 13,
+          body: "Refs #9",
           state: "open",
           base: { ref: "main" },
           head: {
