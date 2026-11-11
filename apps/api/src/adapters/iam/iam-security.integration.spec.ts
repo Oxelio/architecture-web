@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   AcceptAuditEntryUseCase,
@@ -759,6 +759,16 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       store = new KyselyAccountDeletionAdapter(iamDb, outbox),
       now = new Date(),
       id = randomUUID();
+    const userId = f.user.identifier.value;
+    expect(await store.readAffectedUserDeliveryEligibility(userId)).toBe(
+      "eligible",
+    );
+    expect(await store.readAffectedUserDeliveryEligibility(randomUUID())).toBe(
+      "unresolved",
+    );
+    expect(await store.readAffectedUserDeliveryEligibility("invalid-id")).toBe(
+      "unresolved",
+    );
     f.user.requestDeletion();
     await store.request({
       user: f.user,
@@ -775,6 +785,9 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       .where("id", "=", id)
       .execute();
     expect(await store.eraseIfDue(id, new Date())).toBeNull();
+    expect(await store.readAffectedUserDeliveryEligibility(userId)).toBe(
+      "eligible",
+    );
     await db
       .updateTable("iam_account_deletions")
       .set({ legal_hold_reason: null })
@@ -789,12 +802,52 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       "outbox unavailable",
     );
     expect(await f.users.findById(f.user.identifier)).not.toBeNull();
-    const outcomes = await Promise.all([
-      store.eraseIfDue(id, new Date()),
-      store.eraseIfDue(id, new Date()),
+    expect(await store.readAffectedUserDeliveryEligibility(userId)).toBe(
+      "eligible",
+    );
+
+    const entered = barrier(),
+      proceed = barrier();
+    const paused = new KyselyAccountDeletionAdapter(iamDb, (transaction) => ({
+      append: async (events) => {
+        await outbox(transaction).append(events);
+        entered.release();
+        await proceed.wait;
+      },
+    }));
+    const erasure = paused.eraseIfDue(id, new Date());
+    await Promise.race([
+      entered.wait,
+      erasure.then(() => {
+        throw new Error("Erasure finished before the commit barrier");
+      }),
     ]);
+    const competingErasure = store.eraseIfDue(id, new Date());
+    const pending = Promise.all([erasure, competingErasure]);
+    try {
+      expect(await store.readAffectedUserDeliveryEligibility(userId)).toBe(
+        "eligible",
+      );
+    } finally {
+      proceed.release();
+      await pending;
+    }
+    const outcomes = await pending;
     expect(outcomes.filter(Boolean)).toHaveLength(1);
     expect(await f.users.findById(f.user.identifier)).toBeNull();
+    expect(
+      await store.readAffectedUserDeliveryEligibility(userId.toUpperCase()),
+    ).toBe("erased");
+    const witnessKey = createHash("sha256")
+      .update(`iam-account-erasure:v1:${userId}`)
+      .digest();
+    expect(
+      await db
+        .selectFrom("iam_account_erasure_evidence")
+        .select("subject_key")
+        .where("subject_key", "=", witnessKey)
+        .executeTakeFirst(),
+    ).toEqual({ subject_key: witnessKey });
     const events = await db
       .selectFrom("messaging_outbox")
       .selectAll()
@@ -802,6 +855,22 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       .execute();
     expect(events).toHaveLength(1);
     expect(JSON.stringify(events)).not.toContain(f.user.identifier.value);
+  });
+
+  it("fails closed when a live account and its erasure evidence coexist", async () => {
+    const f = await account();
+    const userId = f.user.identifier.value;
+    const witnessKey = createHash("sha256")
+      .update(`iam-account-erasure:v1:${userId}`)
+      .digest();
+    await db
+      .insertInto("iam_account_erasure_evidence")
+      .values({ subject_key: witnessKey })
+      .execute();
+    const store = new KyselyAccountDeletionAdapter(iamDb, outbox);
+    expect(await store.readAffectedUserDeliveryEligibility(userId)).toBe(
+      "unresolved",
+    );
   });
   function requiredFixture<T>(value: T | null | undefined): T {
     if (value === null || value === undefined) {

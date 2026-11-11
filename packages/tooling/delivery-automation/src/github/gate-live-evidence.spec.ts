@@ -83,6 +83,7 @@ describe("readWorkMergeGateLiveEvidence", () => {
           pullRequestReads += 1;
           return json({
             number: 13,
+            body: "Refs #9",
             state: "open",
             draft,
             merged: false,

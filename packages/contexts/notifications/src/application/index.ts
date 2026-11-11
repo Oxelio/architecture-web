@@ -39,7 +39,10 @@ export type {
 export { MarkNotificationReadUseCase } from "./inbox/mark-notification-read/mark-notification-read.use-case.js";
 export { NotificationEventHandlerUseCase } from "./intake/notification-event-handler.use-case.js";
 export { NotificationDelivery } from "./ports/notification-delivery.port.js";
-export { NotificationRecipientDirectory } from "./ports/notification-recipient-directory.port.js";
+export {
+  type AffectedUserDeliveryEligibility,
+  NotificationRecipientDirectory,
+} from "./ports/notification-recipient-directory.port.js";
 export type {
   GetNotificationPreferences,
   GetNotificationPreferencesInput,
@@ -55,6 +58,7 @@ export type {
 export { UpdateNotificationPreferenceUseCase } from "./preferences/update-notification-preference/update-notification-preference.use-case.js";
 export {
   type ClaimedNotificationDelivery,
+  type DeliveryEligibilityClaim,
   NotificationRepository,
 } from "./repositories/notification.repository.js";
 export { NotificationPreferenceRepository } from "./repositories/notification-preference.repository.js";

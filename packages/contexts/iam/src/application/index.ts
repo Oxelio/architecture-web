@@ -290,6 +290,8 @@ export type {
   AccountDeletionStore,
   AccountExportStore,
   AccountExportView,
+  AffectedUserDeliveryEligibility,
+  AffectedUserDeliveryEligibilityReader,
   DeletionRequest,
 } from "./accounts/account-data/account-data.ports.js";
 export type {

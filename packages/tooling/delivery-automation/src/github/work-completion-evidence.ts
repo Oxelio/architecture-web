@@ -1,4 +1,7 @@
 import type { WorkCompletionSnapshot } from "../control/work-completion.js";
+import { workReference } from "./work-reference.js";
+
+export { workReference } from "./work-reference.js";
 
 export interface CompletionRecord {
   readonly kind: "work-completion";
@@ -29,15 +32,6 @@ interface MergedPullRequest {
     readonly ref: string;
     readonly repo: { readonly id: number };
   };
-}
-
-export function workReference(body: string | null): number | null {
-  const references = body?.match(/^Refs #[1-9]\d*\r?$/gmu);
-  if (references?.length !== 1) {
-    return null;
-  }
-  const number = Number(references[0]?.trim().slice("Refs #".length));
-  return Number.isSafeInteger(number) ? number : null;
 }
 
 export function isCompletionRecord(

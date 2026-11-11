@@ -35,7 +35,7 @@ export interface ClaimableNotificationRow {
   readonly archived_at: Date | null;
   readonly delivery_id: string;
   readonly channel: NotificationPreferenceTable["channel"];
-  readonly destination: string;
+  readonly destination: string | null;
   readonly audience: NotificationDeliveryAudience;
   readonly suppression_reason: NotificationSuppressionReason | null;
   readonly status: NotificationDeliveryStatus;
@@ -100,7 +100,8 @@ export function claimableNotificationRowToEntity(
     !notificationIdentifier.success ||
     !deliveryIdentifier.success ||
     !channel.success ||
-    !severity.success
+    !severity.success ||
+    row.destination === null
   ) {
     throw new Error("Invalid persisted claimable notification");
   }

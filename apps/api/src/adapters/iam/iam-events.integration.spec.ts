@@ -8,7 +8,11 @@ import {
 } from "@architecture/audit/application";
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import { UserEntity } from "@architecture/iam/domain";
-import { KyselyIamUnitOfWorkAdapter } from "@architecture/iam-persistence-kysely";
+import {
+  KyselyAccountDeletionAdapter,
+  KyselyIamUnitOfWorkAdapter,
+  KyselyUserAdapter,
+} from "@architecture/iam-persistence-kysely";
 import {
   IntegrationEventRouter,
   OutboxWorker,
@@ -25,6 +29,7 @@ import {
 } from "@architecture/notifications/application";
 import {
   type NotificationChannelType,
+  type NotificationDeliveryAudience,
   NotificationEntity,
   NotificationRecipientEntity,
   NotificationRecipientIdentifierValueObject,
@@ -114,6 +119,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       await db.deleteFrom("messaging_outbox").execute();
       await db.deleteFrom("audit_events").execute();
       await db.deleteFrom("audit_deleted_subjects").execute();
+      await db.deleteFrom("iam_account_erasure_evidence").execute();
       await db.deleteFrom("iam_users").execute();
     });
 
@@ -351,13 +357,43 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         } as never)
         .execute();
     }
+    function accountDeletionStore() {
+      return new KyselyAccountDeletionAdapter(
+        db as never,
+        (transaction) => new KyselyOutboxWriterAdapter(transaction as never),
+      );
+    }
+
+    function recipientDirectory() {
+      const eligibility = accountDeletionStore();
+      return new KyselyIamNotificationRecipientDirectoryAdapter(
+        db as never,
+        (userId) => eligibility.readAffectedUserDeliveryEligibility(userId),
+      );
+    }
+
+    async function claimDeliveryForEligibility() {
+      const claim = await notifications.claimDelivery();
+      if (!claim || !("recipientId" in claim)) {
+        throw new Error("Expected an affected-user eligibility reservation");
+      }
+      return claim;
+    }
+
+    async function claimDeliveryWithEligibleRecipient() {
+      const claim = await notifications.claimDelivery();
+      return claim && "recipientId" in claim
+        ? notifications.resolveDeliveryEligibility(claim, "eligible")
+        : claim;
+    }
+
     function recipientHandler(
       channels: readonly NotificationChannelType[] = ["email", "slack"],
     ) {
       return new NotificationEventHandlerUseCase(
         notifications,
         new KyselyNotificationPreferenceRepositoryAdapter(db as never),
-        new KyselyIamNotificationRecipientDirectoryAdapter(db as never),
+        recipientDirectory(),
         channels.map((channel) => ({ channel, send: vi.fn() })),
       );
     }
@@ -366,7 +402,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       deliveries: readonly {
         channel: NotificationChannelType;
         destination: string;
-        audience?: "affected_user";
+        audience?: NotificationDeliveryAudience;
       }[],
       recipientId = fact.aggregateId,
     ) {
@@ -383,7 +419,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         message: "Test",
         deliveries: deliveries.map((delivery) => ({
           ...delivery,
-          audience: "affected_user" as const,
+          audience: delivery.audience ?? "affected_user",
         })),
       });
     }
@@ -416,7 +452,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
             { channel: "email", send: email },
             { channel: "slack", send: slack },
           ],
-          new KyselyIamNotificationRecipientDirectoryAdapter(db as never),
+          recipientDirectory(),
         ).execute();
         expect(email).toHaveBeenCalledOnce();
         expect(slack).not.toHaveBeenCalled();
@@ -434,7 +470,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           await db.selectFrom("notifications").selectAll().execute(),
         ).toEqual(before);
         await handler.handle(fact);
-        expect(await notifications.claimDelivery()).toBeNull();
+        expect(await claimDeliveryWithEligibleRecipient()).toBeNull();
         expect(
           await db.selectFrom("notification_deliveries").selectAll().execute(),
         ).toEqual(rows);
@@ -448,7 +484,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           { channel: "email", destination: "user@example.test" },
         ]),
       ]);
-      const claim = await notifications.claimDelivery();
+      const claim = await claimDeliveryWithEligibleRecipient();
       if (!claim) {
         throw new Error("Missing claim");
       }
@@ -478,11 +514,11 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           save: async () => undefined,
           listForRecipient: async () => [],
         },
-        new KyselyIamNotificationRecipientDirectoryAdapter(db as never),
+        recipientDirectory(),
         [{ channel: "email", send: vi.fn() }],
       );
       await handler.handle(fact);
-      const claim = await notifications.claimDelivery();
+      const claim = await claimDeliveryWithEligibleRecipient();
       if (!claim) {
         throw new Error("Missing email delivery");
       }
@@ -761,7 +797,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
               .executeTakeFirstOrThrow()
           ).status,
         ).toBe(failure === "downstream failure" ? "failed" : "processing");
-        const email = await notifications.claimDelivery();
+        const email = await claimDeliveryWithEligibleRecipient();
         if (!email) {
           throw new Error("Missing email");
         }
@@ -814,8 +850,8 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       await createIamRecipient(fact.aggregateId, "admin");
       await recipientHandler().handle(fact);
       const claims = await Promise.all([
-        notifications.claimDelivery(),
-        notifications.claimDelivery(),
+        claimDeliveryWithEligibleRecipient(),
+        claimDeliveryWithEligibleRecipient(),
       ]);
       const email = claims.find(
         (claim) => claim?.delivery.channel.value === "email",
@@ -862,7 +898,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         .set({ available_at: new Date(0) })
         .where("id", "=", slack.delivery.identifier.value)
         .execute();
-      const retry = await notifications.claimDelivery();
+      const retry = await claimDeliveryWithEligibleRecipient();
       if (!retry) {
         throw new Error("Missing retry");
       }
@@ -873,7 +909,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       expect(retry.delivery.attempts).toBe(2);
       retry.delivery.markSent();
       expect(await notifications.finalizeDelivery(retry)).toBe(true);
-      expect(await notifications.claimDelivery()).toBeNull();
+      expect(await claimDeliveryWithEligibleRecipient()).toBeNull();
       expect(
         await db.selectFrom("notifications").selectAll().execute(),
       ).toEqual(notificationRows);
@@ -892,7 +928,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
 
     it("does not replace an active delivery claim when a different snapshot is replayed", async () => {
       const { fact, make } = await notification();
-      const claim = await notifications.claimDelivery();
+      const claim = await claimDeliveryWithEligibleRecipient();
       if (!claim) {
         throw new Error("Missing active delivery");
       }
@@ -1139,8 +1175,8 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       async (acknowledgement) => {
         const { fact, make } = await notification();
         const claims = await Promise.all([
-          notifications.claimDelivery(),
-          notifications.claimDelivery(),
+          claimDeliveryWithEligibleRecipient(),
+          claimDeliveryWithEligibleRecipient(),
         ]);
         const [first, second] = claims;
         if (!first || !second) {
@@ -1190,7 +1226,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       "fences stale delivery finalization (new success=%s)",
       async (success) => {
         await notification();
-        const old = await notifications.claimDelivery();
+        const old = await claimDeliveryWithEligibleRecipient();
         if (!old) {
           throw new Error("Missing delivery");
         }
@@ -1211,7 +1247,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           .deleteFrom("notification_deliveries")
           .where("id", "!=", old.delivery.identifier.value)
           .execute();
-        const current = await notifications.claimDelivery();
+        const current = await claimDeliveryWithEligibleRecipient();
         if (!current) {
           throw new Error("Missing replacement");
         }
@@ -1263,7 +1299,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
 
         const limit = success ? 1 : 10;
         for (let attempt = 1; attempt <= limit; attempt++) {
-          const claim = await notifications.claimDelivery();
+          const claim = await claimDeliveryWithEligibleRecipient();
           if (!claim) {
             throw new Error("Missing delivery");
           }
@@ -1294,13 +1330,336 @@ describe.skipIf(!databaseUrl || !redisUrl)(
             .set({ available_at: new Date(0) })
             .execute();
         }
-        expect(await notifications.claimDelivery()).toBeNull();
+        expect(await claimDeliveryWithEligibleRecipient()).toBeNull();
       },
     );
 
+    it.each(["unresolved", "eligible", "erased"] as const)(
+      "settles the tenth eligibility reservation as %s independently of provider attempts",
+      async (decision) => {
+        const fact = event();
+        await notifications.createForEvent(fact.eventId, [
+          snapshot(fact, [
+            { channel: "email", destination: "user@example.test" },
+          ]),
+        ]);
+        for (let checks = 1; checks <= 9; checks++) {
+          const claim = await claimDeliveryForEligibility();
+          expect(claim).not.toHaveProperty("notification");
+          expect(
+            await notifications.resolveDeliveryEligibility(claim, "unresolved"),
+          ).toBeNull();
+          expect(
+            await db
+              .selectFrom("notification_deliveries")
+              .selectAll()
+              .executeTakeFirstOrThrow(),
+          ).toMatchObject({
+            attempts: 0,
+            unresolved_eligibility_checks: checks,
+            status: "failed",
+            destination: "user@example.test",
+          });
+          await db
+            .updateTable("notification_deliveries")
+            .set({ available_at: new Date(0) })
+            .execute();
+        }
+        const tenth = await claimDeliveryForEligibility();
+        const admitted = await notifications.resolveDeliveryEligibility(
+          tenth,
+          decision,
+        );
+        expect(
+          await notifications.resolveDeliveryEligibility(tenth, "eligible"),
+        ).toBeNull();
+        const row = await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .executeTakeFirstOrThrow();
+        if (decision === "eligible") {
+          expect(admitted?.delivery.attempts).toBe(1);
+          expect(row).toMatchObject({
+            unresolved_eligibility_checks: 9,
+            attempts: 1,
+            processing_phase: "provider_admitted",
+          });
+        } else {
+          expect(admitted).toBeNull();
+          expect(row).toMatchObject({
+            unresolved_eligibility_checks: decision === "erased" ? 9 : 10,
+            attempts: 0,
+            status: "suppressed",
+            suppression_reason:
+              decision === "erased"
+                ? "account_erased"
+                : "eligibility_unverified",
+            destination: null,
+          });
+        }
+      },
+    );
+
+    it("fences eligibility results after lease expiry and counts abandoned checks once", async () => {
+      const fact = event();
+      await notifications.createForEvent(fact.eventId, [
+        snapshot(fact, [
+          { channel: "email", destination: "user@example.test" },
+        ]),
+      ]);
+      const old = await claimDeliveryForEligibility();
+      await expireDeliveries();
+      expect(
+        await notifications.resolveDeliveryEligibility(old, "eligible"),
+      ).toBeNull();
+      await Promise.all([
+        notifications.recoverStaleDeliveries(),
+        notifications.recoverStaleDeliveries(),
+      ]);
+      await db
+        .updateTable("notification_deliveries")
+        .set({ available_at: new Date(0) })
+        .execute();
+      const replacement = await claimDeliveryForEligibility();
+      expect(replacement.claimToken).not.toBe(old.claimToken);
+      expect(
+        await notifications.resolveDeliveryEligibility(old, "eligible"),
+      ).toBeNull();
+      expect(
+        await notifications.resolveDeliveryEligibility(replacement, "eligible"),
+      ).not.toBeNull();
+      expect(
+        await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .executeTakeFirstOrThrow(),
+      ).toMatchObject({
+        attempts: 1,
+        unresolved_eligibility_checks: 1,
+        claim_token: replacement.claimToken,
+      });
+    });
+
+    it.each([true, false])(
+      "withholds a new attempt after erasure while allowing an already-authorized invocation (%s)",
+      async (preauthorized) => {
+        const identifier = UserEntity.create().identifier;
+        const fact = { ...event(), aggregateId: identifier.value };
+        await createIamRecipient(fact.aggregateId, "admin");
+        const make = () =>
+          snapshot(fact, [
+            {
+              channel: "email",
+              destination: "user@example.test",
+              audience: "affected_user_and_administrator",
+            },
+          ]);
+        await notifications.createForEvent(fact.eventId, [make()]);
+        await notifications.markAllRead(fact.aggregateId);
+        const user = await new KyselyUserAdapter(db as never, writer).findById(
+          identifier,
+        );
+        if (!user) {
+          throw new Error("Missing fixture user");
+        }
+        const store = accountDeletionStore();
+        const requestId = randomUUID(),
+          now = new Date();
+        user.requestDeletion();
+        await store.request({
+          user,
+          previousStatus: "active",
+          requireAnotherAdministrator: false,
+          id: requestId,
+          tokenHash: randomUUID(),
+          now,
+          scheduledFor: new Date(now.getTime() - 1000),
+        });
+        const erase = async () => {
+          expect(await store.eraseIfDue(requestId, new Date())).not.toBeNull();
+        };
+        if (preauthorized) {
+          const owns = notifications.ownsAuthorizedDelivery.bind(notifications);
+          vi.spyOn(
+            notifications,
+            "ownsAuthorizedDelivery",
+          ).mockImplementationOnce(async (claim) => {
+            await erase();
+            return owns(claim);
+          });
+        } else {
+          await erase();
+        }
+        const send = vi
+          .fn()
+          .mockRejectedValue(
+            new Error("sensitive detail: test-secret@example.test"),
+          );
+        const useCase = new DeliverPendingNotificationsUseCase(
+          notifications,
+          [{ channel: "email", send }],
+          recipientDirectory(),
+        );
+        await useCase.execute();
+        if (preauthorized) {
+          expect(send).toHaveBeenCalledOnce();
+          await db
+            .updateTable("notification_deliveries")
+            .set({ available_at: new Date(0) })
+            .execute();
+          await useCase.execute();
+        } else {
+          expect(send).not.toHaveBeenCalled();
+        }
+        const terminal = await db
+          .selectFrom("notification_deliveries")
+          .selectAll()
+          .executeTakeFirstOrThrow();
+        expect(terminal).toMatchObject({
+          status: "suppressed",
+          suppression_reason: "account_erased",
+          last_provider_outcome: preauthorized ? "unknown" : null,
+          attempts: preauthorized ? 1 : 0,
+          unresolved_eligibility_checks: 0,
+          destination: null,
+        });
+        expect(JSON.stringify(terminal)).not.toContain(
+          "test-secret@example.test",
+        );
+        await notifications.createForEvent(fact.eventId, [make()]);
+        expect(
+          await db.selectFrom("notification_deliveries").selectAll().execute(),
+        ).toEqual([terminal]);
+        expect(
+          (
+            await db
+              .selectFrom("notifications")
+              .select("read_at")
+              .executeTakeFirstOrThrow()
+          ).read_at,
+        ).not.toBeNull();
+      },
+    );
+
+    it.each([true, false])(
+      "closes an unused authorization that expires before admission (%s) or handoff",
+      async (beforeAdmission) => {
+        const fact = event();
+        await notifications.createForEvent(fact.eventId, [
+          snapshot(fact, [
+            { channel: "email", destination: "user@example.test" },
+          ]),
+        ]);
+        const pending = await claimDeliveryForEligibility();
+        const admission = await notifications.resolveDeliveryEligibility(
+          pending,
+          "eligible",
+          beforeAdmission ? new Date(0) : undefined,
+        );
+        if (!beforeAdmission) {
+          if (!admission) {
+            throw new Error("Expected admission");
+          }
+          await notifications.expireDeliveryAuthorization(admission);
+          expect(await notifications.ownsAuthorizedDelivery(admission)).toBe(
+            false,
+          );
+          admission.delivery.markSent();
+          expect(await notifications.finalizeDelivery(admission)).toBe(false);
+        } else {
+          expect(admission).toBeNull();
+        }
+        expect(
+          await db
+            .selectFrom("notification_deliveries")
+            .selectAll()
+            .executeTakeFirstOrThrow(),
+        ).toMatchObject({
+          status: "suppressed",
+          suppression_reason: "authorization_expired",
+          destination: null,
+          attempts: 0,
+          unresolved_eligibility_checks: 0,
+        });
+      },
+    );
+
+    it("preserves legacy attempt counts and leaves historical terminal rows alone during upgrade", async () => {
+      const legacySchema = `${schema}_legacy`;
+      await admin.query(`create schema "${legacySchema}"`);
+      const legacyDb = new Kysely<AppDatabase>({
+        dialect: new PostgresDialect({
+          pool: new Pool({
+            connectionString: databaseUrl,
+            options: `-c search_path=${legacySchema}`,
+          }),
+        }),
+      });
+      try {
+        const migrator = new Migrator({
+          db: legacyDb,
+          migrationTableSchema: legacySchema,
+          provider: { getMigrations: async () => getAllMigrations() },
+        });
+        const baseline = await migrator.migrateTo(
+          "009_add_iam_erasure_evidence",
+        );
+        if (baseline.error) {
+          throw baseline.error;
+        }
+        const notificationId = randomUUID(),
+          processingId = randomUUID(),
+          sentId = randomUUID();
+        await sql`insert into notifications
+          (id, recipient_id, source_event_id, type, severity, title, message)
+          values (${notificationId}, ${randomUUID()}, ${randomUUID()}, 'test', 'warning', 'Test', 'Test')`.execute(
+          legacyDb,
+        );
+        await sql`insert into notification_deliveries
+          (id, notification_id, channel, destination, audience, status, attempts, available_at, claimed_at, claim_token)
+          values (${processingId}, ${notificationId}, 'email', 'stranded@example.test', 'affected_user', 'processing', 10,
+                    now(), now() - interval '6 minutes', ${randomUUID()}),
+                 (${sentId}, ${notificationId}, 'email', 'historical@example.test', 'affected_user', 'sent', 1,
+                    now(), null, null)`.execute(legacyDb);
+        const upgrade = await migrator.migrateToLatest();
+        if (upgrade.error) {
+          throw upgrade.error;
+        }
+        const delivery = (id: string) =>
+          legacyDb
+            .selectFrom("notification_deliveries")
+            .selectAll()
+            .where("id", "=", id)
+            .executeTakeFirstOrThrow();
+        expect(await delivery(processingId)).toMatchObject({
+          status: "processing",
+          attempts: 10,
+          unresolved_eligibility_checks: 0,
+          processing_phase: "provider_admitted",
+        });
+        await new KyselyNotificationRepositoryAdapter(
+          legacyDb as never,
+        ).recoverStaleDeliveries();
+        expect(await delivery(processingId)).toMatchObject({
+          status: "dead_letter",
+          attempts: 10,
+          last_provider_outcome: "unknown",
+          destination: null,
+        });
+        expect(await delivery(sentId)).toMatchObject({
+          status: "sent",
+          attempts: 1,
+          destination: "historical@example.test",
+        });
+      } finally {
+        await legacyDb.destroy();
+        await admin.query(`drop schema "${legacySchema}" cascade`);
+      }
+    });
+
     it("dead-letters ten abandoned deliveries", async () => {
       const { fact, make } = await notification();
-      const initial = await notifications.claimDelivery();
+      const initial = await claimDeliveryWithEligibleRecipient();
       if (!initial) {
         throw new Error("Missing delivery");
       }
@@ -1310,7 +1669,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         .execute();
       for (let attempt = 1; attempt <= 10; attempt++) {
         const claim =
-          attempt === 1 ? initial : await notifications.claimDelivery();
+          attempt === 1 ? initial : await claimDeliveryWithEligibleRecipient();
         expect(claim?.delivery.attempts).toBe(attempt);
         await expireDeliveries();
         await notifications.recoverStaleDeliveries();
@@ -1329,7 +1688,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           .set({ available_at: new Date(0) })
           .execute();
       }
-      expect(await notifications.claimDelivery()).toBeNull();
+      expect(await claimDeliveryWithEligibleRecipient()).toBeNull();
       expect(
         (
           await db
@@ -1379,6 +1738,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
             }),
           listAdministratorIds: async () => [],
           isActiveAdministrator: async () => false,
+          readAffectedUserDeliveryEligibility: async () => "eligible",
         },
         [],
       );

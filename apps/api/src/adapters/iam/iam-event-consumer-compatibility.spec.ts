@@ -57,6 +57,9 @@ function consumers(userId: string) {
       findUser,
       listAdministratorIds: vi.fn().mockResolvedValue([]),
       isActiveAdministrator: vi.fn().mockResolvedValue(false),
+      readAffectedUserDeliveryEligibility: vi
+        .fn()
+        .mockResolvedValue("eligible"),
     },
     [],
   );

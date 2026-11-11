@@ -3,6 +3,7 @@ import type {
   AuditRecorder,
 } from "@architecture/audit/application";
 import {
+  type AffectedUserDeliveryEligibilityReader,
   type ConfigurationStore,
   createIam,
   type IamApplication,
@@ -66,6 +67,7 @@ export async function buildIamModule(
   iam: IamApplication;
   configuration: ConfigurationStore;
   securityEvents: SecurityEventRecorder;
+  deliveryEligibility: AffectedUserDeliveryEligibilityReader;
 }> {
   const db = database.$pickTables<keyof IamDatabase>();
   const createOutbox = (transaction: Kysely<IamDatabase>) =>
@@ -96,6 +98,7 @@ export async function buildIamModule(
   const strength = new HeuristicPasswordStrengthEvaluator(),
     common = new LocalCommonPasswordChecker(),
     compromised = new LocalCompromisedPasswordChecker();
+  const deletions = new KyselyAccountDeletionAdapter(db, createOutbox);
   const iam = createIam({
     userRepository: users,
     userQueryRepository: users,
@@ -117,7 +120,7 @@ export async function buildIamModule(
     recovery: new KyselyPasswordRecoveryAdapter(db, createOutbox),
     mfa: new KyselyMfaAdapter(db, createOutbox),
     exports: new KyselyAccountExportAdapter(db, createOutbox),
-    deletions: new KyselyAccountDeletionAdapter(db, createOutbox),
+    deletions,
     crypto: new NodeMfaCryptographyAdapter(options.encryptionKey),
     tokens: new NodeSecurityTokensAdapter(),
     mail: new AccountSecurityMailAdapter(
@@ -131,5 +134,10 @@ export async function buildIamModule(
     archive: new NodeAccountArchiveAdapter(),
     outbox,
   });
-  return { iam, configuration, securityEvents: events };
+  return {
+    iam,
+    configuration,
+    securityEvents: events,
+    deliveryEligibility: deletions,
+  };
 }

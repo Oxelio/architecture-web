@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  type AffectedUserDeliveryEligibility,
   type ClaimedNotificationDelivery,
+  type DeliveryEligibilityClaim,
   NotificationRepository,
 } from "@architecture/notifications/application";
-import type { NotificationEntity } from "@architecture/notifications/domain";
+import type {
+  NotificationEntity,
+  NotificationSuppressionReason,
+} from "@architecture/notifications/domain";
 import { type Kysely, sql } from "kysely";
 
 import {
@@ -12,6 +17,14 @@ import {
   notificationRowToEntity,
 } from "./notification.mapper.js";
 import type { NotificationDatabase } from "./schema.js";
+
+const ATTEMPT_LIMIT = 10;
+const ELIGIBILITY_CHECK_LIMIT = 10;
+const leaseCutoff = sql<Date>`clock_timestamp() - interval '5 minutes'`;
+
+function retryAt(count: number | ReturnType<typeof sql<number>>) {
+  return sql<Date>`clock_timestamp() + least(60, power(2, least(${count}, 10))) * interval '1 second'`;
+}
 
 export class KyselyNotificationRepositoryAdapter extends NotificationRepository {
   constructor(private readonly db: Kysely<NotificationDatabase>) {
@@ -130,27 +143,45 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
     ) {
       throw new Error("Only a completed delivery attempt can be finalized");
     }
+    const affected = delivery.audience !== "administrator";
+    let lastError: string | null = null;
+    if (delivery.status === "failed" || delivery.status === "dead_letter") {
+      const code = delivery.lastError;
+      lastError =
+        code === "delivery_adapter_unavailable" ||
+        code === "administrator_eligibility_unavailable"
+          ? code
+          : "provider_outcome_unknown";
+    }
     const result = await this.db
       .updateTable("notification_deliveries")
       .set({
         status: delivery.status,
         suppression_reason: delivery.suppressionReason,
         attempts: delivery.attempts,
-        available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(${delivery.attempts}, 10))) * interval '1 second'`,
+        available_at: retryAt(delivery.attempts),
         claimed_at: null,
         claim_token: null,
+        processing_phase: null,
         sent_at:
           delivery.status === "sent" ? sql<Date>`clock_timestamp()` : null,
-        last_error: delivery.lastError,
+        last_error: lastError,
+        ...(affected &&
+          (delivery.status === "sent" ||
+            delivery.status === "dead_letter" ||
+            delivery.status === "suppressed") && { destination: null }),
+        ...(delivery.status === "sent" && { last_provider_outcome: "sent" }),
+        ...(lastError === "provider_outcome_unknown" && {
+          last_provider_outcome: "unknown",
+        }),
       })
       .where("id", "=", delivery.identifier.value)
       .where("notification_id", "=", notification.identifier.value)
       .where("status", "=", "processing")
       .where("claim_token", "=", claimToken)
-      .where(
-        "claimed_at",
-        ">",
-        sql<Date>`clock_timestamp() - interval '5 minutes'`,
+      .where("claimed_at", ">", leaseCutoff)
+      .$if(affected, (query) =>
+        query.where("processing_phase", "=", "provider_admitted"),
       )
       .executeTakeFirst();
     return Number(result.numUpdatedRows) === 1;
@@ -198,22 +229,49 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
     await this.db
       .updateTable("notification_deliveries")
       .set({
-        status: sql`case when attempts >= 10 then 'dead_letter' else 'failed' end`,
+        status: sql`case when unresolved_eligibility_checks >= ${ELIGIBILITY_CHECK_LIMIT}
+          then 'suppressed' else 'failed' end`,
+        suppression_reason: sql`case when unresolved_eligibility_checks >= ${ELIGIBILITY_CHECK_LIMIT}
+          then 'eligibility_unverified' end`,
+        destination: sql`case when unresolved_eligibility_checks < ${ELIGIBILITY_CHECK_LIMIT}
+          then destination end`,
         claimed_at: null,
         claim_token: null,
-        available_at: sql<Date>`clock_timestamp() + least(60, power(2, least(attempts, 10))) * interval '1 second'`,
-        last_error: "Processing claim expired",
+        processing_phase: null,
+        available_at: retryAt(sql<number>`unresolved_eligibility_checks`),
+        last_error: "eligibility_check_abandoned",
       })
       .where("status", "=", "processing")
-      .where(
-        "claimed_at",
-        "<=",
-        sql<Date>`clock_timestamp() - interval '5 minutes'`,
+      .where("processing_phase", "=", "checking_eligibility")
+      .where("claimed_at", "<=", leaseCutoff)
+      .execute();
+    await this.db
+      .updateTable("notification_deliveries")
+      .set({
+        status: sql`case when attempts >= ${ATTEMPT_LIMIT} then 'dead_letter' else 'failed' end`,
+        destination: sql`case when attempts < ${ATTEMPT_LIMIT}
+          or audience = 'administrator' then destination end`,
+        claimed_at: null,
+        claim_token: null,
+        processing_phase: null,
+        available_at: retryAt(sql<number>`attempts`),
+        last_error: "provider_outcome_unknown",
+        last_provider_outcome: "unknown",
+      })
+      .where("status", "=", "processing")
+      .where(({ or, eb }) =>
+        or([
+          eb("processing_phase", "=", "provider_admitted"),
+          eb("audience", "=", "administrator"),
+        ]),
       )
+      .where("claimed_at", "<=", leaseCutoff)
       .execute();
   }
 
-  async claimDelivery(): Promise<ClaimedNotificationDelivery | null> {
+  async claimDelivery(): Promise<
+    ClaimedNotificationDelivery | DeliveryEligibilityClaim | null
+  > {
     return this.db.transaction().execute(async (transaction) => {
       const row = await transaction
         .selectFrom("notification_deliveries")
@@ -223,28 +281,11 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
           "notification_deliveries.notification_id",
         )
         .select([
-          "notifications.id as notification_id",
           "notifications.recipient_id",
-          "notifications.source_event_id",
-          "notifications.type",
-          "notifications.severity",
-          "notifications.title",
-          "notifications.message",
-          "notifications.action",
-          "notifications.created_at",
-          "notifications.read_at",
-          "notifications.archived_at",
           "notification_deliveries.id as delivery_id",
-          "notification_deliveries.channel",
-          "notification_deliveries.destination",
           "notification_deliveries.audience",
-          "notification_deliveries.suppression_reason",
-          "notification_deliveries.status",
           "notification_deliveries.attempts",
-          "notification_deliveries.available_at",
-          "notification_deliveries.claimed_at",
-          "notification_deliveries.sent_at",
-          "notification_deliveries.last_error",
+          "notification_deliveries.unresolved_eligibility_checks",
         ])
         .where("notification_deliveries.status", "in", ["pending", "failed"])
         .where(
@@ -252,7 +293,12 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
           "<=",
           sql<Date>`clock_timestamp()`,
         )
-        .where("notification_deliveries.attempts", "<", 10)
+        .where("notification_deliveries.attempts", "<", ATTEMPT_LIMIT)
+        .where(
+          "notification_deliveries.unresolved_eligibility_checks",
+          "<",
+          ELIGIBILITY_CHECK_LIMIT,
+        )
         .orderBy("notification_deliveries.available_at", "asc")
         .orderBy("notification_deliveries.id", "asc")
         .limit(1)
@@ -263,27 +309,187 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
         return null;
       }
       const claimToken = randomUUID();
-      const claimed = await transaction
+      const affected = row.audience !== "administrator";
+      await transaction
         .updateTable("notification_deliveries")
         .set({
           status: "processing",
           claimed_at: sql<Date>`clock_timestamp()`,
           claim_token: claimToken,
-          attempts: row.attempts + 1,
+          ...(affected
+            ? {
+                processing_phase: "checking_eligibility",
+                unresolved_eligibility_checks:
+                  row.unresolved_eligibility_checks + 1,
+              }
+            : { attempts: row.attempts + 1 }),
         })
         .where("id", "=", row.delivery_id)
-        .returning(["claimed_at", "attempts"])
-        .executeTakeFirstOrThrow();
-      const notification = claimableNotificationRowToEntity({
-        ...row,
-        ...claimed,
-        status: "processing",
-      });
-      const delivery = notification.deliveries[0];
-      if (!delivery) {
-        throw new Error("Missing claimed delivery");
+        .execute();
+      if (affected) {
+        return {
+          deliveryId: row.delivery_id,
+          recipientId: row.recipient_id,
+          claimToken,
+        };
       }
-      return { notification, delivery, claimToken };
+      return this.loadSendSnapshot(transaction, row.delivery_id, claimToken);
     });
+  }
+
+  async resolveDeliveryEligibility(
+    claim: DeliveryEligibilityClaim,
+    eligibility: AffectedUserDeliveryEligibility,
+    dataUseDeadline?: Date,
+  ): Promise<ClaimedNotificationDelivery | null> {
+    return this.db.transaction().execute(async (transaction) => {
+      const row = await transaction
+        .selectFrom("notification_deliveries")
+        .select(["attempts", "unresolved_eligibility_checks"])
+        .$if(dataUseDeadline !== undefined, (query) =>
+          query.select(
+            sql<boolean>`clock_timestamp() >= ${dataUseDeadline}`.as(
+              "authorization_expired",
+            ),
+          ),
+        )
+        .where("id", "=", claim.deliveryId)
+        .where("status", "=", "processing")
+        .where("processing_phase", "=", "checking_eligibility")
+        .where("claim_token", "=", claim.claimToken)
+        .where("claimed_at", ">", leaseCutoff)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!row) {
+        return null;
+      }
+      const unresolved = eligibility === "unresolved";
+      const checks = row.unresolved_eligibility_checks - (unresolved ? 0 : 1);
+      let reason: NotificationSuppressionReason | null = null;
+      if (eligibility === "erased") {
+        reason = "account_erased";
+      } else if (unresolved && checks >= ELIGIBILITY_CHECK_LIMIT) {
+        reason = "eligibility_unverified";
+      } else if (eligibility === "eligible" && row.authorization_expired) {
+        reason = "authorization_expired";
+      }
+      const update = transaction
+        .updateTable("notification_deliveries")
+        .where("id", "=", claim.deliveryId);
+      if (reason || unresolved) {
+        await update
+          .set({
+            status: reason ? "suppressed" : "failed",
+            suppression_reason: reason,
+            ...(reason && { destination: null }),
+            unresolved_eligibility_checks: checks,
+            claimed_at: null,
+            claim_token: null,
+            processing_phase: null,
+            available_at: retryAt(checks),
+            last_error: null,
+          })
+          .execute();
+        return null;
+      }
+      await update
+        .set({
+          processing_phase: "provider_admitted",
+          unresolved_eligibility_checks: checks,
+          attempts: row.attempts + 1,
+        })
+        .execute();
+      return this.loadSendSnapshot(
+        transaction,
+        claim.deliveryId,
+        claim.claimToken,
+      );
+    });
+  }
+
+  async ownsAuthorizedDelivery(
+    claim: ClaimedNotificationDelivery,
+  ): Promise<boolean> {
+    const row = await this.db
+      .selectFrom("notification_deliveries")
+      .select("id")
+      .where("id", "=", claim.delivery.identifier.value)
+      .where("status", "=", "processing")
+      .where("processing_phase", "=", "provider_admitted")
+      .where("claim_token", "=", claim.claimToken)
+      .where("claimed_at", ">", leaseCutoff)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  async expireDeliveryAuthorization(
+    claim: ClaimedNotificationDelivery,
+  ): Promise<void> {
+    await this.db
+      .updateTable("notification_deliveries")
+      .set({
+        status: "suppressed",
+        suppression_reason: "authorization_expired",
+        attempts: sql<number>`attempts - 1`,
+        destination: null,
+        claimed_at: null,
+        claim_token: null,
+        processing_phase: null,
+        last_error: null,
+      })
+      .where("id", "=", claim.delivery.identifier.value)
+      .where("status", "=", "processing")
+      .where("processing_phase", "=", "provider_admitted")
+      .where("claim_token", "=", claim.claimToken)
+      .where("claimed_at", ">", leaseCutoff)
+      .execute();
+  }
+
+  private async loadSendSnapshot(
+    transaction: Kysely<NotificationDatabase>,
+    deliveryId: string,
+    claimToken: string,
+  ): Promise<ClaimedNotificationDelivery> {
+    const row = await transaction
+      .selectFrom("notification_deliveries")
+      .innerJoin(
+        "notifications",
+        "notifications.id",
+        "notification_deliveries.notification_id",
+      )
+      .select([
+        "notifications.id as notification_id",
+        "notifications.recipient_id",
+        "notifications.source_event_id",
+        "notifications.type",
+        "notifications.severity",
+        "notifications.title",
+        "notifications.message",
+        "notifications.action",
+        "notifications.created_at",
+        "notifications.read_at",
+        "notifications.archived_at",
+        "notification_deliveries.id as delivery_id",
+        "notification_deliveries.channel",
+        "notification_deliveries.destination",
+        "notification_deliveries.audience",
+        "notification_deliveries.suppression_reason",
+        "notification_deliveries.status",
+        "notification_deliveries.attempts",
+        "notification_deliveries.available_at",
+        "notification_deliveries.claimed_at",
+        "notification_deliveries.sent_at",
+      ])
+      .where("notification_deliveries.id", "=", deliveryId)
+      .executeTakeFirstOrThrow();
+    const notification = claimableNotificationRowToEntity({
+      ...row,
+      last_error: null,
+    });
+    const delivery = notification.deliveries[0];
+    if (!delivery) {
+      throw new Error("Missing claimed delivery");
+    }
+    return { notification, delivery, claimToken };
   }
 }

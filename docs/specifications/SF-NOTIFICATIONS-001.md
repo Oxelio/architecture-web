@@ -193,10 +193,11 @@ An accepted delivery records its affected-user and/or administrator selection
 basis. Before each administrator-only delivery attempt, current active
 administrator membership is checked. A refusal permanently suppresses that
 delivery with a minimized reason; a technical lookup failure is retried without
-sending. A delivery also justified for the affected user remains eligible on
-that basis. Suppression never changes the accepted destination, notification
-acknowledgement or other deliveries, and replay never recreates it. The check is
-not atomic with an external provider or concurrent membership changes.
+sending. A delivery also justified for the affected user follows the
+[affected-user attempt rule](#delivery-eligibility-after-final-account-erasure).
+Suppression preserves the accepted selection, notification acknowledgement and
+other deliveries. Replay never recreates a suppressed delivery. Administrator
+membership evaluation and provider submission are separate operations.
 
 ## Preferences
 
@@ -230,10 +231,10 @@ changing the original business fact.
 Explicit session-management revocations notify the affected user through Web and
 mandatory email when a verified destination and configured provider qualify.
 Ordinary sign-out does not introduce another notification policy. Final account
-deletion sends no post-erasure message: an address is not retained solely for
-that confirmation. The deletion-request and protected cancellation flow remain
-available before erasure. The maintainer delegated this bounded choice during
-the 2026-11-01 remediation implementation.
+deletion generates no confirmation message or reason to retain an address for
+one. The deletion-request and protected cancellation flow remain available
+before erasure. The maintainer delegated this bounded choice during the
+2026-11-01 remediation implementation.
 
 ## Reliability and consistency
 
@@ -274,6 +275,50 @@ delivery retries operate independently on the accepted deliveries and their
 original destinations. Provider configuration and credentials remain technical
 configuration, not part of the recipient snapshot. Carrier delivery remains at
 least once when a send succeeds but its response or finalization is lost.
+
+### Delivery eligibility after final account erasure
+
+[Work #120](https://github.com/Oxelio/architecture-web/issues/120) records
+[Human Functional Approval](https://github.com/Oxelio/architecture-web/issues/120#issuecomment-6741023837)
+and the [approved functional details](https://github.com/Oxelio/architecture-web/issues/120#issuecomment-6744329606).
+
+Every new provider attempt using the affected-user basis requires a fresh,
+authoritative IAM eligibility decision against committed account state. The
+decision applies only to that attempt. A claim, cached decision, or earlier
+attempt's authorization cannot authorize a retry or a replacement attempt.
+Final IAM erasure prevents new affected-user authorizations. An attempt
+authorized before erasure may begin transmitting afterward without a guaranteed
+maximum post-erasure interval. Confirmation of erasure before submission
+withholds that submission. IAM erasure proceeds independently of Notifications
+and provider progress. The rule has no message-class exceptions.
+
+An accepted mixed-basis delivery keeps its selection. Any remaining administrator
+basis must meet the existing current active-administrator rule for the same
+recipient. Erasure of an account does not revoke the authorization of other
+recipients. Stable replay, acknowledgement, the deletion-request and cancellation
+flows, and holds that prevent final erasure retain their existing rules.
+
+When eligibility cannot be established, withhold submission. Allow at most ten
+unresolved IAM eligibility checks per accepted delivery, counted cumulatively
+across retries and reclaims and separately from provider attempts. Conclusive
+checks do not consume this allowance. Exhaustion closes as **eligibility
+unverified**. Only confirmed erasure closes as **withheld after confirmed
+erasure**.
+
+If an approved data-use deadline would end an unused pre-erasure authorization,
+the authorization expires at that deadline. No new handoff may begin under it.
+A delivery known to be unsent closes as **withheld — authorization expired**.
+If an earlier handoff or outcome is uncertain, retain that uncertainty and close
+further submissions. An attributable result from the original call may clarify
+that attempt where permitted. A late result cannot reopen submission eligibility
+or authorize a retry. The deadline governs handoff permission, while buffered
+or in-flight transmission may continue independently.
+
+Acceptance covers authorization on both sides of erasure commit, a reclaimed
+attempt, the two verification outcomes at the check limit, an expired unused
+authorization, late provider results, mixed selection, and replay. Existing
+authorized operator capabilities expose minimized outcomes subject to the
+applicable disposition. The target assigns no general retention period.
 
 ## Personal data and secrets
 

@@ -95,4 +95,38 @@ async function down(db: Kysely<NotificationDatabase>): Promise<void> {
 
 export const notificationMigrations = {
   "007_create_notifications": { up, down },
+  "010_add_notification_attempt_eligibility": {
+    async up(db: Kysely<NotificationDatabase>): Promise<void> {
+      await db.schema
+        .alterTable("notification_deliveries")
+        .alterColumn("destination", (column) => column.dropNotNull())
+        .addColumn("unresolved_eligibility_checks", "integer", (column) =>
+          column.defaultTo(0).notNull(),
+        )
+        .addColumn("processing_phase", "varchar(24)")
+        .addColumn("last_provider_outcome", "varchar(16)")
+        .execute();
+      await db
+        .updateTable("notification_deliveries")
+        .set({ processing_phase: "provider_admitted" })
+        .where("status", "=", "processing")
+        .where("audience", "!=", "administrator")
+        .execute();
+      await db.schema
+        .alterTable("notification_deliveries")
+        .addCheckConstraint(
+          "notification_delivery_sendable_destination",
+          sql`status in ('sent', 'dead_letter', 'suppressed')
+            or (destination is not null and btrim(destination) <> '')`,
+        )
+        .execute();
+      await db.schema
+        .alterTable("notification_deliveries")
+        .addCheckConstraint(
+          "notification_delivery_eligibility_budget",
+          sql`unresolved_eligibility_checks between 0 and 10`,
+        )
+        .execute();
+    },
+  },
 };
