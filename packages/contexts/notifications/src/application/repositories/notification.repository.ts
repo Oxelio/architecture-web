@@ -32,6 +32,11 @@ export abstract class NotificationRepository {
     recipientId: string,
   ): Promise<NotificationEntity | null>;
   abstract saveState(notification: NotificationEntity): Promise<void>;
+  /** Acknowledge a visible item without replacing its first read timestamp. */
+  abstract markReadForRecipient(
+    notificationId: string,
+    recipientId: string,
+  ): Promise<boolean>;
   abstract list(
     recipientId: string,
     page: number,

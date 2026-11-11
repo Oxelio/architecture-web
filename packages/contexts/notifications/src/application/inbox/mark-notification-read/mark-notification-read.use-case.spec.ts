@@ -1,17 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  NotificationEntity,
-  NotificationSeverityValueObject,
-} from "#domain/index";
-
 import type { NotificationRepository } from "../../repositories/notification.repository.js";
 import { MarkNotificationReadUseCase } from "./mark-notification-read.use-case.js";
 
 describe("MarkNotificationReadUseCase", () => {
   it("returns a stable not-found code", async () => {
     const useCase = new MarkNotificationReadUseCase({
-      findByIdForRecipient: vi.fn().mockResolvedValue(null),
+      markReadForRecipient: vi.fn().mockResolvedValue(false),
     } as unknown as NotificationRepository);
 
     const result = await useCase.execute({
@@ -25,33 +20,21 @@ describe("MarkNotificationReadUseCase", () => {
     });
   });
 
-  it("is idempotent when the notification is already read", async () => {
-    const severity = NotificationSeverityValueObject.create("information");
-    if (!severity.success) {
-      throw new Error("Test fixture is invalid");
-    }
-    const notification = NotificationEntity.create({
-      recipientId: "user-1",
-      sourceEventId: "event-1",
-      type: "iam.user-registered",
-      severity: severity.value,
-      title: "Account created",
-      message: "Your account has been created.",
-      deliveries: [],
-    });
-    notification.markRead();
-    const save = vi.fn();
+  it("passes the notification and recipient to atomic acknowledgement", async () => {
+    const markReadForRecipient = vi.fn().mockResolvedValue(true);
     const useCase = new MarkNotificationReadUseCase({
-      findByIdForRecipient: vi.fn().mockResolvedValue(notification),
-      saveState: save,
+      markReadForRecipient,
     } as unknown as NotificationRepository);
 
     const result = await useCase.execute({
       actorUserId: "user-1",
-      notificationId: notification.identifier.value,
+      notificationId: "notification-1",
     });
 
     expect(result).toEqual({ success: true, value: undefined });
-    expect(save).not.toHaveBeenCalled();
+    expect(markReadForRecipient).toHaveBeenCalledExactlyOnceWith(
+      "notification-1",
+      "user-1",
+    );
   });
 });

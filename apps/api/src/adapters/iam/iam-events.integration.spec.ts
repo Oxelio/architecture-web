@@ -984,6 +984,172 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       ]);
       return { fact, make };
     }
+    describe("notification inbox acknowledgement", () => {
+      async function inboxItem(recipientId = randomUUID()) {
+        const fact = { ...event(), aggregateId: recipientId };
+        const item = snapshot(fact, []);
+        await notifications.createForEvent(fact.eventId, [item]);
+        return {
+          actorUserId: recipientId,
+          notificationId: item.identifier.value,
+          item,
+        };
+      }
+
+      function readTimestamp(database: Kysely<AppDatabase>, id: string) {
+        return database
+          .selectFrom("notifications")
+          .select(sql<string | null>`read_at::text`.as("readAt"))
+          .where("id", "=", id)
+          .executeTakeFirstOrThrow()
+          .then((row) => row.readAt);
+      }
+
+      it.each([
+        ["single", "single"],
+        ["single", "bulk"],
+        ["bulk", "single"],
+      ] as const)(
+        "preserves the timestamp when %s acknowledgement wins over %s",
+        async (first, second) => {
+          const input = await inboxItem();
+          async function acknowledge(
+            repository: KyselyNotificationRepositoryAdapter,
+            mode: "single" | "bulk",
+          ) {
+            if (mode === "bulk") {
+              await repository.markAllRead(input.actorUserId);
+            } else {
+              await expect(
+                new MarkNotificationReadUseCase(repository).execute(input),
+              ).resolves.toEqual({ success: true, value: undefined });
+            }
+          }
+          const { firstRead, pending } = await db
+            .transaction()
+            .execute(async (transaction) => {
+              await acknowledge(
+                new KyselyNotificationRepositoryAdapter(transaction as never),
+                first,
+              );
+              const pending = acknowledge(notifications, second);
+              return {
+                firstRead: await readTimestamp(
+                  transaction,
+                  input.notificationId,
+                ),
+                pending,
+              };
+            });
+          await pending;
+          await acknowledge(notifications, "single");
+          expect(firstRead).not.toBeNull();
+          await expect(readTimestamp(db, input.notificationId)).resolves.toBe(
+            firstRead,
+          );
+        },
+      );
+
+      it("returns not-found when archiving wins and rejects a stale read snapshot", async () => {
+        const input = await inboxItem();
+        const stale = await notifications.findByIdForRecipient(
+          input.notificationId,
+          input.actorUserId,
+        );
+        if (!stale) {
+          throw new Error("Expected a visible fixture");
+        }
+        stale.markRead();
+        input.item.archive();
+        const { pending } = await db
+          .transaction()
+          .execute(async (transaction) => {
+            await new KyselyNotificationRepositoryAdapter(
+              transaction as never,
+            ).saveState(input.item);
+            return {
+              pending: new MarkNotificationReadUseCase(notifications).execute(
+                input,
+              ),
+            };
+          });
+        await expect(pending).resolves.toEqual({
+          success: false,
+          error: { code: "notification.not_found" },
+        });
+        await notifications.saveState(stale);
+        await expect(
+          readTimestamp(db, input.notificationId),
+        ).resolves.toBeNull();
+        await expect(
+          notifications.findByIdForRecipient(
+            input.notificationId,
+            input.actorUserId,
+          ),
+        ).resolves.toBeNull();
+      });
+
+      it("preserves the read timestamp when a stale archive takes effect second", async () => {
+        const input = await inboxItem();
+        input.item.archive();
+        const { firstRead, pending } = await db
+          .transaction()
+          .execute(async (transaction) => {
+            const repository = new KyselyNotificationRepositoryAdapter(
+              transaction as never,
+            );
+            await expect(
+              new MarkNotificationReadUseCase(repository).execute(input),
+            ).resolves.toEqual({ success: true, value: undefined });
+            return {
+              firstRead: await readTimestamp(transaction, input.notificationId),
+              pending: notifications.saveState(input.item),
+            };
+          });
+        await pending;
+        expect(firstRead).not.toBeNull();
+        await expect(readTimestamp(db, input.notificationId)).resolves.toBe(
+          firstRead,
+        );
+        await expect(
+          notifications.findByIdForRecipient(
+            input.notificationId,
+            input.actorUserId,
+          ),
+        ).resolves.toBeNull();
+      });
+
+      it("skips archived and other recipients' rows in bulk acknowledgement", async () => {
+        const visible = await inboxItem();
+        const archived = await inboxItem(visible.actorUserId);
+        const other = await inboxItem();
+        archived.item.archive();
+        await notifications.saveState(archived.item);
+        const useCase = new MarkNotificationReadUseCase(notifications);
+        for (const notificationId of [other.notificationId, randomUUID()]) {
+          await expect(
+            useCase.execute({
+              actorUserId: visible.actorUserId,
+              notificationId,
+            }),
+          ).resolves.toEqual({
+            success: false,
+            error: { code: "notification.not_found" },
+          });
+        }
+        await notifications.markAllRead(visible.actorUserId);
+        await expect(
+          readTimestamp(db, visible.notificationId),
+        ).resolves.not.toBeNull();
+        await expect(
+          readTimestamp(db, archived.notificationId),
+        ).resolves.toBeNull();
+        await expect(
+          readTimestamp(db, other.notificationId),
+        ).resolves.toBeNull();
+      });
+    });
+
     async function expireOutbox(id: string) {
       await db
         .updateTable("messaging_outbox")

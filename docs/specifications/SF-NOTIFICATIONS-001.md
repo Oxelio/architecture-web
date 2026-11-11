@@ -156,6 +156,15 @@ An authenticated user can:
 Queries are bounded and paginated. A user can neither view nor change another
 user's notifications.
 
+Single and bulk acknowledgement apply to the visible inbox. The first
+effective acknowledgement fixes a notification's read timestamp. Repeating a
+single acknowledgement of a visible read item succeeds and preserves its
+timestamp. Bulk acknowledgement skips archived notifications.
+
+If archiving takes effect before a single acknowledgement, the acknowledgement
+returns the existing not-found result. If acknowledgement takes effect first,
+subsequent archiving preserves its read timestamp.
+
 A notification may be displayed in real time while the client is connected.
 Lack of a real-time connection must not prevent later viewing.
 
