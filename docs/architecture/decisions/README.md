@@ -58,6 +58,9 @@ composition point, which is the intended extension seam.
 [ADR-0010](0010-iam-erasure-evidence.md) records the accepted target for
 IAM-owned erasure evidence for delivery eligibility.
 
+[ADR-0011](0011-iam-recipient-directory-queries.md) records IAM ownership of
+recipient directory queries and the API composition adapter.
+
 ## Open decisions
 
 The following topics are not established decisions merely because they are
