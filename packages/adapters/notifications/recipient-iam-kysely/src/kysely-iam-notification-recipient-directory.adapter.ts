@@ -1,5 +1,8 @@
 import type { IamDatabase } from "@architecture/iam-persistence-kysely";
-import { NotificationRecipientDirectory } from "@architecture/notifications/application";
+import {
+  type AffectedUserDeliveryEligibility,
+  NotificationRecipientDirectory,
+} from "@architecture/notifications/application";
 import {
   NotificationRecipientEntity,
   NotificationRecipientIdentifierValueObject,
@@ -7,8 +10,19 @@ import {
 import type { Kysely } from "kysely";
 
 export class KyselyIamNotificationRecipientDirectoryAdapter extends NotificationRecipientDirectory {
-  constructor(private readonly db: Kysely<IamDatabase>) {
+  constructor(
+    private readonly db: Kysely<IamDatabase>,
+    private readonly readEligibility: (
+      userId: string,
+    ) => Promise<AffectedUserDeliveryEligibility>,
+  ) {
     super();
+  }
+
+  readAffectedUserDeliveryEligibility(
+    userId: string,
+  ): Promise<AffectedUserDeliveryEligibility> {
+    return this.readEligibility(userId);
   }
 
   async findUser(userId: string): Promise<NotificationRecipientEntity | null> {

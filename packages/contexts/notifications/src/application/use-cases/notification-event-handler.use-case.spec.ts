@@ -34,6 +34,7 @@ function fixture(topic = "security.suspicious-activity-detected") {
   };
   const directory = {
     isActiveAdministrator: vi.fn().mockResolvedValue(true),
+    readAffectedUserDeliveryEligibility: vi.fn(),
     listAdministratorIds: vi
       .fn()
       .mockResolvedValue(["user-1", "admin-1", "admin-1"]),
@@ -226,6 +227,7 @@ describe("NotificationEventHandlerUseCase", () => {
       }
       const directory = {
         isActiveAdministrator: vi.fn().mockResolvedValue(true),
+        readAffectedUserDeliveryEligibility: vi.fn(),
         findUser: vi.fn().mockResolvedValue(
           NotificationRecipientEntity.create({
             identifier: identifier.value,

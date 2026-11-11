@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { KyselyIamNotificationRecipientDirectoryAdapter } from "./kysely-iam-notification-recipient-directory.adapter.js";
 
+const readEligibility = vi.fn();
+
 describe("KyselyIamNotificationRecipientDirectoryAdapter", () => {
   it.each([true, false])(
     "checks current active membership: %s",
@@ -15,9 +17,12 @@ describe("KyselyIamNotificationRecipientDirectoryAdapter", () => {
       };
       query.select.mockReturnValue(query);
       query.where.mockReturnValue(query);
-      const adapter = new KyselyIamNotificationRecipientDirectoryAdapter({
-        selectFrom: vi.fn().mockReturnValue(query),
-      } as never);
+      const adapter = new KyselyIamNotificationRecipientDirectoryAdapter(
+        {
+          selectFrom: vi.fn().mockReturnValue(query),
+        } as never,
+        readEligibility,
+      );
       expect(await adapter.isActiveAdministrator("admin")).toBe(eligible);
       expect(query.where.mock.calls).toEqual([
         ["id", "=", "admin"],
@@ -50,6 +55,7 @@ describe("KyselyIamNotificationRecipientDirectoryAdapter", () => {
     const db = { selectFrom: vi.fn().mockReturnValue(query) };
     const adapter = new KyselyIamNotificationRecipientDirectoryAdapter(
       db as never,
+      readEligibility,
     );
 
     const recipient = await adapter.findUser("user-1");
@@ -71,11 +77,24 @@ describe("KyselyIamNotificationRecipientDirectoryAdapter", () => {
     const db = { selectFrom: vi.fn().mockReturnValue(query) };
     const adapter = new KyselyIamNotificationRecipientDirectoryAdapter(
       db as never,
+      readEligibility,
     );
 
     await expect(adapter.listAdministratorIds()).resolves.toEqual([
       "admin-1",
       "admin-2",
     ]);
+  });
+
+  it("delegates affected-user eligibility to the IAM application reader", async () => {
+    readEligibility.mockResolvedValueOnce("erased");
+    const adapter = new KyselyIamNotificationRecipientDirectoryAdapter(
+      {} as never,
+      readEligibility,
+    );
+    await expect(
+      adapter.readAffectedUserDeliveryEligibility("user-1"),
+    ).resolves.toBe("erased");
+    expect(readEligibility).toHaveBeenCalledWith("user-1");
   });
 });

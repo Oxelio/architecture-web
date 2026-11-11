@@ -14,6 +14,7 @@ export interface IamDatabase {
   iam_security_config_revisions: IamSecurityConfigRevisionTable;
   iam_account_exports: IamAccountExportTable;
   iam_account_deletions: IamAccountDeletionTable;
+  iam_account_erasure_evidence: { subject_key: Buffer };
 }
 
 export interface IamUserTable {
