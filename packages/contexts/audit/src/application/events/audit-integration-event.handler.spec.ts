@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { AuditRepository } from "#repositories/audit.repository";
-import { AuditApplication } from "#services/audit.application";
+import { createAuditEventConsumer } from "#services/audit-capabilities";
 
 import { AuditIntegrationEventHandler } from "./audit-integration-event.handler.js";
 
@@ -142,7 +142,7 @@ describe("AuditIntegrationEventHandler", () => {
       append,
     } as unknown as AuditRepository;
     const handler = new AuditIntegrationEventHandler(
-      new AuditApplication(repository, {
+      createAuditEventConsumer(repository, {
         reference: (id) => `pseudonym-${id}`,
       }),
       { getRetentionDays: async () => 365 },

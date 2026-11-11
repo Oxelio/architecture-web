@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto";
 import {
   AcceptAuditEntryUseCase,
   AuditAcceptanceEventHandler,
-  AuditApplication,
   AuditIntegrationEventHandler,
+  createAuditEventConsumer,
+  createAuditRetention,
 } from "@architecture/audit/application";
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import { UserEntity } from "@architecture/iam/domain";
@@ -139,7 +140,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
     it("minimizes only the deleted account and prevents concurrent or delayed facts from restoring its references", async () => {
       const repository = new KyselyAuditRepositoryAdapter(db as never);
       const pseudonymizer = new Sha256AuditPseudonymizerAdapter();
-      const audit = new AuditApplication(repository, pseudonymizer);
+      const audit = createAuditEventConsumer(repository, pseudonymizer);
       const actorId = randomUUID(),
         subjectId = randomUUID(),
         firstId = randomUUID();
@@ -199,7 +200,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
 
     it("recovers accepted Audit events after storage failure and does not duplicate them", async () => {
       const repository = new KyselyAuditRepositoryAdapter(db as never),
-        audit = new AuditApplication(
+        audit = createAuditEventConsumer(
           repository,
           new Sha256AuditPseudonymizerAdapter(),
         );
@@ -209,7 +210,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       );
       const eventId = randomUUID(),
         userId = randomUUID();
-      await acceptance.record({
+      await acceptance.accept({
         id: eventId,
         type: "authentication.signin",
         result: "success",
@@ -243,7 +244,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         .selectAll()
         .executeTakeFirstOrThrow();
       expect(accepted.status).toBe("published");
-      await acceptance.record({
+      await acceptance.accept({
         id: eventId,
         type: "authentication.signin",
         result: "success",
@@ -256,8 +257,9 @@ describe.skipIf(!databaseUrl || !redisUrl)(
     });
 
     it("purges expired evidence while retaining legal holds and rejects resurrection by an expired fact", async () => {
-      const audit = new AuditApplication(
-        new KyselyAuditRepositoryAdapter(db as never),
+      const repository = new KyselyAuditRepositoryAdapter(db as never);
+      const audit = createAuditEventConsumer(
+        repository,
         new Sha256AuditPseudonymizerAdapter(),
       );
       const expiredId = randomUUID(),
@@ -280,7 +282,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         .set({ legal_hold: true })
         .where("id", "=", heldId)
         .execute();
-      expect(await audit.purge()).toBe(1);
+      expect(await createAuditRetention(repository).purge()).toBe(1);
       expect(
         (await db.selectFrom("audit_events").select("id").execute()).map(
           (row) => row.id,
@@ -769,7 +771,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         const fact = event();
         await createIamRecipient(fact.aggregateId);
         const audit = new AuditIntegrationEventHandler(
-          new AuditApplication(
+          createAuditEventConsumer(
             new KyselyAuditRepositoryAdapter(db as never),
             new Sha256AuditPseudonymizerAdapter(),
           ),
@@ -1716,7 +1718,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         throw new Error("Invalid fixture");
       }
       const audit = new AuditIntegrationEventHandler(
-        new AuditApplication(
+        createAuditEventConsumer(
           new KyselyAuditRepositoryAdapter(db as never),
           new Sha256AuditPseudonymizerAdapter(),
         ),

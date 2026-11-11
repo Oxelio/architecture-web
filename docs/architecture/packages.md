@@ -122,6 +122,11 @@ Redis stores expiring sessions, a per-user sorted set, resend rate limits and bo
 
 Application use cases own security orchestration; capability adapters own SQL and atomic operations. Audit owns its own persistence. See [IAM security](iam-security.md).
 
+The API composes Audit projection and erasure cleanup, account export,
+retention and consultation through separate contracts. Durable Audit
+acceptance uses `AuditAcceptance.accept`. Event handlers project accepted
+evidence through `AuditEventConsumer`.
+
 Schema, migrations, and mappers **MUST** evolve together. Rehydrated entities
 **MUST** still satisfy their value objects; invalid persisted data must not be
 silently normalized.

@@ -6,6 +6,10 @@ export type OwnAuditEntry = Pick<
   AuditEntry,
   "id" | "type" | "occurredAt" | "result" | "actorType"
 >;
+
+export interface AuditAccountExporter {
+  exportFor(userId: string): Promise<readonly OwnAuditEntry[]>;
+}
 export const AuditQueryErrors = {
   unauthorized: { code: "audit_consultation.unauthorized" },
   disabled: { code: "audit_consultation.disabled" },

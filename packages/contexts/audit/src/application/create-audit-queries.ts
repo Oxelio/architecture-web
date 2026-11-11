@@ -4,7 +4,7 @@ import { validate as isUuid } from "uuid";
 import { redactAuditMetadata } from "#domain/audit-redaction.policy";
 import type { AuditRepository } from "#repositories/audit.repository";
 
-import type { AuditRecorder } from "./audit.contracts.js";
+import type { AuditAcceptance } from "./audit.contracts.js";
 import {
   type AuditAccess,
   type AuditQueriesApplication,
@@ -15,7 +15,7 @@ import {
 export interface AuditQueriesDependencies {
   readonly repository: AuditRepository;
   readonly access: AuditAccess;
-  readonly recorder: AuditRecorder;
+  readonly acceptance: AuditAcceptance;
 }
 
 export function createAuditQueries(
@@ -40,12 +40,12 @@ export function createAuditQueries(
     }
     return null;
   }
-  async function record(
+  async function acceptConsultation(
     actorId: string,
     administrative: boolean,
     retentionDays: number,
   ) {
-    await dependencies.recorder.record({
+    await dependencies.acceptance.accept({
       type: "security.audit.consulted",
       result: "success",
       context: {
@@ -75,7 +75,7 @@ export function createAuditQueries(
           page,
           size,
         );
-        await record(
+        await acceptConsultation(
           input.actorUserId,
           false,
           authorization.value.retentionDays,
@@ -108,7 +108,7 @@ export function createAuditQueries(
           return Result.failure(AuditQueryErrors.invalidFilter);
         }
         const rows = await dependencies.repository.query(input.filters);
-        await record(
+        await acceptConsultation(
           input.actorUserId,
           true,
           authorization.value.retentionDays,

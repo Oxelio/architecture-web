@@ -1,7 +1,7 @@
 import type {
-  AuditApplication,
   AuditEntry,
   AuditQueriesApplication,
+  AuditRetention,
 } from "@architecture/audit/application";
 import type { IamApplication } from "@architecture/iam/application";
 import type { CookieSerializeOptions } from "@fastify/cookie";
@@ -100,7 +100,7 @@ function auditResponse(entry: AuditEntry) {
 export function buildSecurityRoutes(
   iam: IamApplication,
   cookie: SecurityCookie,
-  audit: AuditApplication,
+  audit: AuditRetention,
   auditQueries: AuditQueriesApplication,
 ) {
   return async (app: FastifyInstance) => {

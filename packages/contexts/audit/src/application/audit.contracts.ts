@@ -1,11 +1,16 @@
 import type { AuditEntryInput } from "#domain/audit-entry";
 
-export interface AuditRecorder {
-  record(input: AuditEntryInput): Promise<void>;
+export interface AuditAcceptance {
+  accept(input: AuditEntryInput): Promise<void>;
 }
 
-export interface AuditEventConsumer extends AuditRecorder {
+export interface AuditEventConsumer {
+  record(input: AuditEntryInput): Promise<void>;
   removeAccountReferences(reference: string): Promise<void>;
+}
+
+export interface AuditRetention {
+  purge(now?: Date): Promise<number>;
 }
 
 export interface AuditQuery {
