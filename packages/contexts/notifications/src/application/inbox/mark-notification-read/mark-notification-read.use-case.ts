@@ -22,15 +22,12 @@ export class MarkNotificationReadUseCase implements MarkNotificationRead {
     if (!identifier.success) {
       return Result.failure(MarkNotificationReadErrors.invalidId);
     }
-    const notification = await this.repository.findByIdForRecipient(
+    const acknowledged = await this.repository.markReadForRecipient(
       identifier.value.value,
       input.actorUserId,
     );
-    if (!notification) {
+    if (!acknowledged) {
       return Result.failure(MarkNotificationReadErrors.notFound);
-    }
-    if (notification.markRead()) {
-      await this.repository.saveState(notification);
     }
     return Result.success(undefined);
   }

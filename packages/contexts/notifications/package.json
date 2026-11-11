@@ -21,21 +21,9 @@
       "types": "./src/application/*.ts",
       "default": "./dist/application/*.js"
     },
-    "#policies/*": {
-      "types": "./src/application/policies/*.ts",
-      "default": "./dist/application/policies/*.js"
-    },
     "#repositories/*": {
       "types": "./src/application/repositories/*.ts",
       "default": "./dist/application/repositories/*.js"
-    },
-    "#services/*": {
-      "types": "./src/application/services/*.ts",
-      "default": "./dist/application/services/*.js"
-    },
-    "#use-cases/*": {
-      "types": "./src/application/use-cases/*.ts",
-      "default": "./dist/application/use-cases/*.js"
     }
   },
   "exports": {
