@@ -22,10 +22,12 @@ function pr(
     state: "open" | "closed";
     merged: boolean;
     headRef: string;
+    body: string;
   }> = {},
 ) {
   return {
     number: 13,
+    body: overrides.body ?? "Refs #9",
     state: overrides.state ?? "open",
     merged: overrides.merged ?? false,
     base: { ref: "main" },
@@ -42,6 +44,7 @@ function targetFetch(
   secondSha = firstSha,
   headRef = "technical/work-9",
   sourceRepositoryUrl = repositoryUrl,
+  secondBody = "Refs #9",
 ): FetchLike {
   let pullReads = 0;
   return async (input) => {
@@ -67,6 +70,7 @@ function targetFetch(
       return json(
         pr(pullReads === 1 ? firstSha : secondSha, {
           headRef,
+          body: pullReads === 1 ? "Refs #9" : secondBody,
         }),
       );
     }
@@ -111,7 +115,28 @@ describe("readAuthorizedWorkIntegrationTarget", () => {
       }),
     ).resolves.toEqual({
       status: "unavailable",
-      reason: "WORK_INTEGRATION_PR_REFERENCE_CHANGED",
+      reason: "WORK_INTEGRATION_PR_UNAVAILABLE",
+    });
+  });
+
+  it("rejects a changed ownership declaration on the second PR read", async () => {
+    await expect(
+      readAuthorizedWorkIntegrationTarget({
+        repository,
+        workNumber: 9,
+        repositoryToken: "token",
+        active: true,
+        fetchImpl: targetFetch(
+          "sha-1",
+          "sha-1",
+          "technical/work-9",
+          repositoryUrl,
+          "Refs #10",
+        ),
+      }),
+    ).resolves.toEqual({
+      status: "unavailable",
+      reason: "WORK_INTEGRATION_PR_OWNERSHIP_CHANGED",
     });
   });
 

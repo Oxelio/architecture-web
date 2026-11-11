@@ -202,6 +202,7 @@ export type WorkMergeGateLiveEvidenceResolution =
         | "WORK_STATE_OWNER_INACTIVE"
         | "DEPENDENCY_OWNER_INACTIVE"
         | "WORK_INTEGRATION_PR_OWNER_INACTIVE"
+        | "WORK_INTEGRATION_PR_AMBIGUOUS"
         | "WORK_INTEGRATION_PR_UNAVAILABLE"
         | "WORK_ITEM_UNAVAILABLE"
         | "WORK_STATE_UNAVAILABLE"
@@ -256,7 +257,13 @@ export async function readWorkMergeGateLiveEvidence(input: {
   ]);
 
   if (target.status !== "selected") {
-    return { status: "blocked", reason: "WORK_INTEGRATION_PR_UNAVAILABLE" };
+    return {
+      status: "blocked",
+      reason:
+        target.status === "ambiguous"
+          ? "WORK_INTEGRATION_PR_AMBIGUOUS"
+          : "WORK_INTEGRATION_PR_UNAVAILABLE",
+    };
   }
 
   if (!work) {

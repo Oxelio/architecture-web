@@ -594,8 +594,10 @@ export async function evaluateScopedWorkGate(
     ...reader,
     workNumber: candidate.workNumber,
   });
+  if (live.status !== "ready") {
+    throw new Error(live.reason);
+  }
   if (
-    live.status !== "ready" ||
     live.target.pullRequestNumber !== candidate.pullNumber ||
     live.target.headSha !== candidate.headSha ||
     live.baseSha !== candidate.baseSha
