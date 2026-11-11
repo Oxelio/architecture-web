@@ -112,12 +112,28 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
     await this.db
       .updateTable("notifications")
       .set({
-        read_at: notification.readAt,
-        archived_at: notification.archivedAt,
+        read_at: sql<Date | null>`case when archived_at is null
+          then coalesce(read_at, ${notification.readAt}) else read_at end`,
+        archived_at: sql<Date | null>`coalesce(archived_at, ${notification.archivedAt})`,
       })
       .where("id", "=", notification.identifier.value)
       .where("recipient_id", "=", notification.recipientId)
       .execute();
+  }
+
+  async markReadForRecipient(
+    notificationId: string,
+    recipientId: string,
+  ): Promise<boolean> {
+    const row = await this.db
+      .updateTable("notifications")
+      .set({ read_at: sql<Date>`coalesce(read_at, clock_timestamp())` })
+      .where("id", "=", notificationId)
+      .where("recipient_id", "=", recipientId)
+      .where("archived_at", "is", null)
+      .returning("id")
+      .executeTakeFirst();
+    return row !== undefined;
   }
 
   async finalizeDelivery({
@@ -191,6 +207,7 @@ export class KyselyNotificationRepositoryAdapter extends NotificationRepository 
       .set({ read_at: new Date() })
       .where("recipient_id", "=", recipientId)
       .where("read_at", "is", null)
+      .where("archived_at", "is", null)
       .execute();
   }
 
