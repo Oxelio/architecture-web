@@ -61,7 +61,7 @@ Workspace packages are grouped under `packages/contexts/*`, `packages/adapters/*
 | `@architecture/iam-session-redis`                    | sessions and rate limiting            | root export                                                                |
 | `@architecture/iam-password-argon2`                  | selected password hashing             | root export                                                                |
 | `@architecture/iam-password-bcrypt`                  | alternative implementation            | root export                                                                |
-| `@architecture/iam-email-verification-sha256`        | token hashing                         | `main`/`types`, no `exports` field                                         |
+| `@architecture/iam-email-verification-sha256`        | token hashing                         | root export with JavaScript and declarations                               |
 | `@architecture/iam-email-nodemailer`                 | selected SMTP delivery                | root export                                                                |
 | `@architecture/iam-email-postmark`                   | alternative provider                  | root export                                                                |
 | `@architecture/eslint-config`                        | shared ESLint configurations          | `.`, `node`, `react-vite`, `architecture`, `iam`, `api-boundaries`, `full` |
