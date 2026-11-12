@@ -1,6 +1,13 @@
+import { isDeepStrictEqual } from "node:util";
+
 import type { MergeReservation } from "../control/merge-reservation.js";
+import {
+  executeWorkIntegrationOperation,
+  type WorkIntegrationOperationResult,
+} from "../control/work-integration-controller.js";
 import { workMergeRequiredCheckName } from "../control/work-merge-gate.js";
 import { queueReservedGateCheck } from "./gate-check-publisher.js";
+import { createGitHubWorkReservationJournal } from "./github-work-reservation-journal.js";
 import {
   armReservedWorkSquash,
   observeReservedWorkSquash,
@@ -79,5 +86,91 @@ export async function performReservedGitHubIntegration(
       // Absence of a native request is inconclusive. Only a verified squash
       // currently supplies positive terminal evidence through this adapter.
       return observeReservedWorkSquash(publisher, candidate);
+  }
+}
+
+type ControllerInput = Parameters<typeof executeWorkIntegrationOperation>[0];
+
+export async function executeReservedGitHubWorkIntegration(input: {
+  readonly candidate: ControllerInput["candidate"];
+  readonly operation: "queue-check" | "arm-squash" | "release-check";
+  readonly standingEnabled?: boolean;
+  readonly authorize: ControllerInput["ports"]["authorize"];
+  readonly scope: Omit<
+    Parameters<typeof performReservedGitHubIntegration>[1],
+    "reservationId"
+  >;
+}): Promise<WorkIntegrationOperationResult> {
+  if (input.standingEnabled !== true) {
+    return { status: "inactive" };
+  }
+  const { candidate, operation, authorize, scope } = input;
+  const { publisher, checksToken } = scope;
+  if (
+    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    publisher.repositoryId !== 1336937640 ||
+    !publisher.mergeToken.trim() ||
+    !checksToken.trim() ||
+    [publisher.repositoryToken, publisher.projectsToken, checksToken].includes(
+      publisher.mergeToken,
+    ) ||
+    [publisher.repositoryToken, publisher.projectsToken].includes(
+      checksToken,
+    ) ||
+    !Number.isSafeInteger(scope.checksAppId) ||
+    scope.checksAppId <= 0 ||
+    !Number.isSafeInteger(scope.controllerBotId) ||
+    scope.controllerBotId <= 0
+  ) {
+    return { status: "denied" };
+  }
+
+  const journal = createGitHubWorkReservationJournal({
+    repositoryToken: publisher.mergeToken,
+    ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+  });
+  try {
+    if (operation === "queue-check") {
+      if (!(await authorize({ candidate, operation }))) {
+        return { status: "denied" };
+      }
+      if (!(await journal.reserve(candidate))) {
+        return { status: "deferred" };
+      }
+    }
+
+    return await executeWorkIntegrationOperation({
+      candidate,
+      operation,
+      standingEnabled: true,
+      ports: {
+        authorize,
+        append: journal.append,
+        readReservation: async () => {
+          const current = await journal.read();
+          if (!current) {
+            throw new Error("MERGE_JOURNAL_RESERVATION_MISSING");
+          }
+          return current;
+        },
+        perform: async (intent) => {
+          const current = await journal.read();
+          if (
+            !current ||
+            current.revision !== intent.revision ||
+            !isDeepStrictEqual(current.reservation, intent.reservation) ||
+            !(await authorize({ candidate, operation }))
+          ) {
+            return null;
+          }
+          return performReservedGitHubIntegration(current.reservation, {
+            ...scope,
+            reservationId: current.reservationId,
+          });
+        },
+      },
+    });
+  } catch {
+    return { status: "deferred" };
   }
 }
