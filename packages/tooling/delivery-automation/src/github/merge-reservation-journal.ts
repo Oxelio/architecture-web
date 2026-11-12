@@ -26,6 +26,11 @@ interface MergeJournalPayload {
   readonly body: string;
 }
 
+type MergeJournalEntry = MergeJournalPosition &
+  MergeJournalPayload & {
+    readonly candidateHeadSha: string;
+  };
+
 function tagName(revision: number): string {
   if (!Number.isSafeInteger(revision) || revision <= 0) {
     throw new Error("INVALID_MERGE_JOURNAL_REVISION");
@@ -49,10 +54,13 @@ export async function readMergeJournalRevision(input: {
   readonly repositoryToken: string;
   readonly revision: number;
   readonly fetchImpl?: FetchLike;
-}): Promise<(MergeJournalPosition & MergeJournalPayload) | null> {
+}): Promise<MergeJournalEntry | null> {
   const name = tagName(input.revision);
   const fetchImpl = input.fetchImpl ?? fetch;
-  const options = { headers: headers(input.repositoryToken) };
+  const options = {
+    redirect: "error",
+    headers: headers(input.repositoryToken),
+  } as const;
   const refResponse = await fetchImpl(`${gitApi}/ref/tags/${name}`, options);
   if (refResponse.status === 404) {
     return null;
@@ -102,8 +110,63 @@ export async function readMergeJournalRevision(input: {
     revision: input.revision,
     tagSha: sha,
     previous,
+    candidateHeadSha: tag.object.sha,
     body: payload.body,
   };
+}
+
+// Concurrent discovery may see an older tail. Only the create-only append
+// can grant a subsequent remote effect, so a stale reader cannot act.
+export async function readMergeJournalTail(input: {
+  readonly repositoryToken: string;
+  readonly fetchImpl?: FetchLike;
+}): Promise<MergeJournalEntry | null> {
+  const response = await (input.fetchImpl ?? fetch)(
+    `${gitApi}/matching-refs/tags/delivery-control/r`,
+    { redirect: "error", headers: headers(input.repositoryToken) },
+  );
+  if (response.status !== 200 || response.headers.has("link")) {
+    throw new Error("MERGE_JOURNAL_INVENTORY_UNAVAILABLE");
+  }
+  const matches: unknown = await response.json();
+  if (!Array.isArray(matches)) {
+    throw new Error("MERGE_JOURNAL_INVENTORY_UNVERIFIED");
+  }
+
+  const tags = new Map<number, string>();
+  for (const ref of matches as readonly (TagReference | null)[]) {
+    const revision = Number(
+      ref?.ref?.match(/^refs\/tags\/delivery-control\/r([1-9]\d*)$/u)?.[1],
+    );
+    const sha = ref?.object?.sha;
+    if (
+      !Number.isSafeInteger(revision) ||
+      revision > matches.length ||
+      tags.has(revision) ||
+      ref?.object?.type !== "tag" ||
+      !sha ||
+      !oid.test(sha)
+    ) {
+      throw new Error("MERGE_JOURNAL_INVENTORY_UNVERIFIED");
+    }
+    tags.set(revision, sha);
+  }
+  if (!tags.size) {
+    return null;
+  }
+
+  const tail = await readMergeJournalRevision({
+    ...input,
+    revision: tags.size,
+  });
+  if (
+    !tail ||
+    tail.tagSha !== tags.get(tags.size) ||
+    tail.previous !== (tags.get(tags.size - 1) ?? null)
+  ) {
+    throw new Error("MERGE_JOURNAL_TAIL_UNVERIFIED");
+  }
+  return tail;
 }
 
 export type MergeJournalAppend =
@@ -143,6 +206,7 @@ export async function appendMergeJournalRevision(input: {
   try {
     const objectResponse = await fetchImpl(`${gitApi}/tags`, {
       method: "POST",
+      redirect: "error",
       headers: requestHeaders,
       body: JSON.stringify({
         tag: name,
@@ -168,6 +232,7 @@ export async function appendMergeJournalRevision(input: {
     const ref = `refs/tags/${name}`;
     const refResponse = await fetchImpl(`${gitApi}/refs`, {
       method: "POST",
+      redirect: "error",
       headers: requestHeaders,
       body: JSON.stringify({ ref, sha: object.sha }),
     });
