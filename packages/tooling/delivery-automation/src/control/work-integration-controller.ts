@@ -6,6 +6,7 @@ import {
   type MergeReservationEvent,
   transitionMergeReservation,
 } from "./merge-reservation.js";
+import { sameWorkIntegrationCandidate } from "./work-integration-request.js";
 
 type Operation = Extract<MergeReservationEvent, { kind: "begin" }>["operation"];
 type ResultEvent = Exclude<MergeReservationEvent, { kind: "begin" }>;
@@ -92,8 +93,60 @@ export async function executeWorkIntegrationOperation(input: {
     if (!next) {
       return { status: "deferred" };
     }
-    const receipt = await ports.append(intent, next);
-    return receipt ? { status: "confirmed", receipt } : { status: "deferred" };
+    return await confirmResult(ports, intent, next);
+  } catch {
+    return { status: "deferred" };
+  }
+}
+
+async function confirmResult(
+  ports: Pick<WorkIntegrationControllerPorts, "append">,
+  intent: WorkIntegrationReservationReceipt,
+  next: MergeReservation,
+): Promise<WorkIntegrationOperationResult> {
+  const receipt = await ports.append(intent, next);
+  return receipt &&
+    receipt.revision === intent.revision + 1 &&
+    isDeepStrictEqual(receipt.reservation, next)
+    ? { status: "confirmed", receipt }
+    : { status: "deferred" };
+}
+
+export async function reconcileWorkIntegrationOperation(input: {
+  readonly candidate: MergeCandidate;
+  readonly ports: Omit<WorkIntegrationControllerPorts, "perform"> & {
+    // Read-only: a positive observation must identify this exact intent.
+    readonly observe: (
+      intent: WorkIntegrationReservationReceipt,
+    ) => Promise<ResultEvent | null>;
+  };
+}): Promise<WorkIntegrationOperationResult> {
+  const { candidate, ports } = input;
+
+  try {
+    const intent = await ports.readReservation();
+    const { state } = intent.reservation;
+    if (
+      state.phase !== "pending" ||
+      !sameWorkIntegrationCandidate(candidate, intent.reservation.candidate)
+    ) {
+      return { status: "deferred" };
+    }
+    const recovery = { candidate, operation: "resolve" } as const;
+    if (!(await ports.authorize(recovery))) {
+      return { status: "denied" };
+    }
+
+    const event = await ports.observe(intent);
+    const next =
+      event && transitionMergeReservation(intent.reservation, candidate, event);
+    if (!next) {
+      return { status: "deferred" };
+    }
+    if (!(await ports.authorize(recovery))) {
+      return { status: "denied" };
+    }
+    return await confirmResult(ports, intent, next);
   } catch {
     return { status: "deferred" };
   }
