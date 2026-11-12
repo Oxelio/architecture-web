@@ -642,6 +642,148 @@ export async function observeReservedNativeArm(
   }
 }
 
+export async function cancelReservedNativeSquash(
+  publisher: WorkMergePublisher,
+  reservation: MergeReservation,
+  scope: {
+    readonly reservationId: string;
+    readonly controllerBotId: number;
+    readonly checksAppId: number;
+    readonly rulesetId: number;
+  },
+): Promise<
+  | { readonly kind: "squash-cancelled" }
+  | { readonly kind: "squash-merged"; readonly sha: string }
+  | null
+> {
+  const { candidate, state } = reservation;
+  if (
+    state.phase !== "pending" ||
+    state.operation !== "resolve" ||
+    state.previousPhase === undefined ||
+    !scope.reservationId.trim() ||
+    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    !positiveId(candidate.pullNumber) ||
+    !positiveId(scope.controllerBotId) ||
+    !positiveId(scope.checksAppId) ||
+    !positiveId(scope.rulesetId) ||
+    !publisher.mergeToken.trim() ||
+    publisher.mergeToken === publisher.repositoryToken
+  ) {
+    return null;
+  }
+  const previousPhase = state.previousPhase;
+  const repoPath = `/repos/${publisher.repository}`;
+  const prPath = `${repoPath}/pulls/${candidate.pullNumber}`;
+  const grant = {
+    workNumber: candidate.workNumber,
+    pullNumber: candidate.pullNumber,
+    gateAppId: scope.checksAppId,
+    rulesetId: scope.rulesetId,
+  };
+  const isCurrent = (pr: PullRequest) =>
+    sameCandidate(pr, candidate, publisher.repositoryId) &&
+    pr.state === "open" &&
+    pr.merged === false &&
+    pr.base.sha === candidate.baseSha &&
+    workReference(pr.body) === candidate.workNumber;
+  const checkIsHeld = async (pr: PullRequest) =>
+    state.checkId !== undefined &&
+    typeof (await verifyChecks(
+      publisher,
+      grant,
+      repoPath,
+      pr,
+      "auto",
+      false,
+      false,
+      {
+        checkId: state.checkId,
+        reservationId: scope.reservationId,
+      },
+    )) !== "string";
+  const observeMerge = () => observeReservedWorkSquash(publisher, candidate);
+
+  try {
+    return await publisher.withinVerifiedBoundary(
+      candidate,
+      "auto",
+      async () => {
+        const current = await github<PullRequest>(publisher, prPath);
+        if (!isCurrent(current)) {
+          return observeMerge();
+        }
+        if (previousPhase === "reserved" || previousPhase === "queued") {
+          return current.auto_merge === null &&
+            (previousPhase === "reserved" || (await checkIsHeld(current)))
+            ? ({ kind: "squash-cancelled" } as const)
+            : null;
+        }
+        if (!isNativeSquashFrom(current, scope.controllerBotId)) {
+          return observeMerge();
+        }
+        const held = previousPhase === "armed" && (await checkIsHeld(current));
+        let response;
+        try {
+          response = await github<{
+            readonly errors?: readonly unknown[];
+            readonly data?: {
+              readonly disablePullRequestAutoMerge?: {
+                readonly clientMutationId?: string;
+                readonly pullRequest?: {
+                  readonly id?: string;
+                  readonly autoMergeRequest?: object | null;
+                };
+              };
+            };
+          }>(
+            publisher,
+            "/graphql",
+            "POST",
+            {
+              query: `mutation($input: DisablePullRequestAutoMergeInput!) {
+            disablePullRequestAutoMerge(input: $input) {
+              clientMutationId
+              pullRequest { id autoMergeRequest { enabledAt } }
+            }
+          }`,
+              variables: {
+                input: {
+                  pullRequestId: current.node_id,
+                  clientMutationId: scope.reservationId,
+                },
+              },
+            },
+            publisher.mergeToken,
+          );
+        } catch {
+          return observeMerge();
+        }
+        const disabled = response.data?.disablePullRequestAutoMerge;
+        // A disable acknowledgement cannot exclude a squash already in flight
+        // after gate release. Only an independently verified terminal outcome can.
+        if (
+          !held ||
+          response.errors?.length ||
+          disabled?.clientMutationId !== scope.reservationId ||
+          disabled.pullRequest?.id !== current.node_id ||
+          disabled.pullRequest.autoMergeRequest !== null
+        ) {
+          return observeMerge();
+        }
+        const after = await github<PullRequest>(publisher, prPath);
+        return isCurrent(after) &&
+          after.auto_merge === null &&
+          (await checkIsHeld(after))
+          ? ({ kind: "squash-cancelled" } as const)
+          : observeMerge();
+      },
+    );
+  } catch {
+    return null;
+  }
+}
+
 export async function observeReservedWorkSquash(
   reader: Pick<
     WorkMergeReader,
