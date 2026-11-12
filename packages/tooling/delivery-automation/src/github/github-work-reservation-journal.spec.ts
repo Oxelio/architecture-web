@@ -9,6 +9,11 @@ import {
   reconcileReservedGitHubInvalidation,
   reconcileReservedGitHubWorkIntegration,
 } from "./reserved-work-integration.js";
+import {
+  executeReservedProjectStatusChange,
+  reconcileReservedProjectStatusChange,
+  workStatusChangeId,
+} from "./work-status-writer.js";
 
 const candidate = {
   workNumber: 115,
@@ -18,6 +23,19 @@ const candidate = {
 };
 const controllerToken = "test-controller";
 const issuerToken = "test-issuer";
+const projectsWriteToken = "test-project-writer";
+const change = {
+  projectId: "test-project",
+  itemId: "test-item",
+  fieldId: "test-status",
+  from: { name: "Validating", optionId: "validating" },
+  to: { name: "Reviewing", optionId: "reviewing" },
+} as const;
+const statusOptions = [
+  { id: "validating", name: "Validating" },
+  { id: "reviewing", name: "Reviewing" },
+  { id: "implementing", name: "Implementing" },
+];
 
 function fixture() {
   const tags = new Map<string, object>();
@@ -26,7 +44,14 @@ function fixture() {
     { ref: string; object: { type: "tag"; sha: string } }
   >();
   const checkReservations: string[] = [];
-  const state = { loseRef: "", loseCheckResponse: false, calls: 0 };
+  const state = {
+    loseRef: "",
+    loseCheckResponse: false,
+    calls: 0,
+    status: "validating",
+    projectWrites: 0,
+    loseProjectResponse: false,
+  };
   const publishedChecks: object[] = [];
   const fetchImpl = async (request: RequestInfo | URL, init?: RequestInit) => {
     state.calls++;
@@ -55,6 +80,71 @@ function fixture() {
         throw new Error("simulated lost check response");
       }
       return Response.json(result, { status: 201 });
+    }
+
+    if (path === "/graphql") {
+      const body = JSON.parse(String(init?.body)) as {
+        query: string;
+        variables: object;
+      };
+      if (body.query.includes("query ArchitectureWebWorkStatus")) {
+        expect(auth).toBe("Bearer test-project-reader");
+        expect(body.variables).toEqual({ number: candidate.workNumber });
+        const selected = statusOptions.find(({ id }) => id === state.status);
+        return Response.json({
+          data: {
+            user: {
+              databaseId: 83680141,
+              projectV2: {
+                id: change.projectId,
+                closed: false,
+                field: { id: change.fieldId, options: statusOptions },
+              },
+            },
+            repository: {
+              databaseId: 1336937640,
+              issue: {
+                number: candidate.workNumber,
+                parent: null,
+                projectItems: {
+                  nodes: [
+                    {
+                      id: change.itemId,
+                      project: { id: change.projectId },
+                      status: {
+                        name: selected?.name,
+                        optionId: selected?.id,
+                        field: { id: change.fieldId },
+                      },
+                    },
+                  ],
+                  pageInfo: { hasNextPage: false },
+                },
+              },
+            },
+          },
+        });
+      }
+      expect(body.query).toContain("mutation ArchitectureWebChangeWorkStatus");
+      expect(auth).toBe(`Bearer ${projectsWriteToken}`);
+      expect(body.variables).toEqual({
+        project: change.projectId,
+        item: change.itemId,
+        field: change.fieldId,
+        option: change.to.optionId,
+      });
+      state.projectWrites++;
+      state.status = change.to.optionId;
+      if (state.loseProjectResponse) {
+        throw new Error("simulated loss of Project write acknowledgement");
+      }
+      return Response.json({
+        data: {
+          updateProjectV2ItemFieldValue: {
+            projectV2Item: { id: change.itemId },
+          },
+        },
+      });
     }
 
     if (path.endsWith("/pulls/141")) {
@@ -308,5 +398,66 @@ describe("persistent invalidating write", () => {
       }),
     ).toEqual({ status: "denied" });
     expect(writes).toBe(0);
+  });
+});
+
+describe("reserved Project #3 Work Status writes", () => {
+  it("records an exactly authorized status change and verifies the owner read-back", async () => {
+    const f = fixture();
+    await f.journal().reserve(candidate);
+    const writeId = workStatusChangeId(candidate, change);
+    const result = await executeReservedProjectStatusChange({
+      ...f.input,
+      change,
+      projectsWriteToken,
+      authorize: async (request) =>
+        request.operation === "resolve" ||
+        (request.operation === "invalidate" && request.writeId === writeId),
+    });
+    expect(result).toMatchObject({
+      status: "confirmed",
+      receipt: { reservation: { state: { phase: "invalidated", writeId } } },
+    });
+    expect(f.state.projectWrites).toBe(1);
+    expect(f.state.status).toBe("reviewing");
+  });
+
+  it("refuses changed source state, a different mapping, and shared write credentials", async () => {
+    for (const fault of ["status", "item", "token"]) {
+      const f = fixture();
+      await f.journal().reserve(candidate);
+      if (fault === "status") {
+        f.state.status = "implementing";
+      }
+      await expect(
+        executeReservedProjectStatusChange({
+          ...f.input,
+          change:
+            fault === "item" ? { ...change, itemId: "other-item" } : change,
+          projectsWriteToken:
+            fault === "token"
+              ? f.input.scope.publisher.projectsToken
+              : projectsWriteToken,
+        }),
+      ).resolves.toEqual({ status: fault === "token" ? "denied" : "deferred" });
+      expect(f.state.projectWrites).toBe(0);
+    }
+  });
+
+  it("reconciles a lost Project response by reading the exact status without a second write", async () => {
+    const f = fixture();
+    await f.journal().reserve(candidate);
+    f.state.loseProjectResponse = true;
+    const request = { ...f.input, change, projectsWriteToken };
+    expect(await executeReservedProjectStatusChange(request)).toEqual({
+      status: "deferred",
+    });
+    expect(await executeReservedProjectStatusChange(request)).toEqual({
+      status: "deferred",
+    });
+    expect(await reconcileReservedProjectStatusChange(request)).toMatchObject({
+      status: "confirmed",
+    });
+    expect(f.state.projectWrites).toBe(1);
   });
 });
