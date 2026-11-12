@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { MergeReservation } from "../control/merge-reservation.js";
+import {
+  executeWorkIntegrationOperation,
+  type WorkIntegrationReservationReceipt,
+} from "../control/work-integration-controller.js";
+import { performReservedGitHubIntegration } from "./reserved-work-integration.js";
 import {
   armReservedWorkSquash,
   evaluateScopedWorkGate,
   observeReservedWorkSquash,
   observeWorkMerge,
   publishWorkMerge,
+  releaseReservedWorkMergeGate,
   type WorkGateEvaluationGrant,
   type WorkMergeGrant,
   type WorkMergePublisher,
@@ -29,6 +36,8 @@ const checks = [
 ];
 
 const reservedCheckId = 133;
+const controllerBotId = 123;
+const checkIssuerToken = "isolated-check-issuer-fixture";
 const reservationId = "delivery-control/r12";
 const armIntent = {
   candidate,
@@ -70,6 +79,7 @@ function fixture(scoped = false) {
     receiptUnexpected: false,
     merged: false,
     armed: false,
+    armBotId: controllerBotId,
     observation: false,
     bypassActors: [] as readonly unknown[] | null | undefined,
     strictChecks: true,
@@ -232,7 +242,12 @@ function fixture(scoped = false) {
           mergeable: true,
           merged: state.merged,
           merge_commit_sha: state.merged ? mergeSha : testSha,
-          auto_merge: state.armed ? {} : null,
+          auto_merge: state.armed
+            ? {
+                merge_method: "squash",
+                enabled_by: { type: "Bot", id: state.armBotId },
+              }
+            : null,
           head: {
             ref: "codex/91",
             sha:
@@ -338,6 +353,36 @@ function fixture(scoped = false) {
       }
       if (url === repoUrl) {
         return Response.json({ id: 8, default_branch: "main" });
+      }
+      if (
+        url === `${repoUrl}/check-runs` ||
+        url === `${repoUrl}/check-runs/${reservedCheckId}`
+      ) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          `Bearer ${checkIssuerToken}`,
+        );
+        if (init?.method === "POST") {
+          writes.push({ url, method: "POST", body });
+          state.reservedGate = "queued";
+        }
+        if (init?.method === "PATCH") {
+          expect(state.armed).toBe(true);
+          writes.push({ url, method: "PATCH", body });
+          state.reservedGate = "completed";
+        }
+        return Response.json(
+          {
+            id: reservedCheckId,
+            html_url: "https://github.com/Oxelio/architecture-web/runs/133",
+            name: gate,
+            head_sha: candidate.headSha,
+            external_id: reservationId,
+            app: { id: 7 },
+            status: state.reservedGate,
+            conclusion: state.reservedGate === "completed" ? "success" : null,
+          },
+          { status: init?.method === "POST" ? 201 : 200 },
+        );
       }
       if (url.includes("/check-runs")) {
         const onTestMerge = url.includes(testSha);
@@ -873,6 +918,99 @@ describe("reserved squash outcome", () => {
         observeReservedWorkSquash(f.publisher(), candidate),
       ).resolves.toBeNull();
       expect(f.writes).toHaveLength(0);
+    }
+  });
+});
+
+describe("reserved gate release", () => {
+  const releaseIntent = {
+    candidate,
+    state: {
+      phase: "pending",
+      operation: "release-check",
+      checkId: reservedCheckId,
+    },
+  } as const;
+
+  it("keeps the same check pending until the durable arm and releases that check only", async () => {
+    const f = fixture();
+    let current: WorkIntegrationReservationReceipt = {
+      revision: 1,
+      reservation: { candidate, state: { phase: "reserved" } },
+    };
+    const publisher = f.publisher();
+    const ports: Parameters<
+      typeof executeWorkIntegrationOperation
+    >[0]["ports"] = {
+      readReservation: async () => current,
+      append: async (
+        previous: WorkIntegrationReservationReceipt,
+        reservation: MergeReservation,
+      ) => {
+        if (previous.revision !== current.revision) {
+          return null;
+        }
+        current = { revision: current.revision + 1, reservation };
+        return current;
+      },
+      authorize: async () => true,
+      perform: ({ reservation }) =>
+        performReservedGitHubIntegration(reservation, {
+          publisher,
+          reservationId,
+          checksToken: checkIssuerToken,
+          checksAppId: 7,
+          controllerBotId,
+        }),
+    };
+    for (const operation of [
+      "queue-check",
+      "arm-squash",
+      "release-check",
+    ] as const) {
+      await expect(
+        executeWorkIntegrationOperation({
+          candidate,
+          operation,
+          standingEnabled: true,
+          ports,
+        }),
+      ).resolves.toMatchObject({ status: "confirmed" });
+    }
+    expect(current.reservation.state).toEqual({
+      phase: "released",
+      checkId: reservedCheckId,
+    });
+    expect(f.writes.map(({ method, url }) => [method, url])).toEqual([
+      ["POST", `${repoUrl}/check-runs`],
+      ["POST", "https://api.github.com/graphql"],
+      ["PATCH", `${repoUrl}/check-runs/${reservedCheckId}`],
+    ]);
+  });
+
+  it("keeps the check pending if the request changed or current authority was revoked", async () => {
+    for (const change of [
+      { armed: false },
+      { armBotId: controllerBotId + 1 },
+      { revokedDecision: true },
+      { dependencyOpen: true },
+      { boundary: false },
+    ]) {
+      const f = fixture();
+      f.state.armed = true;
+      f.state.reservedGate = "queued";
+      Object.assign(f.state, change);
+      await expect(
+        releaseReservedWorkMergeGate(
+          f.publisher(),
+          releaseIntent,
+          reservationId,
+          checkIssuerToken,
+          controllerBotId,
+        ),
+      ).resolves.toMatchObject({ status: "blocked" });
+      expect(f.writes).toHaveLength(0);
+      expect(f.state.reservedGate).toBe("queued");
     }
   });
 });
