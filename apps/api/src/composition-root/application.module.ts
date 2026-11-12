@@ -50,12 +50,12 @@ import {
 
 import { IamAuditAccessAdapter } from "#adapters/audit/iam-audit-access.adapter";
 import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
+import { IamNotificationRecipientDirectoryAdapter } from "#adapters/notifications/iam-notification-recipient-directory.adapter";
 import { loadConfig } from "#config/app.config";
 
 import { startBackgroundPolling } from "./background-polling.js";
 import { createDatabase } from "./database.module.js";
 import { buildIamModule } from "./iam.module.js";
-import { IamNotificationRecipientDirectoryAdapter } from "./iam-notification-recipient-directory.adapter.js";
 import { createRedis } from "./redis.module.js";
 
 export interface ApplicationModule {

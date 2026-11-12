@@ -54,9 +54,9 @@ import {
 } from "vitest";
 
 import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
+import { IamNotificationRecipientDirectoryAdapter } from "#adapters/notifications/iam-notification-recipient-directory.adapter";
 import { getAllMigrations } from "#app/scripts/migrations.provider";
 import type { AppDatabase } from "#composition-root/database.module";
-import { IamNotificationRecipientDirectoryAdapter } from "#composition-root/iam-notification-recipient-directory.adapter";
 
 const databaseUrl = process.env["IAM_INTEGRATION_DATABASE_URL"];
 const redisUrl = process.env["IAM_INTEGRATION_REDIS_URL"];

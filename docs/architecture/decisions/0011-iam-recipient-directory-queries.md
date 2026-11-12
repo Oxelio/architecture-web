@@ -23,9 +23,9 @@ email if present. An existing account can be found regardless of status.
 Administrator selection and authorization require both the administrator
 role and active status.
 
-An adapter in API composition implements the Notifications directory port
-through those IAM contracts. It maps results to Notifications types and
-delegates affected-user delivery eligibility to the existing IAM contract
+An API adapter selected in the composition root implements the Notifications
+directory port through those IAM contracts. It maps results to Notifications
+types and delegates affected-user delivery eligibility to the existing IAM contract
 owned by [ADR-0010](0010-iam-erasure-evidence.md). Each lookup reads current
 IAM state. Notifications and IAM remain independently importable.
 
