@@ -1,4 +1,5 @@
 import { resolveActivationContext } from "../config/activation-context.js";
+import { authorizeWorkIntegrationEvaluation } from "../control/work-integration-request.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import {
   evaluateScopedWorkGate,
@@ -22,23 +23,25 @@ const candidate = {
   headSha: requiredEnvironment("GATE_HEAD_SHA"),
   baseSha: requiredEnvironment("GATE_BASE_SHA"),
 };
-const grant = JSON.parse(
-  requiredEnvironment("DELIVERY_EVALUATED_GATE_EVIDENCE"),
-) as WorkGateEvaluationGrant | null;
-if (
-  actorId !== 83680141 ||
-  repository.toLowerCase() !== "oxelio/architecture-web" ||
-  repositoryId !== 1336937640 ||
-  grant?.purpose !== "evaluate-work-merge-gate" ||
-  grant?.actorId !== actorId ||
-  grant.repositoryId !== repositoryId ||
-  grant.workNumber !== candidate.workNumber ||
-  grant.pullNumber !== candidate.pullNumber ||
-  grant.headSha !== candidate.headSha ||
-  grant.baseSha !== candidate.baseSha ||
-  candidate.baseSha !== requiredEnvironment("TRUSTED_WORKFLOW_SHA") ||
-  !(Date.parse(grant.expiresAt) > Date.now())
-) {
+const grant = authorizeWorkIntegrationEvaluation(
+  {
+    repository,
+    repositoryId,
+    actorId,
+    ref: requiredEnvironment("GITHUB_REF"),
+    workflowSha: requiredEnvironment("TRUSTED_WORKFLOW_SHA"),
+    runAttempt: requiredEnvironment("GITHUB_RUN_ATTEMPT"),
+  },
+  {
+    kind: "maintainer-dispatch",
+    candidate,
+    grant: JSON.parse(
+      requiredEnvironment("DELIVERY_EVALUATED_GATE_EVIDENCE"),
+    ) as WorkGateEvaluationGrant | null,
+  },
+  Date.now(),
+);
+if (!grant) {
   throw new Error("EVALUATED_GATE_NOT_AUTHORIZED");
 }
 const repositoryToken = requiredEnvironment("GITHUB_TOKEN");
