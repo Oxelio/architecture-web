@@ -221,3 +221,74 @@ export async function completeReservedGateCheck(
     return null;
   }
 }
+
+export async function observeReservedGateCheck(
+  scope: ReservedGateCheckScope,
+  expected:
+    | { readonly state: "queued" }
+    | { readonly state: "queued" | "completed"; readonly checkId: number },
+): Promise<PublishedGateCheck | null> {
+  const endpoint = reservedCheckEndpoint(scope);
+  if (!endpoint) {
+    return null;
+  }
+  const fetchImpl = scope.fetchImpl ?? fetch;
+  const options = {
+    redirect: "error",
+    headers: headers(scope.checksToken),
+  } as const;
+
+  try {
+    if ("checkId" in expected) {
+      if (!Number.isSafeInteger(expected.checkId) || expected.checkId <= 0) {
+        return null;
+      }
+      const response = await fetchImpl(
+        `${endpoint}/${expected.checkId}`,
+        options,
+      );
+      return response.status === 200
+        ? verifyReservedCheck(
+            await response.json(),
+            scope,
+            expected.state,
+            expected.checkId,
+          )
+        : null;
+    }
+
+    const repository = `https://api.github.com/repos/${scope.repository}`;
+    const query = new URLSearchParams({
+      check_name: scope.name,
+      filter: "all",
+      per_page: "100",
+    });
+    const response = await fetchImpl(
+      `${repository}/commits/${scope.headSha}/check-runs?${query}`,
+      options,
+    );
+    if (response.status !== 200 || response.headers.has("link")) {
+      return null;
+    }
+    const payload = (await response.json()) as {
+      readonly total_count?: number;
+      readonly check_runs?: readonly (ReservedCheckResponse | null)[];
+    } | null;
+    if (
+      !Array.isArray(payload?.check_runs) ||
+      payload.total_count !== payload.check_runs.length
+    ) {
+      return null;
+    }
+    const matches = payload.check_runs.filter(
+      (check) =>
+        check?.external_id === scope.reservationId &&
+        check?.app?.id === scope.expectedAppId,
+    );
+    return matches.length === 1
+      ? verifyReservedCheck(matches[0], scope, "queued")
+      : null;
+  } catch {
+    return null;
+  }
+}
