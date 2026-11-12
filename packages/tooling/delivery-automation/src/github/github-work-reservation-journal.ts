@@ -55,7 +55,12 @@ function isReservationState(value: unknown): value is MergeReservationState {
         case "release-check":
           return checkId(state["checkId"]);
         case "resolve":
-          return state["checkId"] === undefined || checkId(state["checkId"]);
+          return state["previousPhase"] === "reserved"
+            ? state["checkId"] === undefined
+            : (state["previousPhase"] === "queued" ||
+                state["previousPhase"] === "armed" ||
+                state["previousPhase"] === "released") &&
+                checkId(state["checkId"]);
         default:
           return false;
       }
