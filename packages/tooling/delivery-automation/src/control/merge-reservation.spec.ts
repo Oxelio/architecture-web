@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+
 import {
   invalidatingWriteDisposition,
-  transitionMergeReservation,
   type MergeReservation,
   type MergeReservationEvent,
+  transitionMergeReservation,
 } from "./merge-reservation.js";
 
 const candidate = {
