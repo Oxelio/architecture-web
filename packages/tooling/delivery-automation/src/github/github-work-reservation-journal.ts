@@ -39,31 +39,33 @@ function isReservationState(value: unknown): value is MergeReservationState {
     return false;
   }
   const state = value as Record<string, unknown>;
-  switch (state.phase) {
+  switch (state["phase"]) {
     case "reserved":
     case "cancelled":
       return true;
     case "queued":
     case "armed":
     case "released":
-      return checkId(state.checkId);
+      return checkId(state["checkId"]);
     case "pending":
-      switch (state.operation) {
+      switch (state["operation"]) {
         case "queue-check":
-          return state.checkId === undefined;
+          return state["checkId"] === undefined;
         case "arm-squash":
         case "release-check":
-          return checkId(state.checkId);
+          return checkId(state["checkId"]);
         case "resolve":
-          return state.checkId === undefined || checkId(state.checkId);
+          return state["checkId"] === undefined || checkId(state["checkId"]);
         default:
           return false;
       }
     case "invalidating":
     case "invalidated":
-      return typeof state.writeId === "string" && digest.test(state.writeId);
+      return (
+        typeof state["writeId"] === "string" && digest.test(state["writeId"])
+      );
     case "merged":
-      return typeof state.sha === "string" && sha.test(state.sha);
+      return typeof state["sha"] === "string" && sha.test(state["sha"]);
     default:
       return false;
   }
