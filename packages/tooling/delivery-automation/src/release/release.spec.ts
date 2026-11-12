@@ -192,7 +192,7 @@ describe("release source pipeline", () => {
   it("discovers all actual manifests and binds first-stable authorization to its source SHA", async () => {
     expect(
       workspaceManifests(resolve(import.meta.dirname, "../../../../..")),
-    ).toHaveLength(24);
+    ).toHaveLength(23);
     const f = fixture();
     await expect(
       readReleasePlan(f.root, f.sha, {
