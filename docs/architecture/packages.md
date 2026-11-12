@@ -56,7 +56,6 @@ Workspace packages are grouped under `packages/contexts/*`, `packages/adapters/*
 | `@architecture/notifications-delivery-nodemailer`    | SMTP notification delivery            | root export                                                                |
 | `@architecture/notifications-delivery-slack-webhook` | Slack webhook delivery                | root export                                                                |
 | `@architecture/notifications-delivery-sms-webhook`   | SMS webhook delivery                  | root export                                                                |
-| `@architecture/notifications-recipient-iam-kysely`   | IAM recipient directory               | root export                                                                |
 | `@architecture/iam-persistence-kysely`               | IAM PostgreSQL schema and persistence | root export                                                                |
 | `@architecture/iam-session-redis`                    | sessions and rate limiting            | root export                                                                |
 | `@architecture/iam-password-argon2`                  | selected password hashing             | root export                                                                |
@@ -81,6 +80,10 @@ Notifications groups its application operations under `inbox`, `preferences`,
 under `ports`, alongside the existing `repositories` persistence contracts.
 External callers use the existing `@architecture/notifications/application`
 and `@architecture/notifications/domain` entry points.
+
+API composition implements the Notifications recipient directory with
+IAM's `AccountRecipientReader` and `AffectedUserDeliveryEligibilityReader`.
+IAM persistence owns the queries. See [ADR-0011](decisions/0011-iam-recipient-directory-queries.md).
 
 | Application port                 | Composed implementation                               |
 | -------------------------------- | ----------------------------------------------------- |
