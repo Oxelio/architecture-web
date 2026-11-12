@@ -2,6 +2,7 @@ import type { MergeCandidate } from "../github/work-merge-publisher.js";
 import { sameWorkIntegrationCandidate } from "./work-integration-request.js";
 
 type Operation = "queue-check" | "arm-squash" | "release-check" | "resolve";
+type ResolvablePhase = "reserved" | "queued" | "armed" | "released";
 
 export type MergeReservationState =
   | { readonly phase: "reserved" }
@@ -12,6 +13,7 @@ export type MergeReservationState =
       readonly phase: "pending";
       readonly operation: Operation;
       readonly checkId?: number;
+      readonly previousPhase?: ResolvablePhase;
     }
   | { readonly phase: "invalidating"; readonly writeId: string }
   | { readonly phase: "invalidated"; readonly writeId: string }
@@ -40,10 +42,7 @@ function begin(
   state: MergeReservationState,
   operation: Operation,
 ): MergeReservationState | null {
-  if (
-    state.phase === "reserved" &&
-    (operation === "queue-check" || operation === "resolve")
-  ) {
+  if (state.phase === "reserved" && operation === "queue-check") {
     return { phase: "pending", operation };
   }
   if (
@@ -54,11 +53,17 @@ function begin(
   }
   if (
     operation === "resolve" &&
-    (state.phase === "queued" ||
+    (state.phase === "reserved" ||
+      state.phase === "queued" ||
       state.phase === "armed" ||
       state.phase === "released")
   ) {
-    return { phase: "pending", operation, checkId: state.checkId };
+    return {
+      phase: "pending",
+      operation,
+      previousPhase: state.phase,
+      ...(state.phase === "reserved" ? {} : { checkId: state.checkId }),
+    };
   }
   return null;
 }
