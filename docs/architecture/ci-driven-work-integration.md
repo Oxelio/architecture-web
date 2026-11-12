@@ -29,6 +29,44 @@ and [PR #103](https://github.com/Oxelio/architecture-web/pull/103). Conditional
 closure succeeded for [Work #93](https://github.com/Oxelio/architecture-web/actions/runs/42189090779)
 and [Work #91](https://github.com/Oxelio/architecture-web/actions/runs/42190641824).
 
+## Work #115 implementation and validation sequence
+
+The [maintainer decision for Work #115](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6828197659)
+accepts an inactive implementation followed by normal Validation. Readiness
+establishes design feasibility, ownership and authority, and the validation and
+rollback plan. The separate live pilot previously proposed during Preparing is
+superseded. Standing publication and native auto-merge remain inactive by
+default. The current protected manual path remains effective through the
+authorized cutover.
+
+The target uses one controller on protected main and one candidate-bound
+request contract. A request identifies the repository, Work, PR, head, base,
+evidence and authority context. The controller reads current authority and
+candidate evidence before any effect. Its proposed private GitHub App is
+restricted to this repository. Keep required check publication in the separate
+checks-only issuer and Project reads and writes in their own protected
+credentials. No installation, ruleset, permission or activation change follows
+from accepting this design.
+
+Before arming a native request, persist the exact reservation and the pending
+required check identity. Verify the arm and complete that same App-owned check
+only after the applicable protections and independent writers are verified.
+For an invalidating write, stop further arms and releases and wait until the
+prior native request is conclusively resolved. Treat ambiguous GitHub responses
+as unresolved. A previously passing check cannot authorize another attempt
+against stale evidence. The
+[emergency administrator exception](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6827728442)
+is limited to the human administrator-only access path outside agent reach.
+
+During Validation, prove pending-check, native-arm and same-check release on
+the effective protected configuration. Cover exact candidate identity, stale
+checks, direct ordinary writer denial, conflicting writes on both sides of
+check release, uncertain responses, revocation, and rollback. Confirm an
+eligible native squash and its downstream events without routine maintainer
+steps. Activation requires those proofs and the applicable separate authority.
+For rollback, stop arming, resolve or quarantine the outstanding request, and
+use the protected manual exception. Preserve the existing required checks.
+
 ## Delegated request identity
 
 The integration request identifies the repository, Work, PR and evaluated head
