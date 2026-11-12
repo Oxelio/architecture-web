@@ -8,6 +8,7 @@ import {
 import { performReservedGitHubIntegration } from "./reserved-work-integration.js";
 import {
   armReservedWorkSquash,
+  cancelReservedNativeSquash,
   evaluateScopedWorkGate,
   observeReservedWorkSquash,
   observeWorkMerge,
@@ -72,6 +73,8 @@ function fixture(scoped = false) {
     reservedGate: null as "queued" | "completed" | null,
     reservedGateOnTestMerge: false,
     armTimeout: false,
+    cancelTimeout: false,
+    mergeDuringCancel: false,
     mergeParent: candidate.baseSha,
     mergeOnMain: true,
     mergeTimeout: false,
@@ -193,6 +196,28 @@ function fixture(scoped = false) {
           throw new Error("lost response");
         }
         return Response.json({ merged: true, sha: mergeSha });
+      }
+      if (
+        url === "https://api.github.com/graphql" &&
+        String(init?.body).includes("disablePullRequestAutoMerge")
+      ) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
+        writes.push({ url, method: "POST", body });
+        state.armed = false;
+        state.merged = state.mergeDuringCancel;
+        if (state.cancelTimeout) {
+          throw new Error("native cancellation response lost");
+        }
+        return Response.json({
+          data: {
+            disablePullRequestAutoMerge: {
+              clientMutationId: reservationId,
+              pullRequest: { id: "pr-node", autoMergeRequest: null },
+            },
+          },
+        });
       }
       if (
         url === "https://api.github.com/graphql" &&
@@ -1012,5 +1037,74 @@ describe("reserved gate release", () => {
       expect(f.writes).toHaveLength(0);
       expect(f.state.reservedGate).toBe("queued");
     }
+  });
+});
+
+describe("reserved native cancellation", () => {
+  const scope = {
+    reservationId,
+    checksAppId: 7,
+    rulesetId: 9,
+    controllerBotId,
+  };
+  const cancel = (previousPhase: "armed" | "released") =>
+    ({
+      candidate,
+      state: {
+        phase: "pending",
+        operation: "resolve",
+        checkId: reservedCheckId,
+        previousPhase,
+      },
+    }) as const;
+
+  it("confirms cancellation only when the exact check held the merge throughout", async () => {
+    const f = fixture();
+    f.state.armed = true;
+    f.state.reservedGate = "queued";
+    await expect(
+      cancelReservedNativeSquash(f.publisher(), cancel("armed"), scope),
+    ).resolves.toEqual({ kind: "squash-cancelled" });
+    expect(f.writes).toHaveLength(1);
+    expect(f.writes[0]?.body).toMatchObject({
+      variables: {
+        input: { pullRequestId: "pr-node", clientMutationId: reservationId },
+      },
+    });
+  });
+
+  it("treats lost responses and acknowledgements after release as unresolved", async () => {
+    for (const previousPhase of ["armed", "released"] as const) {
+      const f = fixture();
+      f.state.armed = true;
+      f.state.cancelTimeout = previousPhase === "armed";
+      f.state.reservedGate = previousPhase === "armed" ? "queued" : "completed";
+      await expect(
+        cancelReservedNativeSquash(f.publisher(), cancel(previousPhase), scope),
+      ).resolves.toBeNull();
+      expect(f.writes).toHaveLength(1);
+    }
+  });
+
+  it("preserves the verified squash when merge wins the race", async () => {
+    const f = fixture();
+    f.state.armed = true;
+    f.state.reservedGate = "completed";
+    f.state.mergeDuringCancel = true;
+    await expect(
+      cancelReservedNativeSquash(f.publisher(), cancel("released"), scope),
+    ).resolves.toEqual({ kind: "squash-merged", sha: mergeSha });
+    expect(f.writes).toHaveLength(1);
+  });
+
+  it("does not cancel outside the controller's verified writer boundary", async () => {
+    const f = fixture();
+    f.state.armed = true;
+    f.state.reservedGate = "queued";
+    f.state.boundary = false;
+    await expect(
+      cancelReservedNativeSquash(f.publisher(), cancel("armed"), scope),
+    ).resolves.toBeNull();
+    expect(f.writes).toHaveLength(0);
   });
 });
