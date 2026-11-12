@@ -1,8 +1,8 @@
+import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import {
   type WorkMergeGateResult,
   workMergeRequiredCheckName,
 } from "../control/work-merge-gate.js";
-import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import { publishGateCheck } from "../github/gate-check-publisher.js";
 import type { MergeCandidate } from "../github/work-merge-publisher.js";
 import {
