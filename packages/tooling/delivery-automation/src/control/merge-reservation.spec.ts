@@ -70,7 +70,7 @@ describe("merge reservation", () => {
         invalidatingWriteDisposition(
           move(resolving, { kind: "squash-cancelled" }),
         ),
-      ).toBe("apply");
+      ).toBe("reserve");
       expect(
         invalidatingWriteDisposition(
           move(resolving, { kind: "squash-merged", sha: "c".repeat(40) }),
