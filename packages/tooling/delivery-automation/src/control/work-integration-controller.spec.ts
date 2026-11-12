@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   executeWorkIntegrationOperation,
+  reconcileWorkIntegrationOperation,
   type WorkIntegrationReservationReceipt,
 } from "./work-integration-controller.js";
 
@@ -117,5 +118,80 @@ describe("Work integration controller", () => {
     expect(result.status).toBe("denied");
     expect(current().reservation.state.phase).toBe("pending");
     expect(effects).toEqual([]);
+  });
+
+  it("reconciles a pending intent by read-only observation under recovery authority", async () => {
+    const { ports, effects, current } = fixture();
+    await executeWorkIntegrationOperation({
+      candidate,
+      operation: "arm-squash",
+      standingEnabled: true,
+      ports: { ...ports, perform: async () => null },
+    });
+    const recovery = {
+      candidate,
+      ports: {
+        ...ports,
+        authorize: async ({ operation }: { operation: string }) => {
+          expect(operation).toBe("resolve");
+          return true;
+        },
+        observe: async (intent: WorkIntegrationReservationReceipt) => {
+          expect(intent.revision).toBe(2);
+          return { kind: "squash-armed", checkId: 17 } as const;
+        },
+      },
+    };
+    const results = await Promise.all([
+      reconcileWorkIntegrationOperation(recovery),
+      reconcileWorkIntegrationOperation(recovery),
+    ]);
+    expect(results.map((result) => result.status).sort()).toEqual([
+      "confirmed",
+      "deferred",
+    ]);
+    expect(current().reservation.state).toEqual({
+      phase: "armed",
+      checkId: 17,
+    });
+    expect(effects).toEqual([]);
+  });
+
+  it("keeps an unresolved intent pending when evidence or recovery authority is missing", async () => {
+    const { ports, current } = fixture();
+    await executeWorkIntegrationOperation({
+      candidate,
+      operation: "arm-squash",
+      standingEnabled: true,
+      ports: { ...ports, perform: async () => null },
+    });
+    for (const event of [
+      null,
+      { kind: "squash-armed", checkId: 18 },
+    ] as const) {
+      expect(
+        (
+          await reconcileWorkIntegrationOperation({
+            candidate,
+            ports: { ...ports, observe: async () => event },
+          })
+        ).status,
+      ).toBe("deferred");
+    }
+    expect(
+      (
+        await reconcileWorkIntegrationOperation({
+          candidate,
+          ports: {
+            ...ports,
+            authorize: async () => false,
+            observe: async () => {
+              throw new Error("unexpected observation");
+            },
+          },
+        })
+      ).status,
+    ).toBe("denied");
+    expect(current().reservation.state.phase).toBe("pending");
   });
 });
