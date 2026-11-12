@@ -11,6 +11,7 @@ import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
 import { matchesCompletedCandidate } from "./work-completion-evidence.js";
+import { workReference } from "./work-reference.js";
 
 const gateName = workMergeRequiredCheckName;
 const oid = /^[0-9a-f]{40}$/u;
@@ -602,6 +603,45 @@ export async function releaseReservedWorkMergeGate(
   });
 }
 
+function isNativeSquashFrom(pr: PullRequest, controllerBotId: number): boolean {
+  return (
+    pr.auto_merge?.merge_method === "squash" &&
+    pr.auto_merge.enabled_by?.type === "Bot" &&
+    pr.auto_merge.enabled_by.id === controllerBotId
+  );
+}
+
+export async function observeReservedNativeArm(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  controllerBotId: number,
+): Promise<boolean> {
+  if (
+    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    !positiveId(candidate.pullNumber) ||
+    !positiveId(controllerBotId)
+  ) {
+    return false;
+  }
+  try {
+    const current = await github<PullRequest>(
+      publisher,
+      `/repos/${publisher.repository}/pulls/${candidate.pullNumber}`,
+    );
+    return (
+      sameCandidate(current, candidate, publisher.repositoryId) &&
+      current.state === "open" &&
+      current.draft === false &&
+      current.merged === false &&
+      current.base.sha === candidate.baseSha &&
+      workReference(current.body) === candidate.workNumber &&
+      isNativeSquashFrom(current, controllerBotId)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function observeReservedWorkSquash(
   reader: Pick<
     WorkMergeReader,
@@ -909,11 +949,7 @@ async function evaluateWorkMergeRequest(
       }
       if (reservedCheck?.release) {
         const { checksToken, controllerBotId } = reservedCheck.release;
-        if (
-          current.auto_merge?.merge_method !== "squash" ||
-          current.auto_merge.enabled_by?.type !== "Bot" ||
-          current.auto_merge.enabled_by.id !== controllerBotId
-        ) {
+        if (!isNativeSquashFrom(current, controllerBotId)) {
           return blocked("RESERVED_NATIVE_ARM_UNVERIFIED");
         }
         const completed = await completeReservedGateCheck({
