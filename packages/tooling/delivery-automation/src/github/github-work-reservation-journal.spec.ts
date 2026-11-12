@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import { createGitHubWorkReservationJournal } from "./github-work-reservation-journal.js";
 import {
+  executeReservedGitHubInvalidation,
   executeReservedGitHubWorkIntegration,
+  reconcileReservedGitHubInvalidation,
   reconcileReservedGitHubWorkIntegration,
 } from "./reserved-work-integration.js";
 
@@ -55,6 +57,18 @@ function fixture() {
       return Response.json(result, { status: 201 });
     }
 
+    if (path.endsWith("/pulls/141")) {
+      expect(auth).toBe("Bearer test-reader");
+      return Response.json({
+        number: candidate.pullNumber,
+        state: "open",
+        merged: false,
+        head: { sha: candidate.headSha, repo: { id: 1336937640 } },
+        base: { ref: "main", sha: candidate.baseSha, repo: { id: 1336937640 } },
+        body: "Refs #115",
+        auto_merge: null,
+      });
+    }
     expect(auth).toBe(`Bearer ${controllerToken}`);
     if (path.includes("/matching-refs/")) {
       return Response.json([...refs.values()]);
@@ -114,6 +128,7 @@ function fixture() {
       checksAppId: 7,
       checksToken: issuerToken,
       controllerBotId: 9,
+      cancellationRulesetId: 9,
       publisher: {
         repository: "Oxelio/architecture-web",
         repositoryId: 1336937640,
@@ -133,7 +148,7 @@ function fixture() {
           taskClaim: false,
         },
         readGrant: async () => null,
-        withinVerifiedBoundary: async () => null,
+        withinVerifiedBoundary: async (_candidate, _mode, action) => action(),
       },
     },
   };
@@ -213,5 +228,85 @@ describe("persistent GitHub Work integration reservation", () => {
       status: "deferred",
     });
     expect(f.checkReservations).toHaveLength(1);
+  });
+});
+
+describe("persistent invalidating write", () => {
+  const writeId = "e".repeat(64);
+
+  it("durably resolves the old reservation before applying an authorized write", async () => {
+    const f = fixture();
+    await f.journal().reserve(candidate);
+    let writes = 0;
+    const result = await executeReservedGitHubInvalidation({
+      ...f.input,
+      writeId,
+      apply: async () => {
+        writes++;
+        expect(await f.journal().read()).toMatchObject({
+          revision: 4,
+          reservation: { state: { phase: "invalidating", writeId } },
+        });
+        return true;
+      },
+    });
+    expect(result).toMatchObject({
+      status: "confirmed",
+      receipt: { reservation: { state: { phase: "invalidated", writeId } } },
+    });
+    expect(writes).toBe(1);
+  });
+
+  it("keeps an uncertain write pending and only reconciles the same command", async () => {
+    const f = fixture();
+    await f.journal().reserve(candidate);
+    let writes = 0;
+    const request = {
+      ...f.input,
+      writeId,
+      apply: async () => {
+        writes++;
+        throw new Error("simulated response loss");
+      },
+    };
+    expect(await executeReservedGitHubInvalidation(request)).toEqual({
+      status: "deferred",
+    });
+    expect(await executeReservedGitHubInvalidation(request)).toEqual({
+      status: "deferred",
+    });
+    expect(
+      await reconcileReservedGitHubInvalidation({
+        ...f.input,
+        writeId: "f".repeat(64),
+        observeApplied: async () => true,
+      }),
+    ).toEqual({ status: "deferred" });
+    expect(
+      await reconcileReservedGitHubInvalidation({
+        ...f.input,
+        writeId,
+        observeApplied: async () => true,
+      }),
+    ).toMatchObject({ status: "confirmed" });
+    expect(writes).toBe(1);
+  });
+
+  it("cannot apply a write if resolution authority is missing", async () => {
+    const f = fixture();
+    await f.journal().reserve(candidate);
+    let writes = 0;
+    expect(
+      await executeReservedGitHubInvalidation({
+        ...f.input,
+        writeId,
+        authorize: async ({ operation }) => operation === "invalidate",
+        apply: async () => {
+          writes++;
+          return true;
+        },
+      }),
+    ).toEqual({ status: "denied" });
+    expect(writes).toBe(0);
   });
 });
