@@ -9,7 +9,20 @@ import {
 import { sameWorkIntegrationCandidate } from "./work-integration-request.js";
 
 type Operation = Extract<MergeReservationEvent, { kind: "begin" }>["operation"];
-type ResultEvent = Exclude<MergeReservationEvent, { kind: "begin" }>;
+type ResultEvent = Exclude<
+  MergeReservationEvent,
+  { kind: "begin" | "begin-invalidation" }
+>;
+type OperationRequest =
+  | { readonly operation: Operation; readonly writeId?: never }
+  | { readonly operation: "invalidate"; readonly writeId: string };
+type AuthorizationRequest =
+  | (OperationRequest & { readonly candidate: MergeCandidate })
+  | {
+      readonly candidate: MergeCandidate;
+      readonly operation: "resolve";
+      readonly writeId: string;
+    };
 
 export interface WorkIntegrationReservationReceipt {
   readonly revision: number;
@@ -24,10 +37,7 @@ interface WorkIntegrationControllerPorts {
     previous: WorkIntegrationReservationReceipt,
     reservation: MergeReservation,
   ) => Promise<WorkIntegrationReservationReceipt | null>;
-  readonly authorize: (input: {
-    readonly candidate: MergeCandidate;
-    readonly operation: Operation;
-  }) => Promise<boolean>;
+  readonly authorize: (input: AuthorizationRequest) => Promise<boolean>;
   // Use operation-specific, verified GitHub observations as result evidence.
   // An uncertain response or insufficient evidence returns null.
   readonly perform: (
@@ -42,12 +52,13 @@ export type WorkIntegrationOperationResult =
     }
   | { readonly status: "inactive" | "denied" | "deferred" };
 
-export async function executeWorkIntegrationOperation(input: {
-  readonly candidate: MergeCandidate;
-  readonly operation: Operation;
-  readonly standingEnabled?: boolean;
-  readonly ports: WorkIntegrationControllerPorts;
-}): Promise<WorkIntegrationOperationResult> {
+export async function executeWorkIntegrationOperation(
+  input: OperationRequest & {
+    readonly candidate: MergeCandidate;
+    readonly standingEnabled?: boolean;
+    readonly ports: WorkIntegrationControllerPorts;
+  },
+): Promise<WorkIntegrationOperationResult> {
   // Recovery also requires explicit authority, but must remain available if
   // standing operation was revoked after GitHub accepted an earlier request.
   if (input.operation !== "resolve" && input.standingEnabled !== true) {
@@ -55,17 +66,21 @@ export async function executeWorkIntegrationOperation(input: {
   }
 
   const { candidate, operation, ports } = input;
-  const request = { candidate, operation };
+  const request: AuthorizationRequest =
+    operation === "invalidate"
+      ? { candidate, operation, writeId: input.writeId }
+      : { candidate, operation };
+  const event: MergeReservationEvent =
+    operation === "invalidate"
+      ? { kind: "begin-invalidation", writeId: input.writeId }
+      : { kind: "begin", operation };
 
   try {
     const previous = await ports.readReservation();
     const pending = transitionMergeReservation(
       previous.reservation,
       candidate,
-      {
-        kind: "begin",
-        operation,
-      },
+      event,
     );
     if (!pending) {
       return { status: "deferred" };
@@ -88,8 +103,9 @@ export async function executeWorkIntegrationOperation(input: {
       return { status: "denied" };
     }
 
-    const event = await ports.perform(intent);
-    const next = event && transitionMergeReservation(pending, candidate, event);
+    const result = await ports.perform(intent);
+    const next =
+      result && transitionMergeReservation(pending, candidate, result);
     if (!next) {
       return { status: "deferred" };
     }
@@ -127,12 +143,15 @@ export async function reconcileWorkIntegrationOperation(input: {
     const intent = await ports.readReservation();
     const { state } = intent.reservation;
     if (
-      state.phase !== "pending" ||
+      (state.phase !== "pending" && state.phase !== "invalidating") ||
       !sameWorkIntegrationCandidate(candidate, intent.reservation.candidate)
     ) {
       return { status: "deferred" };
     }
-    const recovery = { candidate, operation: "resolve" } as const;
+    const recovery: AuthorizationRequest =
+      state.phase === "invalidating"
+        ? { candidate, operation: "resolve", writeId: state.writeId }
+        : { candidate, operation: "resolve" };
     if (!(await ports.authorize(recovery))) {
       return { status: "denied" };
     }
