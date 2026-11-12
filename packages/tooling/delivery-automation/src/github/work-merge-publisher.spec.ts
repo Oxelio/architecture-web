@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   armReservedWorkSquash,
   evaluateScopedWorkGate,
+  observeReservedWorkSquash,
   observeWorkMerge,
   publishWorkMerge,
   type WorkGateEvaluationGrant,
@@ -62,6 +63,8 @@ function fixture(scoped = false) {
     reservedGate: null as "queued" | "completed" | null,
     reservedGateOnTestMerge: false,
     armTimeout: false,
+    mergeParent: candidate.baseSha,
+    mergeOnMain: true,
     mergeTimeout: false,
     receiptTimeout: false,
     receiptUnexpected: false,
@@ -129,6 +132,18 @@ function fixture(scoped = false) {
               },
             },
           },
+        });
+      }
+      if (url === `${repoUrl}/commits/${mergeSha}`) {
+        return Response.json({
+          sha: mergeSha,
+          parents: [{ sha: state.mergeParent }],
+        });
+      }
+      if (url === `${repoUrl}/compare/${mergeSha}...main`) {
+        return Response.json({
+          status: state.mergeOnMain ? "ahead" : "diverged",
+          merge_base_commit: { sha: state.mergeOnMain ? mergeSha : testSha },
         });
       }
       if (url.endsWith("/git/refs")) {
@@ -828,5 +843,36 @@ describe("reserved native squash", () => {
       reason: "MUTATION_NOT_CONFIRMED",
     });
     expect(f.writes).toHaveLength(1);
+  });
+});
+
+describe("reserved squash outcome", () => {
+  it("confirms the exact squash in protected main without issuing a mutation", async () => {
+    const f = fixture();
+    f.state.merged = true;
+    await expect(
+      observeReservedWorkSquash(f.publisher(), candidate),
+    ).resolves.toEqual({
+      kind: "squash-merged",
+      sha: mergeSha,
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("keeps the outcome unresolved on a wrong parent, changed owner, or absent merge", async () => {
+    for (const state of [
+      { mergeOnMain: false },
+      { mergeParent: testSha },
+      { owningPullBody: "Refs #93" },
+      { merged: false, armed: false },
+    ]) {
+      const f = fixture();
+      f.state.merged = true;
+      Object.assign(f.state, state);
+      await expect(
+        observeReservedWorkSquash(f.publisher(), candidate),
+      ).resolves.toBeNull();
+      expect(f.writes).toHaveLength(0);
+    }
   });
 });
