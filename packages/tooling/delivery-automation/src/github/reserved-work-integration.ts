@@ -369,9 +369,18 @@ export async function executeReservedGitHubInvalidation(
           if (state.phase !== "invalidating" || state.writeId !== writeId) {
             return null;
           }
-          return (await input.apply())
-            ? { kind: "invalidation-applied", writeId }
-            : null;
+          return scope.publisher.withinVerifiedBoundary(
+            candidate,
+            "auto",
+            async () => {
+              if (!(await authorize(request))) {
+                return null;
+              }
+              return (await input.apply())
+                ? ({ kind: "invalidation-applied", writeId } as const)
+                : null;
+            },
+          );
         },
       },
     });
