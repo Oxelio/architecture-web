@@ -56,7 +56,7 @@ describe("reserved Work Merge Gate check", () => {
   });
 
   it("completes the same verified check ID", async () => {
-    const requests: Array<[string, string]> = [];
+    const requests: [string, string][] = [];
     const result = await completeReservedGateCheck({
       ...completion,
       fetchImpl: async (url, options) => {
