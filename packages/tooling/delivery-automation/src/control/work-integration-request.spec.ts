@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import type { WorkGateEvaluationGrant } from "../github/work-merge-publisher.js";
 import {
   authorizeWorkIntegrationEvaluation,
