@@ -9,6 +9,7 @@ import {
 import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
+import { matchesCompletedCandidate } from "./work-completion-evidence.js";
 
 const gateName = workMergeRequiredCheckName;
 const oid = /^[0-9a-f]{40}$/u;
@@ -58,6 +59,7 @@ export type WorkGateEvaluationGrant = Omit<WorkMergeGrant, "direct" | "auto"> &
 interface PullRequest {
   readonly node_id: string;
   readonly title: string;
+  readonly body: string | null;
   readonly number: number;
   readonly state: string;
   readonly draft: boolean;
@@ -557,6 +559,60 @@ export async function armReservedWorkSquash(
   });
 }
 
+export async function observeReservedWorkSquash(
+  reader: Pick<
+    WorkMergeReader,
+    "repository" | "repositoryId" | "repositoryToken" | "fetchImpl"
+  >,
+  candidate: MergeCandidate,
+): Promise<{ readonly kind: "squash-merged"; readonly sha: string } | null> {
+  if (
+    !/^[a-z0-9][a-z0-9-]*\/[a-z0-9_.-]+$/iu.test(reader.repository) ||
+    /\/\.{1,2}$/u.test(reader.repository) ||
+    !positiveId(candidate.pullNumber)
+  ) {
+    return null;
+  }
+  const repo = `/repos/${reader.repository}`;
+  try {
+    const pr = await github<PullRequest>(
+      reader,
+      `${repo}/pulls/${candidate.pullNumber}`,
+    );
+    const sha = pr.merge_commit_sha;
+    if (
+      !sameCandidate(pr, candidate, reader.repositoryId) ||
+      pr.merged !== true ||
+      !sha ||
+      !oid.test(sha)
+    ) {
+      return null;
+    }
+
+    const [commit, comparison] = await Promise.all([
+      github<Parameters<typeof matchesCompletedCandidate>[2]>(
+        reader,
+        `${repo}/commits/${sha}`,
+      ),
+      github<Parameters<typeof matchesCompletedCandidate>[3]>(
+        reader,
+        `${repo}/compare/${sha}...main`,
+      ),
+    ]);
+    return matchesCompletedCandidate(
+      { ...candidate, mergeSha: sha },
+      { ...pr, merge_commit_sha: sha },
+      commit,
+      comparison,
+      reader.repositoryId,
+    )
+      ? { kind: "squash-merged", sha }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function observeWorkMerge(
   publisher: Omit<WorkMergePublisher, "withinVerifiedBoundary" | "mergeToken">,
   candidate: MergeCandidate,
@@ -736,6 +792,12 @@ async function evaluateWorkMergeRequest(
         pr.merge_commit_sha &&
         oid.test(pr.merge_commit_sha)
       ) {
+        if (reservedCheck) {
+          const merged = await observeReservedWorkSquash(publisher, candidate);
+          return merged
+            ? { status: "already-merged", sha: merged.sha }
+            : blocked("RESERVED_SQUASH_OUTCOME_UNVERIFIED");
+        }
         return { status: "already-merged", sha: pr.merge_commit_sha };
       }
       if (
@@ -905,6 +967,12 @@ async function evaluateWorkMergeRequest(
         }
       } catch {
         // A failed response can arrive after GitHub has accepted the mutation.
+      }
+      if (reservedCheck) {
+        const merged = await observeReservedWorkSquash(publisher, candidate);
+        return merged
+          ? { status: "merged", sha: merged.sha }
+          : { status: "uncertain", reason: "MUTATION_NOT_CONFIRMED" };
       }
       const observed = await github<PullRequest>(publisher, prPath).catch(
         () => null,
