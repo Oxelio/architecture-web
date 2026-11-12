@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 
+import type { MergeReservation } from "../control/merge-reservation.js";
 import {
   evaluateWorkMergeGate,
   workMergeObservationCheckName,
@@ -75,6 +76,7 @@ interface PullRequest {
 }
 
 interface CheckRun {
+  readonly id: number;
   readonly name: string;
   readonly head_sha: string;
   readonly status: string;
@@ -95,6 +97,11 @@ interface IssueComment {
 }
 
 type MergeMode = "direct" | "auto";
+
+interface ReservedGateCheck {
+  readonly checkId: number;
+  readonly reservationId: string;
+}
 
 export interface WorkMergePublisher {
   readonly repository: string;
@@ -336,6 +343,7 @@ async function verifyChecks(
   mode: MergeMode,
   observe: boolean,
   evaluateGate = false,
+  reservedCheck?: ReservedGateCheck,
 ): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
   if (
     !positiveId(grant.gateAppId) ||
@@ -476,6 +484,19 @@ async function verifyChecks(
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
+    if (reservedCheck && name === expectedGateName) {
+      if (
+        check.id !== reservedCheck.checkId ||
+        check.external_id !== reservedCheck.reservationId ||
+        check.head_sha !== pr.head.sha ||
+        check.status !== "queued" ||
+        check.conclusion !== null
+      ) {
+        return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+      }
+      pending = true;
+      continue;
+    }
     if (
       name === expectedGateName &&
       check.external_id !==
@@ -488,6 +509,7 @@ async function verifyChecks(
     }
     if (
       mode === "auto" &&
+      !reservedCheck &&
       name !== expectedGateName &&
       ["queued", "in_progress", "pending", "waiting", "requested"].includes(
         check.status,
@@ -511,6 +533,28 @@ export async function publishWorkMerge(
   mode: MergeMode,
 ): Promise<WorkMergeOutcome> {
   return evaluateWorkMergeRequest(publisher, candidate, mode, false);
+}
+
+// Called only within the protected controller's durable arm intent.
+export async function armReservedWorkSquash(
+  publisher: WorkMergePublisher,
+  reservation: MergeReservation,
+  reservationId: string,
+): Promise<WorkMergeOutcome> {
+  const { candidate, state } = reservation;
+  if (
+    state.phase !== "pending" ||
+    state.operation !== "arm-squash" ||
+    state.checkId === undefined ||
+    !positiveId(state.checkId) ||
+    !reservationId.trim()
+  ) {
+    return blocked("RESERVED_WORK_MERGE_GATE_UNVERIFIED");
+  }
+  return evaluateWorkMergeRequest(publisher, candidate, "auto", false, {
+    checkId: state.checkId,
+    reservationId,
+  });
 }
 
 export async function observeWorkMerge(
@@ -651,6 +695,7 @@ async function evaluateWorkMergeRequest(
   candidate: MergeCandidate,
   mode: MergeMode,
   observe: boolean,
+  reservedCheck?: ReservedGateCheck,
 ): Promise<WorkMergeOutcome> {
   if (
     !/^[\w.-]+\/[\w.-]+$/u.test(publisher.repository) ||
@@ -735,6 +780,8 @@ async function evaluateWorkMergeRequest(
         pr,
         mode,
         observe,
+        false,
+        reservedCheck,
       );
       if (typeof checks === "string") {
         return blocked(checks);
