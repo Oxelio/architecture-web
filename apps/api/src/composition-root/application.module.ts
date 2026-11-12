@@ -47,10 +47,10 @@ import {
   KyselyNotificationRepositoryAdapter,
   type NotificationDatabase,
 } from "@architecture/notifications-persistence-kysely";
-import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 
 import { IamAuditAccessAdapter } from "#adapters/audit/iam-audit-access.adapter";
 import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
+import { IamNotificationRecipientDirectoryAdapter } from "#adapters/notifications/iam-notification-recipient-directory.adapter";
 import { loadConfig } from "#config/app.config";
 
 import { startBackgroundPolling } from "./background-polling.js";
@@ -142,12 +142,9 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       preferenceRepository: new KyselyNotificationPreferenceRepositoryAdapter(
         notificationDb,
       ),
-      recipientDirectory: new KyselyIamNotificationRecipientDirectoryAdapter(
-        iamDb,
-        (userId) =>
-          iamModule.deliveryEligibility.readAffectedUserDeliveryEligibility(
-            userId,
-          ),
+      recipientDirectory: new IamNotificationRecipientDirectoryAdapter(
+        iamModule.recipientReads,
+        iamModule.deliveryEligibility,
       ),
       deliveries,
     });

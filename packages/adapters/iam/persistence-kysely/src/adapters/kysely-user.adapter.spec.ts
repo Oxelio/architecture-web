@@ -19,6 +19,7 @@ function dbWith(result: unknown, rows: unknown[] = []) {
   const chain = {
     values: vi.fn(),
     onConflict: vi.fn(),
+    leftJoin: vi.fn(),
     select: vi.fn(),
     selectAll: vi.fn(),
     where: vi.fn(),
@@ -30,6 +31,13 @@ function dbWith(result: unknown, rows: unknown[] = []) {
   chain.values.mockReturnValue(chain);
   chain.onConflict.mockImplementation((callback) => {
     callback({ column: () => ({ doUpdateSet: () => chain }) });
+    return chain;
+  });
+  chain.leftJoin.mockImplementation((_table, callback) => {
+    const join = { onRef: vi.fn(), on: vi.fn() };
+    join.onRef.mockReturnValue(join);
+    join.on.mockReturnValue(join);
+    callback(join);
     return chain;
   });
   chain.select.mockReturnValue(chain);
@@ -44,6 +52,61 @@ function dbWith(result: unknown, rows: unknown[] = []) {
 }
 
 describe("KyselyUserAdapter", () => {
+  it.each([
+    [
+      { id: row.id, email: "user@example.test" },
+      { id: row.id, email: "user@example.test" },
+    ],
+    [
+      { id: row.id, email: null },
+      { id: row.id, email: null },
+    ],
+    [undefined, null],
+  ])(
+    "projects only the verified email of an existing recipient: %j",
+    async (result, expected) => {
+      const db = dbWith(result);
+      await expect(
+        new KyselyUserAdapter(db as never).findRecipientContact(row.id),
+      ).resolves.toEqual(expected);
+      expect(db.chain.select).toHaveBeenCalledWith([
+        "user.id",
+        "email_identity.normalized_value as email",
+      ]);
+      expect(db.chain.where).toHaveBeenCalledExactlyOnceWith(
+        "user.id",
+        "=",
+        row.id,
+      );
+    },
+  );
+
+  it.each([true, false])(
+    "checks current active administrator membership: %s",
+    async (eligible) => {
+      const db = dbWith(eligible ? { id: row.id } : undefined);
+      await expect(
+        new KyselyUserAdapter(db as never).isActiveAdministrator(row.id),
+      ).resolves.toBe(eligible);
+      expect(db.chain.where.mock.calls).toEqual([
+        ["role", "=", "admin"],
+        ["status", "=", "active"],
+        ["id", "=", row.id],
+      ]);
+    },
+  );
+
+  it("lists only the IDs returned by the active administrator query", async () => {
+    const db = dbWith(undefined, [{ id: row.id }]);
+    await expect(
+      new KyselyUserAdapter(db as never).listActiveAdministratorIds(),
+    ).resolves.toEqual([row.id]);
+    expect(db.chain.where.mock.calls).toEqual([
+      ["role", "=", "admin"],
+      ["status", "=", "active"],
+    ]);
+  });
+
   it("saves only the minimal user aggregate", async () => {
     const db = dbWith(null);
     await new KyselyUserAdapter(db as never).save(UserEntity.create());

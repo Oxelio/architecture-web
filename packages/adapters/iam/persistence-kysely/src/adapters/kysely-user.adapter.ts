@@ -1,6 +1,7 @@
 // @file infrastructure/iam/persitence/kysely/src/adapters/kysely-user.adapter.ts
 
 import type {
+  AccountRecipientReader,
   UserAccountView,
   UserQueryRepository,
   UserRepository,
@@ -21,7 +22,9 @@ import {
   hasAdministrativeAccess,
 } from "./administrative-access.js";
 
-export class KyselyUserAdapter implements UserRepository, UserQueryRepository {
+export class KyselyUserAdapter
+  implements UserRepository, UserQueryRepository, AccountRecipientReader
+{
   constructor(
     private readonly db: Kysely<IamDatabase>,
     private readonly outbox?: OutboxWriter,
@@ -67,6 +70,33 @@ export class KyselyUserAdapter implements UserRepository, UserQueryRepository {
     }
 
     return UserMapper.toDomain(user);
+  }
+
+  async findRecipientContact(userId: string) {
+    const row = await this.db
+      .selectFrom("iam_users as user")
+      .leftJoin("iam_login_identities as email_identity", (join) =>
+        join
+          .onRef("email_identity.user_id", "=", "user.id")
+          .on("email_identity.kind", "=", "email")
+          .on("email_identity.verification_status", "=", "verified"),
+      )
+      .select(["user.id", "email_identity.normalized_value as email"])
+      .where("user.id", "=", userId)
+      .executeTakeFirst();
+    return row ? { id: row.id, email: row.email ?? null } : null;
+  }
+
+  async listActiveAdministratorIds(): Promise<string[]> {
+    const rows = await this.activeAdministrators().execute();
+    return rows.map((row) => row.id);
+  }
+
+  async isActiveAdministrator(userId: string): Promise<boolean> {
+    const row = await this.activeAdministrators()
+      .where("id", "=", userId)
+      .executeTakeFirst();
+    return row !== undefined;
   }
 
   async findAccountById(userId: string): Promise<UserAccountView | null> {
@@ -190,6 +220,14 @@ export class KyselyUserAdapter implements UserRepository, UserQueryRepository {
       suspended: Number(row.suspended),
       administrators: Number(row.administrators),
     };
+  }
+
+  private activeAdministrators() {
+    return this.db
+      .selectFrom("iam_users")
+      .select("id")
+      .where("role", "=", "admin")
+      .where("status", "=", "active");
   }
 
   private toAccountView(

@@ -40,7 +40,6 @@ import {
   KyselyNotificationPreferenceRepositoryAdapter,
   KyselyNotificationRepositoryAdapter,
 } from "@architecture/notifications-persistence-kysely";
-import { KyselyIamNotificationRecipientDirectoryAdapter } from "@architecture/notifications-recipient-iam-kysely";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Migrator } from "kysely/migration";
 import { Pool } from "pg";
@@ -55,6 +54,7 @@ import {
 } from "vitest";
 
 import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
+import { IamNotificationRecipientDirectoryAdapter } from "#adapters/notifications/iam-notification-recipient-directory.adapter";
 import { getAllMigrations } from "#app/scripts/migrations.provider";
 import type { AppDatabase } from "#composition-root/database.module";
 
@@ -367,12 +367,44 @@ describe.skipIf(!databaseUrl || !redisUrl)(
     }
 
     function recipientDirectory() {
-      const eligibility = accountDeletionStore();
-      return new KyselyIamNotificationRecipientDirectoryAdapter(
-        db as never,
-        (userId) => eligibility.readAffectedUserDeliveryEligibility(userId),
+      return new IamNotificationRecipientDirectoryAdapter(
+        new KyselyUserAdapter(db as never),
+        accountDeletionStore(),
       );
     }
+
+    it("exposes only verified email for existing accounts and checks current active administrators", async () => {
+      const userId = randomUUID();
+      const adminId = randomUUID();
+      await createIamRecipient(userId);
+      await createIamRecipient(adminId, "admin");
+      const directory = recipientDirectory();
+
+      expect(await directory.findUser(randomUUID())).toBeNull();
+      expect((await directory.findUser(userId))?.destinationFor("email")).toBe(
+        `${userId}@example.test`,
+      );
+      expect(await directory.listAdministratorIds()).toContain(adminId);
+      expect(await directory.listAdministratorIds()).not.toContain(userId);
+      expect(await directory.isActiveAdministrator(adminId)).toBe(true);
+
+      await db
+        .updateTable("iam_login_identities")
+        .set({ verification_status: "pending", verified_at: null })
+        .where("user_id", "=", adminId)
+        .execute();
+      await db
+        .updateTable("iam_users")
+        .set({ status: "suspended" })
+        .where("id", "=", adminId)
+        .execute();
+
+      const suspended = await directory.findUser(adminId);
+      expect(suspended?.userId).toBe(adminId);
+      expect(suspended?.destinationFor("email")).toBeNull();
+      expect(await directory.listAdministratorIds()).not.toContain(adminId);
+      expect(await directory.isActiveAdministrator(adminId)).toBe(false);
+    });
 
     async function claimDeliveryForEligibility() {
       const claim = await notifications.claimDelivery();

@@ -3,6 +3,7 @@
 // ============================================================
 
 // accounts
+export type { AccountRecipientReader } from "./accounts/account-recipient-reader.js";
 export type {
   CancelAccountDeletion,
   CancelAccountDeletionError,

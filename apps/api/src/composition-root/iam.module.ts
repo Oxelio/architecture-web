@@ -3,6 +3,7 @@ import type {
   AuditAccountExporter,
 } from "@architecture/audit/application";
 import {
+  type AccountRecipientReader,
   type AffectedUserDeliveryEligibilityReader,
   type ConfigurationStore,
   createIam,
@@ -67,6 +68,7 @@ export async function buildIamModule(
   iam: IamApplication;
   configuration: ConfigurationStore;
   securityEvents: SecurityEventRecorder;
+  recipientReads: AccountRecipientReader;
   deliveryEligibility: AffectedUserDeliveryEligibilityReader;
 }> {
   const db = database.$pickTables<keyof IamDatabase>();
@@ -138,6 +140,7 @@ export async function buildIamModule(
     iam,
     configuration,
     securityEvents: events,
+    recipientReads: users,
     deliveryEligibility: deletions,
   };
 }
