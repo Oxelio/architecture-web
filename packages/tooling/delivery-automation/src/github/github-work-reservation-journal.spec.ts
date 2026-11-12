@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { createGitHubWorkReservationJournal } from "./github-work-reservation-journal.js";
-import { executeReservedGitHubWorkIntegration } from "./reserved-work-integration.js";
+import {
+  executeReservedGitHubWorkIntegration,
+  reconcileReservedGitHubWorkIntegration,
+} from "./reserved-work-integration.js";
 
 const candidate = {
   workNumber: 115,
@@ -21,26 +24,35 @@ function fixture() {
     { ref: string; object: { type: "tag"; sha: string } }
   >();
   const checkReservations: string[] = [];
-  const state = { loseRef: "", calls: 0 };
+  const state = { loseRef: "", loseCheckResponse: false, calls: 0 };
+  const publishedChecks: object[] = [];
   const fetchImpl = async (request: RequestInfo | URL, init?: RequestInit) => {
     state.calls++;
     const path = new URL(String(request)).pathname;
     const auth = new Headers(init?.headers).get("authorization");
     if (path.endsWith("/check-runs")) {
       expect(auth).toBe(`Bearer ${issuerToken}`);
-      expect(init?.method).toBe("POST");
-      const check = JSON.parse(String(init?.body)) as { external_id: string };
+      if (init?.method !== "POST") {
+        expect(init?.method).toBeUndefined();
+        return Response.json({
+          total_count: publishedChecks.length,
+          check_runs: publishedChecks,
+        });
+      }
+      const check = JSON.parse(String(init.body)) as { external_id: string };
       checkReservations.push(check.external_id);
-      return Response.json(
-        {
-          ...check,
-          id: 17,
-          app: { id: 7 },
-          conclusion: null,
-          html_url: "https://github.com/Oxelio/architecture-web/runs/17",
-        },
-        { status: 201 },
-      );
+      const result = {
+        ...check,
+        id: 17,
+        app: { id: 7 },
+        conclusion: null,
+        html_url: "https://github.com/Oxelio/architecture-web/runs/17",
+      };
+      publishedChecks.push(result);
+      if (state.loseCheckResponse) {
+        throw new Error("simulated lost check response");
+      }
+      return Response.json(result, { status: 201 });
     }
 
     expect(auth).toBe(`Bearer ${controllerToken}`);
@@ -183,5 +195,23 @@ describe("persistent GitHub Work integration reservation", () => {
       }),
     ).toEqual({ status: "denied" });
     expect(f.state.calls).toBe(0);
+  });
+
+  it("recovers an accepted queued check after a response loss without creating another check", async () => {
+    const f = fixture();
+    f.state.loseCheckResponse = true;
+    expect(await executeReservedGitHubWorkIntegration(f.input)).toEqual({
+      status: "deferred",
+    });
+    expect(await reconcileReservedGitHubWorkIntegration(f.input)).toMatchObject(
+      {
+        status: "confirmed",
+        receipt: { reservation: { state: { phase: "queued", checkId: 17 } } },
+      },
+    );
+    expect(await executeReservedGitHubWorkIntegration(f.input)).toEqual({
+      status: "deferred",
+    });
+    expect(f.checkReservations).toHaveLength(1);
   });
 });
