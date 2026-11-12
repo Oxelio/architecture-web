@@ -14,6 +14,7 @@ import {
 import { createGitHubWorkReservationJournal } from "./github-work-reservation-journal.js";
 import {
   armReservedWorkSquash,
+  cancelReservedNativeSquash,
   observeReservedNativeArm,
   observeReservedWorkSquash,
   releaseReservedWorkMergeGate,
@@ -26,6 +27,7 @@ interface ReservedGitHubScope {
   readonly checksToken: string;
   readonly checksAppId: number;
   readonly controllerBotId: number;
+  readonly cancellationRulesetId?: number;
 }
 
 export async function performReservedGitHubIntegration(
@@ -90,9 +92,14 @@ export async function performReservedGitHubIntegration(
         : null;
     }
     case "resolve":
-      // Absence of a native request is inconclusive. Only a verified squash
-      // currently supplies positive terminal evidence through this adapter.
-      return observeReservedWorkSquash(publisher, candidate);
+      return scope.cancellationRulesetId === undefined
+        ? observeReservedWorkSquash(publisher, candidate)
+        : cancelReservedNativeSquash(publisher, reservation, {
+            reservationId,
+            controllerBotId: scope.controllerBotId,
+            checksAppId: scope.checksAppId,
+            rulesetId: scope.cancellationRulesetId,
+          });
   }
 }
 
@@ -100,7 +107,8 @@ type ControllerInput = Parameters<typeof executeWorkIntegrationOperation>[0];
 
 export async function executeReservedGitHubWorkIntegration(input: {
   readonly candidate: ControllerInput["candidate"];
-  readonly operation: "queue-check" | "arm-squash" | "release-check";
+  readonly operation:
+    "queue-check" | "arm-squash" | "release-check" | "resolve";
   readonly standingEnabled?: boolean;
   readonly authorize: ControllerInput["ports"]["authorize"];
   readonly scope: Omit<
@@ -108,10 +116,13 @@ export async function executeReservedGitHubWorkIntegration(input: {
     "reservationId"
   >;
 }): Promise<WorkIntegrationOperationResult> {
-  if (input.standingEnabled !== true) {
+  if (input.standingEnabled !== true && input.operation !== "resolve") {
     return { status: "inactive" };
   }
   const { candidate, operation, authorize, scope } = input;
+  if (operation === "resolve" && scope.cancellationRulesetId === undefined) {
+    return { status: "denied" };
+  }
   const journal = journalForScope(scope);
   if (!journal) {
     return { status: "denied" };
@@ -130,7 +141,7 @@ export async function executeReservedGitHubWorkIntegration(input: {
     return await executeWorkIntegrationOperation({
       candidate,
       operation,
-      standingEnabled: true,
+      standingEnabled: input.standingEnabled === true,
       ports: {
         authorize,
         append: journal.append,
