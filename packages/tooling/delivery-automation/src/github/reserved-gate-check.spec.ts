@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   completeReservedGateCheck,
+  observeReservedGateCheck,
   queueReservedGateCheck,
 } from "./gate-check-publisher.js";
 
@@ -124,5 +125,59 @@ describe("reserved Work Merge Gate check", () => {
       expect(result).toBeNull();
       expect(patches).toBe(1);
     }
+  });
+});
+
+describe("reserved check observation", () => {
+  it("recovers a single matching check from the full head inventory", async () => {
+    await expect(
+      observeReservedGateCheck(
+        {
+          ...scope,
+          fetchImpl: async (url, request) => {
+            expect(String(url)).toContain(
+              `/commits/${scope.headSha}/check-runs?`,
+            );
+            expect(request?.method).toBeUndefined();
+            return Response.json({
+              total_count: 2,
+              check_runs: [check, { ...check, external_id: "other" }],
+            });
+          },
+        },
+        { state: "queued" },
+      ),
+    ).resolves.toMatchObject({ id: check.id });
+  });
+
+  it("refuses incomplete or duplicate inventory and checks completion by exact ID", async () => {
+    for (const payload of [
+      { total_count: 3, check_runs: [check] },
+      { total_count: 2, check_runs: [check, check] },
+    ]) {
+      await expect(
+        observeReservedGateCheck(
+          {
+            ...scope,
+            fetchImpl: async () => Response.json(payload),
+          },
+          { state: "queued" },
+        ),
+      ).resolves.toBeNull();
+    }
+    await expect(
+      observeReservedGateCheck(
+        {
+          ...scope,
+          fetchImpl: async () =>
+            Response.json({
+              ...check,
+              status: "completed",
+              conclusion: "success",
+            }),
+        },
+        { state: "completed", checkId: check.id },
+      ),
+    ).resolves.toMatchObject({ id: check.id });
   });
 });
