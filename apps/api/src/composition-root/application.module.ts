@@ -3,10 +3,13 @@
 import {
   AcceptAuditEntryUseCase,
   AuditAcceptanceEventHandler,
-  AuditApplication,
   AuditIntegrationEventHandler,
   type AuditQueriesApplication,
+  type AuditRetention,
+  createAuditAccountExporter,
+  createAuditEventConsumer,
   createAuditQueries,
+  createAuditRetention,
 } from "@architecture/audit/application";
 import {
   type AuditDatabase,
@@ -59,7 +62,7 @@ export interface ApplicationModule {
   readonly iam: IamApplication;
   readonly securityEvents: SecurityEventRecorder;
   readonly configuration: PublishedConfigurationReader;
-  readonly audit: AuditApplication;
+  readonly audit: AuditRetention;
   readonly auditQueries: AuditQueriesApplication;
   readonly notifications: NotificationsApplication;
   readonly outboxWorker: OutboxWorker;
@@ -91,13 +94,17 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
     const pseudonymizer = new Sha256AuditPseudonymizerAdapter();
     const acceptance = new AcceptAuditEntryUseCase(outbox, pseudonymizer);
     const auditRepository = new KyselyAuditRepositoryAdapter(auditDb);
-    const audit = new AuditApplication(auditRepository, pseudonymizer);
+    const auditEvents = createAuditEventConsumer(
+      auditRepository,
+      pseudonymizer,
+    );
+    const audit = createAuditRetention(auditRepository);
     const iamModule = await buildIamModule(
       db,
       redis,
       email,
       outbox,
-      audit,
+      createAuditAccountExporter(auditRepository),
       acceptance,
       {
         encryptionKey: config.security.encryptionKey,
@@ -145,8 +152,8 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       deliveries,
     });
     const router = new IntegrationEventRouter([
-      new AuditAcceptanceEventHandler(audit),
-      new AuditIntegrationEventHandler(audit, {
+      new AuditAcceptanceEventHandler(auditEvents),
+      new AuditIntegrationEventHandler(auditEvents, {
         getRetentionDays: async () =>
           (await iamModule.configuration.readPublished()).values.audit
             .retentionDays,
@@ -155,7 +162,7 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
     ]);
     const auditQueries = createAuditQueries({
       repository: auditRepository,
-      recorder: acceptance,
+      acceptance,
       access: new IamAuditAccessAdapter(
         new KyselyUserAdapter(iamDb),
         iamModule.configuration,

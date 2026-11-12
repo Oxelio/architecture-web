@@ -1,6 +1,6 @@
 import type {
-  AuditApplication,
-  AuditRecorder,
+  AuditAcceptance,
+  AuditAccountExporter,
 } from "@architecture/audit/application";
 import {
   type AffectedUserDeliveryEligibilityReader,
@@ -56,8 +56,8 @@ export async function buildIamModule(
   redis: Redis,
   email: NodemailerEmailSenderAdapter,
   outbox: OutboxWriter,
-  audit: AuditApplication,
-  acceptance: AuditRecorder,
+  accountExporter: AuditAccountExporter,
+  acceptance: AuditAcceptance,
   options: {
     encryptionKey: string;
     recoveryUrl: string;
@@ -85,7 +85,7 @@ export async function buildIamModule(
   await configuration.initialize();
   const policies = new PublishedIamPolicies(configuration),
     events = new AuditSecurityEventsAdapter(
-      audit,
+      accountExporter,
       configuration,
       acceptance,
       new RedisRecoveryOriginLimiterAdapter(redis),

@@ -2,8 +2,9 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   AcceptAuditEntryUseCase,
-  AuditApplication,
+  createAuditAccountExporter,
   createAuditQueries,
+  createAuditRetention,
 } from "@architecture/audit/application";
 import { KyselyAuditRepositoryAdapter } from "@architecture/audit-persistence-kysely";
 import {
@@ -150,10 +151,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         "http://localhost/verify",
       ),
       outbox(iamDb),
-      new AuditApplication(
-        new KyselyAuditRepositoryAdapter(db as never),
-        new Sha256AuditPseudonymizerAdapter(),
-      ),
+      createAuditAccountExporter(new KyselyAuditRepositoryAdapter(db as never)),
       new AcceptAuditEntryUseCase(
         outbox(iamDb),
         new Sha256AuditPseudonymizerAdapter(),
@@ -681,13 +679,10 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         buildSecurityRoutes(
           module.iam,
           cookie,
-          new AuditApplication(
-            new KyselyAuditRepositoryAdapter(db as never),
-            new Sha256AuditPseudonymizerAdapter(),
-          ),
+          createAuditRetention(new KyselyAuditRepositoryAdapter(db as never)),
           createAuditQueries({
             repository: new KyselyAuditRepositoryAdapter(db as never),
-            recorder: new AcceptAuditEntryUseCase(
+            acceptance: new AcceptAuditEntryUseCase(
               outbox(iamDb),
               new Sha256AuditPseudonymizerAdapter(),
             ),

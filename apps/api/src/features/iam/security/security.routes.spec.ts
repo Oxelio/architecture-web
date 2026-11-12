@@ -1,6 +1,6 @@
 import type {
-  AuditApplication,
   AuditQueriesApplication,
+  AuditRetention,
 } from "@architecture/audit/application";
 import fastifyCookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -25,7 +25,7 @@ async function server(
   iam: { [K in keyof IamApplication]?: Partial<IamApplication[K]> },
   authenticated = true,
   role: "user" | "admin" = "user",
-  audit: Partial<AuditApplication> = {},
+  audit: Partial<AuditRetention> = {},
   queries: Partial<AuditQueriesApplication> = {},
 ) {
   const app = Fastify();
@@ -46,7 +46,7 @@ async function server(
     buildSecurityRoutes(
       iam as IamApplication,
       { name: "sid", options: { httpOnly: true, path: "/", sameSite: "lax" } },
-      audit as AuditApplication,
+      audit as AuditRetention,
       {
         listOwn: { execute: async () => Result.success([]) },
         listAdministrative: { execute: async () => Result.success([]) },
