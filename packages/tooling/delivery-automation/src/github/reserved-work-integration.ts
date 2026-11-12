@@ -6,6 +6,7 @@ import {
   reconcileWorkIntegrationOperation,
   type WorkIntegrationOperationResult,
 } from "../control/work-integration-controller.js";
+import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import { workMergeRequiredCheckName } from "../control/work-merge-gate.js";
 import {
   observeReservedGateCheck,
@@ -105,6 +106,22 @@ export async function performReservedGitHubIntegration(
 
 type ControllerInput = Parameters<typeof executeWorkIntegrationOperation>[0];
 
+type IntegrationScope = Omit<ReservedGitHubScope, "reservationId">;
+type ReservationJournal = NonNullable<ReturnType<typeof journalForScope>>;
+
+function journalPorts(journal: ReservationJournal) {
+  return {
+    append: journal.append,
+    readReservation: async () => {
+      const current = await journal.read();
+      if (!current) {
+        throw new Error("MERGE_JOURNAL_RESERVATION_MISSING");
+      }
+      return current;
+    },
+  };
+}
+
 export async function executeReservedGitHubWorkIntegration(input: {
   readonly candidate: ControllerInput["candidate"];
   readonly operation:
@@ -144,14 +161,7 @@ export async function executeReservedGitHubWorkIntegration(input: {
       standingEnabled: input.standingEnabled === true,
       ports: {
         authorize,
-        append: journal.append,
-        readReservation: async () => {
-          const current = await journal.read();
-          if (!current) {
-            throw new Error("MERGE_JOURNAL_RESERVATION_MISSING");
-          }
-          return current;
-        },
+        ...journalPorts(journal),
         perform: async (intent) => {
           const current = await journal.read();
           if (
@@ -276,14 +286,7 @@ export async function reconcileReservedGitHubWorkIntegration(input: {
     candidate: input.candidate,
     ports: {
       authorize: input.authorize,
-      append: journal.append,
-      readReservation: async () => {
-        const current = await journal.read();
-        if (!current) {
-          throw new Error("MERGE_JOURNAL_RESERVATION_MISSING");
-        }
-        return current;
-      },
+      ...journalPorts(journal),
       observe: async (intent) => {
         const current = await journal.read();
         if (
@@ -297,6 +300,109 @@ export async function reconcileReservedGitHubWorkIntegration(input: {
           ...input.scope,
           reservationId: current.reservationId,
         });
+      },
+    },
+  });
+}
+
+interface InvalidatingWriteRequest {
+  readonly candidate: ControllerInput["candidate"];
+  readonly authorize: ControllerInput["ports"]["authorize"];
+  readonly scope: IntegrationScope;
+  // The protected writer binds this digest to the immutable command before
+  // calling the controller. It carries no authority on its own.
+  readonly writeId: string;
+}
+
+export async function executeReservedGitHubInvalidation(
+  input: InvalidatingWriteRequest & {
+    readonly standingEnabled?: boolean;
+    // Return true only after the canonical owner's read-back verifies the write.
+    readonly apply: () => Promise<boolean>;
+  },
+): Promise<WorkIntegrationOperationResult> {
+  if (input.standingEnabled !== true) {
+    return { status: "inactive" };
+  }
+  const { candidate, scope, writeId, authorize } = input;
+  const journal = journalForScope(scope);
+  if (!journal || !/^[0-9a-f]{64}$/u.test(writeId)) {
+    return { status: "denied" };
+  }
+  const request = { candidate, operation: "invalidate", writeId } as const;
+
+  try {
+    if (!(await authorize(request))) {
+      return { status: "denied" };
+    }
+    const current = await journal.read();
+    if (
+      !current ||
+      !sameWorkIntegrationCandidate(candidate, current.reservation.candidate)
+    ) {
+      return { status: "deferred" };
+    }
+    if (current.reservation.state.phase !== "cancelled") {
+      const resolution = await executeReservedGitHubWorkIntegration({
+        candidate,
+        operation: "resolve",
+        scope,
+        authorize,
+      });
+      if (
+        resolution.status !== "confirmed" ||
+        resolution.receipt.reservation.state.phase !== "cancelled"
+      ) {
+        return resolution.status === "denied"
+          ? resolution
+          : { status: "deferred" };
+      }
+    }
+
+    return await executeWorkIntegrationOperation({
+      ...request,
+      standingEnabled: true,
+      ports: {
+        authorize,
+        ...journalPorts(journal),
+        perform: async ({ reservation: { state } }) => {
+          if (state.phase !== "invalidating" || state.writeId !== writeId) {
+            return null;
+          }
+          return (await input.apply())
+            ? { kind: "invalidation-applied", writeId }
+            : null;
+        },
+      },
+    });
+  } catch {
+    return { status: "deferred" };
+  }
+}
+
+export async function reconcileReservedGitHubInvalidation(
+  input: InvalidatingWriteRequest & {
+    readonly observeApplied: () => Promise<boolean>;
+  },
+): Promise<WorkIntegrationOperationResult> {
+  const { candidate, scope, writeId, authorize } = input;
+  const journal = journalForScope(scope);
+  if (!journal || !/^[0-9a-f]{64}$/u.test(writeId)) {
+    return { status: "denied" };
+  }
+
+  return reconcileWorkIntegrationOperation({
+    candidate,
+    ports: {
+      authorize,
+      ...journalPorts(journal),
+      observe: async ({ reservation: { state } }) => {
+        if (state.phase !== "invalidating" || state.writeId !== writeId) {
+          return null;
+        }
+        return (await input.observeApplied())
+          ? { kind: "invalidation-applied", writeId }
+          : null;
       },
     },
   });
