@@ -2,9 +2,9 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { MergeCandidate } from "../github/work-merge-publisher.js";
 import {
-  transitionMergeReservation,
   type MergeReservation,
   type MergeReservationEvent,
+  transitionMergeReservation,
 } from "./merge-reservation.js";
 
 type Operation = Extract<MergeReservationEvent, { kind: "begin" }>["operation"];
