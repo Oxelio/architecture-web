@@ -13,6 +13,8 @@ export type MergeReservationState =
       readonly operation: Operation;
       readonly checkId?: number;
     }
+  | { readonly phase: "invalidating"; readonly writeId: string }
+  | { readonly phase: "invalidated"; readonly writeId: string }
   | { readonly phase: "cancelled" }
   | { readonly phase: "merged"; readonly sha: string };
 
@@ -23,6 +25,8 @@ export interface MergeReservation {
 
 export type MergeReservationEvent =
   | { readonly kind: "begin"; readonly operation: Operation }
+  | { readonly kind: "begin-invalidation"; readonly writeId: string }
+  | { readonly kind: "invalidation-applied"; readonly writeId: string }
   | { readonly kind: "check-queued"; readonly checkId: number }
   | { readonly kind: "squash-armed"; readonly checkId: number }
   | { readonly kind: "check-released"; readonly checkId: number }
@@ -30,6 +34,7 @@ export type MergeReservationEvent =
   | { readonly kind: "squash-merged"; readonly sha: string };
 
 const oid = /^[0-9a-f]{40}$/u;
+const writeDigest = /^[0-9a-f]{64}$/u;
 
 function begin(
   state: MergeReservationState,
@@ -74,6 +79,16 @@ export function transitionMergeReservation(
     const pending = begin(state, event.operation);
     return pending ? { candidate, state: pending } : null;
   }
+  if (event.kind === "begin-invalidation") {
+    return state.phase === "cancelled" && writeDigest.test(event.writeId)
+      ? { candidate, state: { phase: "invalidating", writeId: event.writeId } }
+      : null;
+  }
+  if (event.kind === "invalidation-applied") {
+    return state.phase === "invalidating" && state.writeId === event.writeId
+      ? { candidate, state: { phase: "invalidated", writeId: event.writeId } }
+      : null;
+  }
   if (state.phase !== "pending") {
     return null;
   }
@@ -111,10 +126,10 @@ export function transitionMergeReservation(
 
 export function invalidatingWriteDisposition(
   reservation: MergeReservation,
-): "apply" | "defer" | "recover" {
+): "reserve" | "defer" | "recover" {
   switch (reservation.state.phase) {
     case "cancelled":
-      return "apply";
+      return "reserve";
     case "merged":
       return "recover";
     default:
