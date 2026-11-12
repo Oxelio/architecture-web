@@ -6,6 +6,7 @@ import {
   workMergeObservationCheckName,
   workMergeRequiredCheckName,
 } from "../control/work-merge-gate.js";
+import { completeReservedGateCheck } from "./gate-check-publisher.js";
 import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
@@ -65,7 +66,13 @@ interface PullRequest {
   readonly draft: boolean;
   readonly merged: boolean;
   readonly merge_commit_sha: string | null;
-  readonly auto_merge: object | null;
+  readonly auto_merge: {
+    readonly merge_method?: string;
+    readonly enabled_by?: {
+      readonly id?: number;
+      readonly type?: string;
+    } | null;
+  } | null;
   readonly head: {
     readonly sha: string;
     readonly repo: { readonly id: number };
@@ -103,6 +110,10 @@ type MergeMode = "direct" | "auto";
 interface ReservedGateCheck {
   readonly checkId: number;
   readonly reservationId: string;
+  readonly release?: {
+    readonly checksToken: string;
+    readonly controllerBotId: number;
+  };
 }
 
 export interface WorkMergePublisher {
@@ -133,6 +144,7 @@ type WorkGateReader = Omit<WorkMergeReader, "readGrant">;
 export type WorkMergeOutcome =
   | { readonly status: "merged" | "already-merged"; readonly sha: string }
   | { readonly status: "auto-merge-requested" }
+  | { readonly status: "gate-released"; readonly checkId: number }
   | {
       readonly status: "observed-checks-passed";
       readonly bypassActors: "none" | "unverified";
@@ -559,6 +571,37 @@ export async function armReservedWorkSquash(
   });
 }
 
+export async function releaseReservedWorkMergeGate(
+  publisher: WorkMergePublisher,
+  reservation: MergeReservation,
+  reservationId: string,
+  checksToken: string,
+  controllerBotId: number,
+): Promise<WorkMergeOutcome> {
+  const { candidate, state } = reservation;
+  if (
+    state.phase !== "pending" ||
+    state.operation !== "release-check" ||
+    state.checkId === undefined ||
+    !positiveId(state.checkId) ||
+    !reservationId.trim() ||
+    !checksToken.trim() ||
+    [
+      publisher.repositoryToken,
+      publisher.projectsToken,
+      publisher.mergeToken,
+    ].includes(checksToken) ||
+    !positiveId(controllerBotId)
+  ) {
+    return blocked("RESERVED_WORK_MERGE_GATE_UNVERIFIED");
+  }
+  return evaluateWorkMergeRequest(publisher, candidate, "auto", false, {
+    checkId: state.checkId,
+    reservationId,
+    release: { checksToken, controllerBotId },
+  });
+}
+
 export async function observeReservedWorkSquash(
   reader: Pick<
     WorkMergeReader,
@@ -864,6 +907,39 @@ async function evaluateWorkMergeRequest(
       if (!isDeepStrictEqual(currentGrant, grant)) {
         return blocked("MERGE_DELEGATION_CHANGED");
       }
+      if (reservedCheck?.release) {
+        const { checksToken, controllerBotId } = reservedCheck.release;
+        if (
+          current.auto_merge?.merge_method !== "squash" ||
+          current.auto_merge.enabled_by?.type !== "Bot" ||
+          current.auto_merge.enabled_by.id !== controllerBotId
+        ) {
+          return blocked("RESERVED_NATIVE_ARM_UNVERIFIED");
+        }
+        const completed = await completeReservedGateCheck({
+          repository: publisher.repository,
+          ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+          checksToken,
+          name: gateName,
+          headSha: candidate.headSha,
+          reservationId: reservedCheck.reservationId,
+          checkId: reservedCheck.checkId,
+          expectedAppId: grant.gateAppId,
+          title: "Work Merge Gate: PASS",
+          summary: `Work #${candidate.workNumber} / PR #${candidate.pullNumber}\nHead: ${candidate.headSha}\nBase: ${candidate.baseSha}`,
+        });
+        if (completed) {
+          return { status: "gate-released", checkId: completed.id };
+        }
+        const merged = await observeReservedWorkSquash(publisher, candidate);
+        return merged
+          ? { status: "merged", sha: merged.sha }
+          : {
+              status: "uncertain",
+              reason: "RESERVED_GATE_RELEASE_NOT_CONFIRMED",
+            };
+      }
+
       // An existing request may have been armed for another candidate.
       if (current.auto_merge !== null) {
         return blocked("EXISTING_AUTO_MERGE_REQUEST");
