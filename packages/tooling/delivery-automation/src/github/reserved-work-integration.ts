@@ -5,6 +5,7 @@ import {
   executeWorkIntegrationOperation,
   reconcileWorkIntegrationOperation,
   type WorkIntegrationOperationResult,
+  type WorkIntegrationReservationReceipt,
 } from "../control/work-integration-controller.js";
 import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import { workMergeRequiredCheckName } from "../control/work-merge-gate.js";
@@ -191,12 +192,58 @@ export async function executeReservedGitHubWorkIntegration(input: {
 
 export async function readReservedGitHubWorkIntegration(
   scope: IntegrationScope,
-): Promise<Awaited<ReturnType<ReservationJournal["read"]>>> {
+): Promise<WorkIntegrationReservationReceipt | null> {
   const journal = journalForScope(scope);
   if (!journal) {
     throw new Error("MERGE_JOURNAL_SCOPE_UNVERIFIED");
   }
   return journal.read();
+}
+
+// Observation is read-only on GitHub. A successful journal append releases
+// the reservation for another candidate without disabling native auto-merge.
+export async function recordReleasedNativeSquash(input: {
+  readonly candidate: ControllerInput["candidate"];
+  readonly scope: IntegrationScope;
+  readonly authorize: ControllerInput["ports"]["authorize"];
+}): Promise<string | null> {
+  const { candidate, scope, authorize } = input;
+  const journal = journalForScope(scope);
+  if (!journal) {
+    return null;
+  }
+  const request = { candidate, operation: "resolve" } as const;
+  try {
+    if (!(await authorize(request))) {
+      return null;
+    }
+    const current = await journal.read();
+    if (
+      !current ||
+      !sameWorkIntegrationCandidate(candidate, current.reservation.candidate)
+    ) {
+      return null;
+    }
+    if (current.reservation.state.phase === "merged") {
+      return current.reservation.state.sha;
+    }
+    if (current.reservation.state.phase !== "released") {
+      return null;
+    }
+    const merged = await observeReservedWorkSquash(scope.publisher, candidate);
+    if (!merged || !(await authorize(request))) {
+      return null;
+    }
+    const confirmed = await journal.append(current, {
+      candidate,
+      state: { phase: "merged", sha: merged.sha },
+    });
+    return confirmed?.reservation.state.phase === "merged"
+      ? confirmed.reservation.state.sha
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function journalForScope(scope: Omit<ReservedGitHubScope, "reservationId">) {
