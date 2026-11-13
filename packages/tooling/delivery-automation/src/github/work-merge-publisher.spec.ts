@@ -38,7 +38,7 @@ const checks = [
 ];
 
 const reservedCheckId = 133;
-const controllerBotId = 123;
+const controllerBotId = 12;
 const checkIssuerToken = "isolated-check-issuer-fixture";
 const reservationId = "delivery-control/r12";
 const armIntent = {
@@ -949,6 +949,19 @@ describe("reserved native squash", () => {
       ),
     ).resolves.toMatchObject({ status: "blocked" });
     expect(f.writes).toHaveLength(0);
+  });
+
+  it("does not confirm a native arm until the same PR reports the expected controller", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    f.state.armBotId = f.publisher().actorId + 1;
+    await expect(
+      armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+    ).resolves.toEqual({
+      status: "uncertain",
+      reason: "MUTATION_NOT_CONFIRMED",
+    });
+    expect(f.writes).toHaveLength(1);
   });
 
   it("does not replay an arm when its response was lost", async () => {
