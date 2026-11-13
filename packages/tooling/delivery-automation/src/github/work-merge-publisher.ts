@@ -1311,7 +1311,13 @@ async function evaluateWorkMergeRequest(
           if (
             !armed.errors?.length &&
             armedPr?.id === current.node_id &&
-            armedPr.autoMergeRequest
+            armedPr.autoMergeRequest &&
+            (!reservedCheck ||
+              (await observeReservedNativeArm(
+                publisher,
+                candidate,
+                publisher.actorId,
+              )))
           ) {
             return { status: "auto-merge-requested" };
           }
