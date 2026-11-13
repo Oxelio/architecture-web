@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { executeEligibleStandingWorkIntegration } from "./eligible-standing-work-integration.js";
-import { readReservedGitHubWorkIntegration } from "./reserved-work-integration.js";
+import {
+  readReservedGitHubWorkIntegration,
+  recordReleasedNativeSquash,
+} from "./reserved-work-integration.js";
 import { runStandingWorkIntegration } from "./run-standing-work-integration.js";
 
 vi.mock("./eligible-standing-work-integration.js");
@@ -51,6 +54,7 @@ beforeEach(() => {
   vi.mocked(readReservedGitHubWorkIntegration)
     .mockReset()
     .mockResolvedValue(null);
+  vi.mocked(recordReleasedNativeSquash).mockReset().mockResolvedValue(null);
   execute.mockReset();
   execute.mockImplementation(
     async ({ candidate: requestCandidate, operation, authorize }) => {
@@ -146,6 +150,58 @@ describe("protected standing integration sequence", () => {
     expect(execute.mock.calls.map(([request]) => request.operation)).toEqual([
       "release-check",
     ]);
+  });
+
+  it("observes the previously released candidate before admitting a different one", async () => {
+    const { input } = fixture();
+    const previous = {
+      ...candidate,
+      workNumber: 11,
+      pullNumber: 21,
+      baseSha: "c".repeat(40),
+    };
+    vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
+      revision: 8,
+      reservation: {
+        candidate: previous,
+        state: { phase: "released", checkId: 18 },
+      },
+    });
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "deferred",
+      operation: "queue-check",
+    });
+    expect(execute).not.toHaveBeenCalled();
+    expect(recordReleasedNativeSquash).toHaveBeenCalledWith(
+      expect.objectContaining({ candidate: previous }),
+    );
+
+    const mergedSha = "d".repeat(40);
+    vi.mocked(recordReleasedNativeSquash).mockResolvedValueOnce(mergedSha);
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "released",
+      checkId: 17,
+    });
+    expect(execute.mock.calls.map(([request]) => request.operation)).toEqual([
+      "queue-check",
+      "arm-squash",
+      "release-check",
+    ]);
+  });
+
+  it("returns the observed squash without replaying the released candidate", async () => {
+    const { input } = fixture();
+    vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
+      revision: 8,
+      reservation: { candidate, state: { phase: "released", checkId: 17 } },
+    });
+    const sha = "d".repeat(40);
+    vi.mocked(recordReleasedNativeSquash).mockResolvedValueOnce(sha);
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "merged",
+      sha,
+    });
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("stops on an uncertain journal outcome before attempting another effect", async () => {
