@@ -137,8 +137,6 @@ describe("protected standing integration sequence", () => {
     const { input } = fixture();
     vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
       revision: 5,
-      tagSha: "c".repeat(40),
-      reservationId: "delivery-control/r1",
       reservation: { candidate, state: { phase: "armed", checkId: 17 } },
     });
     expect(await runStandingWorkIntegration(input)).toEqual({
