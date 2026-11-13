@@ -1,17 +1,17 @@
 import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import { executeReservedGitHubWorkIntegration } from "./reserved-work-integration.js";
 import { verifyStandingWorkEligibility } from "./standing-work-eligibility.js";
+import { readAcceptedStandingImpact } from "./work-merge-publisher.js";
 
 type ReservedInput = Parameters<typeof executeReservedGitHubWorkIntegration>[0];
 type EligibilityInput = Parameters<typeof verifyStandingWorkEligibility>[0];
 
 export async function executeEligibleStandingWorkIntegration(
   input: ReservedInput & {
-    readonly eligibility: Omit<EligibilityInput, "candidate">;
+    readonly eligibilityReader: EligibilityInput["reader"];
   },
 ): ReturnType<typeof executeReservedGitHubWorkIntegration> {
-  const { eligibility, scope, candidate } = input;
-  const { reader } = eligibility;
+  const { eligibilityReader: reader, scope, candidate } = input;
   const { publisher } = scope;
   if (input.standingEnabled !== true && input.operation !== "resolve") {
     return { status: "inactive" };
@@ -37,7 +37,12 @@ export async function executeEligibleStandingWorkIntegration(
       // Recovery remains possible after eligibility has been revoked.
       return (
         request.operation === "resolve" ||
-        (await verifyStandingWorkEligibility({ ...eligibility, candidate }))
+        (await verifyStandingWorkEligibility({
+          reader,
+          candidate,
+          readAcceptedImpact: (current) =>
+            readAcceptedStandingImpact(publisher, current),
+        }))
       );
     },
   });
