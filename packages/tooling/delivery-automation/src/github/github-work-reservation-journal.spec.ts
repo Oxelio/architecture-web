@@ -8,6 +8,7 @@ import {
   executeReservedGitHubWorkIntegration,
   reconcileReservedGitHubInvalidation,
   reconcileReservedGitHubWorkIntegration,
+  recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
 import {
   executeReservedProjectStatusChange,
@@ -21,6 +22,7 @@ const candidate = {
   headSha: "a".repeat(40),
   baseSha: "b".repeat(40),
 };
+const squashSha = "c".repeat(40);
 const controllerToken = "test-controller";
 const issuerToken = "test-issuer";
 const projectsWriteToken = "test-project-writer";
@@ -51,6 +53,8 @@ function fixture() {
     status: "validating",
     projectWrites: 0,
     loseProjectResponse: false,
+    merged: false,
+    squashParent: candidate.baseSha,
   };
   const publishedChecks: object[] = [];
   const fetchImpl = async (request: RequestInfo | URL, init?: RequestInit) => {
@@ -147,12 +151,27 @@ function fixture() {
       });
     }
 
+    if (path.endsWith(`/commits/${squashSha}`)) {
+      expect(auth).toBe("Bearer test-reader");
+      return Response.json({
+        sha: squashSha,
+        parents: [{ sha: state.squashParent }],
+      });
+    }
+    if (path.endsWith(`/compare/${squashSha}...main`)) {
+      expect(auth).toBe("Bearer test-reader");
+      return Response.json({
+        status: "ahead",
+        merge_base_commit: { sha: squashSha },
+      });
+    }
     if (path.endsWith("/pulls/141")) {
       expect(auth).toBe("Bearer test-reader");
       return Response.json({
         number: candidate.pullNumber,
-        state: "open",
-        merged: false,
+        state: state.merged ? "closed" : "open",
+        merged: state.merged,
+        merge_commit_sha: state.merged ? squashSha : null,
         head: { sha: candidate.headSha, repo: { id: 1336937640 } },
         base: { ref: "main", sha: candidate.baseSha, repo: { id: 1336937640 } },
         body: "Refs #115",
@@ -476,5 +495,35 @@ describe("reserved Project #3 Work Status writes", () => {
       status: "confirmed",
     });
     expect(f.state.projectWrites).toBe(1);
+  });
+});
+
+describe("observed native squash", () => {
+  it("only releases the durable reservation for an exact verified native squash", async () => {
+    const f = fixture();
+    const journal = f.journal();
+    const initial = await journal.reserve(candidate);
+    if (!initial) {
+      throw new Error("fixture reservation was not created");
+    }
+    await journal.append(initial, {
+      candidate,
+      state: { phase: "released", checkId: 17 },
+    });
+    expect(await recordReleasedNativeSquash(f.input)).toBeNull();
+    f.state.merged = true;
+    f.state.squashParent = candidate.headSha;
+    expect(await recordReleasedNativeSquash(f.input)).toBeNull();
+    expect(await journal.reserve({ ...candidate, workNumber: 139 })).toBeNull();
+    f.state.squashParent = candidate.baseSha;
+    expect(await recordReleasedNativeSquash(f.input)).toBe(squashSha);
+    expect((await journal.read())?.reservation.state).toEqual({
+      phase: "merged",
+      sha: squashSha,
+    });
+    expect(
+      await journal.reserve({ ...candidate, workNumber: 139 }),
+    ).not.toBeNull();
+    expect(f.checkReservations).toEqual([]);
   });
 });
