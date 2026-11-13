@@ -285,6 +285,23 @@ describe("persistent GitHub Work integration reservation", () => {
     expect(f.checkReservations).toEqual([]);
   });
 
+  it("does not create a standing check if writer exclusion is unavailable", async () => {
+    const f = fixture();
+    const { scope } = f.input;
+    const result = await executeReservedGitHubWorkIntegration({
+      ...f.input,
+      scope: {
+        ...scope,
+        publisher: {
+          ...scope.publisher,
+          withinVerifiedBoundary: async () => null,
+        },
+      },
+    });
+    expect(result).toEqual({ status: "deferred" });
+    expect(f.checkReservations).toEqual([]);
+  });
+
   it("has no GitHub effects when disabled or unauthorized", async () => {
     const f = fixture();
     expect(
