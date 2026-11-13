@@ -48,6 +48,17 @@ checks-only issuer and Project reads and writes in their own protected
 credentials. No installation, ruleset, permission or activation change follows
 from accepting this design.
 
+A successful Repository CI event wakes the read-only request workflow. The
+controller separately resolves the owning Work and checks the active Project
+classification, GitHub Issue characteristics and complete PR file inventory.
+The impact assessment is tied to the Work, PR, head, base, classification and
+sorted paths, including both sides of a rename. The assessment must come from
+an applicable accepted review. An absent, outdated or manual-only assessment
+prevents standing publication. Changes to GitHub configuration, project policy,
+ADR records, delivery automation, agent instructions or submodule
+configuration stay on the protected manual path. The impact review remains
+responsible for detecting sensitive changes outside these paths.
+
 Before arming a native request, persist the exact reservation and the pending
 required check identity. Verify the arm and complete that same App-owned check
 only after the applicable protections and independent writers are verified.
