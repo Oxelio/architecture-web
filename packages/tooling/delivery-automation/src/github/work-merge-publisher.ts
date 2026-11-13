@@ -10,6 +10,7 @@ import { completeReservedGateCheck } from "./gate-check-publisher.js";
 import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
+import type { AcceptedStandingImpact } from "./standing-work-eligibility.js";
 import { matchesCompletedCandidate } from "./work-completion-evidence.js";
 import { workReference } from "./work-reference.js";
 
@@ -262,6 +263,7 @@ async function verifyEvidence(
   repoPath: string,
   exactTasks = false,
   requireUnedited = false,
+  verifiedReview?: (record: Record<string, unknown>) => void,
 ): Promise<string | null> {
   const kinds = new Set(grant.evidence.map((reference) => reference.kind));
   if (
@@ -314,6 +316,9 @@ async function verifyEvidence(
     ) {
       return `STALE_OR_UNACCEPTED_EVIDENCE:${reference.kind}`;
     }
+    if (reference.kind === "code-review") {
+      verifiedReview?.(record);
+    }
   }
   const tasks = await github<
     readonly {
@@ -345,6 +350,55 @@ async function verifyEvidence(
     return "REQUIRED_TASKS_UNRESOLVED";
   }
   return null;
+}
+
+// Read the impact assessment only from the same candidate-bound review
+// records used by the Work Merge Gate. Their reference and authority are
+// resolved by the trusted publisher, never by the event that woke it.
+export async function readAcceptedStandingImpact(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+): Promise<AcceptedStandingImpact | null> {
+  try {
+    if (publisher.repository.toLowerCase() !== "oxelio/architecture-web") {
+      return null;
+    }
+    const grant = structuredClone(await publisher.readGrant());
+    if (
+      !authorized(grant, publisher, candidate, "auto") ||
+      !grant.evidence.some(({ kind }) => kind === "validation") ||
+      new Set(grant.requiredTasks).size !== grant.requiredTasks.length ||
+      !grant.requiredTasks.every(positiveId)
+    ) {
+      return null;
+    }
+
+    const reviews: AcceptedStandingImpact[] = [];
+    const failure = await verifyEvidence(
+      publisher,
+      candidate,
+      grant,
+      `/repos/${publisher.repository}`,
+      true,
+      true,
+      (record) => {
+        const disposition = record["standingImpact"];
+        const factsDigest = record["standingFactsDigest"];
+        if (
+          (disposition === "ordinary" || disposition === "manual") &&
+          typeof factsDigest === "string" &&
+          /^[0-9a-f]{64}$/u.test(factsDigest)
+        ) {
+          reviews.push({ candidate, factsDigest, disposition });
+        }
+      },
+    );
+    return failure || !isDeepStrictEqual(grant, await publisher.readGrant())
+      ? null
+      : (reviews[0] ?? null);
+  } catch {
+    return null;
+  }
 }
 
 async function verifyChecks(
