@@ -189,6 +189,16 @@ export async function executeReservedGitHubWorkIntegration(input: {
   }
 }
 
+export async function readReservedGitHubWorkIntegration(
+  scope: IntegrationScope,
+): Promise<Awaited<ReturnType<ReservationJournal["read"]>>> {
+  const journal = journalForScope(scope);
+  if (!journal) {
+    throw new Error("MERGE_JOURNAL_SCOPE_UNVERIFIED");
+  }
+  return journal.read();
+}
+
 function journalForScope(scope: Omit<ReservedGitHubScope, "reservationId">) {
   const { publisher, checksToken } = scope;
   if (
