@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 
+import { readStandingDelegation } from "../control/standing-delegation.js";
 import { readStandingIntegrationWakeup } from "../control/standing-integration-wakeup.js";
 import {
   authenticateDirectSquashRequest,
@@ -26,14 +27,7 @@ const event: unknown = JSON.parse(
 if (process.env["GITHUB_EVENT_NAME"] === "workflow_run") {
   const result =
     process.env["DELIVERY_STANDING_REQUESTS_ENABLED"] === "true"
-      ? await readStandingIntegrationWakeup({
-          event: event as Parameters<
-            typeof readStandingIntegrationWakeup
-          >[0]["event"],
-          trustedMainSha: requiredEnvironment("TRUSTED_WORKFLOW_SHA"),
-          readPull: (number) => githubRepositoryRequest(`/pulls/${number}`),
-          ownsCandidate: workOwnsCandidate,
-        })
+      ? await observeStandingRequest(event)
       : { status: "inactive" };
   writeJson(result);
 } else {
@@ -53,6 +47,39 @@ if (process.env["GITHUB_EVENT_NAME"] === "workflow_run") {
   if (outcome.status === "blocked") {
     process.exitCode = 2;
   }
+}
+
+async function observeStandingRequest(event: unknown) {
+  const result = await readStandingIntegrationWakeup({
+    event: event as Parameters<
+      typeof readStandingIntegrationWakeup
+    >[0]["event"],
+    trustedMainSha: requiredEnvironment("TRUSTED_WORKFLOW_SHA"),
+    readPull: (number) => githubRepositoryRequest(`/pulls/${number}`),
+    ownsCandidate: workOwnsCandidate,
+  });
+  if (result.status !== "selected") {
+    return result;
+  }
+  const controllerBot = process.env["DELIVERY_STANDING_CONTROLLER_BOT_ID"];
+  const delegation = await readStandingDelegation({
+    context: {
+      repository: requiredEnvironment("GITHUB_REPOSITORY"),
+      repositoryId: positiveInteger("GITHUB_REPOSITORY_ID"),
+      ref: requiredEnvironment("GITHUB_REF"),
+      runAttempt: requiredEnvironment("GITHUB_RUN_ATTEMPT"),
+      workflowSha: requiredEnvironment("TRUSTED_WORKFLOW_SHA"),
+    },
+    controllerBotId:
+      controllerBot && /^\d+$/u.test(controllerBot) ? Number(controllerBot) : 0,
+    now: Date.now(),
+    readMaintainerRecord: () =>
+      readMaintainerRecord("DELIVERY_STANDING_DELEGATION_COMMENT_ID", 115),
+  });
+  if (!delegation?.gatePublication || !delegation.nativeSquash) {
+    return { status: "denied", reason: "STANDING_DELEGATION_UNVERIFIED" };
+  }
+  return { ...result, standingDelegation: "verified-for-observation" };
 }
 
 async function workOwnsCandidate(candidate: MergeCandidate): Promise<boolean> {
