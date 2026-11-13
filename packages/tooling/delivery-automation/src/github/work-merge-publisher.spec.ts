@@ -73,6 +73,8 @@ function fixture(scoped = false) {
     staleGate: false,
     reservedGate: null as "queued" | "completed" | null,
     reservedGateOnTestMerge: false,
+    priorGreenGate: false,
+    incompleteGateInventory: false,
     armTimeout: false,
     cancelTimeout: false,
     mergeDuringCancel: false,
@@ -464,6 +466,23 @@ function fixture(scoped = false) {
                 : null,
             app: { id: name === gate && state.untrustedGate ? 999 : id },
           }));
+        if (url.includes("filter=all")) {
+          const gates = runs.filter((check) => check.name === gate);
+          const [current] = gates;
+          if (current && state.priorGreenGate) {
+            gates.push({
+              ...current,
+              id: reservedCheckId - 1,
+              external_id: "delivery-control/r1",
+              status: "completed",
+              conclusion: "success",
+            });
+          }
+          return Response.json({
+            total_count: gates.length + (state.incompleteGateInventory ? 1 : 0),
+            check_runs: gates,
+          });
+        }
         if (state.supersededQualityCheck) {
           const quality = runs.find(({ name }) => name === "Quality checks");
           if (quality) {
@@ -894,6 +913,21 @@ describe("reserved native squash", () => {
       { check: "pending" },
       { bypassActors: undefined },
     ] as const) {
+      const f = fixture();
+      f.state.reservedGate = "queued";
+      Object.assign(f.state, change);
+      await expect(
+        armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+      ).resolves.toMatchObject({ status: "blocked" });
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+
+  it("rejects a hidden prior green check or incomplete history even when the latest check is queued", async () => {
+    for (const change of [
+      { priorGreenGate: true },
+      { incompleteGateInventory: true },
+    ]) {
       const f = fixture();
       f.state.reservedGate = "queued";
       Object.assign(f.state, change);
