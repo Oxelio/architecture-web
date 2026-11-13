@@ -70,4 +70,6 @@ jobs:
           TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
           GITHUB_TOKEN: ${{ github.token }}
           DELIVERY_STANDING_REQUESTS_ENABLED: ${{ vars.DELIVERY_STANDING_REQUESTS_ENABLED }}
+          DELIVERY_STANDING_CONTROLLER_BOT_ID: ${{ vars.DELIVERY_STANDING_CONTROLLER_BOT_ID }}
+          DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts
