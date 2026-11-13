@@ -4,7 +4,10 @@ import {
   type WorkIntegrationContext,
 } from "../control/work-integration-request.js";
 import { executeEligibleStandingWorkIntegration } from "./eligible-standing-work-integration.js";
-import { readReservedGitHubWorkIntegration } from "./reserved-work-integration.js";
+import {
+  readReservedGitHubWorkIntegration,
+  recordReleasedNativeSquash,
+} from "./reserved-work-integration.js";
 
 type StandingInput = Parameters<
   typeof executeEligibleStandingWorkIntegration
@@ -50,15 +53,7 @@ export async function runStandingWorkIntegration(
     return { status: "denied" };
   }
 
-  const authorize: StandingInput["authorize"] = async (request) => {
-    if (
-      !sameWorkIntegrationCandidate(candidate, request.candidate) ||
-      (request.operation !== "queue-check" &&
-        request.operation !== "arm-squash" &&
-        request.operation !== "release-check")
-    ) {
-      return false;
-    }
+  const delegationIsCurrent = async (): Promise<boolean> => {
     try {
       const delegation = await input.readDelegation();
       return (
@@ -73,6 +68,25 @@ export async function runStandingWorkIntegration(
     }
   };
 
+  const authorize: StandingInput["authorize"] = async (request) =>
+    sameWorkIntegrationCandidate(candidate, request.candidate) &&
+    (request.operation === "queue-check" ||
+      request.operation === "arm-squash" ||
+      request.operation === "release-check") &&
+    (await delegationIsCurrent());
+
+  // Recording an observed squash is a journal write. It neither calls a
+  // GitHub merge endpoint nor authorizes cancellation or prerequisite edits.
+  const recordReleased = (released: typeof candidate) =>
+    recordReleasedNativeSquash({
+      candidate: released,
+      scope,
+      authorize: async (request) =>
+        request.operation === "resolve" &&
+        sameWorkIntegrationCandidate(released, request.candidate) &&
+        (await delegationIsCurrent()),
+    });
+
   const operations = ["queue-check", "arm-squash", "release-check"] as const;
   if (!(await authorize({ candidate, operation: "queue-check" }))) {
     return { status: "denied" };
@@ -80,7 +94,18 @@ export async function runStandingWorkIntegration(
   let start = 0;
   try {
     const existing = await readReservedGitHubWorkIntegration(scope);
-    if (
+    if (existing?.reservation.state.phase === "released") {
+      const previous = existing.reservation.candidate;
+      const merged = await recordReleased(previous);
+      if (sameWorkIntegrationCandidate(candidate, previous)) {
+        return merged
+          ? { status: "merged", sha: merged }
+          : { status: "released", checkId: existing.reservation.state.checkId };
+      }
+      if (!merged) {
+        return { status: "deferred", operation: "queue-check" };
+      }
+    } else if (
       existing &&
       sameWorkIntegrationCandidate(candidate, existing.reservation.candidate)
     ) {
@@ -96,8 +121,6 @@ export async function runStandingWorkIntegration(
           break;
         case "merged":
           return { status: "merged", sha: state.sha };
-        case "released":
-          return { status: "released", checkId: state.checkId };
         case "pending":
           return {
             status: "deferred",
@@ -128,7 +151,10 @@ export async function runStandingWorkIntegration(
       return { status: "merged", sha: state.sha };
     }
     if (state.phase === "released") {
-      return { status: "released", checkId: state.checkId };
+      const merged = await recordReleased(candidate);
+      return merged
+        ? { status: "merged", sha: merged }
+        : { status: "released", checkId: state.checkId };
     }
   }
 
