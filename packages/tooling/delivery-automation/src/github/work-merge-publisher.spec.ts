@@ -13,6 +13,7 @@ import {
   observeReservedWorkSquash,
   observeWorkMerge,
   publishWorkMerge,
+  readAcceptedStandingImpact,
   releaseReservedWorkMergeGate,
   type WorkGateEvaluationGrant,
   type WorkMergeGrant,
@@ -90,6 +91,9 @@ function fixture(scoped = false) {
     closingIssues: 0,
     title: "feat: integrate ordinary Work",
     evidenceEdited: false,
+    standingImpact: "ordinary",
+    standingFactsDigest: "d".repeat(64),
+    revokeGrant: false,
     tasks: [] as unknown[],
     owningPullBody: `Refs #${target.workNumber}`,
     additionalPullBody: null as string | null,
@@ -108,10 +112,19 @@ function fixture(scoped = false) {
       { kind: "code-review", commentId: 1, authorId: 12 },
       { kind: "working-decisions", commentId: 2, authorId: 12 },
       {
-        kind: scoped ? "validation" : "functional-approval",
+        kind: "validation",
         commentId: 3,
         authorId: 13,
       },
+      ...(scoped
+        ? []
+        : [
+            {
+              kind: "functional-approval" as const,
+              commentId: 4,
+              authorId: 13,
+            },
+          ]),
     ],
   };
   const writes: { url: string; method: string; body: unknown }[] = [];
@@ -323,7 +336,7 @@ function fixture(scoped = false) {
         const id = Number(url.split("/").at(-1));
         if (
           (id === 1 && state.missingReview) ||
-          (id === 3 && state.missingApproval)
+          (id === (scoped ? 3 : 4) && state.missingApproval)
         ) {
           return new Response(null, { status: 404 });
         }
@@ -340,6 +353,8 @@ function fixture(scoped = false) {
           body: JSON.stringify({
             ...target,
             kind: reference?.kind,
+            standingImpact: state.standingImpact,
+            standingFactsDigest: state.standingFactsDigest,
             decision:
               id === 2 && state.revokedDecision ? "revoked" : "accepted",
           }),
@@ -483,7 +498,7 @@ function fixture(scoped = false) {
         taskParent: true,
         taskClaim: false,
       },
-      readGrant: async () => grant,
+      readGrant: async () => (state.revokeGrant ? null : grant),
       withinVerifiedBoundary: async (_candidate, _mode, action) =>
         state.boundary ? action() : null,
     };
@@ -1106,5 +1121,53 @@ describe("reserved native cancellation", () => {
       cancelReservedNativeSquash(f.publisher(), cancel("armed"), scope),
     ).resolves.toBeNull();
     expect(f.writes).toHaveLength(0);
+  });
+});
+
+describe("standing impact evidence reader", () => {
+  const scope = (f: ReturnType<typeof fixture>) => ({
+    ...f.publisher(),
+    repository: "Oxelio/architecture-web",
+  });
+
+  it("uses the accepted candidate-bound Code Review record", async () => {
+    const f = fixture();
+    expect(await readAcceptedStandingImpact(scope(f), candidate)).toEqual({
+      candidate,
+      disposition: "ordinary",
+      factsDigest: "d".repeat(64),
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("fails closed when evidence is edited, missing, malformed or revoked", async () => {
+    for (const fault of [
+      { evidenceEdited: true },
+      { missingReview: true },
+      { standingFactsDigest: "invalid" },
+      { revokeGrant: true },
+      { tasks: [{ number: 123, state: "open" }] },
+    ]) {
+      const f = fixture();
+      Object.assign(f.state, fault);
+      expect(await readAcceptedStandingImpact(scope(f), candidate)).toBeNull();
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+
+  it("rejects a grant revoked during evidence resolution", async () => {
+    const f = fixture();
+    const publisher = scope(f);
+    let reads = 0;
+    expect(
+      await readAcceptedStandingImpact(
+        {
+          ...publisher,
+          readGrant: () =>
+            ++reads === 1 ? publisher.readGrant() : Promise.resolve(null),
+        },
+        candidate,
+      ),
+    ).toBeNull();
   });
 });
