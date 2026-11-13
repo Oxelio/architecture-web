@@ -1,4 +1,6 @@
+import type { DeliveryActivationManifest } from "../config/activation-manifest.js";
 import type { WorkState } from "../control/eligibility.js";
+import { architectureWebDeliveryExpectations } from "../inventory/delivery-expectations.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
 import {
@@ -46,13 +48,32 @@ function parseWorkState(value: string | undefined): WorkState | null {
     : null;
 }
 
-async function readGateWorkItem(input: {
+interface WorkItemInput {
   readonly repository: string;
   readonly projectId: string;
   readonly projectsToken: string;
   readonly workNumber: number;
   readonly fetchImpl: FetchLike;
-}): Promise<{ readonly status?: { readonly name?: string } | null } | null> {
+}
+
+interface GateWorkItem {
+  readonly status?: { readonly name?: string } | null;
+  readonly workType?: { readonly name?: string } | null;
+  readonly workflowDepth?: { readonly name?: string } | null;
+}
+
+interface GateWorkLabels {
+  readonly nodes: readonly ({ readonly name?: string } | null)[];
+  readonly pageInfo: { readonly hasNextPage: boolean };
+}
+
+async function readGateWorkItem(
+  input: WorkItemInput,
+  classification = false,
+): Promise<{
+  readonly item: GateWorkItem;
+  readonly labels: GateWorkLabels | null;
+} | null> {
   const [owner, name] = input.repository.split("/");
   const response = await input.fetchImpl("https://api.github.com/graphql", {
     method: "POST",
@@ -67,11 +88,24 @@ async function readGateWorkItem(input: {
           nameWithOwner
           issue(number: $number) {
             number state parent { id }
+            ${classification ? "labels(first: 100) { nodes { name } pageInfo { hasNextPage } }" : ""}
             projectItems(first: 100, includeArchived: false) {
               nodes {
                 project { id closed }
                 status: fieldValueByName(name: "Status") {
                   ... on ProjectV2ItemFieldSingleSelectValue { name }
+                }
+                ${
+                  classification
+                    ? `
+                  workType: fieldValueByName(name: "Work Type") {
+                    ... on ProjectV2ItemFieldSingleSelectValue { name }
+                  }
+                  workflowDepth: fieldValueByName(name: "Workflow Depth") {
+                    ... on ProjectV2ItemFieldSingleSelectValue { name }
+                  }
+                `
+                    : ""
                 }
               }
               pageInfo { hasNextPage }
@@ -94,14 +128,17 @@ async function readGateWorkItem(input: {
           readonly number: number;
           readonly state: string;
           readonly parent: object | null;
+          readonly labels?: GateWorkLabels | null;
           readonly projectItems: {
-            readonly nodes: readonly ({
-              readonly project: {
-                readonly id: string;
-                readonly closed: boolean;
-              };
-              readonly status?: { readonly name?: string } | null;
-            } | null)[];
+            readonly nodes: readonly (
+              | (GateWorkItem & {
+                  readonly project: {
+                    readonly id: string;
+                    readonly closed: boolean;
+                  };
+                })
+              | null
+            )[];
             readonly pageInfo: { readonly hasNextPage: boolean };
           };
         } | null;
@@ -125,7 +162,82 @@ async function readGateWorkItem(input: {
     (item) =>
       item?.project.id === input.projectId && item.project.closed === false,
   );
-  return items.length === 1 ? (items[0] ?? null) : null;
+  const item = items.length === 1 ? items[0] : null;
+  return item ? { item, labels: issue.labels ?? null } : null;
+}
+
+const standingWorkTypes = [
+  "Technical Change",
+  "Defect Correction",
+  "Documentation-only Change",
+] as const;
+type StandingWorkType = (typeof standingWorkTypes)[number];
+type StandingDepth = "Quick" | "Standard" | "Complex";
+
+export interface StandingWorkClassification {
+  readonly workType: StandingWorkType;
+  readonly workflowDepth: StandingDepth;
+  readonly characteristics: readonly string[];
+}
+
+export async function readStandingWorkClassification(
+  input: WorkItemInput & { readonly manifest: DeliveryActivationManifest },
+): Promise<StandingWorkClassification | null> {
+  const { project, mappings } = input.manifest;
+  if (
+    input.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    project?.owner !== "Oxelio" ||
+    project.number !== 3 ||
+    mappings.workState.status !== "verified" ||
+    mappings.workType.status !== "verified" ||
+    mappings.workflowDepth.status !== "verified" ||
+    mappings.characteristics.status !== "verified"
+  ) {
+    return null;
+  }
+
+  const work = await readGateWorkItem(input, true);
+  if (
+    work?.item.status?.name !== "Validating" ||
+    work.labels?.pageInfo.hasNextPage !== false ||
+    !Array.isArray(work.labels.nodes)
+  ) {
+    return null;
+  }
+  const workType = standingWorkTypes.find(
+    (kind) => kind === work.item.workType?.name,
+  );
+  const workflowDepth = work.item.workflowDepth?.name;
+  if (
+    !workType ||
+    (workflowDepth !== "Quick" &&
+      workflowDepth !== "Standard" &&
+      workflowDepth !== "Complex")
+  ) {
+    return null;
+  }
+
+  const characteristics = new Set<string>();
+  for (const label of work.labels.nodes) {
+    const name = label?.name;
+    if (typeof name !== "string" || !name) {
+      return null;
+    }
+    if (name.startsWith("char:")) {
+      if (
+        !architectureWebDeliveryExpectations.labels.includes(name) ||
+        characteristics.has(name)
+      ) {
+        return null;
+      }
+      characteristics.add(name);
+    }
+  }
+  return {
+    workType,
+    workflowDepth,
+    characteristics: [...characteristics].sort(),
+  };
 }
 
 async function readDependencyResolution(input: {
@@ -270,7 +382,7 @@ export async function readWorkMergeGateLiveEvidence(input: {
     return { status: "blocked", reason: "WORK_ITEM_UNAVAILABLE" };
   }
 
-  const workState = parseWorkState(work.status?.name);
+  const workState = parseWorkState(work.item.status?.name);
   if (!workState) {
     return { status: "blocked", reason: "WORK_STATE_UNAVAILABLE" };
   }

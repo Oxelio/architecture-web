@@ -51,7 +51,10 @@ export function isCompletionRecord(
 }
 
 export function matchesCompletedCandidate(
-  record: CompletionRecord,
+  record: Pick<
+    CompletionRecord,
+    "workNumber" | "pullNumber" | "headSha" | "baseSha" | "mergeSha"
+  >,
   pr: MergedPullRequest,
   commit: {
     readonly sha: string;

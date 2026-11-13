@@ -3,6 +3,9 @@ name: Delivery Work Integration Request
 on:
   issue_comment:
     types: [created]
+  workflow_run:
+    workflows: [Repository CI]
+    types: [completed]
 
 permissions:
   contents: read
@@ -12,6 +15,7 @@ permissions:
 jobs:
   authenticate:
     if: >-
+      github.event_name == 'issue_comment' &&
       github.ref == 'refs/heads/main' &&
       github.run_attempt == 1 &&
       github.actor_id == '83680141' &&
@@ -38,4 +42,34 @@ jobs:
           TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
           GITHUB_TOKEN: ${{ github.token }}
           DELIVERY_DIRECT_GRANT_COMMENT_ID: ${{ vars.DELIVERY_DIRECT_GRANT_COMMENT_ID }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts
+
+  standing-candidate:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.event.workflow_run.conclusion == 'success' &&
+      vars.DELIVERY_STANDING_REQUESTS_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Locate the candidate on protected main
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_STANDING_REQUESTS_ENABLED: ${{ vars.DELIVERY_STANDING_REQUESTS_ENABLED }}
+          DELIVERY_STANDING_CONTROLLER_BOT_ID: ${{ vars.DELIVERY_STANDING_CONTROLLER_BOT_ID }}
+          DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts

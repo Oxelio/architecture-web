@@ -1,13 +1,18 @@
 import { isDeepStrictEqual } from "node:util";
 
+import type { MergeReservation } from "../control/merge-reservation.js";
 import {
   evaluateWorkMergeGate,
   workMergeObservationCheckName,
   workMergeRequiredCheckName,
 } from "../control/work-merge-gate.js";
+import { completeReservedGateCheck } from "./gate-check-publisher.js";
 import { readWorkMergeGateLiveEvidence } from "./gate-live-evidence.js";
 import type { OperationalOwnerActivation } from "./github-operational-state.js";
 import type { FetchLike } from "./github-project-inventory.js";
+import type { AcceptedStandingImpact } from "./standing-work-eligibility.js";
+import { matchesCompletedCandidate } from "./work-completion-evidence.js";
+import { workReference } from "./work-reference.js";
 
 const gateName = workMergeRequiredCheckName;
 const oid = /^[0-9a-f]{40}$/u;
@@ -57,12 +62,19 @@ export type WorkGateEvaluationGrant = Omit<WorkMergeGrant, "direct" | "auto"> &
 interface PullRequest {
   readonly node_id: string;
   readonly title: string;
+  readonly body: string | null;
   readonly number: number;
   readonly state: string;
   readonly draft: boolean;
   readonly merged: boolean;
   readonly merge_commit_sha: string | null;
-  readonly auto_merge: object | null;
+  readonly auto_merge: {
+    readonly merge_method?: string;
+    readonly enabled_by?: {
+      readonly id?: number;
+      readonly type?: string;
+    } | null;
+  } | null;
   readonly head: {
     readonly sha: string;
     readonly repo: { readonly id: number };
@@ -75,6 +87,7 @@ interface PullRequest {
 }
 
 interface CheckRun {
+  readonly id: number;
   readonly name: string;
   readonly head_sha: string;
   readonly status: string;
@@ -95,6 +108,15 @@ interface IssueComment {
 }
 
 type MergeMode = "direct" | "auto";
+
+interface ReservedGateCheck {
+  readonly checkId: number;
+  readonly reservationId: string;
+  readonly release?: {
+    readonly checksToken: string;
+    readonly controllerBotId: number;
+  };
+}
 
 export interface WorkMergePublisher {
   readonly repository: string;
@@ -124,6 +146,7 @@ type WorkGateReader = Omit<WorkMergeReader, "readGrant">;
 export type WorkMergeOutcome =
   | { readonly status: "merged" | "already-merged"; readonly sha: string }
   | { readonly status: "auto-merge-requested" }
+  | { readonly status: "gate-released"; readonly checkId: number }
   | {
       readonly status: "observed-checks-passed";
       readonly bypassActors: "none" | "unverified";
@@ -240,6 +263,7 @@ async function verifyEvidence(
   repoPath: string,
   exactTasks = false,
   requireUnedited = false,
+  verifiedReview?: (record: Record<string, unknown>) => void,
 ): Promise<string | null> {
   const kinds = new Set(grant.evidence.map((reference) => reference.kind));
   if (
@@ -292,6 +316,9 @@ async function verifyEvidence(
     ) {
       return `STALE_OR_UNACCEPTED_EVIDENCE:${reference.kind}`;
     }
+    if (reference.kind === "code-review") {
+      verifiedReview?.(record);
+    }
   }
   const tasks = await github<
     readonly {
@@ -325,6 +352,55 @@ async function verifyEvidence(
   return null;
 }
 
+// Read the impact assessment only from the same candidate-bound review
+// records used by the Work Merge Gate. Their reference and authority are
+// resolved by the trusted publisher, never by the event that woke it.
+export async function readAcceptedStandingImpact(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+): Promise<AcceptedStandingImpact | null> {
+  try {
+    if (publisher.repository.toLowerCase() !== "oxelio/architecture-web") {
+      return null;
+    }
+    const grant = structuredClone(await publisher.readGrant());
+    if (
+      !authorized(grant, publisher, candidate, "auto") ||
+      !grant.evidence.some(({ kind }) => kind === "validation") ||
+      new Set(grant.requiredTasks).size !== grant.requiredTasks.length ||
+      !grant.requiredTasks.every(positiveId)
+    ) {
+      return null;
+    }
+
+    const reviews: AcceptedStandingImpact[] = [];
+    const failure = await verifyEvidence(
+      publisher,
+      candidate,
+      grant,
+      `/repos/${publisher.repository}`,
+      true,
+      true,
+      (record) => {
+        const disposition = record["standingImpact"];
+        const factsDigest = record["standingFactsDigest"];
+        if (
+          (disposition === "ordinary" || disposition === "manual") &&
+          typeof factsDigest === "string" &&
+          /^[0-9a-f]{64}$/u.test(factsDigest)
+        ) {
+          reviews.push({ candidate, factsDigest, disposition });
+        }
+      },
+    );
+    return failure || !isDeepStrictEqual(grant, await publisher.readGrant())
+      ? null
+      : (reviews[0] ?? null);
+  } catch {
+    return null;
+  }
+}
+
 async function verifyChecks(
   publisher: WorkGateReader,
   grant: Pick<
@@ -336,6 +412,7 @@ async function verifyChecks(
   mode: MergeMode,
   observe: boolean,
   evaluateGate = false,
+  reservedCheck?: ReservedGateCheck,
 ): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
   if (
     !positiveId(grant.gateAppId) ||
@@ -420,6 +497,49 @@ async function verifyChecks(
   ) {
     return "REQUIRED_PROTECTIONS_UNVERIFIED";
   }
+  if (reservedCheck) {
+    // The latest-per-suite view does not prove that the held check is
+    // the only candidate for this required context.
+    const shas = [...new Set([pr.head.sha, pr.merge_commit_sha])];
+    const inventories = await Promise.all(
+      shas.map((sha) =>
+        github<{
+          readonly total_count: number;
+          readonly check_runs: readonly CheckRun[];
+        }>(
+          publisher,
+          `${repoPath}/commits/${sha}/check-runs?check_name=${encodeURIComponent(gateName)}&filter=all&per_page=100`,
+        ),
+      ),
+    );
+    const matches: CheckRun[] = [];
+    for (const [index, inventory] of inventories.entries()) {
+      if (
+        !Array.isArray(inventory.check_runs) ||
+        inventory.total_count !== inventory.check_runs.length ||
+        inventory.total_count >= 100 ||
+        inventory.check_runs.some(
+          (check) => check.name !== gateName || check.head_sha !== shas[index],
+        )
+      ) {
+        return "RESERVED_GATE_INVENTORY_UNVERIFIED";
+      }
+      matches.push(...inventory.check_runs);
+    }
+    const [check] = matches;
+    if (
+      matches.length !== 1 ||
+      check?.id !== reservedCheck.checkId ||
+      check.app?.id !== grant.gateAppId ||
+      check.external_id !== reservedCheck.reservationId ||
+      check.head_sha !== pr.head.sha ||
+      check.status !== "queued" ||
+      check.conclusion !== null
+    ) {
+      return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+    }
+  }
+
   // Observe checks only on the current head and GitHub's current test merge SHA.
   // If both have the same context, use the test merge SHA as GitHub does.
   const checks = new Map<string, readonly CheckRun[]>();
@@ -476,6 +596,19 @@ async function verifyChecks(
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
+    if (reservedCheck && name === expectedGateName) {
+      if (
+        check.id !== reservedCheck.checkId ||
+        check.external_id !== reservedCheck.reservationId ||
+        check.head_sha !== pr.head.sha ||
+        check.status !== "queued" ||
+        check.conclusion !== null
+      ) {
+        return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+      }
+      pending = true;
+      continue;
+    }
     if (
       name === expectedGateName &&
       check.external_id !==
@@ -488,6 +621,7 @@ async function verifyChecks(
     }
     if (
       mode === "auto" &&
+      !reservedCheck &&
       name !== expectedGateName &&
       ["queued", "in_progress", "pending", "waiting", "requested"].includes(
         check.status,
@@ -511,6 +645,294 @@ export async function publishWorkMerge(
   mode: MergeMode,
 ): Promise<WorkMergeOutcome> {
   return evaluateWorkMergeRequest(publisher, candidate, mode, false);
+}
+
+// Called only within the protected controller's durable arm intent.
+export async function armReservedWorkSquash(
+  publisher: WorkMergePublisher,
+  reservation: MergeReservation,
+  reservationId: string,
+): Promise<WorkMergeOutcome> {
+  const { candidate, state } = reservation;
+  if (
+    state.phase !== "pending" ||
+    state.operation !== "arm-squash" ||
+    state.checkId === undefined ||
+    !positiveId(state.checkId) ||
+    !reservationId.trim()
+  ) {
+    return blocked("RESERVED_WORK_MERGE_GATE_UNVERIFIED");
+  }
+  return evaluateWorkMergeRequest(publisher, candidate, "auto", false, {
+    checkId: state.checkId,
+    reservationId,
+  });
+}
+
+export async function releaseReservedWorkMergeGate(
+  publisher: WorkMergePublisher,
+  reservation: MergeReservation,
+  reservationId: string,
+  checksToken: string,
+  controllerBotId: number,
+): Promise<WorkMergeOutcome> {
+  const { candidate, state } = reservation;
+  if (
+    state.phase !== "pending" ||
+    state.operation !== "release-check" ||
+    state.checkId === undefined ||
+    !positiveId(state.checkId) ||
+    !reservationId.trim() ||
+    !checksToken.trim() ||
+    [
+      publisher.repositoryToken,
+      publisher.projectsToken,
+      publisher.mergeToken,
+    ].includes(checksToken) ||
+    !positiveId(controllerBotId)
+  ) {
+    return blocked("RESERVED_WORK_MERGE_GATE_UNVERIFIED");
+  }
+  return evaluateWorkMergeRequest(publisher, candidate, "auto", false, {
+    checkId: state.checkId,
+    reservationId,
+    release: { checksToken, controllerBotId },
+  });
+}
+
+function isNativeSquashFrom(pr: PullRequest, controllerBotId: number): boolean {
+  return (
+    pr.auto_merge?.merge_method === "squash" &&
+    pr.auto_merge.enabled_by?.type === "Bot" &&
+    pr.auto_merge.enabled_by.id === controllerBotId
+  );
+}
+
+export async function observeReservedNativeArm(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  controllerBotId: number,
+): Promise<boolean> {
+  if (
+    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    !positiveId(candidate.pullNumber) ||
+    !positiveId(controllerBotId)
+  ) {
+    return false;
+  }
+  try {
+    const current = await github<PullRequest>(
+      publisher,
+      `/repos/${publisher.repository}/pulls/${candidate.pullNumber}`,
+    );
+    return (
+      sameCandidate(current, candidate, publisher.repositoryId) &&
+      current.state === "open" &&
+      current.draft === false &&
+      current.merged === false &&
+      current.base.sha === candidate.baseSha &&
+      workReference(current.body) === candidate.workNumber &&
+      isNativeSquashFrom(current, controllerBotId)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function cancelReservedNativeSquash(
+  publisher: WorkMergePublisher,
+  reservation: MergeReservation,
+  scope: {
+    readonly reservationId: string;
+    readonly controllerBotId: number;
+    readonly checksAppId: number;
+    readonly rulesetId: number;
+  },
+): Promise<
+  | { readonly kind: "squash-cancelled" }
+  | { readonly kind: "squash-merged"; readonly sha: string }
+  | null
+> {
+  const { candidate, state } = reservation;
+  if (
+    state.phase !== "pending" ||
+    state.operation !== "resolve" ||
+    state.previousPhase === undefined ||
+    !scope.reservationId.trim() ||
+    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    !positiveId(candidate.pullNumber) ||
+    !positiveId(scope.controllerBotId) ||
+    !positiveId(scope.checksAppId) ||
+    !positiveId(scope.rulesetId) ||
+    !publisher.mergeToken.trim() ||
+    publisher.mergeToken === publisher.repositoryToken
+  ) {
+    return null;
+  }
+  const previousPhase = state.previousPhase;
+  const repoPath = `/repos/${publisher.repository}`;
+  const prPath = `${repoPath}/pulls/${candidate.pullNumber}`;
+  const grant = {
+    workNumber: candidate.workNumber,
+    pullNumber: candidate.pullNumber,
+    gateAppId: scope.checksAppId,
+    rulesetId: scope.rulesetId,
+  };
+  const isCurrent = (pr: PullRequest) =>
+    sameCandidate(pr, candidate, publisher.repositoryId) &&
+    pr.state === "open" &&
+    pr.merged === false &&
+    pr.base.sha === candidate.baseSha &&
+    workReference(pr.body) === candidate.workNumber;
+  const checkIsHeld = async (pr: PullRequest) =>
+    state.checkId !== undefined &&
+    typeof (await verifyChecks(
+      publisher,
+      grant,
+      repoPath,
+      pr,
+      "auto",
+      false,
+      false,
+      {
+        checkId: state.checkId,
+        reservationId: scope.reservationId,
+      },
+    )) !== "string";
+  const observeMerge = () => observeReservedWorkSquash(publisher, candidate);
+
+  try {
+    return await publisher.withinVerifiedBoundary(
+      candidate,
+      "auto",
+      async () => {
+        const current = await github<PullRequest>(publisher, prPath);
+        if (!isCurrent(current)) {
+          return observeMerge();
+        }
+        if (previousPhase === "reserved" || previousPhase === "queued") {
+          return current.auto_merge === null &&
+            (previousPhase === "reserved" || (await checkIsHeld(current)))
+            ? ({ kind: "squash-cancelled" } as const)
+            : null;
+        }
+        if (!isNativeSquashFrom(current, scope.controllerBotId)) {
+          return observeMerge();
+        }
+        const held = previousPhase === "armed" && (await checkIsHeld(current));
+        let response;
+        try {
+          response = await github<{
+            readonly errors?: readonly unknown[];
+            readonly data?: {
+              readonly disablePullRequestAutoMerge?: {
+                readonly clientMutationId?: string;
+                readonly pullRequest?: {
+                  readonly id?: string;
+                  readonly autoMergeRequest?: object | null;
+                };
+              };
+            };
+          }>(
+            publisher,
+            "/graphql",
+            "POST",
+            {
+              query: `mutation($input: DisablePullRequestAutoMergeInput!) {
+            disablePullRequestAutoMerge(input: $input) {
+              clientMutationId
+              pullRequest { id autoMergeRequest { enabledAt } }
+            }
+          }`,
+              variables: {
+                input: {
+                  pullRequestId: current.node_id,
+                  clientMutationId: scope.reservationId,
+                },
+              },
+            },
+            publisher.mergeToken,
+          );
+        } catch {
+          return observeMerge();
+        }
+        const disabled = response.data?.disablePullRequestAutoMerge;
+        // A disable acknowledgement cannot exclude a squash already in flight
+        // after gate release. Only an independently verified terminal outcome can.
+        if (
+          !held ||
+          response.errors?.length ||
+          disabled?.clientMutationId !== scope.reservationId ||
+          disabled.pullRequest?.id !== current.node_id ||
+          disabled.pullRequest.autoMergeRequest !== null
+        ) {
+          return observeMerge();
+        }
+        const after = await github<PullRequest>(publisher, prPath);
+        return isCurrent(after) &&
+          after.auto_merge === null &&
+          (await checkIsHeld(after))
+          ? ({ kind: "squash-cancelled" } as const)
+          : observeMerge();
+      },
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function observeReservedWorkSquash(
+  reader: Pick<
+    WorkMergeReader,
+    "repository" | "repositoryId" | "repositoryToken" | "fetchImpl"
+  >,
+  candidate: MergeCandidate,
+): Promise<{ readonly kind: "squash-merged"; readonly sha: string } | null> {
+  if (
+    !/^[a-z0-9][a-z0-9-]*\/[a-z0-9_.-]+$/iu.test(reader.repository) ||
+    /\/\.{1,2}$/u.test(reader.repository) ||
+    !positiveId(candidate.pullNumber)
+  ) {
+    return null;
+  }
+  const repo = `/repos/${reader.repository}`;
+  try {
+    const pr = await github<PullRequest>(
+      reader,
+      `${repo}/pulls/${candidate.pullNumber}`,
+    );
+    const sha = pr.merge_commit_sha;
+    if (
+      !sameCandidate(pr, candidate, reader.repositoryId) ||
+      pr.merged !== true ||
+      !sha ||
+      !oid.test(sha)
+    ) {
+      return null;
+    }
+
+    const [commit, comparison] = await Promise.all([
+      github<Parameters<typeof matchesCompletedCandidate>[2]>(
+        reader,
+        `${repo}/commits/${sha}`,
+      ),
+      github<Parameters<typeof matchesCompletedCandidate>[3]>(
+        reader,
+        `${repo}/compare/${sha}...main`,
+      ),
+    ]);
+    return matchesCompletedCandidate(
+      { ...candidate, mergeSha: sha },
+      { ...pr, merge_commit_sha: sha },
+      commit,
+      comparison,
+      reader.repositoryId,
+    )
+      ? { kind: "squash-merged", sha }
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function observeWorkMerge(
@@ -651,6 +1073,7 @@ async function evaluateWorkMergeRequest(
   candidate: MergeCandidate,
   mode: MergeMode,
   observe: boolean,
+  reservedCheck?: ReservedGateCheck,
 ): Promise<WorkMergeOutcome> {
   if (
     !/^[\w.-]+\/[\w.-]+$/u.test(publisher.repository) ||
@@ -691,6 +1114,12 @@ async function evaluateWorkMergeRequest(
         pr.merge_commit_sha &&
         oid.test(pr.merge_commit_sha)
       ) {
+        if (reservedCheck) {
+          const merged = await observeReservedWorkSquash(publisher, candidate);
+          return merged
+            ? { status: "already-merged", sha: merged.sha }
+            : blocked("RESERVED_SQUASH_OUTCOME_UNVERIFIED");
+        }
         return { status: "already-merged", sha: pr.merge_commit_sha };
       }
       if (
@@ -735,6 +1164,8 @@ async function evaluateWorkMergeRequest(
         pr,
         mode,
         observe,
+        false,
+        reservedCheck,
       );
       if (typeof checks === "string") {
         return blocked(checks);
@@ -755,6 +1186,35 @@ async function evaluateWorkMergeRequest(
       if (!isDeepStrictEqual(currentGrant, grant)) {
         return blocked("MERGE_DELEGATION_CHANGED");
       }
+      if (reservedCheck?.release) {
+        const { checksToken, controllerBotId } = reservedCheck.release;
+        if (!isNativeSquashFrom(current, controllerBotId)) {
+          return blocked("RESERVED_NATIVE_ARM_UNVERIFIED");
+        }
+        const completed = await completeReservedGateCheck({
+          repository: publisher.repository,
+          ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+          checksToken,
+          name: gateName,
+          headSha: candidate.headSha,
+          reservationId: reservedCheck.reservationId,
+          checkId: reservedCheck.checkId,
+          expectedAppId: grant.gateAppId,
+          title: "Work Merge Gate: PASS",
+          summary: `Work #${candidate.workNumber} / PR #${candidate.pullNumber}\nHead: ${candidate.headSha}\nBase: ${candidate.baseSha}`,
+        });
+        if (completed) {
+          return { status: "gate-released", checkId: completed.id };
+        }
+        const merged = await observeReservedWorkSquash(publisher, candidate);
+        return merged
+          ? { status: "merged", sha: merged.sha }
+          : {
+              status: "uncertain",
+              reason: "RESERVED_GATE_RELEASE_NOT_CONFIRMED",
+            };
+      }
+
       // An existing request may have been armed for another candidate.
       if (current.auto_merge !== null) {
         return blocked("EXISTING_AUTO_MERGE_REQUEST");
@@ -851,13 +1311,25 @@ async function evaluateWorkMergeRequest(
           if (
             !armed.errors?.length &&
             armedPr?.id === current.node_id &&
-            armedPr.autoMergeRequest
+            armedPr.autoMergeRequest &&
+            (!reservedCheck ||
+              (await observeReservedNativeArm(
+                publisher,
+                candidate,
+                publisher.actorId,
+              )))
           ) {
             return { status: "auto-merge-requested" };
           }
         }
       } catch {
         // A failed response can arrive after GitHub has accepted the mutation.
+      }
+      if (reservedCheck) {
+        const merged = await observeReservedWorkSquash(publisher, candidate);
+        return merged
+          ? { status: "merged", sha: merged.sha }
+          : { status: "uncertain", reason: "MUTATION_NOT_CONFIRMED" };
       }
       const observed = await github<PullRequest>(publisher, prPath).catch(
         () => null,

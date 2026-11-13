@@ -1,3 +1,4 @@
+import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import {
   type WorkMergeGateResult,
   workMergeRequiredCheckName,
@@ -43,14 +44,12 @@ const evaluated = JSON.parse(
 };
 const { candidate, result } = evaluated;
 if (
-  candidate.workNumber !== workNumber ||
-  candidate.pullNumber !== pullNumber ||
-  candidate.headSha !== headSha ||
-  candidate.baseSha !== baseSha ||
+  !sameWorkIntegrationCandidate(
+    { workNumber, pullNumber, headSha, baseSha },
+    candidate,
+  ) ||
   baseSha !== requiredEnvironment("TRUSTED_WORKFLOW_SHA") ||
   !(Date.parse(evaluated.expiresAt) > Date.now()) ||
-  !/^[0-9a-f]{40}$/u.test(headSha) ||
-  !/^[0-9a-f]{40}$/u.test(baseSha) ||
   typeof result.pass !== "boolean" ||
   !Array.isArray(result.blockers) ||
   result.pass !== (result.blockers.length === 0) ||
