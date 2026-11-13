@@ -78,6 +78,33 @@ steps. Activation requires those proofs and the applicable separate authority.
 For rollback, stop arming, resolve or quarantine the outstanding request, and
 use the protected manual exception. Preserve the existing required checks.
 
+### Writer boundary and activation evidence
+
+The Validation record must identify which credential or native GitHub control
+covers each writer below. A deployment variable or a successful evaluation
+cannot establish the writer boundary.
+
+| Merge input                                                                  | Writer to account for                                                                    | Required verification before standing activation                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Work State, Work Type, Workflow Depth, Project membership                    | Projects MCP, Project automations, trusted Project writers, and direct UI access         | Deny ordinary direct writes. Verify authorized writes use the controller when they affect its reservation. Exercise the active Work Completion workflow against a different reserved candidate and a shared dependency. |
+| Tasks, dependencies, Work characteristic labels, review and decision records | Issues and PR credentials, evidence authors, and workflows that can change these records | Include creation, edit, removal, close and reopen where they can change the result. Prove exclusion or mediation across the full reservation window.                                                                    |
+| Owning PR and native merge state                                             | PR editors, branch writers, the manual integration path, and controller App              | Verify head, base and PR identity, and prove an independent request or direct squash cannot consume the standing check.                                                                                                 |
+| Required checks and protected refs                                           | Checks-only issuer, workflow credentials, controller App, ruleset administrators         | Verify accepted App and installation bindings, effective checks and restrictions, and exclusive creation of journal refs. Verify who can change or remove those refs.                                                   |
+| Standing delegation and revocation                                           | Protected control configuration and its privileged writers                               | Stop new arms. Reconcile the existing request before applying a revocation or another invalidating write through the ordinary controller path.                                                                          |
+
+Keep emergency GitHub administration on the maintainer-only path. The merge
+identity must stay without repository administration write access. An
+independent administrative observation can verify bypass metadata, which
+GitHub omits from ordinary read responses. To use that observation in the
+controller, bind it to the effective ruleset and enforce the writer boundary
+for subsequent rule changes. A missing binding leaves standing integration
+disabled.
+
+For cancellation after check release, a successful disable response or a null
+auto-merge request does not establish that a squash already in progress was
+prevented. Until the effective GitHub configuration yields conclusive evidence,
+keep the write deferred. A verified squash is handled by the recovery path.
+
 ## Delegated request identity
 
 The integration request identifies the repository, Work, PR and evaluated head
