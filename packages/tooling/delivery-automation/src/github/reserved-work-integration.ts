@@ -53,15 +53,20 @@ export async function performReservedGitHubIntegration(
       ) {
         return null;
       }
-      const check = await queueReservedGateCheck({
-        repository: publisher.repository,
-        checksToken,
-        name: workMergeRequiredCheckName,
-        headSha: candidate.headSha,
-        reservationId,
-        expectedAppId: scope.checksAppId,
-        ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
-      });
+      const check = await publisher.withinVerifiedBoundary(
+        candidate,
+        "auto",
+        () =>
+          queueReservedGateCheck({
+            repository: publisher.repository,
+            checksToken,
+            name: workMergeRequiredCheckName,
+            headSha: candidate.headSha,
+            reservationId,
+            expectedAppId: scope.checksAppId,
+            ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+          }),
+      );
       return check
         ? ({ kind: "check-queued", checkId: check.id } as const)
         : null;
