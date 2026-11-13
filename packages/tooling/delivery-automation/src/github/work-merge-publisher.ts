@@ -497,6 +497,49 @@ async function verifyChecks(
   ) {
     return "REQUIRED_PROTECTIONS_UNVERIFIED";
   }
+  if (reservedCheck) {
+    // The latest-per-suite view does not prove that the held check is
+    // the only candidate for this required context.
+    const shas = [...new Set([pr.head.sha, pr.merge_commit_sha])];
+    const inventories = await Promise.all(
+      shas.map((sha) =>
+        github<{
+          readonly total_count: number;
+          readonly check_runs: readonly CheckRun[];
+        }>(
+          publisher,
+          `${repoPath}/commits/${sha}/check-runs?check_name=${encodeURIComponent(gateName)}&filter=all&per_page=100`,
+        ),
+      ),
+    );
+    const matches: CheckRun[] = [];
+    for (const [index, inventory] of inventories.entries()) {
+      if (
+        !Array.isArray(inventory.check_runs) ||
+        inventory.total_count !== inventory.check_runs.length ||
+        inventory.total_count >= 100 ||
+        inventory.check_runs.some(
+          (check) => check.name !== gateName || check.head_sha !== shas[index],
+        )
+      ) {
+        return "RESERVED_GATE_INVENTORY_UNVERIFIED";
+      }
+      matches.push(...inventory.check_runs);
+    }
+    const [check] = matches;
+    if (
+      matches.length !== 1 ||
+      check?.id !== reservedCheck.checkId ||
+      check.app?.id !== grant.gateAppId ||
+      check.external_id !== reservedCheck.reservationId ||
+      check.head_sha !== pr.head.sha ||
+      check.status !== "queued" ||
+      check.conclusion !== null
+    ) {
+      return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+    }
+  }
+
   // Observe checks only on the current head and GitHub's current test merge SHA.
   // If both have the same context, use the test merge SHA as GitHub does.
   const checks = new Map<string, readonly CheckRun[]>();
