@@ -39,6 +39,15 @@ superseded. Standing publication and native auto-merge remain inactive by
 default. The current protected manual path remains effective through the
 authorized cutover.
 
+The read-only request workflow verifies a current direct maintainer record on
+Work #115 before reporting an eligible request for observation. The record
+binds the repository, controller bot and workflow path and states the two
+delegations separately with an expiry. This observation grants no write
+authority. Actual execution must reread the record and verify the controller
+installation, effective protections and the writer boundary before each
+privileged action. The post-release cancellation proof remains a Validation
+requirement.
+
 The target uses one controller on protected main and one candidate-bound
 request contract. A request identifies the repository, Work, PR, head, base,
 evidence and authority context. The controller reads current authority and
