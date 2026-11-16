@@ -147,8 +147,10 @@ prevented. Until the effective GitHub configuration yields conclusive evidence,
 keep the write deferred. A verified squash is handled by the recovery path.
 
 When a run restarts with a pending operation, it may reconcile that operation
-from positive GitHub evidence. Recovery never replays a lost mutation.
-Only a confirmed result lets the controller resume or admit another candidate.
+from positive GitHub evidence. Independent authority for the reserved
+candidate is required to record an observation after revocation or expiry.
+Recovery never replays a lost mutation, and resuming publication or arming
+requires current standing delegation.
 
 A delegation expiry is also an invalidating change. GitHub's required check
 does not expire at the controller's delegation deadline. Validation must

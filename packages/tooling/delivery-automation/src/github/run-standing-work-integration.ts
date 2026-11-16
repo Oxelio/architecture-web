@@ -38,6 +38,9 @@ export async function runStandingWorkIntegration(
     readonly readEvidenceAuthority: () => Promise<StandingEvidenceAuthority | null>;
     readonly context: Omit<WorkIntegrationContext, "actorId">;
     readonly readDelegation: () => Promise<StandingDelegation | null>;
+    readonly authorizeRecovery: (
+      candidate: StandingInput["candidate"],
+    ) => Promise<boolean>;
   },
 ): Promise<
   | { readonly status: "inactive" | "denied" }
@@ -105,14 +108,14 @@ export async function runStandingWorkIntegration(
       request.operation === "release-check") &&
     (await delegationIsCurrent());
 
-  // Recovery can consume positive observations and persist the result only.
-  // This authority does not cover a native mutation or a prerequisite edit.
+  // Recovery can only persist a positive observation of an existing intent.
+  // It must remain independently authorized after standing delegation ends.
   const authorizeObservation =
     (previous: typeof candidate): StandingInput["authorize"] =>
     async (request) =>
       request.operation === "resolve" &&
       sameWorkIntegrationCandidate(previous, request.candidate) &&
-      (await delegationIsCurrent());
+      (await input.authorizeRecovery(previous));
 
   const recordReleased = (released: typeof candidate) =>
     recordReleasedNativeSquash({
@@ -122,9 +125,6 @@ export async function runStandingWorkIntegration(
     });
 
   const operations = ["queue-check", "arm-squash", "release-check"] as const;
-  if (!(await authorize({ candidate, operation: "queue-check" }))) {
-    return { status: "denied" };
-  }
   let start = 0;
   try {
     let reservation = (await readReservedGitHubWorkIntegration(scope))
@@ -180,6 +180,10 @@ export async function runStandingWorkIntegration(
     }
   } catch {
     return { status: "deferred", operation: "queue-check" };
+  }
+
+  if (!(await authorize({ candidate, operation: "queue-check" }))) {
+    return { status: "denied" };
   }
 
   for (const operation of operations.slice(start)) {

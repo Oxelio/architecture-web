@@ -38,17 +38,19 @@ const execute = vi.mocked(executeEligibleStandingWorkIntegration);
 
 function fixture() {
   const readDelegation = vi.fn(async () => delegation);
+  const authorizeRecovery = vi.fn(async () => true);
   const input = {
     standingEnabled: true,
     candidate,
     context,
     readDelegation,
+    authorizeRecovery,
     scope: {
       publisher: { repository, repositoryId, actorId: controllerBotId },
       controllerBotId,
     },
   } as unknown as Parameters<typeof runStandingWorkIntegration>[0];
-  return { input, readDelegation };
+  return { input, readDelegation, authorizeRecovery };
 }
 
 beforeEach(() => {
@@ -205,6 +207,73 @@ describe("protected standing integration sequence", () => {
       status: "merged",
       sha,
     });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("records the reserved squash under separate authority after revocation", async () => {
+    const { input, readDelegation, authorizeRecovery } = fixture();
+    readDelegation.mockResolvedValue({ ...delegation, nativeSquash: false });
+    vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
+      revision: 8,
+      reservation: { candidate, state: { phase: "released", checkId: 17 } },
+    });
+    const sha = "d".repeat(40);
+    vi.mocked(recordReleasedNativeSquash).mockImplementation(
+      async ({ authorize }) => {
+        expect(await authorize({ candidate, operation: "release-check" })).toBe(
+          false,
+        );
+        expect(
+          await authorize({
+            candidate: { ...candidate, pullNumber: 999 },
+            operation: "resolve",
+          }),
+        ).toBe(false);
+        return (await authorize({ candidate, operation: "resolve" }))
+          ? sha
+          : null;
+      },
+    );
+
+    authorizeRecovery.mockResolvedValueOnce(false);
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "released",
+      checkId: 17,
+    });
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "merged",
+      sha,
+    });
+    expect(authorizeRecovery.mock.calls).toEqual([[candidate], [candidate]]);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("records a confirmed arm after revocation without releasing its check", async () => {
+    const { input, readDelegation, authorizeRecovery } = fixture();
+    readDelegation.mockResolvedValue({ ...delegation, gatePublication: false });
+    vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
+      revision: 5,
+      reservation: {
+        candidate,
+        state: { phase: "pending", operation: "arm-squash", checkId: 17 },
+      },
+    });
+    vi.mocked(reconcileReservedGitHubWorkIntegration).mockImplementation(
+      async ({ authorize }) => {
+        expect(await authorize({ candidate, operation: "resolve" })).toBe(true);
+        return {
+          status: "confirmed",
+          receipt: {
+            revision: 6,
+            reservation: { candidate, state: { phase: "armed", checkId: 17 } },
+          },
+        };
+      },
+    );
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "denied",
+    });
+    expect(authorizeRecovery).toHaveBeenCalledExactlyOnceWith(candidate);
     expect(execute).not.toHaveBeenCalled();
   });
 
