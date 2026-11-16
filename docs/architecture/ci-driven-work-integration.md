@@ -119,6 +119,10 @@ auto-merge request does not establish that a squash already in progress was
 prevented. Until the effective GitHub configuration yields conclusive evidence,
 keep the write deferred. A verified squash is handled by the recovery path.
 
+When a run restarts with a pending operation, it may reconcile that operation
+from positive GitHub evidence. Recovery never replays a lost mutation.
+Only a confirmed result lets the controller resume or admit another candidate.
+
 A delegation expiry is also an invalidating change. GitHub's required check
 does not expire at the controller's delegation deadline. Validation must
 establish how the protected configuration prevents an in-flight squash from

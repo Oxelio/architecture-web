@@ -6,6 +6,7 @@ import {
 import { executeEligibleStandingWorkIntegration } from "./eligible-standing-work-integration.js";
 import {
   readReservedGitHubWorkIntegration,
+  reconcileReservedGitHubWorkIntegration,
   recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
 
@@ -75,16 +76,20 @@ export async function runStandingWorkIntegration(
       request.operation === "release-check") &&
     (await delegationIsCurrent());
 
-  // Recording an observed squash is a journal write. It neither calls a
-  // GitHub merge endpoint nor authorizes cancellation or prerequisite edits.
+  // Recovery can consume positive observations and persist the result only.
+  // This authority does not cover a native mutation or a prerequisite edit.
+  const authorizeObservation =
+    (previous: typeof candidate): StandingInput["authorize"] =>
+    async (request) =>
+      request.operation === "resolve" &&
+      sameWorkIntegrationCandidate(previous, request.candidate) &&
+      (await delegationIsCurrent());
+
   const recordReleased = (released: typeof candidate) =>
     recordReleasedNativeSquash({
       candidate: released,
       scope,
-      authorize: async (request) =>
-        request.operation === "resolve" &&
-        sameWorkIntegrationCandidate(released, request.candidate) &&
-        (await delegationIsCurrent()),
+      authorize: authorizeObservation(released),
     });
 
   const operations = ["queue-check", "arm-squash", "release-check"] as const;
@@ -93,23 +98,42 @@ export async function runStandingWorkIntegration(
   }
   let start = 0;
   try {
-    const existing = await readReservedGitHubWorkIntegration(scope);
-    if (existing?.reservation.state.phase === "released") {
-      const previous = existing.reservation.candidate;
+    let reservation = (await readReservedGitHubWorkIntegration(scope))
+      ?.reservation;
+    if (reservation?.state.phase === "pending") {
+      const { candidate: previous, state } = reservation;
+      const resolution = await reconcileReservedGitHubWorkIntegration({
+        candidate: previous,
+        scope,
+        authorize: authorizeObservation(previous),
+      });
+      if (resolution.status !== "confirmed") {
+        return resolution.status === "denied"
+          ? { status: "denied" }
+          : {
+              status: "deferred",
+              operation:
+                state.operation === "resolve" ? "queue-check" : state.operation,
+            };
+      }
+      reservation = resolution.receipt.reservation;
+    }
+    if (reservation?.state.phase === "released") {
+      const previous = reservation.candidate;
       const merged = await recordReleased(previous);
       if (sameWorkIntegrationCandidate(candidate, previous)) {
         return merged
           ? { status: "merged", sha: merged }
-          : { status: "released", checkId: existing.reservation.state.checkId };
+          : { status: "released", checkId: reservation.state.checkId };
       }
       if (!merged) {
         return { status: "deferred", operation: "queue-check" };
       }
     } else if (
-      existing &&
-      sameWorkIntegrationCandidate(candidate, existing.reservation.candidate)
+      reservation &&
+      sameWorkIntegrationCandidate(candidate, reservation.candidate)
     ) {
-      const { state } = existing.reservation;
+      const { state } = reservation;
       switch (state.phase) {
         case "reserved":
           break;
@@ -121,12 +145,6 @@ export async function runStandingWorkIntegration(
           break;
         case "merged":
           return { status: "merged", sha: state.sha };
-        case "pending":
-          return {
-            status: "deferred",
-            operation:
-              state.operation === "resolve" ? "queue-check" : state.operation,
-          };
         default:
           return { status: "denied" };
       }

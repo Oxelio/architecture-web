@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { executeEligibleStandingWorkIntegration } from "./eligible-standing-work-integration.js";
 import {
   readReservedGitHubWorkIntegration,
+  reconcileReservedGitHubWorkIntegration,
   recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
 import { runStandingWorkIntegration } from "./run-standing-work-integration.js";
@@ -55,6 +56,9 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue(null);
   vi.mocked(recordReleasedNativeSquash).mockReset().mockResolvedValue(null);
+  vi.mocked(reconcileReservedGitHubWorkIntegration)
+    .mockReset()
+    .mockResolvedValue({ status: "deferred" });
   execute.mockReset();
   execute.mockImplementation(
     async ({ candidate: requestCandidate, operation, authorize }) => {
@@ -201,6 +205,57 @@ describe("protected standing integration sequence", () => {
       status: "merged",
       sha,
     });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("reconciles a lost arm acknowledgement before resuming release", async () => {
+    const { input } = fixture();
+    const reservation = {
+      candidate,
+      state: { phase: "pending", operation: "arm-squash", checkId: 17 },
+    } as const;
+    vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
+      revision: 5,
+      reservation,
+    });
+    vi.mocked(reconcileReservedGitHubWorkIntegration).mockImplementation(
+      async ({ authorize }) => {
+        expect(await authorize({ candidate, operation: "resolve" })).toBe(true);
+        expect(await authorize({ candidate, operation: "arm-squash" })).toBe(
+          false,
+        );
+        return {
+          status: "confirmed",
+          receipt: {
+            revision: 6,
+            reservation: { candidate, state: { phase: "armed", checkId: 17 } },
+          },
+        };
+      },
+    );
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "released",
+      checkId: 17,
+    });
+    expect(execute.mock.calls.map(([request]) => request.operation)).toEqual([
+      "release-check",
+    ]);
+  });
+
+  it("leaves an unresolved provider effect in the journal without retrying it", async () => {
+    const { input } = fixture();
+    vi.mocked(readReservedGitHubWorkIntegration).mockResolvedValue({
+      revision: 5,
+      reservation: {
+        candidate,
+        state: { phase: "pending", operation: "release-check", checkId: 17 },
+      },
+    });
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "deferred",
+      operation: "release-check",
+    });
+    expect(reconcileReservedGitHubWorkIntegration).toHaveBeenCalledOnce();
     expect(execute).not.toHaveBeenCalled();
   });
 
