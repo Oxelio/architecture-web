@@ -183,7 +183,9 @@ export async function readStandingWorkFacts(
       return null;
     }
 
-    const changedPaths = [...paths].sort();
+    const changedPaths = [...paths].sort((left, right) =>
+      left.localeCompare(right, "en"),
+    );
     const digest = createHash("sha256")
       .update(
         JSON.stringify([

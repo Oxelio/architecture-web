@@ -236,7 +236,9 @@ export async function readStandingWorkClassification(
   return {
     workType,
     workflowDepth,
-    characteristics: [...characteristics].sort(),
+    characteristics: [...characteristics].sort((left, right) =>
+      left.localeCompare(right, "en"),
+    ),
   };
 }
 
