@@ -109,10 +109,24 @@ controller, bind it to the effective ruleset and enforce the writer boundary
 for subsequent rule changes. A missing binding leaves standing integration
 disabled.
 
+The controller requires the verified writer boundary before it creates the
+initial journal reservation as well as before check publication, native arm
+and check release. Recheck delegation after verifying the boundary and before
+creating that reservation.
+
 For cancellation after check release, a successful disable response or a null
 auto-merge request does not establish that a squash already in progress was
 prevented. Until the effective GitHub configuration yields conclusive evidence,
 keep the write deferred. A verified squash is handled by the recovery path.
+
+A delegation expiry is also an invalidating change. GitHub's required check
+does not expire at the controller's delegation deadline. Validation must
+establish how the protected configuration prevents an in-flight squash from
+crossing that deadline or conclusively resolves the reservation before it.
+A timer, a fresh read immediately before release, and a later disable request
+cannot establish that guarantee. If the deployed configuration cannot
+enforce it, standing release stays disabled until the maintainer accepts an
+explicit change to the delegation semantics or a different enforcement path.
 
 ## Delegated request identity
 
