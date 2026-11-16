@@ -1,11 +1,14 @@
 import { readFile } from "node:fs/promises";
 
+import { resolveActivationContext } from "../config/activation-context.js";
 import { readStandingDelegation } from "../control/standing-delegation.js";
 import { readStandingIntegrationWakeup } from "../control/standing-integration-wakeup.js";
 import {
   authenticateDirectSquashRequest,
   type DirectSquashEvent,
 } from "../github/direct-squash-request.js";
+import { readGitHubInventory } from "../github/github-project-inventory.js";
+import { readStandingWorkFacts } from "../github/standing-work-eligibility.js";
 import { readAuthorizedWorkIntegrationTarget } from "../github/work-integration-target.js";
 import type { MergeCandidate } from "../github/work-merge-publisher.js";
 import {
@@ -79,7 +82,58 @@ async function observeStandingRequest(event: unknown) {
   if (!delegation?.gatePublication || !delegation.nativeSquash) {
     return { status: "denied", reason: "STANDING_DELEGATION_UNVERIFIED" };
   }
-  return { ...result, standingDelegation: "verified-for-observation" };
+  const repository = requiredEnvironment("GITHUB_REPOSITORY");
+  const repositoryToken = requiredEnvironment("GITHUB_TOKEN");
+  const projectsToken =
+    process.env["DELIVERY_OBSERVATION_PROJECTS_TOKEN"]?.trim();
+  if (!projectsToken) {
+    return { status: "denied", reason: "PROJECT_READER_UNAVAILABLE" };
+  }
+
+  const manifest = await readActivationManifest();
+  const inventory = await readGitHubInventory({
+    repository,
+    projectsToken,
+    repositoryToken,
+  });
+  const activation = resolveActivationContext({
+    repository,
+    manifest,
+    inventory,
+  });
+  if (activation.status === "blocked") {
+    return {
+      status: "denied",
+      reason: "PROJECT_OPERATIONAL_OWNER_UNAVAILABLE",
+    };
+  }
+
+  const facts = await readStandingWorkFacts(
+    {
+      repository,
+      repositoryToken,
+      projectsToken,
+      projectId: activation.project.id,
+      manifest,
+    },
+    result.candidate,
+  );
+  if (!facts) {
+    return { status: "denied", reason: "STANDING_CANDIDATE_FACTS_UNVERIFIED" };
+  }
+
+  // The Code Review can bind its assessment to this digest. The selection and
+  // observed facts do not establish that the candidate passed the Work Merge Gate.
+  return {
+    status: "observed",
+    candidate: result.candidate,
+    validationRunId: result.validationRunId,
+    workType: facts.workType,
+    workflowDepth: facts.workflowDepth,
+    characteristics: facts.characteristics,
+    changedPaths: facts.changedPaths,
+    factsDigest: facts.digest,
+  };
 }
 
 async function workOwnsCandidate(candidate: MergeCandidate): Promise<boolean> {

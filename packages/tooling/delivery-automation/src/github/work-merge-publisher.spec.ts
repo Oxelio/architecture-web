@@ -15,6 +15,7 @@ import {
   publishWorkMerge,
   readAcceptedStandingImpact,
   releaseReservedWorkMergeGate,
+  type StandingRulesetObservation,
   type WorkGateEvaluationGrant,
   type WorkMergeGrant,
   type WorkMergePublisher,
@@ -365,6 +366,7 @@ function fixture(scoped = false) {
       if (url.endsWith("/rulesets/9")) {
         return Response.json({
           id: 9,
+          updated_at: "2026-11-12T15:00:00Z",
           target: "branch",
           enforcement: "active",
           bypass_actors: state.bypassActors,
@@ -935,6 +937,52 @@ describe("reserved native squash", () => {
         armReservedWorkSquash(f.publisher(), armIntent, reservationId),
       ).resolves.toMatchObject({ status: "blocked" });
       expect(f.writes).toHaveLength(0);
+    }
+  });
+
+  it("binds omitted bypass actors to the same independently observed ruleset revision", async () => {
+    for (const mismatch of [
+      "none",
+      "stale",
+      "rules",
+      "visible bypass",
+    ] as const) {
+      const f = fixture();
+      f.state.reservedGate = "queued";
+      f.state.bypassActors =
+        mismatch === "visible bypass" ? [{ actor_id: 123 }] : undefined;
+      const publisher = f.publisher();
+      const observe = async () => {
+        const response = await f.fetchImpl(`${repoUrl}/rulesets/9`);
+        const view = (await response.json()) as {
+          updated_at: string;
+          conditions: StandingRulesetObservation["conditions"];
+          rules: StandingRulesetObservation["rules"];
+        };
+        return {
+          repositoryId: publisher.repositoryId,
+          rulesetId: 9,
+          updatedAt:
+            mismatch === "stale" ? "2026-11-11T15:00:00Z" : view.updated_at,
+          enforcement: "active",
+          target: "branch",
+          conditions: view.conditions,
+          rules: mismatch === "rules" ? [] : view.rules,
+          bypassActors: [],
+        };
+      };
+      const result = await armReservedWorkSquash(
+        {
+          ...publisher,
+          readStandingRulesetObservation: observe,
+        },
+        armIntent,
+        reservationId,
+      );
+      expect(result.status).toBe(
+        mismatch === "none" ? "auto-merge-requested" : "blocked",
+      );
+      expect(f.writes).toHaveLength(mismatch === "none" ? 1 : 0);
     }
   });
 

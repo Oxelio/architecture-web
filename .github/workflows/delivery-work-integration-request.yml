@@ -53,6 +53,7 @@ jobs:
       vars.DELIVERY_STANDING_REQUESTS_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    environment: delivery-integration-observation
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -65,11 +66,12 @@ jobs:
         with:
           install: false
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Locate the candidate on protected main
+      - name: Observe candidate facts on protected main
         env:
           TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
           GITHUB_TOKEN: ${{ github.token }}
           DELIVERY_STANDING_REQUESTS_ENABLED: ${{ vars.DELIVERY_STANDING_REQUESTS_ENABLED }}
           DELIVERY_STANDING_CONTROLLER_BOT_ID: ${{ vars.DELIVERY_STANDING_CONTROLLER_BOT_ID }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
           DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts

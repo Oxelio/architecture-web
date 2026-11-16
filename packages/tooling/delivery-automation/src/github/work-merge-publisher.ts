@@ -119,6 +119,42 @@ interface ReservedGateCheck {
   };
 }
 
+interface GateRuleset {
+  readonly id: number;
+  readonly enforcement: string;
+  readonly target: string;
+  readonly updated_at?: string;
+  readonly bypass_actors?: readonly unknown[];
+  readonly conditions?: {
+    readonly ref_name?: {
+      readonly include: readonly string[];
+      readonly exclude: readonly string[];
+    };
+  };
+  readonly rules: readonly {
+    readonly type: string;
+    readonly parameters?: {
+      readonly strict_required_status_checks_policy?: boolean;
+      readonly required_status_checks?: readonly {
+        readonly context: string;
+        readonly integration_id: number;
+      }[];
+      readonly allowed_merge_methods?: readonly string[];
+    };
+  }[];
+}
+
+export interface StandingRulesetObservation {
+  readonly repositoryId: number;
+  readonly rulesetId: number;
+  readonly updatedAt: string;
+  readonly enforcement: string;
+  readonly target: string;
+  readonly conditions: GateRuleset["conditions"];
+  readonly rules: GateRuleset["rules"];
+  readonly bypassActors: readonly unknown[];
+}
+
 export interface WorkMergePublisher {
   readonly repository: string;
   readonly repositoryId: number;
@@ -131,6 +167,10 @@ export interface WorkMergePublisher {
   readonly fetchImpl?: FetchLike;
   // These functions belong to the trusted composition, never the agent payload.
   readonly readGrant: () => Promise<WorkMergeGrant | null>;
+  // Independent administrative evidence of the effective ruleset from Validation.
+  readonly readStandingRulesetObservation?: (
+    rulesetId: number,
+  ) => Promise<StandingRulesetObservation | null>;
   readonly withinVerifiedBoundary: <T>(
     candidate: MergeCandidate,
     mode: MergeMode,
@@ -580,6 +620,26 @@ export async function readAcceptedStandingImpact(
   }
 }
 
+async function matchesStandingRulesetObservation(
+  publisher: WorkGateReader,
+  ruleset: GateRuleset,
+): Promise<boolean> {
+  const evidence = await publisher.readStandingRulesetObservation?.(ruleset.id);
+  return (
+    !!evidence &&
+    evidence.repositoryId === publisher.repositoryId &&
+    evidence.rulesetId === ruleset.id &&
+    !!ruleset.updated_at &&
+    evidence.updatedAt === ruleset.updated_at &&
+    evidence.enforcement === ruleset.enforcement &&
+    evidence.target === ruleset.target &&
+    isDeepStrictEqual(evidence.conditions, ruleset.conditions) &&
+    isDeepStrictEqual(evidence.rules, ruleset.rules) &&
+    Array.isArray(evidence.bypassActors) &&
+    evidence.bypassActors.length === 0
+  );
+}
+
 async function verifyChecks(
   publisher: WorkGateReader,
   grant: Pick<
@@ -609,29 +669,10 @@ async function verifyChecks(
   const expected = evaluateGate
     ? ciChecks
     : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
-  const ruleset = await github<{
-    readonly id: number;
-    readonly enforcement: string;
-    readonly target: string;
-    readonly bypass_actors?: readonly unknown[];
-    readonly conditions?: {
-      readonly ref_name?: {
-        readonly include: readonly string[];
-        readonly exclude: readonly string[];
-      };
-    };
-    readonly rules: readonly {
-      readonly type: string;
-      readonly parameters?: {
-        readonly strict_required_status_checks_policy?: boolean;
-        readonly required_status_checks?: readonly {
-          readonly context: string;
-          readonly integration_id: number;
-        }[];
-        readonly allowed_merge_methods?: readonly string[];
-      };
-    }[];
-  }>(publisher, `${repoPath}/rulesets/${grant.rulesetId}`);
+  const ruleset = await github<GateRuleset>(
+    publisher,
+    `${repoPath}/rulesets/${grant.rulesetId}`,
+  );
   const refs = ruleset.conditions?.ref_name;
   const statusRule = ruleset.rules?.find(
     (rule) => rule.type === "required_status_checks",
@@ -643,10 +684,12 @@ async function verifyChecks(
     readonly default_branch: string;
   }>(publisher, repoPath);
   const bypassActors = ruleset.bypass_actors;
-  // GitHub omits this field for callers without ruleset write access. Only the
-  // read-only observer can continue, and it reports that fact as unverified.
+  // For the reserved path, the independently verified administrative view
+  // can supply the omitted field. A contradictory live response always wins.
   const noBypassActors =
-    Array.isArray(bypassActors) && bypassActors.length === 0;
+    bypassActors === undefined && reservedCheck
+      ? await matchesStandingRulesetObservation(publisher, ruleset)
+      : Array.isArray(bypassActors) && bypassActors.length === 0;
   if (
     repository.id !== publisher.repositoryId ||
     repository.default_branch !== "main" ||

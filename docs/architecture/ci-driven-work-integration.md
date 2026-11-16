@@ -65,6 +65,11 @@ The protected composition supplies the applicable Method roles and their
 verified author and App identities. Incomplete inventories, ambiguous records,
 expired or changed authority, and unresolved Tasks defer standing integration.
 
+The protected observation job can report the candidate's classification,
+paths and facts digest for Code Review. It uses the existing Project reader
+environment. The report does not issue a check, reserve the journal or arm a
+native merge.
+
 The impact assessment is tied to the Work, PR, head, base, classification and
 sorted paths, including both sides of a rename. The assessment must come from
 an applicable accepted review. An absent, outdated or manual-only assessment
