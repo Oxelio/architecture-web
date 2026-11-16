@@ -304,7 +304,7 @@ describe("persistent GitHub Work integration reservation", () => {
     expect(f.checkReservations).toEqual([]);
   });
 
-  it("does not create a standing check if writer exclusion is unavailable", async () => {
+  it("does not reserve a candidate or create a check if writer exclusion is unavailable", async () => {
     const f = fixture();
     const { scope } = f.input;
     const result = await executeReservedGitHubWorkIntegration({
@@ -319,6 +319,30 @@ describe("persistent GitHub Work integration reservation", () => {
     });
     expect(result).toEqual({ status: "deferred" });
     expect(f.checkReservations).toEqual([]);
+    expect(f.state.calls).toBe(0);
+    expect(await f.journal().read()).toBeNull();
+  });
+
+  it("does not reserve when delegation is withdrawn while verifying the writer boundary", async () => {
+    const f = fixture();
+    const { scope } = f.input;
+    let delegated = true;
+    const result = await executeReservedGitHubWorkIntegration({
+      ...f.input,
+      authorize: async () => delegated,
+      scope: {
+        ...scope,
+        publisher: {
+          ...scope.publisher,
+          withinVerifiedBoundary: async (_candidate, _mode, action) => {
+            delegated = false;
+            return action();
+          },
+        },
+      },
+    });
+    expect(result).toEqual({ status: "deferred" });
+    expect(f.state.calls).toBe(0);
   });
 
   it("has no GitHub effects when disabled or unauthorized", async () => {
