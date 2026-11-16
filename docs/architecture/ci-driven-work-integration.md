@@ -97,6 +97,23 @@ steps. Activation requires those proofs and the applicable separate authority.
 For rollback, stop arming, resolve or quarantine the outstanding request, and
 use the protected manual exception. Preserve the existing required checks.
 
+### Controller installation verification
+
+Run **Delivery Work Controller Identity** on protected `main` during
+supervised Validation. The `delivery-work-controller` environment must
+restrict deployments to `main`. Set `DELIVERY_CONTROLLER_APP_CLIENT_ID` and
+`DELIVERY_CONTROLLER_INSTALLATION_ID` from the private App registration and
+its selected-repository installation. Store `DELIVERY_CONTROLLER_APP_PRIVATE_KEY`
+only as an environment secret on the protected GitHub side. Keep gate issuer
+and Project credentials in their existing separate trust boundaries.
+
+The job mints a read-only token across the installation's repository scope,
+checks that the scope contains exactly Architecture Web by name and repository
+ID, and records the installation and bot identifiers. It does not publish a
+check, write operational state, or arm a merge. This result establishes the
+credential binding for supervised Validation. Each privileged operation still
+requires verified writer isolation and effective repository protections.
+
 ### Writer boundary and activation evidence
 
 The Validation record must identify which credential or native GitHub control
