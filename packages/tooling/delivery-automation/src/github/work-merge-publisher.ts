@@ -620,13 +620,15 @@ export async function readAcceptedStandingImpact(
   }
 }
 
-async function matchesStandingRulesetObservation(
-  publisher: WorkGateReader,
+async function readObservedRulesetBypassActors(
+  publisher: Pick<
+    WorkGateReader,
+    "repositoryId" | "readStandingRulesetObservation"
+  >,
   ruleset: GateRuleset,
-): Promise<boolean> {
+): Promise<readonly unknown[] | null> {
   const evidence = await publisher.readStandingRulesetObservation?.(ruleset.id);
-  return (
-    !!evidence &&
+  return !!evidence &&
     evidence.repositoryId === publisher.repositoryId &&
     evidence.rulesetId === ruleset.id &&
     !!ruleset.updated_at &&
@@ -635,9 +637,81 @@ async function matchesStandingRulesetObservation(
     evidence.target === ruleset.target &&
     isDeepStrictEqual(evidence.conditions, ruleset.conditions) &&
     isDeepStrictEqual(evidence.rules, ruleset.rules) &&
-    Array.isArray(evidence.bypassActors) &&
-    evidence.bypassActors.length === 0
-  );
+    Array.isArray(evidence.bypassActors)
+    ? evidence.bypassActors
+    : null;
+}
+
+export async function verifyStandingJournalRules(
+  publisher: Pick<
+    WorkGateReader,
+    | "repository"
+    | "repositoryId"
+    | "repositoryToken"
+    | "fetchImpl"
+    | "readStandingRulesetObservation"
+  >,
+  expected: {
+    readonly creationRulesetId: number;
+    readonly immutabilityRulesetId: number;
+    readonly controllerAppId: number;
+  },
+): Promise<boolean> {
+  if (
+    publisher.repository !== "Oxelio/architecture-web" ||
+    publisher.repositoryId !== 1336937640 ||
+    !positiveId(expected.creationRulesetId) ||
+    !positiveId(expected.immutabilityRulesetId) ||
+    expected.creationRulesetId === expected.immutabilityRulesetId ||
+    !positiveId(expected.controllerAppId)
+  ) {
+    return false;
+  }
+
+  const rulesMatch = async (id: number, expectedRules: readonly string[]) => {
+    const ruleset = await github<GateRuleset>(
+      publisher,
+      `/repos/${publisher.repository}/rulesets/${id}`,
+    );
+    const refs = ruleset?.conditions?.ref_name;
+    if (
+      ruleset?.id !== id ||
+      ruleset.target !== "tag" ||
+      ruleset.enforcement !== "active" ||
+      !isDeepStrictEqual(refs?.include, ["refs/tags/delivery-control/r*"]) ||
+      !isDeepStrictEqual(refs?.exclude, []) ||
+      !Array.isArray(ruleset.rules) ||
+      ruleset.rules.length !== expectedRules.length ||
+      !expectedRules.every((type) =>
+        ruleset.rules.some((rule) => rule.type === type),
+      )
+    ) {
+      return null;
+    }
+    return ruleset.bypass_actors === undefined
+      ? readObservedRulesetBypassActors(publisher, ruleset)
+      : ruleset.bypass_actors;
+  };
+
+  try {
+    const [createBypass, modifyBypass] = await Promise.all([
+      rulesMatch(expected.creationRulesetId, ["creation"]),
+      rulesMatch(expected.immutabilityRulesetId, ["update", "deletion"]),
+    ]);
+    return (
+      Array.isArray(createBypass) &&
+      createBypass.length === 1 &&
+      isDeepStrictEqual(createBypass[0], {
+        actor_id: expected.controllerAppId,
+        actor_type: "Integration",
+        bypass_mode: "always",
+      }) &&
+      Array.isArray(modifyBypass) &&
+      modifyBypass.length === 0
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function verifyChecks(
@@ -688,7 +762,8 @@ async function verifyChecks(
   // can supply the omitted field. A contradictory live response always wins.
   const noBypassActors =
     bypassActors === undefined && reservedCheck
-      ? await matchesStandingRulesetObservation(publisher, ruleset)
+      ? (await readObservedRulesetBypassActors(publisher, ruleset))?.length ===
+        0
       : Array.isArray(bypassActors) && bypassActors.length === 0;
   if (
     repository.id !== publisher.repositoryId ||

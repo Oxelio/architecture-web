@@ -7,9 +7,11 @@ import {
   recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
 import { runStandingWorkIntegration } from "./run-standing-work-integration.js";
+import { verifyStandingJournalRules } from "./work-merge-publisher.js";
 
 vi.mock("./eligible-standing-work-integration.js");
 vi.mock("./reserved-work-integration.js");
+vi.mock("./work-merge-publisher.js");
 
 const candidate = {
   workNumber: 10,
@@ -54,6 +56,7 @@ function fixture() {
 }
 
 beforeEach(() => {
+  vi.mocked(verifyStandingJournalRules).mockReset().mockResolvedValue(true);
   vi.mocked(readReservedGitHubWorkIntegration)
     .mockReset()
     .mockResolvedValue(null);
@@ -107,6 +110,16 @@ describe("protected standing integration sequence", () => {
     }
     expect(execute).not.toHaveBeenCalled();
     expect(readDelegation).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unverified journal before reading or reserving it", async () => {
+    const { input } = fixture();
+    vi.mocked(verifyStandingJournalRules).mockResolvedValue(false);
+    expect(await runStandingWorkIntegration(input)).toEqual({
+      status: "denied",
+    });
+    expect(readReservedGitHubWorkIntegration).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("rechecks the two delegated permissions before each confirmed step", async () => {

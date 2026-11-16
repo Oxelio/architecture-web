@@ -136,6 +136,15 @@ controller, bind it to the effective ruleset and enforce the writer boundary
 for subsequent rule changes. A missing binding leaves standing integration
 disabled.
 
+The journal reserves `refs/tags/delivery-control/r*`. Two active tag rulesets
+protect that namespace. The creation ruleset restricts creation with the
+controller App as its sole bypass actor. The immutability ruleset restricts
+updates and deletions with an empty bypass list, including for the controller.
+The standing runner reads both exact rulesets before trusting the journal,
+and again inside the existing writer boundary before privileged operations.
+If GitHub hides bypass actors, use an independent observation bound to the
+current ruleset. Missing or changed protection blocks standing operation.
+
 The controller requires the verified writer boundary before it creates the
 initial journal reservation as well as before check publication, native arm
 and check release. Recheck delegation after verifying the boundary and before

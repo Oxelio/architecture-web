@@ -11,6 +11,7 @@ import {
 } from "./reserved-work-integration.js";
 import {
   discoverStandingWorkMergeGrant,
+  verifyStandingJournalRules,
   type StandingEvidenceAuthority,
 } from "./work-merge-publisher.js";
 
@@ -37,6 +38,7 @@ export async function runStandingWorkIntegration(
     };
     readonly readEvidenceAuthority: () => Promise<StandingEvidenceAuthority | null>;
     readonly context: Omit<WorkIntegrationContext, "actorId">;
+    readonly journalRules: Parameters<typeof verifyStandingJournalRules>[1];
     readonly readDelegation: () => Promise<StandingDelegation | null>;
     readonly authorizeRecovery: (
       candidate: StandingInput["candidate"],
@@ -54,10 +56,16 @@ export async function runStandingWorkIntegration(
 
   const { context, candidate } = input;
   const { scope: bindings } = input;
+  const verifyJournal = () =>
+    verifyStandingJournalRules(bindings.publisher, input.journalRules);
   const scope: StandingInput["scope"] = {
     ...bindings,
     publisher: {
       ...bindings.publisher,
+      withinVerifiedBoundary: (target, mode, action) =>
+        bindings.publisher.withinVerifiedBoundary(target, mode, async () =>
+          (await verifyJournal()) ? action() : null,
+        ),
       readGrant: async () => {
         const authority = await input.readEvidenceAuthority();
         const rulesetId = bindings.cancellationRulesetId;
@@ -83,6 +91,10 @@ export async function runStandingWorkIntegration(
     scope.publisher.actorId !== scope.controllerBotId ||
     !isWorkIntegrationCandidate(candidate)
   ) {
+    return { status: "denied" };
+  }
+
+  if (!(await verifyJournal())) {
     return { status: "denied" };
   }
 
@@ -115,7 +127,8 @@ export async function runStandingWorkIntegration(
     async (request) =>
       request.operation === "resolve" &&
       sameWorkIntegrationCandidate(previous, request.candidate) &&
-      (await input.authorizeRecovery(previous));
+      (await input.authorizeRecovery(previous)) &&
+      (await verifyJournal());
 
   const recordReleased = (released: typeof candidate) =>
     recordReleasedNativeSquash({
