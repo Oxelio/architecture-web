@@ -156,7 +156,15 @@ export async function executeReservedGitHubWorkIntegration(input: {
       if (!(await authorize({ candidate, operation }))) {
         return { status: "denied" };
       }
-      if (!(await journal.reserve(candidate))) {
+      const reservation = await scope.publisher.withinVerifiedBoundary(
+        candidate,
+        "auto",
+        async () =>
+          (await authorize({ candidate, operation }))
+            ? journal.reserve(candidate)
+            : null,
+      );
+      if (!reservation) {
         return { status: "deferred" };
       }
     }
