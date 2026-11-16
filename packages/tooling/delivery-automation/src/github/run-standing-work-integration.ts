@@ -11,8 +11,8 @@ import {
 } from "./reserved-work-integration.js";
 import {
   discoverStandingWorkMergeGrant,
-  verifyStandingJournalRules,
   type StandingEvidenceAuthority,
+  verifyStandingJournalRules,
 } from "./work-merge-publisher.js";
 
 type StandingInput = Parameters<

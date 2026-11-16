@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  verifyStandingJournalRules,
   type StandingRulesetObservation,
+  verifyStandingJournalRules,
 } from "./work-merge-publisher.js";
 
 const repository = "Oxelio/architecture-web";
