@@ -9,6 +9,10 @@ import {
   reconcileReservedGitHubWorkIntegration,
   recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
+import {
+  discoverStandingWorkMergeGrant,
+  type StandingEvidenceAuthority,
+} from "./work-merge-publisher.js";
 
 type StandingInput = Parameters<
   typeof executeEligibleStandingWorkIntegration
@@ -24,7 +28,14 @@ export interface StandingDelegation {
 }
 
 export async function runStandingWorkIntegration(
-  input: Omit<StandingInput, "authorize" | "operation"> & {
+  input: Omit<StandingInput, "authorize" | "operation" | "scope"> & {
+    readonly scope: Omit<StandingInput["scope"], "publisher"> & {
+      readonly publisher: Omit<
+        StandingInput["scope"]["publisher"],
+        "readGrant"
+      >;
+    };
+    readonly readEvidenceAuthority: () => Promise<StandingEvidenceAuthority | null>;
     readonly context: Omit<WorkIntegrationContext, "actorId">;
     readonly readDelegation: () => Promise<StandingDelegation | null>;
   },
@@ -38,7 +49,25 @@ export async function runStandingWorkIntegration(
     return { status: "inactive" };
   }
 
-  const { context, candidate, scope } = input;
+  const { context, candidate } = input;
+  const { scope: bindings } = input;
+  const scope: StandingInput["scope"] = {
+    ...bindings,
+    publisher: {
+      ...bindings.publisher,
+      readGrant: async () => {
+        const authority = await input.readEvidenceAuthority();
+        const rulesetId = bindings.cancellationRulesetId;
+        return authority && rulesetId
+          ? discoverStandingWorkMergeGrant(bindings.publisher, candidate, {
+              gateAppId: bindings.checksAppId,
+              rulesetId,
+              authority,
+            })
+          : null;
+      },
+    },
+  };
   if (
     context.repository.toLowerCase() !== "oxelio/architecture-web" ||
     context.repositoryId !== 1336937640 ||
@@ -156,6 +185,7 @@ export async function runStandingWorkIntegration(
   for (const operation of operations.slice(start)) {
     const result = await executeEligibleStandingWorkIntegration({
       ...input,
+      scope,
       authorize,
       operation,
     });

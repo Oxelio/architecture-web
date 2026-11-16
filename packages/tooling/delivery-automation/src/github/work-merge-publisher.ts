@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 import type { MergeReservation } from "../control/merge-reservation.js";
+import { sameWorkIntegrationCandidate } from "../control/work-integration-request.js";
 import {
   evaluateWorkMergeGate,
   workMergeObservationCheckName,
@@ -256,6 +257,190 @@ function authorized(
   );
 }
 
+export type StandingEvidenceAuthority = Readonly<
+  Partial<
+    Record<
+      EvidenceReference["kind"],
+      readonly {
+        readonly authorId: number;
+        readonly appId: number | null;
+      }[]
+    >
+  >
+>;
+
+// Supplied by the protected environment from the applicable Method route.
+// A PR event or evidence comment cannot choose which roles are required.
+export async function discoverStandingWorkMergeGrant(
+  publisher: Pick<
+    WorkGateReader,
+    "repository" | "repositoryId" | "repositoryToken" | "actorId" | "fetchImpl"
+  >,
+  candidate: MergeCandidate,
+  input: {
+    readonly gateAppId: number;
+    readonly rulesetId: number;
+    readonly authority: StandingEvidenceAuthority;
+  },
+): Promise<WorkMergeGrant | null> {
+  if (
+    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
+    publisher.repositoryId !== 1336937640 ||
+    !positiveId(publisher.actorId) ||
+    !positiveId(candidate.workNumber) ||
+    !positiveId(candidate.pullNumber) ||
+    candidate.workNumber === candidate.pullNumber ||
+    !oid.test(candidate.headSha) ||
+    !oid.test(candidate.baseSha) ||
+    !positiveId(input.gateAppId) ||
+    !positiveId(input.rulesetId)
+  ) {
+    return null;
+  }
+  const kinds = [
+    "code-review",
+    "architecture-review",
+    "functional-review",
+    "specialist-review",
+    "validation",
+    "working-decisions",
+    "functional-approval",
+    "governance-approval",
+    "adr-approval",
+  ] as const;
+  const required = kinds.filter((kind) => Object.hasOwn(input.authority, kind));
+  if (
+    Object.keys(input.authority).length !== required.length ||
+    !required.includes("code-review") ||
+    !required.includes("validation") ||
+    !required.includes("working-decisions")
+  ) {
+    return null;
+  }
+
+  const repoPath = `/repos/${publisher.repository}`;
+  const issuePath = `${repoPath}/issues`;
+  try {
+    const [workComments, pullComments, tasks] = await Promise.all([
+      github<readonly IssueComment[]>(
+        publisher,
+        `${issuePath}/${candidate.workNumber}/comments?per_page=100`,
+      ),
+      github<readonly IssueComment[]>(
+        publisher,
+        `${issuePath}/${candidate.pullNumber}/comments?per_page=100`,
+      ),
+      github<
+        readonly {
+          readonly number: number;
+          readonly repository_url: string;
+          readonly state: string;
+          readonly state_reason: string | null;
+        }[]
+      >(
+        publisher,
+        `${issuePath}/${candidate.workNumber}/sub_issues?per_page=100`,
+      ),
+    ]);
+    if (
+      [workComments, pullComments, tasks].some(
+        (list) => !Array.isArray(list) || list.length >= 100,
+      )
+    ) {
+      return null;
+    }
+    const prefix = `https://api.github.com${repoPath.toLowerCase()}`;
+    const requiredTasks = tasks.map(
+      ({ number, repository_url, state, state_reason }) =>
+        positiveId(number) &&
+        repository_url?.toLowerCase() === prefix &&
+        state === "closed" &&
+        state_reason === "completed"
+          ? number
+          : 0,
+    );
+    if (
+      requiredTasks.includes(0) ||
+      new Set(requiredTasks).size !== requiredTasks.length
+    ) {
+      return null;
+    }
+
+    const selected = new Map<EvidenceReference["kind"], EvidenceReference>();
+    for (const comment of [...workComments, ...pullComments]) {
+      if (!comment.user || !positiveId(comment.user.id)) {
+        continue;
+      }
+      const record = parseEvidenceComment(comment.body);
+      const kind = required.find((entry) => entry === record?.["kind"]);
+      if (
+        !kind ||
+        !record ||
+        !sameWorkIntegrationCandidate(candidate, record)
+      ) {
+        continue;
+      }
+      const app = comment.performed_via_github_app;
+      const appId =
+        app === null ? null : app && "id" in app ? app.id : undefined;
+      const authorId = comment.user.id;
+      if (
+        !input.authority[kind]?.some(
+          (authority) =>
+            authority.authorId === authorId && authority.appId === appId,
+        )
+      ) {
+        continue;
+      }
+      const issueUrl = comment.issue_url?.toLowerCase();
+      if (
+        !positiveId(comment.id) ||
+        (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
+          issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
+        !comment.created_at ||
+        comment.created_at !== comment.updated_at ||
+        record["decision"] !== "accepted" ||
+        (kind.endsWith("-approval") &&
+          (comment.user.type !== "User" || appId !== null)) ||
+        selected.has(kind)
+      ) {
+        return null;
+      }
+      selected.set(kind, { kind, commentId: comment.id, authorId });
+    }
+    if (selected.size !== required.length) {
+      return null;
+    }
+    return {
+      actorId: publisher.actorId,
+      repositoryId: publisher.repositoryId,
+      workNumber: candidate.workNumber,
+      pullNumber: candidate.pullNumber,
+      direct: false,
+      auto: true,
+      gateAppId: input.gateAppId,
+      rulesetId: input.rulesetId,
+      evidence: [...selected.values()].sort((left, right) =>
+        left.kind.localeCompare(right.kind, "en"),
+      ),
+      requiredTasks: requiredTasks.sort((left, right) => left - right),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseEvidenceComment(body: string): Record<string, unknown> | null {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function verifyEvidence(
   publisher: WorkGateReader,
   candidate: MergeCandidate,
@@ -296,14 +481,8 @@ async function verifyEvidence(
     ) {
       return `UNVERIFIED_EVIDENCE:${reference.kind}`;
     }
-    let record: Record<string, unknown>;
-    try {
-      const parsed: unknown = JSON.parse(comment.body);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return `INVALID_EVIDENCE:${reference.kind}`;
-      }
-      record = parsed as Record<string, unknown>;
-    } catch {
+    const record = parseEvidenceComment(comment.body);
+    if (!record) {
       return `INVALID_EVIDENCE:${reference.kind}`;
     }
     if (

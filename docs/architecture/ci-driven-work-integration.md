@@ -60,6 +60,11 @@ from accepting this design.
 A successful Repository CI event wakes the read-only request workflow. The
 controller separately resolves the owning Work and checks the active Project
 classification, GitHub Issue characteristics and complete PR file inventory.
+The controller discovers the current evidence on the Work Issue and owning PR.
+The protected composition supplies the applicable Method roles and their
+verified author and App identities. Incomplete inventories, ambiguous records,
+expired or changed authority, and unresolved Tasks defer standing integration.
+
 The impact assessment is tied to the Work, PR, head, base, classification and
 sorted paths, including both sides of a rename. The assessment must come from
 an applicable accepted review. An absent, outdated or manual-only assessment
