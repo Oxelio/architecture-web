@@ -288,6 +288,14 @@ OIDC callback grants merge, check publication, Project-write or new admission
 authority. This avoids a new shared callback signing key and keeps Project
 credentials inside the protected reader job.
 
+The public journal also receives no private projection or staged source payload.
+For new authoring intents, represent sensitive before-state and results with
+digests and necessary opaque object IDs, keeping exact bytes in the private
+transport boundary only while needed. Preserve the existing Status protocol's
+approved footprint; do not expand it into a copy of arbitrary private Project
+fields. Payload disposal and journal replay identity have separate owners and
+must not be implemented as one expiry operation.
+
 The exact-old-ref choice follows the documented
 [Git push lease with an explicit expected value](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force-with-leaseltrefnamegtltexpectgt).
 The current [REST ref-update contract](https://docs.github.com/en/rest/git/refs#update-a-reference)
