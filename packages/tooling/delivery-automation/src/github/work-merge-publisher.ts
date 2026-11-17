@@ -684,6 +684,7 @@ export async function verifyStandingJournalRules(
       !isDeepStrictEqual(refs?.include, [
         "refs/tags/delivery-control/r*",
         "refs/tags/delivery-control/disabled-*",
+        "refs/tags/delivery-control/status-*",
       ]) ||
       !isDeepStrictEqual(refs?.exclude, []) ||
       !Array.isArray(ruleset.rules) ||

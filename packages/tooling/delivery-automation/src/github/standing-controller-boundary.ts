@@ -51,7 +51,7 @@ export function matchesStandingControllerBoundary(
   >,
   use: {
     readonly mode: StandingControllerBoundary["mode"];
-    readonly candidate: MergeCandidate;
+    readonly candidate?: MergeCandidate;
     readonly now: number;
   },
 ): value is StandingControllerBoundary {
@@ -77,6 +77,7 @@ export function matchesStandingControllerBoundary(
   if (
     use.mode === "supervised" &&
     (!value.candidate ||
+      !use.candidate ||
       !sameWorkIntegrationCandidate(value.candidate, use.candidate) ||
       !(Date.parse(value.expiresAt ?? "") > use.now))
   ) {

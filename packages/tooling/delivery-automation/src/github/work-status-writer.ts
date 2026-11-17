@@ -1,31 +1,8 @@
-import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
-import type { WorkState } from "../control/eligibility.js";
-import {
-  executeReservedGitHubInvalidation,
-  reconcileReservedGitHubInvalidation,
-} from "./reserved-work-integration.js";
-
-interface StatusValue {
-  readonly name: WorkState;
-  readonly optionId: string;
-}
-
-interface WorkStatusChange {
-  readonly projectId: string;
-  readonly itemId: string;
-  readonly fieldId: string;
-  readonly from: StatusValue;
-  readonly to: StatusValue;
-}
-
-type ControllerInput = Parameters<typeof executeReservedGitHubInvalidation>[0];
-type StatusInput = Pick<
-  ControllerInput,
-  "candidate" | "authorize" | "scope"
-> & {
-  readonly change: WorkStatusChange;
-};
+import type { FetchLike } from "./github-project-inventory.js";
+import type { ProjectStatusCommand } from "./project-status-command.js";
+import type { ProjectStatusBinding } from "./run-coordinated-status-write.js";
 
 interface ProjectSnapshot {
   readonly user?: {
@@ -97,52 +74,13 @@ const changeStatus = `mutation ArchitectureWebChangeWorkStatus($project: ID!, $i
   }) { projectV2Item { id } }
 }`;
 
-export function workStatusChangeId(
-  candidate: StatusInput["candidate"],
-  change: WorkStatusChange,
-): string {
-  return createHash("sha256")
-    .update(
-      JSON.stringify([
-        "architecture-web:project-3:work-status",
-        candidate.workNumber,
-        candidate.pullNumber,
-        candidate.headSha,
-        candidate.baseSha,
-        change.projectId,
-        change.itemId,
-        change.fieldId,
-        change.from.name,
-        change.from.optionId,
-        change.to.name,
-        change.to.optionId,
-      ]),
-    )
-    .digest("hex");
-}
-
-function validStatusBinding(input: StatusInput): boolean {
-  const { publisher } = input.scope;
-  const { projectId, itemId, fieldId, from, to } = input.change;
-  return (
-    publisher.activation.workState === true &&
-    publisher.projectId === projectId &&
-    publisher.projectsToken.trim() !== "" &&
-    from.name !== to.name &&
-    from.optionId !== to.optionId &&
-    [projectId, itemId, fieldId, from.optionId, to.optionId].every(
-      (id) => id.trim() !== "",
-    )
-  );
-}
-
 async function projectGraphql<T>(
-  input: StatusInput,
+  api: { readonly fetchImpl?: FetchLike },
   token: string,
   query: string,
   variables: Record<string, string | number>,
 ): Promise<T | null> {
-  const response = await (input.scope.publisher.fetchImpl ?? fetch)(
+  const response = await (api.fetchImpl ?? fetch)(
     "https://api.github.com/graphql",
     {
       method: "POST",
@@ -165,137 +103,152 @@ async function projectGraphql<T>(
   return result?.errors?.length ? null : (result?.data ?? null);
 }
 
-async function matchesProjectStatus(
-  input: StatusInput,
-  expected: StatusValue,
-): Promise<boolean> {
-  const { candidate, change } = input;
-  const result = await projectGraphql<ProjectSnapshot>(
-    input,
-    input.scope.publisher.projectsToken,
+export function createCoordinatedProjectStatusWriter(config: {
+  readonly projectId: string;
+  readonly projectsReadToken: string;
+  readonly projectsWriteToken: string;
+  readonly repositoryToken: string;
+  readonly controllerToken: string;
+  readonly fetchImpl?: FetchLike;
+}) {
+  const tokens = [
+    config.projectsReadToken,
+    config.projectsWriteToken,
+    config.repositoryToken,
+    config.controllerToken,
+  ];
+  if (
+    !config.projectId ||
+    tokens.some((token) => !token.trim()) ||
+    new Set(tokens).size !== tokens.length
+  ) {
+    return null;
+  }
+
+  async function readStatus(command: ProjectStatusCommand) {
+    const snapshot = await readCanonicalProjectStatus(
+      config,
+      config.projectsReadToken,
+      config.projectId,
+      command.workNumber,
+    );
+    const from = statusOption(snapshot?.field.options, command.from);
+    const to = statusOption(snapshot?.field.options, command.to);
+    const current = snapshot?.item.status;
+    if (!snapshot || !current || !from || !to) {
+      return null;
+    }
+
+    return {
+      name: current.name,
+      binding: {
+        projectId: snapshot.projectId,
+        itemId: snapshot.item.id,
+        fieldId: snapshot.field.id,
+        fromOptionId: from.id,
+        toOptionId: to.id,
+      },
+    };
+  }
+
+  return {
     readStatus,
-    { number: candidate.workNumber },
-  );
+    async writeStatus(
+      command: ProjectStatusCommand,
+      binding: ProjectStatusBinding,
+      authorize: () => Promise<boolean>,
+    ): Promise<"unstarted" | "unverified" | "confirmed"> {
+      const snapshot = await readStatus(command);
+      if (
+        snapshot?.name !== command.from ||
+        !isDeepStrictEqual(snapshot.binding, binding) ||
+        !(await authorize())
+      ) {
+        return "unstarted";
+      }
+      const updated = await updateProjectStatusField(
+        config,
+        config.projectsWriteToken,
+        {
+          project: binding.projectId,
+          item: binding.itemId,
+          field: binding.fieldId,
+          option: binding.toOptionId,
+        },
+      );
+      return updated ? "confirmed" : "unverified";
+    },
+  };
+}
+
+async function readCanonicalProjectStatus(
+  api: { readonly fetchImpl?: FetchLike },
+  token: string,
+  projectId: string,
+  workNumber: number,
+) {
+  const result = await projectGraphql<ProjectSnapshot>(api, token, readStatus, {
+    number: workNumber,
+  });
   const owner = result?.user?.projectV2;
   const issue = result?.repository?.issue;
   if (
     result?.user?.databaseId !== 83680141 ||
     result.repository?.databaseId !== 1336937640 ||
     owner?.closed !== false ||
-    owner.id !== change.projectId ||
-    owner.field?.id !== change.fieldId ||
-    issue?.number !== candidate.workNumber ||
+    owner.id !== projectId ||
+    !owner.field?.id ||
+    issue?.number !== workNumber ||
     issue.parent !== null ||
     issue.projectItems.pageInfo.hasNextPage !== false
   ) {
-    return false;
+    return null;
   }
-  for (const value of [change.from, change.to]) {
-    const options = owner.field.options?.filter(
-      ({ name, id }) => name === value.name || id === value.optionId,
-    );
-    if (
-      options?.length !== 1 ||
-      options[0]?.id !== value.optionId ||
-      options[0].name !== value.name
-    ) {
-      return false;
-    }
-  }
+
   const items = issue.projectItems.nodes.filter(
-    ({ project }) => project.id === change.projectId,
+    ({ project }) => project.id === projectId,
   );
   const item = items[0];
-  return (
-    items.length === 1 &&
-    item?.id === change.itemId &&
-    item.status?.field.id === change.fieldId &&
-    item.status.name === expected.name &&
-    item.status.optionId === expected.optionId
-  );
-}
-
-export async function executeReservedProjectStatusChange(
-  input: StatusInput & {
-    readonly standingEnabled?: boolean;
-    readonly projectsWriteToken: string;
-  },
-): ReturnType<typeof executeReservedGitHubInvalidation> {
-  if (input.standingEnabled !== true) {
-    return { status: "inactive" };
-  }
-  const candidate = structuredClone(input.candidate);
-  const change = structuredClone(input.change);
-  const { projectsWriteToken, scope } = input;
-  const command = { ...input, candidate, change };
-  const { publisher } = scope;
   if (
-    !validStatusBinding(input) ||
-    !projectsWriteToken.trim() ||
-    [
-      scope.checksToken,
-      publisher.projectsToken,
-      publisher.repositoryToken,
-      publisher.mergeToken,
-    ].includes(projectsWriteToken)
+    items.length !== 1 ||
+    !item?.id ||
+    item.status?.field.id !== owner.field.id ||
+    !statusOption(owner.field.options, item.status.name, item.status.optionId)
   ) {
-    return { status: "denied" };
+    return null;
   }
 
-  // The caller must establish the Method transition and its authority. The
-  // controller only records it when this exact command is authorized.
-  const writeId = workStatusChangeId(candidate, change);
-  try {
-    if (
-      !(await input.authorize({ candidate, operation: "invalidate", writeId }))
-    ) {
-      return { status: "denied" };
-    }
-    if (!(await matchesProjectStatus(command, change.from))) {
-      return { status: "deferred" };
-    }
-  } catch {
-    return { status: "deferred" };
-  }
-  return executeReservedGitHubInvalidation({
-    candidate,
-    scope,
-    authorize: input.authorize,
-    standingEnabled: true,
-    writeId,
-    apply: async () => {
-      if (!(await matchesProjectStatus(command, change.from))) {
-        return false;
-      }
-      const updated = await projectGraphql<{
-        readonly updateProjectV2ItemFieldValue?: {
-          readonly projectV2Item?: { readonly id: string };
-        };
-      }>(command, projectsWriteToken, changeStatus, {
-        project: change.projectId,
-        item: change.itemId,
-        field: change.fieldId,
-        option: change.to.optionId,
-      });
-      return (
-        updated?.updateProjectV2ItemFieldValue?.projectV2Item?.id ===
-          change.itemId && (await matchesProjectStatus(command, change.to))
-      );
-    },
-  });
+  return { projectId, field: owner.field, item };
 }
 
-export async function reconcileReservedProjectStatusChange(
-  input: StatusInput,
-): ReturnType<typeof reconcileReservedGitHubInvalidation> {
-  if (!validStatusBinding(input)) {
-    return { status: "denied" };
-  }
-  return reconcileReservedGitHubInvalidation({
-    candidate: input.candidate,
-    scope: input.scope,
-    authorize: input.authorize,
-    writeId: workStatusChangeId(input.candidate, input.change),
-    observeApplied: () => matchesProjectStatus(input, input.change.to),
-  });
+function statusOption(
+  options:
+    readonly { readonly id: string; readonly name: string }[] | undefined,
+  name: string,
+  id?: string,
+) {
+  const matching = options?.filter(
+    (option) => option.name === name || option.id === id,
+  );
+  const option = matching?.[0];
+  return matching?.length === 1 &&
+    option?.name === name &&
+    (id === undefined || option.id === id)
+    ? option
+    : null;
+}
+
+async function updateProjectStatusField(
+  api: { readonly fetchImpl?: FetchLike },
+  token: string,
+  fields: { project: string; item: string; field: string; option: string },
+): Promise<boolean> {
+  const updated = await projectGraphql<{
+    readonly updateProjectV2ItemFieldValue?: {
+      readonly projectV2Item?: { readonly id: string };
+    };
+  }>(api, token, changeStatus, fields);
+  return (
+    updated?.updateProjectV2ItemFieldValue?.projectV2Item?.id === fields.item
+  );
 }

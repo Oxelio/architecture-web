@@ -21,6 +21,7 @@ const common = {
       include: [
         "refs/tags/delivery-control/r*",
         "refs/tags/delivery-control/disabled-*",
+        "refs/tags/delivery-control/status-*",
       ],
       exclude: [],
     },

@@ -161,7 +161,7 @@ disabled.
 
 The journal reserves `refs/tags/delivery-control/r*`. Ordinary revocations use
 `refs/tags/delivery-control/disabled-*`, keyed by the exact standing-delegation
-comment ID. Two active tag rulesets protect both patterns. The creation ruleset restricts creation with the
+comment ID. Coordinated Status receipts use `refs/tags/delivery-control/status-*`, keyed by command comment ID. Two active tag rulesets protect these patterns. The creation ruleset restricts creation with the
 controller App as its sole bypass actor. The immutability ruleset restricts
 updates and deletions with an empty bypass list, including for the controller.
 The standing runner reads both exact rulesets before trusting the journal,
@@ -184,6 +184,74 @@ from positive GitHub evidence. Independent authority for the reserved
 candidate is required to record an observation after revocation or expiry.
 Recovery never replays a lost mutation, and resuming publication or arming
 requires current standing delegation.
+
+### Coordinated Project Status writes
+
+The [Task #139 review](https://github.com/Oxelio/architecture-web/issues/139#issuecomment-6943012143)
+identified a missing protected entry point for the existing Status adapter.
+The following composition is the proposed implementation target. The
+direct Project writer stays available until supervised cutover proves its
+replacement.
+
+A read-only intake authenticates an immutable command on the owning Work
+Issue using GitHub's numeric author and App provenance. A current,
+maintainer-authorized channel policy names the permitted Workflow Coordinator
+principal and its operational scope. The command identifies the repository,
+Project, Work, exact previous and next Status, and attributable Method
+evidence. It does not establish the result of an Activity or satisfy an
+Authority Gate. Readiness still requires its formal result. The existing
+protected Work Completion flow continues to own writes to Done.
+
+Run the writer on protected main in the existing shared controller Actions
+group. Re-read the command, channel policy, canonical Project item and
+current Status before any mutation. Use a separate Project writer token.
+Use the controller journal as the write-ahead record. Preserve the current
+merge reservation, if present, and append the pending Status intent before
+dispatch. Bind the intent to the immutable command ID, canonical field
+identities, expected and target values, and exact authority. Admit that
+command once by creating an immutable command receipt under the same
+controller-only create and immutable update/delete rules. Keep these
+receipts outside the merge revision discovery prefix. The winning execution
+must verify both durable steps and fresh authority before sending the write.
+
+Recovery verifies the pending intent and canonical read-back. It does not
+submit the previous write again. Quarantine an unconfirmed outcome before
+another mutation, including a new merge reservation that may depend on the
+Status being changed. Missing proof of handoff or a timeout on its own
+cannot resolve the intent. Keep the protected manual path available when
+the journal proves it is safe.
+
+The Status target and the merge reservation are separate identities. A
+command affecting a reserved Work or its dependency defers the write until
+the reservation is conclusively cancelled or the squash is confirmed. An unrelated write may
+proceed while a reservation is active only when the complete, current
+dependency inventory proves nonintersection. If the journal has no active
+merge reservation, it still records Status admission and uncertainty.
+Incomplete inventories or unverified ref protections defer mutation.
+
+The [Delivery Project Status workflow](../../.github/workflows/delivery-project-status.yml)
+is inactive unless `DELIVERY_PROJECT_STATUS_COMMANDS_ENABLED` is set on the
+repository and a mode-specific boundary record is available.
+`DELIVERY_PROJECT_STATUS_CHANNEL_COMMENT_ID` identifies the direct,
+unchanged maintainer record on #115. The mode, scoped supervised Works,
+authorized author/App and transition evidence requirements must be present
+in the authorization. Use a distinct `DELIVERY_PROJECT_STATUS_WRITE_TOKEN`
+in the protected controller environment. The intake gets repository reads
+only. The recorder gets no check-publication credential. The shared
+delegation revocation also stops ordinary Status writes.
+
+For positive-only recovery use a protected dispatch bound to the original
+Work and command IDs and to a distinct, unexpired direct maintainer record
+of kind `recover-project-status`. Recovery does not start a new write.
+
+Enable this route first for authorized supervised validation. Verify ordinary
+direct-write denial, authorized command success, replay after an intervening
+Status change, contradictory evidence, revocation, uncertain write
+acknowledgement, and affected versus unrelated operations. Record the
+effective principal and credential inventory in [Work #140](https://github.com/Oxelio/architecture-web/issues/140).
+Work #140 follows the protected integration of the inactive controller from
+[PR #141](https://github.com/Oxelio/architecture-web/pull/141) and owns the
+supervised native squash and rollback evidence required before activation.
 
 ### Final release admission
 

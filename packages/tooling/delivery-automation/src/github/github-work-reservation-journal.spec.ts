@@ -14,11 +14,8 @@ import {
   reconcileReservedGitHubWorkIntegration,
   recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
-import {
-  executeReservedProjectStatusChange,
-  reconcileReservedProjectStatusChange,
-  workStatusChangeId,
-} from "./work-status-writer.js";
+import { runCoordinatedStatusWrite } from "./run-coordinated-status-write.js";
+import { createCoordinatedProjectStatusWriter } from "./work-status-writer.js";
 
 const candidate = {
   workNumber: 115,
@@ -47,7 +44,7 @@ function fixture() {
   const tags = new Map<string, object>();
   const refs = new Map<
     string,
-    { ref: string; object: { type: "tag"; sha: string } }
+    { ref: string; object: { type: "tag" | "commit"; sha: string } }
   >();
   const checkReservations: string[] = [];
   const state = {
@@ -197,7 +194,11 @@ function fixture() {
       expect(auth).toBe(`Bearer ${controllerToken}`);
     }
     if (path.includes("/matching-refs/")) {
-      return Response.json([...refs.values()]);
+      return Response.json(
+        [...refs.values()].filter(({ ref }) =>
+          ref.startsWith("refs/tags/delivery-control/r"),
+        ),
+      );
     }
     if (path.includes("/ref/tags/")) {
       const name = path.slice(path.indexOf("/ref/") + "/ref/".length);
@@ -229,7 +230,12 @@ function fixture() {
       }
       const ref = {
         ref: request.ref,
-        object: { type: "tag" as const, sha: request.sha },
+        object: {
+          type: request.ref.includes("/status-")
+            ? ("commit" as const)
+            : ("tag" as const),
+          sha: request.sha,
+        },
       };
       refs.set(request.ref, ref);
       if (request.ref.endsWith(state.loseRef) && state.loseRef) {
@@ -535,64 +541,86 @@ describe("persistent invalidating write", () => {
   });
 });
 
-describe("reserved Project #3 Work Status writes", () => {
-  it("records an exactly authorized status change and verifies the owner read-back", async () => {
+describe("canonical Project #3 Status writer", () => {
+  function setup() {
     const f = fixture();
-    await f.journal().reserve(candidate);
-    const writeId = workStatusChangeId(candidate, change);
-    const result = await executeReservedProjectStatusChange({
-      ...f.input,
-      change,
+    const { fetchImpl } = f.input.scope.publisher;
+    const config = {
+      projectId: change.projectId,
+      repositoryToken: "repository-reader",
+      controllerToken,
+      projectsReadToken: "test-project-reader",
       projectsWriteToken,
-      authorize: async (request) =>
-        request.operation === "resolve" ||
-        (request.operation === "invalidate" && request.writeId === writeId),
-    });
-    expect(result).toMatchObject({
-      status: "confirmed",
-      receipt: { reservation: { state: { phase: "invalidated", writeId } } },
-    });
-    expect(f.state.projectWrites).toBe(1);
-    expect(f.state.status).toBe("reviewing");
-  });
-
-  it("refuses changed source state, a different mapping, and shared write credentials", async () => {
-    for (const fault of ["status", "item", "token"]) {
-      const f = fixture();
-      await f.journal().reserve(candidate);
-      if (fault === "status") {
-        f.state.status = "implementing";
-      }
-      await expect(
-        executeReservedProjectStatusChange({
-          ...f.input,
-          change:
-            fault === "item" ? { ...change, itemId: "other-item" } : change,
-          projectsWriteToken:
-            fault === "token"
-              ? f.input.scope.publisher.projectsToken
-              : projectsWriteToken,
-        }),
-      ).resolves.toEqual({ status: fault === "token" ? "denied" : "deferred" });
-      expect(f.state.projectWrites).toBe(0);
+      ...(fetchImpl ? { fetchImpl } : {}),
+    };
+    const request = {
+      kind: "record-work-status",
+      repositoryId: 1336937640,
+      projectNumber: 3,
+      workNumber: candidate.workNumber,
+      from: change.from.name,
+      to: change.to.name,
+      evidenceCommentIds: [202],
+    } as const;
+    const writer = createCoordinatedProjectStatusWriter(config);
+    if (!writer) {
+      throw new Error("Expected isolated Project writer");
     }
+    return { f, config, request, writer };
+  }
+
+  it("reads with the observation credential and publishes with the distinct Project writer", async () => {
+    const { f, writer, request } = setup();
+    const current = await writer.readStatus(request);
+    if (!current) {
+      throw new Error("Expected canonical Project status");
+    }
+    expect(current.name).toBe("Validating");
+    expect(
+      await writer.writeStatus(request, current.binding, async () => true),
+    ).toBe("confirmed");
+    expect((await writer.readStatus(request))?.name).toBe("Reviewing");
+    expect(f.state.projectWrites).toBe(1);
   });
 
-  it("reconciles a lost Project response by reading the exact status without a second write", async () => {
-    const f = fixture();
-    await f.journal().reserve(candidate);
-    f.state.loseProjectResponse = true;
-    const request = { ...f.input, change, projectsWriteToken };
-    expect(await executeReservedProjectStatusChange(request)).toEqual({
-      status: "deferred",
+  it("refuses stale Status, unresolved mapping and shared credentials", async () => {
+    const { f, config, request, writer } = setup();
+    const current = await writer.readStatus(request);
+    if (!current) {
+      throw new Error("Expected canonical Project status");
+    }
+    expect(
+      await writer.writeStatus(
+        request,
+        { ...current.binding, fieldId: "other-status" },
+        async () => true,
+      ),
+    ).toBe("unstarted");
+    expect(
+      await writer.writeStatus(request, current.binding, async () => false),
+    ).toBe("unstarted");
+    f.state.status = "implementing";
+    expect(
+      await writer.writeStatus(request, current.binding, async () => true),
+    ).toBe("unstarted");
+    const wrongProject = createCoordinatedProjectStatusWriter({
+      ...config,
+      projectId: "other-project",
     });
-    expect(await executeReservedProjectStatusChange(request)).toEqual({
-      status: "deferred",
-    });
-    expect(await reconcileReservedProjectStatusChange(request)).toMatchObject({
-      status: "confirmed",
-    });
-    expect(f.state.projectWrites).toBe(1);
+    expect(
+      await wrongProject?.writeStatus(
+        request,
+        current.binding,
+        async () => true,
+      ),
+    ).toBe("unstarted");
+    expect(
+      createCoordinatedProjectStatusWriter({
+        ...config,
+        projectsWriteToken: controllerToken,
+      }),
+    ).toBeNull();
+    expect(f.state.projectWrites).toBe(0);
   });
 });
 
@@ -650,5 +678,224 @@ describe("Work Completion in the protected group", () => {
     await expect(
       canRecordWorkCompletion(reader, candidate.workNumber),
     ).resolves.toBe(true);
+  });
+});
+
+describe("Project Status intent in the shared controller journal", () => {
+  const intent = {
+    commentId: 83,
+    workNumber: 140,
+    authorityId: 91,
+    commandDigest: "d".repeat(64),
+  };
+
+  it("blocks new reservations and the other protected writers while the outcome is unknown", async () => {
+    const f = fixture();
+    const store = f.journal();
+    const position = await store.beginProjectStatusWrite({
+      previous: null,
+      workflowSha: candidate.baseSha,
+      intent,
+    });
+    expect(position?.revision).toBe(1);
+    expect(await f.journal().readProjectStatusBoundary()).toMatchObject({
+      position,
+      reservation: null,
+      pending: intent,
+    });
+    await expect(f.journal().read()).rejects.toThrow(
+      "PROJECT_STATUS_WRITE_PENDING",
+    );
+    expect(await store.reserve(candidate)).toBeNull();
+
+    const { repositoryToken, fetchImpl } = f.input.scope.publisher;
+    const reader = { repositoryToken, ...(fetchImpl ? { fetchImpl } : {}) };
+    expect(await canPublishManualWorkGate(reader)).toBe(false);
+    expect(await canRecordWorkCompletion(reader, 140)).toBe(false);
+
+    if (!position) {
+      throw new Error("Expected intent position");
+    }
+    expect(
+      await store.finishProjectStatusWrite(position, {
+        ...intent,
+        workNumber: 138,
+      }),
+    ).toBe(false);
+    expect(await f.journal().finishProjectStatusWrite(position, intent)).toBe(
+      true,
+    );
+    expect(await f.journal().read()).toBeNull();
+    expect(await canPublishManualWorkGate(reader)).toBe(true);
+    expect((await f.journal().reserve(candidate))?.revision).toBe(3);
+  });
+
+  it.each(["reserved", "released"] as const)(
+    "preserves an unrelated %s merge reservation across a completed Status write",
+    async (phase) => {
+      const f = fixture();
+      const store = f.journal();
+      const reservation = await store.reserve(candidate);
+      if (!reservation) {
+        throw new Error("Expected reservation");
+      }
+      const active =
+        phase === "reserved"
+          ? reservation
+          : await store.append(reservation, {
+              candidate,
+              state: { phase, checkId: 17 },
+            });
+      if (!active) {
+        throw new Error("Expected active reservation");
+      }
+
+      expect(
+        await store.beginProjectStatusWrite({
+          previous: null,
+          workflowSha: candidate.baseSha,
+          intent,
+        }),
+      ).toBeNull();
+      const position = await store.beginProjectStatusWrite({
+        previous: { revision: active.revision, tagSha: active.tagSha },
+        workflowSha: candidate.baseSha,
+        intent,
+      });
+      if (!position) {
+        throw new Error("Expected intent position");
+      }
+      expect(
+        (await f.journal().readProjectStatusBoundary()).reservation
+          ?.reservation,
+      ).toEqual(active.reservation);
+      expect(await f.journal().finishProjectStatusWrite(position, intent)).toBe(
+        true,
+      );
+      expect(await f.journal().read()).toMatchObject({
+        reservationId: active.reservationId,
+        reservation: active.reservation,
+        revision: position.revision + 1,
+      });
+    },
+  );
+
+  it("quarantines a persisted intent even if its first append acknowledgement was lost", async () => {
+    const f = fixture();
+    f.state.loseRef = "/r1";
+    expect(
+      await f.journal().beginProjectStatusWrite({
+        previous: null,
+        workflowSha: candidate.baseSha,
+        intent,
+      }),
+    ).toBeNull();
+    expect((await f.journal().readProjectStatusBoundary()).pending).toEqual(
+      intent,
+    );
+    expect(await f.journal().reserve(candidate)).toBeNull();
+  });
+});
+
+describe("Coordinated Project Status execution", () => {
+  function commandFixture() {
+    const f = fixture();
+    const authorization = {
+      authorityId: 91,
+      command: {
+        kind: "record-work-status",
+        repositoryId: 1336937640,
+        projectNumber: 3,
+        workNumber: 140,
+        from: "Validating",
+        to: "Reviewing",
+        evidenceCommentIds: [134],
+      },
+    } as const;
+    const state = {
+      status: "Validating",
+      allowed: true,
+      verified: true,
+      loseResponse: false,
+      writes: 0,
+      reservationAllowed: false,
+    };
+    const { fetchImpl } = f.input.scope.publisher;
+    const input: Parameters<typeof runCoordinatedStatusWrite>[0] = {
+      enabled: true,
+      commentId: 83,
+      workflowSha: candidate.baseSha,
+      controllerToken,
+      ...(fetchImpl ? { fetchImpl } : {}),
+      readAuthorization: async () => (state.allowed ? authorization : null),
+      readRecoveryAuthorization: async (id) =>
+        id === authorization.authorityId ? authorization : null,
+      verifyBoundary: async () => state.verified,
+      mayWriteWithReservation: async () => state.reservationAllowed,
+      readStatus: async () => ({
+        name: state.status,
+        binding: {
+          projectId: change.projectId,
+          itemId: change.itemId,
+          fieldId: change.fieldId,
+          fromOptionId: change.from.optionId,
+          toOptionId: change.to.optionId,
+        },
+      }),
+      writeStatus: async (command) => {
+        state.writes++;
+        state.status = command.to;
+        return state.loseResponse ? "unverified" : "confirmed";
+      },
+    };
+    return { f, input, state };
+  }
+
+  it("records a verified transition and refuses replay after Status returns to its original value", async () => {
+    const { f, input, state } = commandFixture();
+    expect(await runCoordinatedStatusWrite(input)).toBe("recorded");
+    state.status = "Validating";
+    expect(await runCoordinatedStatusWrite(input)).toBe("already-admitted");
+    expect(state.writes).toBe(1);
+    expect((await f.journal().readProjectStatusBoundary()).pending).toBeNull();
+  });
+
+  it("reconciles a lost Project acknowledgement after ordinary authority has been revoked", async () => {
+    const { f, input, state } = commandFixture();
+    state.loseResponse = true;
+    expect(await runCoordinatedStatusWrite(input)).toBe("deferred");
+    expect(
+      (await f.journal().readProjectStatusBoundary()).pending?.commentId,
+    ).toBe(83);
+    expect(await runCoordinatedStatusWrite({ ...input, commentId: 84 })).toBe(
+      "deferred",
+    );
+    state.allowed = false;
+    expect(await runCoordinatedStatusWrite(input)).toBe("reconciled");
+    expect(state.writes).toBe(1);
+  });
+
+  it("does not mutate when inactive, the boundary is false, or the existing reservation conflicts", async () => {
+    const { f, input, state } = commandFixture();
+    expect(await runCoordinatedStatusWrite({ ...input, enabled: false })).toBe(
+      "inactive",
+    );
+    state.verified = false;
+    expect(await runCoordinatedStatusWrite(input)).toBe("denied");
+    state.verified = true;
+    await f.journal().reserve(candidate);
+    expect(await runCoordinatedStatusWrite(input)).toBe("deferred");
+    expect(state.writes).toBe(0);
+    state.reservationAllowed = true;
+    expect(await runCoordinatedStatusWrite(input)).toBe("recorded");
+    expect(state.writes).toBe(1);
+  });
+
+  it("does not start a write after the exact command receipt acknowledgement was lost", async () => {
+    const { f, input, state } = commandFixture();
+    f.state.loseRef = "/status-83";
+    expect(await runCoordinatedStatusWrite(input)).toBe("deferred");
+    expect(await runCoordinatedStatusWrite(input)).toBe("already-admitted");
+    expect(state.writes).toBe(0);
   });
 });

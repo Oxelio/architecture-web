@@ -28,7 +28,13 @@ interface JournalConnection {
 // The trusted manual check writer runs in the shared protected Actions group.
 // Keep that writer out until the native reservation has conclusively ended.
 export async function canPublishManualWorkGate(connection: JournalConnection) {
-  const entry = await createGitHubWorkReservationJournal(connection).read();
+  const { pending, reservation: entry } =
+    await createGitHubWorkReservationJournal(
+      connection,
+    ).readProjectStatusBoundary();
+  if (pending) {
+    return false;
+  }
   return !entry || (await reservationHasSettled(connection, entry.reservation));
 }
 
@@ -56,7 +62,13 @@ export async function canRecordWorkCompletion(
   connection: JournalConnection,
   workNumber: number,
 ): Promise<boolean> {
-  const entry = await createGitHubWorkReservationJournal(connection).read();
+  const { pending, reservation: entry } =
+    await createGitHubWorkReservationJournal(
+      connection,
+    ).readProjectStatusBoundary();
+  if (pending) {
+    return false;
+  }
   if (!entry || (await reservationHasSettled(connection, entry.reservation))) {
     return true;
   }
@@ -169,43 +181,132 @@ function reservationRevision(id: unknown): number {
     : Number.NaN;
 }
 
+interface PendingProjectStatusWrite {
+  readonly commentId: number;
+  readonly workNumber: number;
+  readonly authorityId: number;
+  readonly commandDigest: string;
+}
+
+interface ReservationBody {
+  readonly reservationId: string;
+  readonly candidate: MergeCandidate;
+  readonly state: MergeReservationState;
+}
+
+function parseReservation(
+  value: unknown,
+  revision: number,
+  candidateHeadSha: string,
+  embedded: boolean,
+): ReservationBody {
+  const body = value as {
+    readonly reservationId?: unknown;
+    readonly candidate?: unknown;
+    readonly state?: unknown;
+  } | null;
+  const id = body?.reservationId;
+  const origin = reservationRevision(id);
+  if (
+    typeof id !== "string" ||
+    !Number.isSafeInteger(origin) ||
+    origin > revision ||
+    !isWorkIntegrationCandidate(body?.candidate) ||
+    body.candidate.headSha !== candidateHeadSha ||
+    !isReservationState(body.state) ||
+    (!embedded && (body.state.phase === "reserved") !== (origin === revision))
+  ) {
+    throw new Error("MERGE_JOURNAL_RESERVATION_UNVERIFIED");
+  }
+
+  return { reservationId: id, candidate: body.candidate, state: body.state };
+}
+
+function isPendingProjectStatusWrite(
+  value: unknown,
+): value is PendingProjectStatusWrite {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const intent = value as Record<string, unknown>;
+  return (
+    Object.keys(intent).length === 4 &&
+    checkId(intent["commentId"]) &&
+    checkId(intent["workNumber"]) &&
+    checkId(intent["authorityId"]) &&
+    typeof intent["commandDigest"] === "string" &&
+    digest.test(intent["commandDigest"])
+  );
+}
+
 export function createGitHubWorkReservationJournal(
   connection: JournalConnection,
 ) {
-  async function read(): Promise<PersistedReservation | null> {
+  async function readTail() {
     const tail = await readMergeJournalTail(connection);
     if (!tail) {
       return null;
     }
+
     const body = JSON.parse(tail.body) as {
-      readonly reservationId?: unknown;
-      readonly candidate?: unknown;
-      readonly state?: unknown;
+      readonly kind?: unknown;
+      readonly pending?: unknown;
+      readonly reservation?: unknown;
     } | null;
-    const id = body?.reservationId;
-    const origin = reservationRevision(id);
-    if (
-      typeof id !== "string" ||
-      !Number.isSafeInteger(origin) ||
-      origin > tail.revision ||
-      !isWorkIntegrationCandidate(body?.candidate) ||
-      body.candidate.headSha !== tail.candidateHeadSha ||
-      !isReservationState(body.state) ||
-      (body.state.phase === "reserved") !== (origin === tail.revision)
-    ) {
-      throw new Error("MERGE_JOURNAL_RESERVATION_UNVERIFIED");
+    const position = { revision: tail.revision, tagSha: tail.tagSha };
+    if (body?.kind !== "project-status") {
+      return {
+        position,
+        candidateHeadSha: tail.candidateHeadSha,
+        reservation: parseReservation(
+          body,
+          tail.revision,
+          tail.candidateHeadSha,
+          false,
+        ),
+        pending: null,
+      };
     }
 
+    if (body.pending !== null && !isPendingProjectStatusWrite(body.pending)) {
+      throw new Error("PROJECT_STATUS_INTENT_UNVERIFIED");
+    }
     return {
-      revision: tail.revision,
-      tagSha: tail.tagSha,
-      reservationId: id,
-      reservation: { candidate: body.candidate, state: body.state },
+      position,
+      candidateHeadSha: tail.candidateHeadSha,
+      reservation:
+        body.reservation === null
+          ? null
+          : parseReservation(
+              body.reservation,
+              tail.revision,
+              tail.candidateHeadSha,
+              true,
+            ),
+      pending: body.pending,
     };
   }
 
+  function toReceipt(
+    position: MergeJournalPosition,
+    body: ReservationBody,
+  ): PersistedReservation {
+    const { reservationId, candidate, state } = body;
+    return { ...position, reservationId, reservation: { candidate, state } };
+  }
+
+  async function read(): Promise<PersistedReservation | null> {
+    const tail = await readTail();
+    if (tail?.pending) {
+      throw new Error("PROJECT_STATUS_WRITE_PENDING");
+    }
+    return tail?.reservation
+      ? toReceipt(tail.position, tail.reservation)
+      : null;
+  }
+
   async function appendEntry(
-    previous: PersistedReservation | null,
+    previous: MergeJournalPosition | null,
     reservation: MergeReservation,
     reservationId: string,
   ): Promise<PersistedReservation | null> {
@@ -216,50 +317,117 @@ export function createGitHubWorkReservationJournal(
       candidateHeadSha: candidate.headSha,
       body: JSON.stringify({ reservationId, candidate, state }),
     });
-    if (result.status !== "committed") {
-      return null;
-    }
-    return { ...result.position, reservationId, reservation };
+    return result.status === "committed"
+      ? { ...result.position, reservationId, reservation }
+      : null;
   }
 
   return {
     read,
+
+    async readProjectStatusBoundary() {
+      const tail = await readTail();
+      return {
+        position: tail?.position ?? null,
+        reservation: tail?.reservation
+          ? toReceipt(tail.position, tail.reservation)
+          : null,
+        pending: tail?.pending ?? null,
+      };
+    },
+
+    async beginProjectStatusWrite(input: {
+      readonly previous: MergeJournalPosition | null;
+      readonly workflowSha: string;
+      readonly intent: PendingProjectStatusWrite;
+    }): Promise<MergeJournalPosition | null> {
+      if (
+        !sha.test(input.workflowSha) ||
+        !isPendingProjectStatusWrite(input.intent)
+      ) {
+        return null;
+      }
+      const tail = await readTail();
+      if (
+        tail?.pending ||
+        !isDeepStrictEqual(input.previous, tail?.position ?? null)
+      ) {
+        return null;
+      }
+      const result = await appendMergeJournalRevision({
+        ...connection,
+        previous: tail?.position ?? null,
+        candidateHeadSha:
+          tail?.reservation?.candidate.headSha ?? input.workflowSha,
+        body: JSON.stringify({
+          kind: "project-status",
+          pending: input.intent,
+          reservation: tail?.reservation ?? null,
+        }),
+      });
+      return result.status === "committed" ? result.position : null;
+    },
+
+    // Clear only after a known unstarted write or the exact observed outcome.
+    async finishProjectStatusWrite(
+      position: MergeJournalPosition,
+      intent: PendingProjectStatusWrite,
+    ): Promise<boolean> {
+      const tail = await readTail();
+      if (
+        !tail?.pending ||
+        !isDeepStrictEqual(position, tail.position) ||
+        !isDeepStrictEqual(intent, tail.pending)
+      ) {
+        return false;
+      }
+      const result = await appendMergeJournalRevision({
+        ...connection,
+        previous: tail.position,
+        candidateHeadSha: tail.candidateHeadSha,
+        body: JSON.stringify({
+          kind: "project-status",
+          pending: null,
+          reservation: tail.reservation,
+        }),
+      });
+      return result.status === "committed";
+    },
+
     async reserve(
       candidate: MergeCandidate,
     ): Promise<PersistedReservation | null> {
       if (!isWorkIntegrationCandidate(candidate)) {
         return null;
       }
-      const previous = await read();
+      const tail = await readTail();
+      if (tail?.pending) {
+        return null;
+      }
+      const previous = tail?.reservation;
       if (previous) {
-        const phase = previous.reservation.state.phase;
+        const phase = previous.state.phase;
         if (
           phase !== "cancelled" &&
           phase !== "merged" &&
           phase !== "invalidated"
         ) {
-          return sameWorkIntegrationCandidate(
-            candidate,
-            previous.reservation.candidate,
-          )
-            ? previous
+          return sameWorkIntegrationCandidate(candidate, previous.candidate)
+            ? toReceipt(tail.position, previous)
             : null;
         }
-        if (
-          sameWorkIntegrationCandidate(
-            candidate,
-            previous.reservation.candidate,
-          )
-        ) {
+        if (sameWorkIntegrationCandidate(candidate, previous.candidate)) {
           return null;
         }
       }
+
       return appendEntry(
-        previous,
+        tail?.position ?? null,
         { candidate, state: { phase: "reserved" } },
-        `delivery-control/r${(previous?.revision ?? 0) + 1}`,
+        `delivery-control/r${(tail?.position.revision ?? 0) + 1}`,
       );
     },
+
     async append(
       previous: WorkIntegrationReservationReceipt,
       reservation: MergeReservation,
