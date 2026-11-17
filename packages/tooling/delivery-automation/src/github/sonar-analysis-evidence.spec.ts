@@ -160,6 +160,9 @@ describe("preparation-only authenticated Sonar reader", () => {
     { controlSha: "invalid" },
     { startedAt: "2026-11-17T10:06:00Z" },
     { expiresAt: "2026-11-17T10:00:00Z" },
+    { expiresAt: "2026-11-17T10:05:00Z" },
+    { expiresAt: "not-a-date" },
+    { startedAt: "not-a-date" },
   ])(
     "rejects mismatched, stale or invalid trusted submission data",
     async (change) => {
@@ -224,6 +227,24 @@ describe("preparation-only authenticated Sonar reader", () => {
   );
 
   it.each([
+    (v: ReturnType<typeof fixture>) => {
+      v.task.submittedAt = "not-a-date";
+    },
+    (v: ReturnType<typeof fixture>) => {
+      v.task.executedAt = "not-a-date";
+    },
+    (v: ReturnType<typeof fixture>) => {
+      v.pull.analysisDate = "not-a-date";
+    },
+    (v: ReturnType<typeof fixture>) => {
+      v.task.executedAt = "2026-11-17T10:00:30Z";
+    },
+    (v: ReturnType<typeof fixture>) => {
+      v.task.executedAt = "2026-11-17T10:10:00Z";
+    },
+    (v: ReturnType<typeof fixture>) => {
+      v.pull.analysisDate = "2026-11-17T10:03:00Z";
+    },
     (v: ReturnType<typeof fixture>) => {
       v.task.id = "wrong-task";
     },

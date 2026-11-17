@@ -34,14 +34,14 @@ export type ControlledWriteDisposition =
   | "cancel-or-resolve"
   | "recover-merged";
 
-const kinds: readonly ControlledWriteKind[] = [
+const kinds = new Set<ControlledWriteKind>([
   "publish-commit",
   "edit-pull-request",
   "edit-work",
   "edit-task-dependency",
   "record-evidence",
   "record-project-field",
-];
+]);
 
 function validIds(values: readonly number[]) {
   return (
@@ -73,7 +73,7 @@ export function planControlledWrite(input: {
   const { scope, reserved } = input;
   if (
     scope.repositoryId !== 1336937640 ||
-    !kinds.includes(scope.kind) ||
+    !kinds.has(scope.kind) ||
     !validIds(scope.affectedWorks) ||
     scope.affectedWorks.length === 0 ||
     !validIds(scope.affectedPulls) ||

@@ -57,14 +57,14 @@ type SonarEvidenceResult =
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("SONAR_RESPONSE_UNVERIFIED");
+    throw new TypeError("SONAR_RESPONSE_UNVERIFIED");
   }
   return value as Record<string, unknown>;
 }
 
 function list(value: unknown): readonly unknown[] {
   if (!Array.isArray(value)) {
-    throw new Error("SONAR_RESPONSE_UNVERIFIED");
+    throw new TypeError("SONAR_RESPONSE_UNVERIFIED");
   }
   return value;
 }
@@ -103,6 +103,22 @@ function matchesSubmission(
   );
 }
 
+function hasCurrentLifetime(submission: ProtectedSonarSubmission, now: number) {
+  const startedAt = Date.parse(submission.startedAt);
+  const expiresAt = Date.parse(submission.expiresAt);
+  return (
+    Number.isFinite(startedAt) &&
+    Number.isFinite(expiresAt) &&
+    startedAt <= now &&
+    now < expiresAt
+  );
+}
+
+function isTimeInRange(value: unknown, start: number, end: number) {
+  const instant = typeof value === "string" ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(instant) && instant >= start && instant <= end;
+}
+
 // Preparation-only. No workflow calls this adapter and it cannot publish a
 // check. Only trusted-main composition may supply readTrustedSubmission after
 // authenticating the producer run, revision, source and exact scanner receipt.
@@ -139,9 +155,7 @@ export async function readSonarAnalysisEvidence(input: {
       submission.conditionsDigest !== sonarGateConditionsDigest ||
       !/^[A-Za-z0-9_-]{1,200}$/u.test(submission.taskId) ||
       !submission.sourceBranch ||
-      !Number.isFinite(Date.parse(submission.startedAt)) ||
-      Date.parse(submission.startedAt) > now() ||
-      !(Date.parse(submission.expiresAt) > now()) ||
+      !hasCurrentLifetime(submission, now()) ||
       !matchesSubmission(await input.readCandidate(), submission)
     ) {
       return { status: "deferred" };
@@ -181,9 +195,12 @@ export async function readSonarAnalysisEvidence(input: {
       !/^[A-Za-z0-9_-]{1,200}$/u.test(task["analysisId"]) ||
       typeof task["submittedAt"] !== "string" ||
       typeof task["executedAt"] !== "string" ||
-      !(Date.parse(task["submittedAt"]) >= Date.parse(submission.startedAt)) ||
-      !(Date.parse(task["executedAt"]) >= Date.parse(task["submittedAt"])) ||
-      !(Date.parse(task["executedAt"]) <= now())
+      !isTimeInRange(
+        task["submittedAt"],
+        Date.parse(submission.startedAt),
+        now(),
+      ) ||
+      !isTimeInRange(task["executedAt"], Date.parse(task["submittedAt"]), now())
     ) {
       return { status: "deferred" };
     }
@@ -195,20 +212,15 @@ export async function readSonarAnalysisEvidence(input: {
       const pull = matches[0];
       if (
         matches.length !== 1 ||
-        !pull ||
-        pull["branch"] !== submission.sourceBranch ||
+        pull?.["branch"] !== submission.sourceBranch ||
         pull["base"] !== "main" ||
         pull["target"] !== "main" ||
         record(pull["commit"])["sha"] !== submission.headSha ||
         record(pull["status"])["qualityGateStatus"] !== "OK" ||
-        typeof pull["analysisDate"] !== "string" ||
-        !(
-          Date.parse(pull["analysisDate"]) >=
-          Date.parse(task["submittedAt"] as string)
-        ) ||
-        !(
-          Date.parse(pull["analysisDate"]) <=
-          Date.parse(task["executedAt"] as string)
+        !isTimeInRange(
+          pull["analysisDate"],
+          Date.parse(task["submittedAt"] as string),
+          Date.parse(task["executedAt"] as string),
         )
       ) {
         throw new Error("SONAR_PULL_UNVERIFIED");
@@ -256,7 +268,7 @@ export async function readSonarAnalysisEvidence(input: {
       !isDeepStrictEqual(definition, await get(definitionPath)) ||
       !isDeepStrictEqual(submission, await input.readTrustedSubmission()) ||
       !matchesSubmission(await input.readCandidate(), submission) ||
-      !(Date.parse(submission.expiresAt) > now())
+      !hasCurrentLifetime(submission, now())
     ) {
       return { status: "deferred" };
     }
