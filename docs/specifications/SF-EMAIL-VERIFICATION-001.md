@@ -14,7 +14,7 @@
 
 **Work Type:** Product Behavior Change
 
-**Workflow Depth:** Complex (security-sensitive, cross-component, compatibility-sensitive)
+**Workflow Depth:** Complex (security-sensitive, cross-component, intentional breaking HTTP-contract change)
 
 **Approval:** **Human Functional Approval — Option B**, explicitly given by the Architecture Web maintainer in the conversation and recorded in [Work #145](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6963487710). That GitHub comment is an AI transcription of the human's express decision, not a separate human GitHub review.
 
@@ -65,7 +65,7 @@ This feature does not make possession of a link equivalent to an authenticated s
 6. **One-time semantics:** The existing IAM rules for validity, expiration, hashing, invalidation, identity binding and atomic single use remain authoritative and unchanged. Only an accepted verification attempt marks the email identity verified.
 7. **No automatic retry:** An in-flight submission cannot trigger duplicate user actions or silent repeated verification requests on React render/remount/language change. The backend remains authoritative for concurrency and one-time consumption, even if duplicate requests occur.
 8. **No implicit authentication:** Success verifies the intended email identity; it does not automatically sign in, elevate privileges, or alter unrelated session behavior.
-9. **Existing links:** The rollout MUST address verification links already delivered using the current `?token=...` format. Still-valid links cannot be silently discarded. The Technical Design owns the bounded compatibility strategy and its evidence without reintroducing unsafe server logging as a hidden workaround.
+9. **Clean breaking replacement:** The old `GET /v1/iam/verify?token=...` API route and Web query-token parsing are **removed**. No legacy fallback, dual endpoint, transition window or compatibility route is required. The maintainer explicitly accepts that already-issued verification links may become unusable because this project is not in production. The new POST/fragment flow is the only supported target.
 
 ## 6. States and significant transitions
 
@@ -99,7 +99,7 @@ The page must remain usable under the supported locales and established accessib
 - Multiple clicks, re-renders, StrictMode, locale switching: no automatic second submission. The backend's existing atomic token-consumption rule remains the final safeguard.
 - Network interruption or ambiguous server response: no unsupported assumption that the token was or was not consumed; avoid background retries. Offer a clear next step.
 - Browser link previews, email scanners, redirect/rewrite clients: mere page opening is non-mutating. This protects against passive or JavaScript-running scanners that do **not** simulate the explicit user action; it is not a claim of safety from scanners that actively click controls.
-- Existing delivered query links: require a technical compatibility and migration/expiry plan, tested with representative browser and email clients.
+- Already-issued `?token=...` links and old GET API clients: explicitly unsupported after this authorized breaking change, with **no** compatibility fallback. The UI should not send a verification request if a link contains no valid fragment token.
 
 ## 10. Security and privacy requirements
 
@@ -118,7 +118,7 @@ The page must remain usable under the supported locales and established accessib
 
 ## 12. Open functional decisions
 
-**None within the explicitly approved Option B behavior.** The specific backwards-compatibility mechanism for already issued query-string links, browser/email-client verification coverage, and any detailed copy/accessibility design are implementation/Technical Design questions so long as they preserve the rules above. Any proposal to intentionally discard still-valid links, remove explicit confirmation, add automatic verification or change identity/token policy must return to the appropriate functional authority.
+**None within the human-approved Option B behavior and its subsequent explicit no-legacy decision.** The maintainer separately authorized removing the old GET/query contract without compatibility or a transition window ([Work #152 decision](https://github.com/Oxelio/architecture-web/issues/152#issuecomment-6963876703)). Browser/email-client verification coverage and UI copy/accessibility details belong to Technical Design and implementation as long as they preserve the above behavior. Any proposal to remove explicit confirmation, introduce automatic verification or change identity/token policy returns to the functional owner.
 
 ## 13. Acceptance criteria
 
@@ -128,7 +128,7 @@ The page must remain usable under the supported locales and established accessib
 - [ ] The UI shows meaningful pending/success/invalid/expired/technical outcomes without leaking tokens or account existence details.
 - [ ] Existing IAM validity, hashing, atomic consumption, identity binding and session behavior are preserved.
 - [ ] No silent retries/duplicate actions or use of persistent browser storage for the token.
-- [ ] Representative still-valid old links and relevant email/client scanning/rewriting behavior follow the documented compatibility plan.
+- [ ] The legacy GET verification endpoint and Web query-token fallback are **removed**, with no transition window. Already-issued query-only links are intentionally unsupported. Representative email/client scanning and fragment-rewriting behaviors are tested for the new flow.
 - [ ] Targeted API/Web/security tests show no token leakage in identified network URL, application logs or error diagnostics; Work #145's general logging obligations remain separate.
 - [ ] Candidate-specific Code, Architecture, Functional Compliance, Security/Privacy Reviews and Validation evidence meet project gates.
 
@@ -136,8 +136,8 @@ The page must remain usable under the supported locales and established accessib
 
 **Decision:** **Approved — Option B** (2026-11-17).
 
-**Approved scope:** Email link with verification token in URL fragment; Web landing page with no passive/automatic verification; explicit manual confirmation; POST verification token in JSON body; preservation of one-time IAM business semantics and safe feedback, without a logging/architecture redesign.
+**Approved scope:** Email link with verification token in URL fragment; Web landing page with no passive/automatic verification; explicit manual confirmation; POST verification token in JSON body; preservation of one-time IAM business semantics and safe feedback, without a logging/architecture redesign. A **subsequent explicit human scope decision** approves dropping the legacy GET/query contract without preserving already-issued links; [decision record](https://github.com/Oxelio/architecture-web/issues/152#issuecomment-6963876703).
 
-**Authority / record:** The human Architecture Web maintainer explicitly directed the AI coordinator to record the discussion and approve Option B. This approval was recorded as [Issue #145 comment 6963487710](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6963487710). It is an attributable transcript of a ChatGPT user decision, **not a direct human GitHub PR review**. No implicit approval is claimed for detailed migration/compatibility choices, code implementation, reviews, merge or deployment.
+**Authority / record:** The human Architecture Web maintainer explicitly approved Option B, recorded in [Issue #145 comment 6963487710](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6963487710), and subsequently expressly accepted breaking compatibility with no legacy support, recorded in [Issue #152 comment 6963876703](https://github.com/Oxelio/architecture-web/issues/152#issuecomment-6963876703). These are AI transcriptions of actual ChatGPT user decisions, **not direct human GitHub PR reviews**. No implied approval for code implementation, reviews, merge, deployment, broader token flows or Nginx logging policies.
 
 **Maturity:** Approved Target for Work #152 only, not Current Truth. Effective behavior and current-state documentation must not be changed until an appropriately authorized and validated implementation is integrated.
