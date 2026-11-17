@@ -2,9 +2,9 @@
 
 > **Identifier:** SF-WEB-ERROR-FEEDBACK-001
 >
-> **Artifact status:** Proposed
+> **Artifact status:** Approved
 >
-> **Content status:** Proposed
+> **Content status:** Approved
 >
 > **Document type:** Functional Specification
 >
@@ -16,7 +16,7 @@
 
 **Work Type:** Product Behavior Change
 
-**Approval:** Pending Human Functional Approval. All behavior below is a **Proposed Target**, not effective Current Truth.
+**Approval:** Human Functional Approval recorded for the Option B scope in [Work #144](https://github.com/Oxelio/architecture-web/issues/144#issuecomment-6962254613) on 2026-11-17. This document is the **Approved Target** for the defined Work scope; it is not effective Current Truth on `main` until implementation and governed integration.
 
 **Source Exploration:** [#144 exploration findings](https://github.com/Oxelio/architecture-web/issues/144#issuecomment-6962044976)
 
@@ -121,10 +121,10 @@ These actors retain exactly their pre-existing permissions, account-state rules 
 
 ## 14. Human approval
 
-**Decision:** Pending
+**Decision:** Approved — Option B and all proposed functional rules, including the acceptance criteria.
 
-**Proposed approval scope:** Sections 2–10 and the acceptance criteria in section 13, using alternative B in section 11.
+**Approved scope:** Sections 2–10 and the acceptance criteria in section 13, using alternative B in section 11; French and English, all existing Web error feedback surfaces, safe generic fallback, immediate locale retranslation, accessible feedback, stable contracts, and security-preserving non-enumeration.
 
-**Authority / record:** An explicit, attributable Architecture Web human Functional Approval identifying this specification and approved scope must be linked here or on Work #144. A PR review, merge, or an AI-written recommendation alone is not approval.
+**Authority / record:** Explicit approval by the human project requester in the Architecture Web ChatGPT conversation on 2026-11-17 (“Je valide l'option B avec toutes ces règles.”), transcribed by the coordinator in [Work #144 approval record](https://github.com/Oxelio/architecture-web/issues/144#issuecomment-6962254613). This is a recorded human decision, not AI approval or an independent human GitHub review.
 
-**Current implementation status:** Not authorized for this proposed behavior until Human Functional Approval and the subsequent Preparing/Readiness gates are satisfied.
+**Implementation status:** Functional target approved; implementation remains pending Technical Design / applicable planning / Readiness. Neither this approval nor a branch commit or PR merge alone establishes current deployed behavior.
