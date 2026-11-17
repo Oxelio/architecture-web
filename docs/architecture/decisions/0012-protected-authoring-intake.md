@@ -82,6 +82,11 @@ the caller; it does not accept caller assertions of Human approval.
 The Project projection is fetched by protected-main execution using its isolated
 reader and returned as a dated result. The intake holds no Project token; a
 cached projection never replaces a fresh canonical mutation precondition.
+Return private results directly to the private intake, not repository artifacts
+or job logs. Authenticate job payload reads and result callbacks with GitHub
+Actions OIDC restricted to the exact repository, trusted workflow/revision,
+main ref, protected environment and first run attempt. Request/result binding
+is still required; OIDC identity alone authorizes no GitHub mutation.
 
 The intake holds only a repository-scoped Actions-write dispatch credential.
 It dispatches a fixed trusted-main authoring workflow with a sealed request ID
@@ -92,13 +97,23 @@ The [GitHub dispatch contract](https://docs.github.com/en/rest/actions/workflows
 supports installation tokens with Actions-write. This does not grant a narrower
 per-workflow GitHub permission.
 
-Prefer an independently scoped App credential for unattended renewal. No
-existing dispatch-only installation has been verified. If none can be reused
-with independent key custody, the proposed deployment needs one private
-Actions-write / Metadata-read App installed only on this repository. It needs
-no new GitHub user account. Do not share the native controller or gate App key
-with the intake merely to avoid a separate dispatch identity. Installation and
-any new permission remain separately authorized operations.
+Prefer reuse of the existing controller App through an explicitly narrowed,
+short-lived Actions-write / Metadata-read installation token, issued inside the
+protected-main boundary. GitHub supports limiting an installation token's
+[repositories and permissions](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app).
+The App key stays in its existing environment; the intake cannot mint broader
+tokens. A fixed protected renewal job can deliver a replacement through the
+authenticated private channel. Do not let token-action cleanup immediately
+revoke a credential deliberately delegated for that lifetime. An expired token
+defers dispatch until renewal; scheduling is not an availability guarantee.
+
+The existing App's Actions-write grant has not been verified. Reuse therefore
+requires effective-grant and narrowed-token evidence and any separately
+authorized grant change. If safe reuse is unavailable, the bounded alternative
+is a private dispatch-only App installed only on this repository. No new GitHub
+user is needed. Never put a native controller or gate App key in the intake.
+Credential transfer, permission changes and any installation remain separately
+authorized operations; this ADR accepts none of those live actions.
 
 The service stores immutable, content-addressed payloads only for staging.
 A required client idempotency key and authenticated subject determine the
@@ -108,9 +123,10 @@ that key are rejected. Durable request identity survives payload disposal throug
 the controller's journal rather than an expiring service cache. The existing
 protected journal owns admission and outcomes. The service's storage is neither
 a second lock nor evidence that a remote mutation occurred. Controller payload
-reads use a separate read-only service capability and a fixed origin. Staging
-limits and expiry are explicit; expiry cannot prove that an already-started
-operation stopped.
+reads use the constrained job identity and a fixed origin. Its result callback
+can report only that request's outcome, never create a new authoring command.
+Staging limits and expiry are explicit; expiry cannot prove that an already-
+started operation stopped.
 
 Trusted-main authoring execution authenticates the request, reconstructs its
 complete affected scope, checks existing Role/authority decisions, and admits

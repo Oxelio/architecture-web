@@ -221,13 +221,17 @@ Use this concrete request path for the proposed implementation:
 3. Intake dispatches only the proposed `delivery-authoring.yml` on `main` with
    request ID and digest. The dispatch credential has Actions-write and Metadata-
    read for this repository, no Contents/PR/Issue/Project/Checks write. No such
-   current independent credential is verified. Prefer a separately keyed private
-   App if an equivalent isolated credential cannot be reused. The native/gate
-   App keys remain in their existing protected environments.
+   current narrowed credential is verified. Prefer a token minted with explicit
+   permissions/repository selection by a fixed protected renewal job using the
+   existing controller App, if its actual grant permits that scope. Deliver only
+   the short-lived narrowed token to the intake. Keep the App key in its protected
+   environment. Verify expiry, deliberate delegation/revocation and renewal;
+   expired credentials defer dispatch. A separate dispatch-only App is the
+   fallback if safe reuse cannot be demonstrated, not a required test fixture.
    A dispatch response or returned run ID proves no authoring outcome. Duplicate
    jobs for the same request still require the same single-use journal admission.
 4. The trusted workflow authenticates the intake subject and fetches sealed
-   bytes from a fixed origin using a separate payload-read capability. Verify
+   bytes from a fixed origin using its constrained OIDC job identity. Verify
    repository, digest, request identity, operation schema, current authority and
    canonical owners. Reconstruct forward/reverse dependencies and PR/ref sharing.
    Authenticate current Role permission; a caller-supplied Role string or scope
@@ -262,6 +266,27 @@ database. Journal tags continue to own admission and recovery. A service outage
 defers remote operations without giving the agent a fallback write credential.
 Public repository reads/local Git editing continue. The isolated Project view
 must cover the private context needed for Method work.
+
+Private Project projections and sensitive operation results return directly to
+the private intake over TLS. Do not upload them to repository artifacts, step
+summaries or public logs. The intake authenticates payload reads and result
+callbacks using [GitHub Actions OIDC](https://docs.github.com/en/actions/reference/security/oidc):
+validate the signature against the fixed GitHub issuer/key source, exact service
+audience, token lifetime, repository ID/owner ID, `ref`, `workflow_ref`, approved
+`workflow_sha`, expected protected environment, `run_id` and first `run_attempt`.
+For a reusable job, additionally validate `job_workflow_ref` and
+`job_workflow_sha`. Verify the actual subject format during controlled Validation
+rather than guessing it or changing live OIDC settings here.
+
+Restrict each job exchange to the sealed request ID and its content digest;
+bind the first accepted exchange to its exact run and operation. Duplicates can
+return the same sanitized result; they cannot replace result bytes or start a
+second command. A valid token from another candidate, workflow, environment,
+repository or rerun is rejected. Callback delivery reports an observation and
+does not settle an uncertain controller intent without canonical proof. No
+OIDC callback grants merge, check publication, Project-write or new admission
+authority. This avoids a new shared callback signing key and keeps Project
+credentials inside the protected reader job.
 
 The exact-old-ref choice follows the documented
 [Git push lease with an explicit expected value](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force-with-leaseltrefnamegtltexpectgt).
@@ -496,13 +521,14 @@ repository validation. Runtime authoring adapters and publication wiring follow
 only when the listed input contracts and deployment decisions are resolved.
 Carry the following risks to independent review and controlled Validation.
 
-| Boundary                          | Required evidence                                                                                                                                                                                                                                                   |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Controlled-write planning         | Inactive default, repository scoping, unknown scope, shared/transitive dependency, unrelated write, exact PR/ref match, every nonterminal phase, confirmed cancellation, confirmed squash and command replay                                                        |
-| Existing journal and controller   | Competing admissions, durable append conflict, revocation before admission, known-unstarted result, lost handoff/ACK, replacement worker, positive-only recovery, held and released cancellation, no reuse of final admission                                       |
-| Sonar reader                      | Credential rejected or absent, no redirect, no arbitrary host, exact project/PR/head/base, pending/failed/missing CE task, gate errors, changed assignment/conditions, wrong analysis, duplicate PR, stale receipt, changed snapshot and sanitized network failures |
-| Producer and check-only publisher | Actual authenticated provider responses, protected source/run binding, secret-free candidate execution, namesake/substituted check, wrong App/install, changed head/base, single use and uncertain publication reconciliation                                       |
-| Live cutover and rollback         | Actual ordinary writer denial across the armed-to-terminal window, allowed independent writes, native automation consequences, mandatory check continuity, supervised squash, source/completion events and restoration                                              |
+| Boundary                          | Required evidence                                                                                                                                                                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Controlled-write planning         | Inactive default, repository scoping, unknown scope, shared/transitive dependency, unrelated write, exact PR/ref match, every nonterminal phase, confirmed cancellation, confirmed squash and command replay                                                              |
+| Existing journal and controller   | Competing admissions, durable append conflict, revocation before admission, known-unstarted result, lost handoff/ACK, replacement worker, positive-only recovery, held and released cancellation, no reuse of final admission                                             |
+| Sonar reader                      | Credential rejected or absent, no redirect, no arbitrary host, exact project/PR/head/base, pending/failed/missing CE task, gate errors, changed assignment/conditions, wrong analysis, duplicate PR, stale receipt, changed snapshot and sanitized network failures       |
+| Sealed intake and private results | Lost first reply, conflicting idempotency key, disposed staging with durable deduplication, duplicate dispatch, token expiry/renewal, wrong OIDC issuer/audience/repository/ref/workflow/environment/run, result replacement and private-data leakage into logs/artifacts |
+| Producer and check-only publisher | Actual authenticated provider responses, protected source/run binding, secret-free candidate execution, namesake/substituted check, wrong App/install, changed head/base, single use and uncertain publication reconciliation                                             |
+| Live cutover and rollback         | Actual ordinary writer denial across the armed-to-terminal window, allowed independent writes, native automation consequences, mandatory check continuity, supervised squash, source/completion events and restoration                                                    |
 
 Fixture tests establish logic only. Existing GitHub CI and mandatory Sonar
 remain candidate-bound validation for the new preparation PR. No unavailable
