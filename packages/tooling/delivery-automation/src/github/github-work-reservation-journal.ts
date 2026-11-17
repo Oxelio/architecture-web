@@ -254,6 +254,9 @@ export function createGitHubWorkReservationJournal(
       readonly reservation?: unknown;
     } | null;
     const position = { revision: tail.revision, tagSha: tail.tagSha };
+    if (body?.kind !== undefined && body.kind !== "project-status") {
+      throw new Error("MERGE_JOURNAL_KIND_UNVERIFIED");
+    }
     if (body?.kind !== "project-status") {
       return {
         position,

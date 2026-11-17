@@ -21,8 +21,8 @@ The adopted Method gitlink is `703051af50189a70399d82c82ca0f2b17c35f998`.
 The focused context is resolved for offline preparation. Credential provenance,
 authenticated Sonar producer evidence, and effective writer exclusion remain
 partially resolved for deployment. Human functional, structural and governance
-decisions keep their existing owners. This design does not establish a new
-standing grant or an accepted ADR.
+decisions keep their existing owners. ADR-0012 has separate Human structural
+acceptance; this design grants no standing operation or provisioning authority.
 
 ## Verified current deployment
 
@@ -199,10 +199,11 @@ shell program or credential selector.
 
 ### Proposed deployment and sealed-request flow
 
-[ADR-0012](decisions/0012-protected-authoring-intake.md) proposes the structural
+[ADR-0012](decisions/0012-protected-authoring-intake.md) records the accepted structural
 choice: one private remote MCP intake outside the agent security principal,
 dispatch-only GitHub access, and execution in an existing protected-main Actions
-boundary. The ADR is Proposed. No service, App or permission is provisioned by
+boundary. Its [Human acceptance](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963322874)
+is target-only. No service, App or permission is provisioned by
 this preparation. The product API is not the intake host.
 
 The service exposes the two authoring methods above and a fixed read-only
@@ -315,13 +316,13 @@ enforce a lease; the operation still needs its existing scope/authority.
 
 ### Runtime preparation sequence and Readiness allocation
 
-The new structural boundary requires explicit acceptance of Proposed ADR-0012.
-Provisioning its host or dispatch App is a later separate operation. Design
-acceptance does not authorize any live credential or issuer change.
+The new structural boundary has explicit acceptance in ADR-0012. Provisioning
+its host or dispatch App is a later separate operation. Design acceptance does
+not authorize any live credential or issuer change.
 
 | Sequence | Execution unit and canonical input                                                         | Required result before advancing                                                                                                               |
 | -------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | Structural review of ADR-0012 and this intake contract                                     | Human project acceptance or a concrete architecture revision; no deployment                                                                    |
+| 1        | Structural review of ADR-0012 and this intake contract                                     | Human project acceptance recorded; no deployment                                                                                               |
 | 2        | Inactive request validation and bounded authoring journal envelope in the delivery package | Formal Readiness, immutable subject/request binding, all existing journal readers fail closed, migration and crash/replay fixtures             |
 | 3        | Inactive fixed Git/PR/Issue/Task/evidence adapters and Project projection                  | Exact before-state, credential-free fixture tests, shared dependency invalidation, positive-only recovery and unrelated-operation preservation |
 | 4        | Protected producer/receipt and check-only publisher composition, still disabled            | Source/run/artifact provenance and strict identity verification; fixtures for all six current Sonar criteria and substitution failures         |
@@ -539,6 +540,21 @@ repository validation. Runtime authoring adapters and publication wiring follow
 only when the listed input contracts and deployment decisions are resolved.
 Carry the following risks to independent review and controlled Validation.
 
+After [structural acceptance](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963322874)
+and the [next scoped Readiness](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963430002),
+the request metadata unit adds deterministic subject/client-key identity and
+command digests for the six fixed operation classes. It checks existing-object
+metadata and creates a minimized public intent projection. Neither preparation,
+projection nor replay classification grants admission or verifies Role authority.
+Raw subject, client key, payload and private Project values are absent from the
+projection. Existing journal consumers explicitly reject unsupported kinds,
+including a record with otherwise valid legacy reservation fields.
+
+Durable request history/admission, creation forms, scoped writer integration and
+remote adapters remain following units. No hosted intake or workflow invokes
+the request metadata functions. Current valid reservation/Status records keep
+their existing behavior; unsupported protocol data is not an empty boundary.
+
 | Boundary                          | Required evidence                                                                                                                                                                                                                                                         |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Controlled-write planning         | Inactive default, repository scoping, unknown scope, shared/transitive dependency, unrelated write, exact PR/ref match, every nonterminal phase, confirmed cancellation, confirmed squash and command replay                                                              |
@@ -557,8 +573,8 @@ local Docker result is required for these delivery-tooling-only changes.
 The inactive modules introduce no deployed service, credential, port exposed to a
 bounded context, workflow, journal schema, check name or production switch.
 Their existing-package responsibilities do not require an additional ADR.
-The new protected intake structure now has a concrete Proposed ADR-0012 for
-Human project acceptance. Provisioning it and changing the effective Sonar issuer
+The protected intake structure has Human project acceptance in ADR-0012.
+Provisioning it and changing the effective Sonar issuer
 retain their separate operational/governance and cutover boundaries.
 
 Code, architecture and compliance review use the adopted Method's separate

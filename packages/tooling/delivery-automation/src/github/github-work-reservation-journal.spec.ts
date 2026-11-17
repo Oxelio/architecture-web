@@ -7,6 +7,7 @@ import {
   canRecordWorkCompletion,
   createGitHubWorkReservationJournal,
 } from "./github-work-reservation-journal.js";
+import { appendMergeJournalRevision } from "./merge-reservation-journal.js";
 import {
   executeReservedGitHubInvalidation,
   executeReservedGitHubWorkIntegration,
@@ -290,6 +291,56 @@ function fixture() {
 }
 
 describe("protected manual check publisher", () => {
+  it.each(["authoring", "unknown", null, 1])(
+    "rejects unsupported journal kind %s even with legacy-looking reservation fields",
+    async (kind) => {
+      const { input, journal, state } = fixture();
+      const fetchImpl = input.scope.publisher.fetchImpl;
+      if (!fetchImpl) {
+        throw new Error("Expected fixture transport");
+      }
+      await appendMergeJournalRevision({
+        repositoryToken: controllerToken,
+        previous: null,
+        candidateHeadSha: candidate.headSha,
+        body: JSON.stringify({
+          kind,
+          reservationId: "delivery-control/r1",
+          candidate,
+          state: { phase: "reserved" },
+          pending: { requestId: "a".repeat(64) },
+        }),
+        fetchImpl,
+      });
+      const connection = { repositoryToken: "test-reader", fetchImpl };
+      const pending = {
+        commentId: 1,
+        workNumber: 140,
+        authorityId: 2,
+        commandDigest: "a".repeat(64),
+      };
+      const position = { revision: 1, tagSha: "b".repeat(40) };
+      const checks = [
+        () => journal().read(),
+        () => journal().readProjectStatusBoundary(),
+        () => journal().reserve(candidate),
+        () =>
+          journal().beginProjectStatusWrite({
+            previous: position,
+            workflowSha: candidate.headSha,
+            intent: pending,
+          }),
+        () => journal().finishProjectStatusWrite(position, pending),
+        () => canPublishManualWorkGate(connection),
+        () => canRecordWorkCompletion(connection, 140),
+      ];
+      for (const check of checks) {
+        await expect(check()).rejects.toThrow("MERGE_JOURNAL_KIND_UNVERIFIED");
+      }
+      expect(state.projectWrites).toBe(0);
+    },
+  );
+
   it("admits the ordinary publisher on an empty journal", async () => {
     const { input } = fixture();
     const { repositoryToken, fetchImpl } = input.scope.publisher;

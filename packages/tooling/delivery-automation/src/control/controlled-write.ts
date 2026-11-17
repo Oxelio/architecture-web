@@ -43,17 +43,63 @@ const kinds = new Set<ControlledWriteKind>([
   "record-project-field",
 ]);
 
-function validIds(values: readonly number[]) {
+function validIds(values: unknown): values is readonly number[] {
   return (
+    Array.isArray(values) &&
     values.every((id) => Number.isSafeInteger(id) && id > 0) &&
     new Set(values).size === values.length
   );
 }
 
-function validRefs(values: readonly string[]) {
+export function isControlledBranchRef(value: unknown): value is string {
   return (
+    typeof value === "string" &&
+    value.startsWith("refs/heads/") &&
+    value.length > 11 &&
+    !/[\p{Cc}\p{White_Space}~^:?*]/u.test(value) &&
+    !value.includes("[") &&
+    !value.includes("\\") &&
+    !value.includes("..") &&
+    !value.includes("@{") &&
+    value
+      .split("/")
+      .every(
+        (part) => part && !part.startsWith(".") && !part.endsWith(".lock"),
+      ) &&
+    !value.endsWith(".")
+  );
+}
+
+function validRefs(values: unknown): values is readonly string[] {
+  return (
+    Array.isArray(values) &&
     new Set(values).size === values.length &&
-    values.every((ref) => ref.startsWith("refs/heads/") && ref.length > 11)
+    values.every(isControlledBranchRef)
+  );
+}
+
+export function isControlledWriteScope(
+  value: unknown,
+): value is ControlledWriteScope {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const scope = value as Record<string, unknown>;
+  return (
+    Object.keys(scope).length === 5 &&
+    [
+      "repositoryId",
+      "kind",
+      "affectedWorks",
+      "affectedPulls",
+      "affectedRefs",
+    ].every((key) => Object.hasOwn(scope, key)) &&
+    scope["repositoryId"] === 1336937640 &&
+    kinds.has(scope["kind"] as ControlledWriteKind) &&
+    validIds(scope["affectedWorks"]) &&
+    scope["affectedWorks"].length > 0 &&
+    validIds(scope["affectedPulls"]) &&
+    validRefs(scope["affectedRefs"])
   );
 }
 
@@ -71,14 +117,7 @@ export function planControlledWrite(input: {
     return "inactive";
   }
   const { scope, reserved } = input;
-  if (
-    scope.repositoryId !== 1336937640 ||
-    !kinds.has(scope.kind) ||
-    !validIds(scope.affectedWorks) ||
-    scope.affectedWorks.length === 0 ||
-    !validIds(scope.affectedPulls) ||
-    !validRefs(scope.affectedRefs)
-  ) {
+  if (!isControlledWriteScope(scope)) {
     return "denied";
   }
   if (!input.inventoryComplete || input.writePending) {

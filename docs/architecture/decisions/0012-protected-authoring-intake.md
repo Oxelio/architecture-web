@@ -1,7 +1,7 @@
 # ADR-0012 — Isolate ordinary authoring behind protected intake
 
-**Status:** Proposed
-**Content status:** Proposed Target
+**Status:** Accepted
+**Content status:** Canonical (Accepted Target)
 **Document type:** Architecture Decision Record
 **Domain:** Delivery automation / credential boundaries
 
@@ -11,6 +11,8 @@
 writer boundary required by the accepted Work #115 controller target. Its
 [human decision](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6960488409)
 authorizes preparation, not provisioning, permission changes or activation.
+The maintainer subsequently [accepted this structural target](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963322874).
+That acceptance grants none of the separate live operations.
 The [Technical Design](../controlled-authoring-and-sonar-evidence.md) owns the
 dated inventory, operation contracts and validation sequence. The
 [delivery profile](../../project/delivery-pipeline.md) retains Method Role,
@@ -69,10 +71,10 @@ available. Sealed source payloads need bounded staging and disposal controls.
 existing protected environments and duplicates the controller's durable
 execution/recovery boundary. A submission-facing process gains excessive power.
 
-## Proposed decision
+## Decision
 
-**Recommended option:** B. This is a proposal requiring explicit Human project
-acceptance under the [Project Method Profile](../../project/project-method-profile.md#4-human-authority-policy).
+**Chosen option:** B, explicitly accepted by the Human project authority under
+the [Project Method Profile](../../project/project-method-profile.md#4-human-authority-policy).
 
 Deploy one private server-side MCP intake outside the ordinary agent/desktop
 security principal. Keep it outside the product API and bounded contexts.
@@ -198,16 +200,16 @@ separate acceptance and Validation requirements.
 
 ## Target and synchronization
 
-**Approved target affected:** no target changes until this proposal is accepted.
-It refines the implementation boundary proposed for the accepted controller
-freshness objective; it grants no new decision authority.
+**Approved target affected:** the accepted target refines the implementation
+boundary for the controller freshness objective. It is not deployed and grants
+no new decision authority.
 
 **Current-state owners to synchronize when effective:** the integration design,
 delivery deployment documentation and installed permission inventory. The
 product architecture and Functional Specifications have no amendment here.
 
-**Implementation / migration implications:** first accept the structural target,
-then assess Readiness for the inactive request/journal/adapters execution unit.
+**Implementation / migration implications:** structural acceptance is recorded;
+assess Readiness for the inactive request/journal/adapters execution unit.
 Real credentials, provider and writer-denial tests occur during separately
 authorized controlled Validation. Only a later authorized cutover can replace
 ordinary writers. Keep #140 Preparing, both current drafts, mandatory checks
