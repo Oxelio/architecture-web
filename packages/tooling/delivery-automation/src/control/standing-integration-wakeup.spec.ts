@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { readStandingIntegrationWakeup } from "./standing-integration-wakeup.js";
+import {
+  readStandingEvidenceWakeup,
+  readStandingIntegrationWakeup,
+} from "./standing-integration-wakeup.js";
 
 const repo = { id: 1336937640 };
 const headSha = "a".repeat(40);
@@ -87,5 +90,87 @@ describe("standing Work integration request", () => {
     expect(await readStandingIntegrationWakeup(input)).toEqual({
       status: "ignored",
     });
+  });
+});
+
+describe("candidate-bound evidence wakeup", () => {
+  const candidate = { workNumber: 115, pullNumber: 141, headSha, baseSha };
+  const record = { ...candidate, kind: "code-review", decision: "accepted" };
+
+  function evidenceFixture() {
+    const { readPull, ownsCandidate, trustedMainSha } = fixture();
+    return {
+      readPull,
+      ownsCandidate,
+      trustedMainSha,
+      authorizeSignal: vi.fn(async () => true),
+      event: {
+        action: "created",
+        repository: repo,
+        issue: { number: candidate.workNumber },
+        comment: { id: 82, body: JSON.stringify(record) },
+      },
+    };
+  }
+
+  it("reselects the exact candidate after a late review on the Work or owning PR", async () => {
+    const input = evidenceFixture();
+    expect(await readStandingEvidenceWakeup(input)).toEqual({
+      status: "selected",
+      candidate,
+    });
+    const prWakeup = {
+      ...input,
+      event: {
+        ...input.event,
+        issue: { number: candidate.pullNumber, pull_request: {} },
+      },
+    };
+    expect(await readStandingEvidenceWakeup(prWakeup)).toEqual({
+      status: "selected",
+      candidate,
+    });
+    expect(input.readPull).toHaveBeenCalledWith(candidate.pullNumber);
+    expect(input.ownsCandidate).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores unrelated, malformed or rejected evidence without reading a PR", async () => {
+    const input = evidenceFixture();
+    for (const change of [
+      { comment: { body: "not evidence" } },
+      {
+        comment: { body: JSON.stringify({ ...record, decision: "rejected" }) },
+      },
+      { issue: { number: 999 } },
+      { repository: { id: 3 } },
+      { action: "edited" },
+    ]) {
+      expect(
+        await readStandingEvidenceWakeup({
+          ...input,
+          event: { ...input.event, ...change },
+        }),
+      ).toEqual({ status: "ignored" });
+    }
+    expect(input.readPull).not.toHaveBeenCalled();
+  });
+
+  it("keeps unauthorized comments outside the protected queue", async () => {
+    const input = evidenceFixture();
+    input.authorizeSignal.mockResolvedValue(false);
+    expect(await readStandingEvidenceWakeup(input)).toEqual({
+      status: "ignored",
+    });
+    expect(input.readPull).not.toHaveBeenCalled();
+  });
+
+  it("ignores evidence for a previous candidate even when the Work and PR still match", async () => {
+    const input = evidenceFixture();
+    const stale = { ...record, headSha: "c".repeat(40) };
+    input.event.comment.body = JSON.stringify(stale);
+    expect(await readStandingEvidenceWakeup(input)).toEqual({
+      status: "ignored",
+    });
+    expect(input.ownsCandidate).not.toHaveBeenCalled();
   });
 });

@@ -76,13 +76,63 @@ jobs:
           DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts
 
-  standing-controller:
+  standing-evidence-intake:
     if: >-
       github.repository_id == '1336937640' &&
-      github.event_name == 'workflow_run' &&
+      github.event_name == 'issue_comment' &&
       github.ref == 'refs/heads/main' &&
       github.run_attempt == 1 &&
-      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.comment.body, '{') &&
+      contains(github.event.comment.body, '"accepted"') &&
+      ((vars.DELIVERY_STANDING_EXECUTION_ENABLED == 'true' &&
+        vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID != '') ||
+       (vars.DELIVERY_STANDING_EXECUTION_ENABLED != 'true' &&
+        vars.DELIVERY_STANDING_VALIDATION_COMMENT_ID != ''))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      eligible_signal: ${{ steps.intake.outputs.eligible_signal }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Authenticate the wakeup outside the privileged queue
+        id: intake
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_STANDING_WAKEUP_ONLY: "true"
+          DELIVERY_STANDING_EXECUTION_ENABLED: ${{ vars.DELIVERY_STANDING_EXECUTION_ENABLED }}
+          DELIVERY_STANDING_BOUNDARY_COMMENT_ID: ${{ vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID }}
+          DELIVERY_STANDING_VALIDATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_VALIDATION_COMMENT_ID }}
+        run: |
+          set -euo pipefail
+          pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts > wakeup.json
+          if jq -e '.status == "selected"' wakeup.json >/dev/null; then
+            printf 'eligible_signal=true\n' >> "$GITHUB_OUTPUT"
+          fi
+
+  standing-controller:
+    needs: standing-evidence-intake
+    if: >-
+      !cancelled() &&
+      github.repository_id == '1336937640' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.head_repository.id == 1336937640) ||
+       (github.event_name == 'issue_comment' &&
+        needs.standing-evidence-intake.outputs.eligible_signal == 'true')) &&
       ((vars.DELIVERY_STANDING_EXECUTION_ENABLED == 'true' &&
         vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID != '') ||
        (vars.DELIVERY_STANDING_EXECUTION_ENABLED != 'true' &&

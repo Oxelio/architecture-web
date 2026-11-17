@@ -296,7 +296,7 @@ describe("protected manual check publisher", () => {
   it.each(["armed", "released"] as const)(
     "keeps the manual check out while the native request is %s",
     async (phase) => {
-      const { input, journal } = fixture();
+      const { input, journal, state } = fixture();
       const persisted = journal();
       const initial = await persisted.reserve(candidate);
       if (!initial) {
@@ -315,6 +315,11 @@ describe("protected manual check publisher", () => {
         ...(fetchImpl ? { fetchImpl } : {}),
       };
       await expect(canPublishManualWorkGate(connection)).resolves.toBe(false);
+      state.merged = true;
+      state.squashParent = "d".repeat(40);
+      await expect(canPublishManualWorkGate(connection)).resolves.toBe(false);
+      state.squashParent = candidate.baseSha;
+      await expect(canPublishManualWorkGate(connection)).resolves.toBe(true);
       await persisted.append(active, {
         candidate,
         state: { phase: "merged", sha: squashSha },

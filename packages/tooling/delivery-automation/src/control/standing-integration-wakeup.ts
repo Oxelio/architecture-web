@@ -83,16 +83,9 @@ export async function readStandingIntegrationWakeup(input: {
       baseSha: pr.base.sha,
     };
     if (
-      pr.number !== pullNumber ||
-      pr.state !== "open" ||
-      pr.draft !== false ||
-      pr.merged !== false ||
-      pr.base.ref !== "main" ||
-      pr.base.repo?.id !== repositoryId ||
-      pr.head.repo?.id !== repositoryId ||
-      pr.head.sha !== run.head_sha ||
-      pr.base.sha !== input.trustedMainSha ||
       !isWorkIntegrationCandidate(candidate) ||
+      !matchesCurrentPull(pr, candidate, input.trustedMainSha) ||
+      pr.head.sha !== run.head_sha ||
       !(await input.ownsCandidate(candidate))
     ) {
       return { status: "ignored" };
@@ -101,4 +94,112 @@ export async function readStandingIntegrationWakeup(input: {
   } catch {
     return { status: "ignored" };
   }
+}
+
+interface EvidenceWakeup {
+  readonly action?: string;
+  readonly repository?: { readonly id?: number };
+  readonly issue?: { readonly number?: number; readonly pull_request?: object };
+  readonly comment?: { readonly id?: number; readonly body?: string };
+}
+
+const wakeupEvidence = new Set([
+  "code-review",
+  "architecture-review",
+  "functional-review",
+  "specialist-review",
+  "validation",
+  "working-decisions",
+  "functional-approval",
+  "governance-approval",
+  "adr-approval",
+]);
+
+export async function readStandingEvidenceWakeup(input: {
+  readonly event: EvidenceWakeup | null;
+  readonly authorizeSignal: (
+    commentId: number,
+    kind: string,
+    body: string,
+  ) => Promise<boolean>;
+  readonly trustedMainSha: string;
+  readonly readPull: (number: number) => Promise<CandidatePull>;
+  readonly ownsCandidate: (candidate: MergeCandidate) => Promise<boolean>;
+}): Promise<
+  | { readonly status: "selected"; readonly candidate: MergeCandidate }
+  | { readonly status: "ignored" }
+> {
+  const { event } = input;
+  const body = event?.comment?.body;
+  const issue = event?.issue;
+  if (
+    event?.action !== "created" ||
+    event.repository?.id !== repositoryId ||
+    !positiveInteger(issue?.number) ||
+    !positiveInteger(event.comment?.id) ||
+    typeof body !== "string" ||
+    body.length > 8192
+  ) {
+    return { status: "ignored" };
+  }
+
+  try {
+    const value: unknown = JSON.parse(body);
+    if (!isWorkIntegrationCandidate(value)) {
+      return { status: "ignored" };
+    }
+    const record = value as MergeCandidate & {
+      readonly kind?: string;
+      readonly decision?: string;
+    };
+    if (
+      !record.kind ||
+      !wakeupEvidence.has(record.kind) ||
+      record.decision !== "accepted" ||
+      issue.number !==
+        (issue.pull_request ? record.pullNumber : record.workNumber)
+    ) {
+      return { status: "ignored" };
+    }
+
+    if (!(await input.authorizeSignal(event.comment.id, record.kind, body))) {
+      return { status: "ignored" };
+    }
+    const pr = await input.readPull(record.pullNumber);
+    if (
+      !matchesCurrentPull(pr, record, input.trustedMainSha) ||
+      !(await input.ownsCandidate(record))
+    ) {
+      return { status: "ignored" };
+    }
+    // Event data locates the candidate. The controller independently reads and
+    // authorizes its live evidence before any durable operation.
+    const { workNumber, pullNumber, headSha, baseSha } = record;
+    return {
+      status: "selected",
+      candidate: { workNumber, pullNumber, headSha, baseSha },
+    };
+  } catch {
+    return { status: "ignored" };
+  }
+}
+
+function matchesCurrentPull(
+  pr: CandidatePull,
+  candidate: MergeCandidate,
+  trustedMainSha: string,
+): boolean {
+  return (
+    pr.number === candidate.pullNumber &&
+    pr.state === "open" &&
+    pr.draft === false &&
+    pr.merged === false &&
+    pr.base.ref === "main" &&
+    pr.base.repo?.id === repositoryId &&
+    pr.head.repo?.id === repositoryId &&
+    workReference(pr.body) === candidate.workNumber &&
+    pr.head.sha === candidate.headSha &&
+    pr.base.sha === candidate.baseSha &&
+    pr.base.sha === trustedMainSha
+  );
 }

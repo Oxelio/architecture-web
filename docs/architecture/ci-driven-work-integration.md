@@ -57,7 +57,7 @@ checks-only issuer and Project reads and writes in their own protected
 credentials. No installation, ruleset, permission or activation change follows
 from accepting this design.
 
-A successful Repository CI event wakes the read-only request workflow. The
+A successful Repository CI event wakes the request workflow. A new candidate-bound evidence comment can also wake the protected controller after CI. A read-only intake verifies the comment issuer before it can enter the protected queue. The controller uses both events only as hints and reloads applicable required checks, candidate facts and authority. The
 controller separately resolves the owning Work and checks the active Project
 classification, GitHub Issue characteristics and complete PR file inventory.
 The controller discovers the current evidence on the Work Issue and owning PR.

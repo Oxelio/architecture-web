@@ -29,14 +29,26 @@ interface JournalConnection {
 // Keep that writer out until the native reservation has conclusively ended.
 export async function canPublishManualWorkGate(connection: JournalConnection) {
   const entry = await createGitHubWorkReservationJournal(connection).read();
-  return !entry || isTerminal(entry.reservation.state);
+  return !entry || (await reservationHasSettled(connection, entry.reservation));
 }
 
-function isTerminal(state: MergeReservationState): boolean {
+async function reservationHasSettled(
+  connection: JournalConnection,
+  reservation: MergeReservation,
+): Promise<boolean> {
+  const { phase } = reservation.state;
   return (
-    state.phase === "cancelled" ||
-    state.phase === "merged" ||
-    state.phase === "invalidated"
+    phase === "cancelled" ||
+    phase === "merged" ||
+    phase === "invalidated" ||
+    (await observeReservedWorkSquash(
+      {
+        ...connection,
+        repository: "Oxelio/architecture-web",
+        repositoryId: 1336937640,
+      },
+      reservation.candidate,
+    )) !== null
   );
 }
 
@@ -45,22 +57,10 @@ export async function canRecordWorkCompletion(
   workNumber: number,
 ): Promise<boolean> {
   const entry = await createGitHubWorkReservationJournal(connection).read();
-  if (!entry || isTerminal(entry.reservation.state)) {
+  if (!entry || (await reservationHasSettled(connection, entry.reservation))) {
     return true;
   }
   const { candidate } = entry.reservation;
-  if (
-    await observeReservedWorkSquash(
-      {
-        ...connection,
-        repository: "Oxelio/architecture-web",
-        repositoryId: 1336937640,
-      },
-      candidate,
-    )
-  ) {
-    return true;
-  }
   if (candidate.workNumber === workNumber) {
     return false;
   }

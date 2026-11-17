@@ -3,7 +3,10 @@ import { isDeepStrictEqual } from "node:util";
 
 import { resolveActivationContext } from "../config/activation-context.js";
 import { readStandingDelegation } from "../control/standing-delegation.js";
-import { readStandingIntegrationWakeup } from "../control/standing-integration-wakeup.js";
+import {
+  readStandingEvidenceWakeup,
+  readStandingIntegrationWakeup,
+} from "../control/standing-integration-wakeup.js";
 import { verifyControllerInstallation } from "../github/controller-installation.js";
 import {
   authenticateDirectSquashRequest,
@@ -38,6 +41,20 @@ const event: unknown = JSON.parse(
 );
 if (process.env["GITHUB_EVENT_NAME"] === "workflow_run") {
   writeJson(await handleStandingWakeup(event));
+} else if (standingExecutionRequested()) {
+  const wakeup = await readStandingEvidenceWakeup({
+    event: event as Parameters<typeof readStandingEvidenceWakeup>[0]["event"],
+    authorizeSignal: authorizeWakeupComment,
+    trustedMainSha: requiredEnvironment("TRUSTED_WORKFLOW_SHA"),
+    readPull: (number) => githubRepositoryRequest(`/pulls/${number}`),
+    ownsCandidate: workOwnsCandidate,
+  });
+  writeJson(
+    process.env["DELIVERY_STANDING_WAKEUP_ONLY"] !== "true" &&
+      wakeup.status === "selected"
+      ? await executeStandingCandidate(wakeup.candidate)
+      : wakeup,
+  );
 } else {
   const outcome = await authenticateDirectSquashRequest({
     event: event as DirectSquashEvent,
@@ -57,10 +74,59 @@ if (process.env["GITHUB_EVENT_NAME"] === "workflow_run") {
   }
 }
 
-async function handleStandingWakeup(event: unknown) {
-  const executing =
+async function authorizeWakeupComment(
+  commentId: number,
+  kind: string,
+  body: string,
+): Promise<boolean> {
+  const standing =
+    process.env["DELIVERY_STANDING_EXECUTION_ENABLED"] === "true";
+  const [comment, boundary] = await Promise.all([
+    githubRepositoryRequest<{
+      readonly id: number;
+      readonly body: string;
+      readonly created_at: string;
+      readonly updated_at: string;
+      readonly user: { readonly id: number };
+      readonly performed_via_github_app?: { readonly id: number } | null;
+    }>(`/issues/comments/${commentId}`),
+    readMaintainerRecord<StandingControllerBoundary>(
+      standing
+        ? "DELIVERY_STANDING_BOUNDARY_COMMENT_ID"
+        : "DELIVERY_STANDING_VALIDATION_COMMENT_ID",
+      115,
+    ),
+  ]);
+  const authority = boundary?.evidenceAuthority;
+  const expected = authority?.[kind as keyof typeof authority];
+  const appId =
+    comment.performed_via_github_app === null
+      ? null
+      : comment.performed_via_github_app?.id;
+  return (
+    boundary?.kind === "standing-work-controller-boundary" &&
+    boundary.repositoryId === 1336937640 &&
+    boundary.mode === (standing ? "standing" : "supervised") &&
+    comment.id === commentId &&
+    comment.body === body &&
+    !!comment.created_at &&
+    comment.created_at === comment.updated_at &&
+    Array.isArray(expected) &&
+    expected.some(
+      (issuer) => issuer.authorId === comment.user.id && issuer.appId === appId,
+    )
+  );
+}
+
+function standingExecutionRequested(): boolean {
+  return (
     process.env["DELIVERY_STANDING_EXECUTION_ENABLED"] === "true" ||
-    !!process.env["DELIVERY_STANDING_VALIDATION_COMMENT_ID"];
+    !!process.env["DELIVERY_STANDING_VALIDATION_COMMENT_ID"]
+  );
+}
+
+async function handleStandingWakeup(event: unknown) {
+  const executing = standingExecutionRequested();
   if (
     !executing &&
     process.env["DELIVERY_STANDING_REQUESTS_ENABLED"] !== "true"
