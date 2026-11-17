@@ -13,6 +13,7 @@ const command = {
   workNumber: 115,
   from: "Preparing",
   to: "Ready",
+  statusUpdatedAt: "2026-11-17T08:48:00Z",
   evidenceCommentIds: [81],
 };
 const now = 1_800_000_000_000;
@@ -81,6 +82,8 @@ describe("Project Status command intake", () => {
   it.each([
     { workNumber: 140 },
     { projectNumber: 4 },
+    { statusUpdatedAt: "2026-11-17T08:49:00Z" },
+    { statusUpdatedAt: "not-a-date" },
     { to: "Done" },
     { to: "Preparing" },
     { evidenceCommentIds: [81, 81] },

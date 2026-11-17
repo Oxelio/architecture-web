@@ -25,6 +25,7 @@ export interface ProjectStatusCommand {
   readonly workNumber: number;
   readonly from: CoordinatedStatus;
   readonly to: CoordinatedStatus;
+  readonly statusUpdatedAt: string;
   readonly evidenceCommentIds: readonly number[];
 }
 
@@ -101,13 +102,17 @@ export async function authenticateProjectStatusCommand(input: {
     const evidence = command?.["evidenceCommentIds"];
     if (
       command?.["kind"] !== "record-work-status" ||
-      Object.keys(command).length !== 7 ||
+      Object.keys(command).length !== 8 ||
       command["repositoryId"] !== repositoryId ||
       command["projectNumber"] !== projectNumber ||
       command["workNumber"] !== input.workNumber ||
       !isCoordinatedStatus(command["from"]) ||
       !isCoordinatedStatus(command["to"]) ||
       command["from"] === command["to"] ||
+      typeof command["statusUpdatedAt"] !== "string" ||
+      !(
+        Date.parse(comment.created_at) > Date.parse(command["statusUpdatedAt"])
+      ) ||
       !Array.isArray(evidence) ||
       evidence.length < 1 ||
       evidence.length > 20 ||
@@ -125,6 +130,7 @@ export async function authenticateProjectStatusCommand(input: {
       workNumber: input.workNumber,
       from: command["from"],
       to: command["to"],
+      statusUpdatedAt: command["statusUpdatedAt"],
       evidenceCommentIds: evidence,
     };
   } catch {

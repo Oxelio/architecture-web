@@ -323,6 +323,9 @@ async function verifyTransitionEvidence(
           `https://api.github.com/repos/${repository}/issues/${command.workNumber}` ||
         !comment.created_at ||
         comment.created_at !== comment.updated_at ||
+        !(
+          Date.parse(comment.created_at) > Date.parse(command.statusUpdatedAt)
+        ) ||
         comment.body.length > 4096
       ) {
         return null;
@@ -335,6 +338,7 @@ async function verifyTransitionEvidence(
         record["workNumber"] !== command.workNumber ||
         record["from"] !== command.from ||
         record["to"] !== command.to ||
+        record["statusUpdatedAt"] !== command.statusUpdatedAt ||
         typeof record["kind"] !== "string" ||
         issuerApp === undefined
       ) {

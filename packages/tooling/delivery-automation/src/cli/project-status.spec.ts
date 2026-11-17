@@ -86,6 +86,7 @@ const command = {
   workNumber: 140,
   from: "Preparing",
   to: "Ready",
+  statusUpdatedAt: "2026-11-17T08:48:00Z",
   evidenceCommentIds: [84],
 };
 const commandComment = {
@@ -108,6 +109,7 @@ const evidenceComment = {
     workNumber: 140,
     from: "Preparing",
     to: "Ready",
+    statusUpdatedAt: command.statusUpdatedAt,
   }),
 };
 const request = vi.mocked(githubRepositoryRequest);
@@ -225,6 +227,32 @@ describe("protected Project Status entrypoint", () => {
       } else {
         vi.mocked(isStandingDelegationRevoked).mockResolvedValue(true);
       }
+      await import("./project-status.js");
+      expect(writeJson).toHaveBeenCalledWith({ status: "denied" });
+      expect(runner).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["stale", "different epoch"] as const)(
+    "rejects an otherwise authorized Readiness record from a %s",
+    async (reason) => {
+      const changed =
+        reason === "stale"
+          ? {
+              ...evidenceComment,
+              created_at: "2026-11-17T08:47:00Z",
+              updated_at: "2026-11-17T08:47:00Z",
+            }
+          : {
+              ...evidenceComment,
+              body: JSON.stringify({
+                ...JSON.parse(evidenceComment.body),
+                statusUpdatedAt: "2026-11-17T08:47:00Z",
+              }),
+            };
+      request.mockImplementation(async (path) =>
+        path === "/issues/comments/84" ? changed : responses(path),
+      );
       await import("./project-status.js");
       expect(writeJson).toHaveBeenCalledWith({ status: "denied" });
       expect(runner).not.toHaveBeenCalled();

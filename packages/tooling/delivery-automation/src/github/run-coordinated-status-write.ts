@@ -22,6 +22,7 @@ export interface ProjectStatusBinding {
 interface ProjectStatusSnapshot {
   readonly binding: ProjectStatusBinding;
   readonly name: string;
+  readonly updatedAt: string;
 }
 
 interface AuthorizedStatusWrite {
@@ -100,7 +101,7 @@ export async function runCoordinatedStatusWrite(input: {
           buildStatusIntent(input.commentId, previous, observed.binding),
         ) ||
         (await readProjectStatusReceipt(receipt)) !== true ||
-        observed.name !== previous.command.to ||
+        !observesDestination(observed, previous.command, observed.binding) ||
         !(await input.verifyBoundary())
       ) {
         return "deferred";
@@ -160,6 +161,7 @@ export async function runCoordinatedStatusWrite(input: {
     if (
       current.pending ||
       snapshot?.name !== command.from ||
+      Date.parse(snapshot.updatedAt) !== Date.parse(command.statusUpdatedAt) ||
       !(await stillAuthorized())
     ) {
       return "deferred";
@@ -205,9 +207,10 @@ export async function runCoordinatedStatusWrite(input: {
     }
     if (
       dispatch !== "confirmed" ||
-      !isDeepStrictEqual(
-        { binding: snapshot.binding, name: command.to },
+      !observesDestination(
         await input.readStatus(command),
+        command,
+        snapshot.binding,
       )
     ) {
       return "deferred";
@@ -218,6 +221,18 @@ export async function runCoordinatedStatusWrite(input: {
   } catch {
     return "deferred";
   }
+}
+
+function observesDestination(
+  current: ProjectStatusSnapshot | null,
+  command: ProjectStatusCommand,
+  binding: ProjectStatusBinding,
+): boolean {
+  return (
+    current?.name === command.to &&
+    Date.parse(current.updatedAt) > Date.parse(command.statusUpdatedAt) &&
+    isDeepStrictEqual(current.binding, binding)
+  );
 }
 
 function buildStatusIntent(

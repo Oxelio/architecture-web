@@ -31,6 +31,7 @@ interface ProjectSnapshot {
           readonly status?: {
             readonly name: string;
             readonly optionId: string;
+            readonly updatedAt: string;
             readonly field: { readonly id: string };
           };
         }[];
@@ -57,7 +58,7 @@ const readStatus = `query ArchitectureWebWorkStatus($number: Int!) {
           id project { id }
           status: fieldValueByName(name: "Status") {
             ... on ProjectV2ItemFieldSingleSelectValue {
-              name optionId
+              name optionId updatedAt
               field { ... on ProjectV2SingleSelectField { id } }
             }
           }
@@ -141,6 +142,7 @@ export function createCoordinatedProjectStatusWriter(config: {
 
     return {
       name: current.name,
+      updatedAt: current.updatedAt,
       binding: {
         projectId: snapshot.projectId,
         itemId: snapshot.item.id,
@@ -161,6 +163,8 @@ export function createCoordinatedProjectStatusWriter(config: {
       const snapshot = await readStatus(command);
       if (
         snapshot?.name !== command.from ||
+        Date.parse(snapshot.updatedAt) !==
+          Date.parse(command.statusUpdatedAt) ||
         !isDeepStrictEqual(snapshot.binding, binding) ||
         !(await authorize())
       ) {
@@ -213,6 +217,7 @@ async function readCanonicalProjectStatus(
     items.length !== 1 ||
     !item?.id ||
     item.status?.field.id !== owner.field.id ||
+    !Number.isFinite(Date.parse(item.status.updatedAt)) ||
     !statusOption(owner.field.options, item.status.name, item.status.optionId)
   ) {
     return null;

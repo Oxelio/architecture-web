@@ -52,6 +52,7 @@ function fixture() {
     loseCheckResponse: false,
     calls: 0,
     status: "validating",
+    statusUpdatedAt: "2026-11-17T08:48:00Z",
     projectWrites: 0,
     loseProjectResponse: false,
     merged: false,
@@ -120,6 +121,7 @@ function fixture() {
                       status: {
                         name: selected?.name,
                         optionId: selected?.id,
+                        updatedAt: state.statusUpdatedAt,
                         field: { id: change.fieldId },
                       },
                     },
@@ -560,6 +562,7 @@ describe("canonical Project #3 Status writer", () => {
       workNumber: candidate.workNumber,
       from: change.from.name,
       to: change.to.name,
+      statusUpdatedAt: "2026-11-17T08:48:00Z",
       evidenceCommentIds: [202],
     } as const;
     const writer = createCoordinatedProjectStatusWriter(config);
@@ -809,11 +812,13 @@ describe("Coordinated Project Status execution", () => {
         workNumber: 140,
         from: "Validating",
         to: "Reviewing",
+        statusUpdatedAt: "2026-11-17T08:48:00Z",
         evidenceCommentIds: [134],
       },
     } as const;
     const state = {
       status: "Validating",
+      statusUpdatedAt: "2026-11-17T08:48:00Z",
       allowed: true,
       verified: true,
       loseResponse: false,
@@ -834,6 +839,7 @@ describe("Coordinated Project Status execution", () => {
       mayWriteWithReservation: async () => state.reservationAllowed,
       readStatus: async () => ({
         name: state.status,
+        updatedAt: state.statusUpdatedAt,
         binding: {
           projectId: change.projectId,
           itemId: change.itemId,
@@ -845,6 +851,7 @@ describe("Coordinated Project Status execution", () => {
       writeStatus: async (command) => {
         state.writes++;
         state.status = command.to;
+        state.statusUpdatedAt = "2026-11-17T08:50:00Z";
         return state.loseResponse ? "unverified" : "confirmed";
       },
     };
@@ -856,6 +863,18 @@ describe("Coordinated Project Status execution", () => {
     expect(await runCoordinatedStatusWrite(input)).toBe("recorded");
     state.status = "Validating";
     expect(await runCoordinatedStatusWrite(input)).toBe("already-admitted");
+    expect(state.writes).toBe(1);
+    expect((await f.journal().readProjectStatusBoundary()).pending).toBeNull();
+  });
+
+  it("refuses an old approval submitted in a different command after returning to the same Status", async () => {
+    const { f, input, state } = commandFixture();
+    expect(await runCoordinatedStatusWrite(input)).toBe("recorded");
+    state.status = "Validating";
+    state.statusUpdatedAt = "2026-11-17T08:51:00Z";
+    expect(await runCoordinatedStatusWrite({ ...input, commentId: 84 })).toBe(
+      "deferred",
+    );
     expect(state.writes).toBe(1);
     expect((await f.journal().readProjectStatusBoundary()).pending).toBeNull();
   });

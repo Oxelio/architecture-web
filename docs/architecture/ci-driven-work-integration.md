@@ -197,8 +197,9 @@ A read-only intake authenticates an immutable command on the owning Work
 Issue using GitHub's numeric author and App provenance. A current,
 maintainer-authorized channel policy names the permitted Workflow Coordinator
 principal and its operational scope. The command identifies the repository,
-Project, Work, exact previous and next Status, and attributable Method
-evidence. It does not establish the result of an Activity or satisfy an
+Project, Work, exact previous and next Status, the source field update
+timestamp, and attributable Method evidence. The evidence records bind the
+same timestamp and must be newer than the current source field value. It does not establish the result of an Activity or satisfy an
 Authority Gate. Readiness still requires its formal result. The existing
 protected Work Completion flow continues to own writes to Done.
 
