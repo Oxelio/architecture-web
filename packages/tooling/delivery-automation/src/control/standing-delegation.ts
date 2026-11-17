@@ -49,6 +49,7 @@ export async function readStandingDelegation(input: {
       workflowSha: context.workflowSha,
       gatePublication: record["gatePublication"],
       nativeSquash: record["nativeSquash"],
+      expiresAt,
     };
   } catch {
     return null;

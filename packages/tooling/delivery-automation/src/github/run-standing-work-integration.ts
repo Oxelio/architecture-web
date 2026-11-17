@@ -26,6 +26,7 @@ export interface StandingDelegation {
   readonly workflowSha: string;
   readonly gatePublication: boolean;
   readonly nativeSquash: boolean;
+  readonly expiresAt: string;
 }
 
 export async function runStandingWorkIntegration(
@@ -98,18 +99,19 @@ export async function runStandingWorkIntegration(
     return { status: "denied" };
   }
 
-  const delegationIsCurrent = async (): Promise<boolean> => {
+  const readLiveDelegation = async (): Promise<StandingDelegation | null> => {
     try {
       const delegation = await input.readDelegation();
-      return (
-        delegation?.repositoryId === context.repositoryId &&
+      return delegation?.repositoryId === context.repositoryId &&
         delegation.controllerBotId === scope.controllerBotId &&
         delegation.workflowSha === context.workflowSha &&
         delegation.gatePublication === true &&
-        delegation.nativeSquash === true
-      );
+        delegation.nativeSquash === true &&
+        Date.parse(delegation.expiresAt) > Date.now()
+        ? delegation
+        : null;
     } catch {
-      return false;
+      return null;
     }
   };
 
@@ -118,7 +120,7 @@ export async function runStandingWorkIntegration(
     (request.operation === "queue-check" ||
       request.operation === "arm-squash" ||
       request.operation === "release-check") &&
-    (await delegationIsCurrent());
+    (await readLiveDelegation()) !== null;
 
   // Recovery can only persist a positive observation of an existing intent.
   // It must remain independently authorized after standing delegation ends.
@@ -202,7 +204,19 @@ export async function runStandingWorkIntegration(
   for (const operation of operations.slice(start)) {
     const result = await executeEligibleStandingWorkIntegration({
       ...input,
-      scope,
+      scope: {
+        ...scope,
+        readReleaseAuthority: async () => {
+          const delegation = await readLiveDelegation();
+          if (!delegation) {
+            return null;
+          }
+          return {
+            identity: JSON.stringify(delegation),
+            expiresAt: Date.parse(delegation.expiresAt),
+          };
+        },
+      },
       authorize,
       operation,
     });

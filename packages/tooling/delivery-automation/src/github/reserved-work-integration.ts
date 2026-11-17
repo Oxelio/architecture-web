@@ -30,11 +30,19 @@ interface ReservedGitHubScope {
   readonly checksAppId: number;
   readonly controllerBotId: number;
   readonly cancellationRulesetId?: number;
+  readonly withinFinalReleaseAuthority?: <T>(
+    action: () => Promise<T>,
+  ) => Promise<T | null>;
+  readonly readReleaseAuthority?: NonNullable<
+    ControllerInput["ports"]["readReleaseAuthority"]
+  >;
 }
 
 export async function performReservedGitHubIntegration(
   reservation: MergeReservation,
   scope: ReservedGitHubScope,
+  admitRelease?: (digest: string) => Promise<number | null>,
+  authorizeArm?: () => Promise<boolean>,
 ) {
   const { candidate, state } = reservation;
   const { publisher, reservationId, checksToken } = scope;
@@ -73,10 +81,14 @@ export async function performReservedGitHubIntegration(
         : null;
     }
     case "arm-squash": {
+      if (!authorizeArm) {
+        return null;
+      }
       const result = await armReservedWorkSquash(
         publisher,
         reservation,
         reservationId,
+        authorizeArm,
       );
       return result.status === "auto-merge-requested" &&
         state.checkId !== undefined
@@ -84,12 +96,16 @@ export async function performReservedGitHubIntegration(
         : null;
     }
     case "release-check": {
+      if (!admitRelease || state.releaseAdmission !== undefined) {
+        return null;
+      }
       const result = await releaseReservedWorkMergeGate(
         publisher,
         reservation,
         reservationId,
         checksToken,
         scope.controllerBotId,
+        admitRelease,
       );
       if (result.status === "gate-released") {
         return { kind: "check-released", checkId: result.checkId } as const;
@@ -143,7 +159,11 @@ export async function executeReservedGitHubWorkIntegration(input: {
     return { status: "inactive" };
   }
   const { candidate, operation, authorize, scope } = input;
-  if (operation === "resolve" && scope.cancellationRulesetId === undefined) {
+  if (
+    (operation === "resolve" && scope.cancellationRulesetId === undefined) ||
+    (operation === "release-check" &&
+      (!scope.withinFinalReleaseAuthority || !scope.readReleaseAuthority))
+  ) {
     return { status: "denied" };
   }
   const journal = journalForScope(scope);
@@ -175,8 +195,11 @@ export async function executeReservedGitHubWorkIntegration(input: {
       standingEnabled: input.standingEnabled === true,
       ports: {
         authorize,
+        ...(scope.readReleaseAuthority
+          ? { readReleaseAuthority: scope.readReleaseAuthority }
+          : {}),
         ...journalPorts(journal),
-        perform: async (intent) => {
+        perform: async (intent, admitRelease) => {
           const current = await journal.read();
           if (
             !current ||
@@ -186,10 +209,19 @@ export async function executeReservedGitHubWorkIntegration(input: {
           ) {
             return null;
           }
-          return performReservedGitHubIntegration(current.reservation, {
-            ...scope,
-            reservationId: current.reservationId,
-          });
+          const perform = () =>
+            performReservedGitHubIntegration(
+              current.reservation,
+              {
+                ...scope,
+                reservationId: current.reservationId,
+              },
+              admitRelease,
+              () => authorize({ candidate, operation }),
+            );
+          return operation === "release-check"
+            ? ((await scope.withinFinalReleaseAuthority?.(perform)) ?? null)
+            : perform();
         },
       },
     });
@@ -325,6 +357,9 @@ async function observeReservedGitHubIntegration(
         ? ({ kind: "squash-armed", checkId: state.checkId } as const)
         : null;
     case "release-check": {
+      if (!state.releaseAdmission) {
+        return null;
+      }
       const merged = await observeReservedWorkSquash(publisher, candidate);
       if (merged || state.checkId === undefined) {
         return merged;

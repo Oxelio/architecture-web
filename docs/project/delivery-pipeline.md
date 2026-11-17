@@ -575,6 +575,21 @@ Functional Approval and material governance decisions
 remain with their assigned authorities. Custom delegated direct squash was
 closed as `not planned` in [Work #102](https://github.com/Oxelio/architecture-web/issues/102).
 
+The [accepted #115/#91 amendment](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6927632751)
+requires a current delegation for each reservation, native arm and durable
+admission of the final required-check publication. Order admission and
+ordinary revocation through the same verified controller boundary. An
+admission is single-use and binds one exact candidate, evidence, reservation
+and check. An already-started publication admitted under valid authority may
+finish for that candidate after expiry or revocation. Authority must still
+be current to start publication. Recover uncertain operations by positive
+observation while the reservation remains quarantined.
+
+This is an Approved Target. Candidate-specific protected integration remains
+the effective path while standing operation is inactive. The
+[Technical Design](../architecture/ci-driven-work-integration.md#final-release-admission)
+defines the serialization, recovery and validation obligations.
+
 ### Work Integration Branch and Pull Request
 
 Meaningful repository Work SHOULD use one primary temporary Work Integration Branch and

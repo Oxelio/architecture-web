@@ -294,3 +294,157 @@ describe("merge-invalidating writes", () => {
     });
   });
 });
+
+describe("durable final release admission", () => {
+  const evidence = "a".repeat(64);
+
+  function releaseFixture() {
+    const { ports, current } = fixture({ phase: "armed", checkId: 17 });
+    let authority: { identity: string; expiresAt: number } | null = {
+      identity: "accepted delegation",
+      expiresAt: Date.now() + 60_000,
+    };
+    const effects: string[] = [];
+    const release = {
+      candidate,
+      operation: "release-check",
+      standingEnabled: true,
+      ports: {
+        ...ports,
+        readReleaseAuthority: async () => authority,
+        perform: async (
+          _intent: WorkIntegrationReservationReceipt,
+          admit: (digest: string) => Promise<number | null>,
+        ) => {
+          if (!(await admit(evidence))) {
+            return null;
+          }
+          effects.push("PATCH");
+          return { kind: "check-released", checkId: 17 } as const;
+        },
+      },
+    } as const;
+    return {
+      release,
+      effects,
+      current,
+      setAuthority: (next: typeof authority | null) => {
+        authority = next;
+      },
+    };
+  }
+
+  it.each([null, 0])(
+    "defers a release without current delegation (%s)",
+    async (expiresAt) => {
+      const { release, effects, current, setAuthority } = releaseFixture();
+      setAuthority(
+        expiresAt === null ? null : { identity: "expired", expiresAt },
+      );
+      expect((await executeWorkIntegrationOperation(release)).status).toBe(
+        "deferred",
+      );
+      expect(current().reservation.state).not.toHaveProperty(
+        "releaseAdmission",
+      );
+      expect(effects).toEqual([]);
+    },
+  );
+
+  it("blocks a known-unstarted operation when authority changes during the append", async () => {
+    const { release, effects, current, setAuthority } = releaseFixture();
+    const input = {
+      ...release,
+      ports: {
+        ...release.ports,
+        append: async (...args: Parameters<typeof release.ports.append>) => {
+          const receipt = await release.ports.append(...args);
+          if (
+            receipt?.reservation.state.phase === "pending" &&
+            receipt.reservation.state.releaseAdmission
+          ) {
+            setAuthority(null);
+          }
+          return receipt;
+        },
+      },
+    };
+    expect((await executeWorkIntegrationOperation(input)).status).toBe(
+      "deferred",
+    );
+    expect(current().reservation.state).toHaveProperty("releaseAdmission");
+    expect((await executeWorkIntegrationOperation(input)).status).toBe(
+      "deferred",
+    );
+    expect(effects).toEqual([]);
+  });
+
+  it("records completion after revocation of a release which already started", async () => {
+    const { release, effects, current, setAuthority } = releaseFixture();
+    const input = {
+      ...release,
+      ports: {
+        ...release.ports,
+        perform: async (
+          _intent: WorkIntegrationReservationReceipt,
+          admit: (digest: string) => Promise<number | null>,
+        ) => {
+          expect(await admit(evidence)).toBeGreaterThan(Date.now());
+          expect(await admit(evidence)).toBeNull();
+          effects.push("PATCH");
+          setAuthority(null);
+          return { kind: "check-released", checkId: 17 } as const;
+        },
+      },
+    };
+    expect((await executeWorkIntegrationOperation(input)).status).toBe(
+      "confirmed",
+    );
+    expect(current().reservation.state).toEqual({
+      phase: "released",
+      checkId: 17,
+    });
+    expect(effects).toEqual(["PATCH"]);
+  });
+
+  it("does not dispatch again after a lost response and reconciles only by observation", async () => {
+    const { release, effects, current, setAuthority } = releaseFixture();
+    const input = {
+      ...release,
+      ports: {
+        ...release.ports,
+        perform: async (
+          _intent: WorkIntegrationReservationReceipt,
+          admit: (digest: string) => Promise<number | null>,
+        ) => {
+          expect(await admit(evidence)).toBeGreaterThan(Date.now());
+          effects.push("PATCH");
+          throw new Error("response lost");
+        },
+      },
+    };
+    expect((await executeWorkIntegrationOperation(input)).status).toBe(
+      "deferred",
+    );
+    setAuthority(null);
+    expect((await executeWorkIntegrationOperation(input)).status).toBe(
+      "deferred",
+    );
+    expect(effects).toEqual(["PATCH"]);
+    expect(
+      (
+        await reconcileWorkIntegrationOperation({
+          candidate,
+          ports: {
+            ...release.ports,
+            observe: async () => ({
+              kind: "squash-merged",
+              sha: "c".repeat(40),
+            }),
+          },
+        })
+      ).status,
+    ).toBe("confirmed");
+    expect(current().reservation.state.phase).toBe("merged");
+  });
+});

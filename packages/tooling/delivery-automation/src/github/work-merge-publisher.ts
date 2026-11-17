@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import type { MergeReservation } from "../control/merge-reservation.js";
@@ -113,9 +114,11 @@ type MergeMode = "direct" | "auto";
 interface ReservedGateCheck {
   readonly checkId: number;
   readonly reservationId: string;
+  readonly authorizeArm?: () => Promise<boolean>;
   readonly release?: {
     readonly checksToken: string;
     readonly controllerBotId: number;
+    readonly admit: (digest: string) => Promise<number | null>;
   };
 }
 
@@ -949,6 +952,7 @@ export async function armReservedWorkSquash(
   publisher: WorkMergePublisher,
   reservation: MergeReservation,
   reservationId: string,
+  authorizeArm: () => Promise<boolean>,
 ): Promise<WorkMergeOutcome> {
   const { candidate, state } = reservation;
   if (
@@ -963,6 +967,7 @@ export async function armReservedWorkSquash(
   return evaluateWorkMergeRequest(publisher, candidate, "auto", false, {
     checkId: state.checkId,
     reservationId,
+    authorizeArm,
   });
 }
 
@@ -972,11 +977,13 @@ export async function releaseReservedWorkMergeGate(
   reservationId: string,
   checksToken: string,
   controllerBotId: number,
+  admit: (digest: string) => Promise<number | null>,
 ): Promise<WorkMergeOutcome> {
   const { candidate, state } = reservation;
   if (
     state.phase !== "pending" ||
     state.operation !== "release-check" ||
+    state.releaseAdmission !== undefined ||
     state.checkId === undefined ||
     !positiveId(state.checkId) ||
     !reservationId.trim() ||
@@ -993,7 +1000,7 @@ export async function releaseReservedWorkMergeGate(
   return evaluateWorkMergeRequest(publisher, candidate, "auto", false, {
     checkId: state.checkId,
     reservationId,
-    release: { checksToken, controllerBotId },
+    release: { checksToken, controllerBotId, admit },
   });
 }
 
@@ -1484,7 +1491,7 @@ async function evaluateWorkMergeRequest(
         return blocked("MERGE_DELEGATION_CHANGED");
       }
       if (reservedCheck?.release) {
-        const { checksToken, controllerBotId } = reservedCheck.release;
+        const { checksToken, controllerBotId, admit } = reservedCheck.release;
         if (!isNativeSquashFrom(current, controllerBotId)) {
           return blocked("RESERVED_NATIVE_ARM_UNVERIFIED");
         }
@@ -1497,6 +1504,21 @@ async function evaluateWorkMergeRequest(
           reservationId: reservedCheck.reservationId,
           checkId: reservedCheck.checkId,
           expectedAppId: grant.gateAppId,
+          beforePatch: async () => {
+            const binding = createHash("sha256")
+              .update(
+                JSON.stringify([
+                  candidate,
+                  reservedCheck.reservationId,
+                  reservedCheck.checkId,
+                  grant,
+                ]),
+              )
+              .digest("hex");
+            return isDeepStrictEqual(await publisher.readGrant(), grant)
+              ? admit(binding)
+              : null;
+          },
           title: "Work Merge Gate: PASS",
           summary: `Work #${candidate.workNumber} / PR #${candidate.pullNumber}\nHead: ${candidate.headSha}\nBase: ${candidate.baseSha}`,
         });
@@ -1574,6 +1596,9 @@ async function evaluateWorkMergeRequest(
             return { status: "merged", sha: merged.sha };
           }
         } else {
+          if (reservedCheck && !(await reservedCheck.authorizeArm?.())) {
+            return blocked("STANDING_ARM_AUTHORITY_UNVERIFIED");
+          }
           const armed = await github<{
             readonly data?: {
               readonly enablePullRequestAutoMerge?: {

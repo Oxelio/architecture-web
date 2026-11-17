@@ -30,6 +30,7 @@ describe("standing delegation observation", () => {
       workflowSha: context.workflowSha,
       gatePublication: true,
       nativeSquash: true,
+      expiresAt: record.expiresAt,
     });
     readMaintainerRecord.mockResolvedValue({ ...record, nativeSquash: false });
     expect(await readStandingDelegation(input)).toMatchObject({

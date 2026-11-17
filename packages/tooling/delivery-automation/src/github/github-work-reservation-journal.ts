@@ -52,8 +52,16 @@ function isReservationState(value: unknown): value is MergeReservationState {
         case "queue-check":
           return state["checkId"] === undefined;
         case "arm-squash":
+          return (
+            checkId(state["checkId"]) && state["releaseAdmission"] === undefined
+          );
         case "release-check":
-          return checkId(state["checkId"]);
+          return (
+            checkId(state["checkId"]) &&
+            (state["releaseAdmission"] === undefined ||
+              (typeof state["releaseAdmission"] === "string" &&
+                digest.test(state["releaseAdmission"])))
+          );
         case "resolve":
           return state["previousPhase"] === "reserved"
             ? state["checkId"] === undefined

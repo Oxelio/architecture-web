@@ -891,7 +891,12 @@ describe("reserved native squash", () => {
     const f = fixture();
     f.state.reservedGate = "queued";
     await expect(
-      armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => true,
+      ),
     ).resolves.toEqual({ status: "auto-merge-requested" });
     expect(f.writes).toHaveLength(1);
     expect(f.writes[0]?.body).toMatchObject({
@@ -919,7 +924,12 @@ describe("reserved native squash", () => {
       f.state.reservedGate = "queued";
       Object.assign(f.state, change);
       await expect(
-        armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+        armReservedWorkSquash(
+          f.publisher(),
+          armIntent,
+          reservationId,
+          async () => true,
+        ),
       ).resolves.toMatchObject({ status: "blocked" });
       expect(f.writes).toHaveLength(0);
     }
@@ -934,7 +944,12 @@ describe("reserved native squash", () => {
       f.state.reservedGate = "queued";
       Object.assign(f.state, change);
       await expect(
-        armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+        armReservedWorkSquash(
+          f.publisher(),
+          armIntent,
+          reservationId,
+          async () => true,
+        ),
       ).resolves.toMatchObject({ status: "blocked" });
       expect(f.writes).toHaveLength(0);
     }
@@ -978,12 +993,30 @@ describe("reserved native squash", () => {
         },
         armIntent,
         reservationId,
+        async () => true,
       );
       expect(result.status).toBe(
         mismatch === "none" ? "auto-merge-requested" : "blocked",
       );
       expect(f.writes).toHaveLength(mismatch === "none" ? 1 : 0);
     }
+  });
+
+  it("rechecks standing authority at the native arm boundary", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    await expect(
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => false,
+      ),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "STANDING_ARM_AUTHORITY_UNVERIFIED",
+    });
+    expect(f.writes).toHaveLength(0);
   });
 
   it("rejects an unrelated reserved check ID", async () => {
@@ -994,6 +1027,7 @@ describe("reserved native squash", () => {
         f.publisher(),
         { ...armIntent, state: { ...armIntent.state, checkId: 134 } },
         reservationId,
+        async () => true,
       ),
     ).resolves.toMatchObject({ status: "blocked" });
     expect(f.writes).toHaveLength(0);
@@ -1004,7 +1038,12 @@ describe("reserved native squash", () => {
     f.state.reservedGate = "queued";
     f.state.armBotId = f.publisher().actorId + 1;
     await expect(
-      armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => true,
+      ),
     ).resolves.toEqual({
       status: "uncertain",
       reason: "MUTATION_NOT_CONFIRMED",
@@ -1017,7 +1056,12 @@ describe("reserved native squash", () => {
     f.state.reservedGate = "queued";
     f.state.armTimeout = true;
     await expect(
-      armReservedWorkSquash(f.publisher(), armIntent, reservationId),
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => true,
+      ),
     ).resolves.toEqual({
       status: "uncertain",
       reason: "MUTATION_NOT_CONFIRMED",
@@ -1089,14 +1133,23 @@ describe("reserved gate release", () => {
         return current;
       },
       authorize: async () => true,
-      perform: ({ reservation }) =>
-        performReservedGitHubIntegration(reservation, {
-          publisher,
-          reservationId,
-          checksToken: checkIssuerToken,
-          checksAppId: 7,
-          controllerBotId,
-        }),
+      readReleaseAuthority: async () => ({
+        identity: "fixture",
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      }),
+      perform: ({ reservation }, admit) =>
+        performReservedGitHubIntegration(
+          reservation,
+          {
+            publisher,
+            reservationId,
+            checksToken: checkIssuerToken,
+            checksAppId: 7,
+            controllerBotId,
+          },
+          admit,
+          async () => true,
+        ),
     };
     for (const operation of [
       "queue-check",
@@ -1142,6 +1195,7 @@ describe("reserved gate release", () => {
           reservationId,
           checkIssuerToken,
           controllerBotId,
+          async () => Number.MAX_SAFE_INTEGER,
         ),
       ).resolves.toMatchObject({ status: "blocked" });
       expect(f.writes).toHaveLength(0);

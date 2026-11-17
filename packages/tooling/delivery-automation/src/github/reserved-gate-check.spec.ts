@@ -59,6 +59,7 @@ describe("reserved Work Merge Gate check", () => {
   it("completes the same verified check ID", async () => {
     const requests: [string, string][] = [];
     const result = await completeReservedGateCheck({
+      beforePatch: async () => Number.MAX_SAFE_INTEGER,
       ...completion,
       fetchImpl: async (url, options) => {
         requests.push([String(url), options?.method ?? "GET"]);
@@ -82,6 +83,23 @@ describe("reserved Work Merge Gate check", () => {
     expect(result).toEqual({ id: 17, url: check.html_url });
   });
 
+  it.each([null, 0])(
+    "does not start PATCH when admission is denied or expired (%s)",
+    async (deadline) => {
+      const methods: string[] = [];
+      const result = await completeReservedGateCheck({
+        ...completion,
+        beforePatch: async () => deadline,
+        fetchImpl: async (_url, options) => {
+          methods.push(options?.method ?? "GET");
+          return Response.json(check);
+        },
+      });
+      expect(result).toBeNull();
+      expect(methods).toEqual(["GET"]);
+    },
+  );
+
   it("refuses a stale or foreign check before PATCH", async () => {
     for (const mismatch of [
       { id: 18 },
@@ -93,6 +111,7 @@ describe("reserved Work Merge Gate check", () => {
     ]) {
       const methods: string[] = [];
       const result = await completeReservedGateCheck({
+        beforePatch: async () => Number.MAX_SAFE_INTEGER,
         ...completion,
         fetchImpl: async (_url, options) => {
           methods.push(options?.method ?? "GET");
@@ -113,6 +132,7 @@ describe("reserved Work Merge Gate check", () => {
     ]) {
       let patches = 0;
       const result = await completeReservedGateCheck({
+        beforePatch: async () => Number.MAX_SAFE_INTEGER,
         ...completion,
         fetchImpl: async (_url, options) => {
           if (options?.method === "PATCH") {

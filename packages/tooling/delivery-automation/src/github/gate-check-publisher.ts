@@ -175,6 +175,7 @@ export async function queueReservedGateCheck(
 export async function completeReservedGateCheck(
   scope: ReservedGateCheckScope & {
     readonly checkId: number;
+    readonly beforePatch: () => Promise<number | null>;
     readonly title: string;
     readonly summary: string;
   },
@@ -200,6 +201,14 @@ export async function completeReservedGateCheck(
       return null;
     }
 
+    const deadline = await scope.beforePatch();
+    if (
+      deadline === null ||
+      !Number.isFinite(deadline) ||
+      Date.now() >= deadline
+    ) {
+      return null;
+    }
     const result = await fetchImpl(url, {
       ...options,
       method: "PATCH",

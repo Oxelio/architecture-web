@@ -14,6 +14,7 @@ export type MergeReservationState =
       readonly operation: Operation;
       readonly checkId?: number;
       readonly previousPhase?: ResolvablePhase;
+      readonly releaseAdmission?: string;
     }
   | { readonly phase: "invalidating"; readonly writeId: string }
   | { readonly phase: "invalidated"; readonly writeId: string }
@@ -31,6 +32,7 @@ export type MergeReservationEvent =
   | { readonly kind: "invalidation-applied"; readonly writeId: string }
   | { readonly kind: "check-queued"; readonly checkId: number }
   | { readonly kind: "squash-armed"; readonly checkId: number }
+  | { readonly kind: "admit-release"; readonly digest: string }
   | { readonly kind: "check-released"; readonly checkId: number }
   | { readonly kind: "squash-cancelled" }
   | { readonly kind: "squash-merged"; readonly sha: string };
@@ -109,8 +111,15 @@ export function transitionMergeReservation(
       return state.operation === "arm-squash" && state.checkId === event.checkId
         ? { candidate, state: { phase: "armed", checkId: event.checkId } }
         : null;
+    case "admit-release":
+      return state.operation === "release-check" &&
+        state.releaseAdmission === undefined &&
+        writeDigest.test(event.digest)
+        ? { candidate, state: { ...state, releaseAdmission: event.digest } }
+        : null;
     case "check-released":
       return state.operation === "release-check" &&
+        state.releaseAdmission !== undefined &&
         state.checkId === event.checkId
         ? { candidate, state: { phase: "released", checkId: event.checkId } }
         : null;
@@ -121,7 +130,8 @@ export function transitionMergeReservation(
         ? { candidate, state: { phase: "cancelled" } }
         : null;
     case "squash-merged":
-      return (state.operation === "release-check" ||
+      return ((state.operation === "release-check" &&
+        state.releaseAdmission !== undefined) ||
         state.operation === "resolve") &&
         oid.test(event.sha)
         ? { candidate, state: { phase: "merged", sha: event.sha } }

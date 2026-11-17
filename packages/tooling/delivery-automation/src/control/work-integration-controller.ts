@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import type { MergeCandidate } from "../github/work-merge-publisher.js";
@@ -11,7 +12,7 @@ import { sameWorkIntegrationCandidate } from "./work-integration-request.js";
 type Operation = Extract<MergeReservationEvent, { kind: "begin" }>["operation"];
 type ResultEvent = Exclude<
   MergeReservationEvent,
-  { kind: "begin" | "begin-invalidation" }
+  { kind: "begin" | "begin-invalidation" | "admit-release" }
 >;
 type OperationRequest =
   | { readonly operation: Operation; readonly writeId?: never }
@@ -38,10 +39,15 @@ interface WorkIntegrationControllerPorts {
     reservation: MergeReservation,
   ) => Promise<WorkIntegrationReservationReceipt | null>;
   readonly authorize: (input: AuthorizationRequest) => Promise<boolean>;
+  readonly readReleaseAuthority?: () => Promise<{
+    readonly identity: string;
+    readonly expiresAt: number;
+  } | null>;
   // Use operation-specific, verified GitHub observations as result evidence.
   // An uncertain response or insufficient evidence returns null.
   readonly perform: (
     intent: WorkIntegrationReservationReceipt,
+    admitRelease: (digest: string) => Promise<number | null>,
   ) => Promise<ResultEvent | null>;
 }
 
@@ -103,13 +109,55 @@ export async function executeWorkIntegrationOperation(
       return { status: "denied" };
     }
 
-    const result = await ports.perform(intent);
+    let admitted = intent;
+    let admissionAttempted = false;
+    const result = await ports.perform(intent, async (digest) => {
+      if (operation !== "release-check" || admissionAttempted) {
+        return null;
+      }
+      admissionAttempted = true;
+      const authority = await ports.readReleaseAuthority?.();
+      if (
+        !authority ||
+        !/^[0-9a-f]{64}$/u.test(digest) ||
+        !authority.identity ||
+        !Number.isFinite(authority.expiresAt) ||
+        !(await ports.authorize(request)) ||
+        Date.now() >= authority.expiresAt
+      ) {
+        return null;
+      }
+      const release = transitionMergeReservation(pending, candidate, {
+        kind: "admit-release",
+        digest: createHash("sha256")
+          .update(JSON.stringify([digest, authority]))
+          .digest("hex"),
+      });
+      if (!release) {
+        return null;
+      }
+      const recorded = await confirmResult(ports, intent, release);
+      if (recorded.status !== "confirmed") {
+        return null;
+      }
+      admitted = recorded.receipt;
+      if (
+        Date.now() >= authority.expiresAt ||
+        !(await ports.authorize(request)) ||
+        !isDeepStrictEqual(await ports.readReleaseAuthority?.(), authority) ||
+        Date.now() >= authority.expiresAt
+      ) {
+        return null;
+      }
+      return authority.expiresAt;
+    });
     const next =
-      result && transitionMergeReservation(pending, candidate, result);
+      result &&
+      transitionMergeReservation(admitted.reservation, candidate, result);
     if (!next) {
       return { status: "deferred" };
     }
-    return await confirmResult(ports, intent, next);
+    return await confirmResult(ports, admitted, next);
   } catch {
     return { status: "deferred" };
   }

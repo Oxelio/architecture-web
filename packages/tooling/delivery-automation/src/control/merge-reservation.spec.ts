@@ -31,7 +31,11 @@ const queued = move(check, { kind: "check-queued", checkId: 17 });
 const arm = move(queued, { kind: "begin", operation: "arm-squash" });
 const armed = move(arm, { kind: "squash-armed", checkId: 17 });
 const release = move(armed, { kind: "begin", operation: "release-check" });
-const released = move(release, { kind: "check-released", checkId: 17 });
+const admitted = move(release, {
+  kind: "admit-release",
+  digest: "a".repeat(64),
+});
+const released = move(admitted, { kind: "check-released", checkId: 17 });
 
 describe("merge reservation", () => {
   it("requires a pending intent and verifies the same check at each step", () => {

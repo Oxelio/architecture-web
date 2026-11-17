@@ -126,7 +126,7 @@ cannot establish the writer boundary.
 | Tasks, dependencies, Work characteristic labels, review and decision records | Issues and PR credentials, evidence authors, and workflows that can change these records | Include creation, edit, removal, close and reopen where they can change the result. Prove exclusion or mediation across the full reservation window.                                                                    |
 | Owning PR and native merge state                                             | PR editors, branch writers, the manual integration path, and controller App              | Verify head, base and PR identity, and prove an independent request or direct squash cannot consume the standing check.                                                                                                 |
 | Required checks and protected refs                                           | Checks-only issuer, workflow credentials, controller App, ruleset administrators         | Verify accepted App and installation bindings, effective checks and restrictions, and exclusive creation of journal refs. Verify who can change or remove those refs.                                                   |
-| Standing delegation and revocation                                           | Protected control configuration and its privileged writers                               | Stop new arms. Reconcile the existing request before applying a revocation or another invalidating write through the ordinary controller path.                                                                          |
+| Standing delegation and revocation                                           | Protected control configuration and its privileged writers                               | Serialize prospective revocation with admission and handoff. Hold other invalidating writes until conclusive resolution.                                                                                                |
 
 Keep emergency GitHub administration on the maintainer-only path. The merge
 identity must stay without repository administration write access. An
@@ -161,14 +161,45 @@ candidate is required to record an observation after revocation or expiry.
 Recovery never replays a lost mutation, and resuming publication or arming
 requires current standing delegation.
 
-A delegation expiry is also an invalidating change. GitHub's required check
-does not expire at the controller's delegation deadline. Validation must
-establish how the protected configuration prevents an in-flight squash from
-crossing that deadline or conclusively resolves the reservation before it.
-A timer, a fresh read immediately before release, and a later disable request
-cannot establish that guarantee. If the deployed configuration cannot
-enforce it, standing release stays disabled until the maintainer accepts an
-explicit change to the delegation semantics or a different enforcement path.
+### Final release admission
+
+The [maintainer amendment](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6927632751)
+is part of the Approved Target. The protected candidate-specific integration
+path remains Current Truth. Standing publication and native squash stay
+inactive until the separate activation gate is satisfied.
+
+Keep the existing reservation and the pending release intent. Before the
+checks-only issuer initiates final publication, persist a separate admission
+for the exact repository, Work, PR, head, base, reserved check and reservation.
+Bind the admission to a fingerprint of the accepted authority and evidence.
+Re-read verified candidate facts and live authority under the same protected
+controller boundary that makes ordinary revocations effective. Revalidate
+live authority after the journal receipt and before handing off the request.
+Only the invocation that won the exact compare-and-append may initiate the
+publication. An expired, revoked or uncertain receipt cannot start it.
+A replacement runner can only reconcile the exact admitted operation through
+positive GitHub observations. A known-unstarted attempt cannot be recovered
+by repeating the write. Keep inconclusive reservations quarantined.
+
+The deployment must serialize ordinary revocation against admission and
+handoff for the same protected repository. Use the controller's exclusive
+execution path and existing create-only journal for this sequence. Every
+ordinary effective revocation must enter that path. A freely editable
+setting or comment and an independent poll do not establish this ordering.
+Verify that every credential-capable path is covered before activation.
+Emergency administration retains its separate accepted exception.
+
+Expiry and ordinary revocation stop new admissions, arms and publications.
+A publication started under a valid admission may complete after revocation
+or expiry. The independent writer boundary still holds through conclusive
+cancellation or confirmed squash. GitHub acknowledgments and ambiguous
+results alone cannot release a reservation or permit an invalidating write.
+
+Historically the design required the delegation to stay valid through the
+atomic squash. GitHub's native request and required check cannot enforce the
+controller deadline at that boundary. The amendment replaced that deadline
+for the one admitted operation. Existing merge correctness and activation
+requirements still apply.
 
 ## Delegated request identity
 

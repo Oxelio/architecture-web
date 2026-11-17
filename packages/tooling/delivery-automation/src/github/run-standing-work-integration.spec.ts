@@ -35,6 +35,7 @@ const delegation = {
   workflowSha: candidate.baseSha,
   gatePublication: true,
   nativeSquash: true,
+  expiresAt: "2099-01-01T00:00:00Z",
 };
 const execute = vi.mocked(executeEligibleStandingWorkIntegration);
 
