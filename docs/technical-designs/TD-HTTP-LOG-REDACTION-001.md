@@ -13,6 +13,7 @@
 ## Work / authority context
 
 - **Work:** [#145 — Redact IAM verification tokens and sensitive credentials from HTTP logs](https://github.com/Oxelio/architecture-web/issues/145)
+- **Related approved functional target (separate Work):** [#152 — Explicit manual email confirmation and POST verification](https://github.com/Oxelio/architecture-web/issues/152), [Approved Target SF-EMAIL-VERIFICATION-001](https://github.com/Oxelio/architecture-web/blob/work/152-explicit-email-verification/docs/specifications/SF-EMAIL-VERIFICATION-001.md). Its new fragment-link/POST behavior is **approved for #152**, not currently implemented and **not a change authorized inside Defect Correction #145**. Both Works must preserve their independent owners and readiness gates.
 - **Work Type / Workflow Depth:** Defect Correction / Complex
 - **Change Characteristics:** security-sensitive and cross-system (`apps/api` plus Web Nginx)
 - **Exploration:** [Work #145 findings](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6962784839)
@@ -110,7 +111,7 @@ Minimal structured records should reduce log volume. Use the existing Fastify/Pi
 - **Turn off all API/Nginx logs:** rejected; loses essential diagnostic, security response and correlation evidence.
 - **Regex scrub emitted full strings after the fact:** rejected as fragile; secrets may already have been formatted or sent to a sink, and new forms evade filters.
 - **Allowlisted structured Fastify logs and minimal Nginx access format (selected):** keeps useful diagnostic fields and avoids serializing untrusted URL contents at capture.
-- **Change verification/recovery URLs to fragments or new endpoints:** not authorized by the approved functional contracts for this defect; would require separate functional/architecture analysis and acceptance.
+- **Change verification/recovery URLs to fragments or new endpoints as part of this defect:** not authorized **inside Work #145**. The maintainer separately approved the **email-verification-only** fragment + manual confirmation + POST target in [#152](https://github.com/Oxelio/architecture-web/issues/152). That target is not yet Current Truth and does not cover recovery/deletion URLs or clear the Nginx error-log blocker; coordinate compatibility and safe logging at integration rather than absorbing #152 into #145.
 - **New generalized logging infrastructure:** not required to correct the currently identified repository sinks.
 
 No durable structural rule with contested alternatives is established by the selected bounded logging correction. **No ADR** is currently triggered.
