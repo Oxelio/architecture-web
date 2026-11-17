@@ -64,8 +64,8 @@ jobs:
           needs.resolve-comment.outputs.pull_number != '')
       )
     concurrency:
-      group: delivery-work-completion-${{ github.event.pull_request.number || inputs.pull_number || needs.resolve-comment.outputs.pull_number }}
-      cancel-in-progress: false
+      group: delivery-work-controller-protected
+      queue: max
     runs-on: ubuntu-24.04
     environment: delivery-work-completion-pilot
     timeout-minutes: 12

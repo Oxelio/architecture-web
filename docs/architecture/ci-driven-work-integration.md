@@ -29,6 +29,290 @@ and [PR #103](https://github.com/Oxelio/architecture-web/pull/103). Conditional
 closure succeeded for [Work #93](https://github.com/Oxelio/architecture-web/actions/runs/42189090779)
 and [Work #91](https://github.com/Oxelio/architecture-web/actions/runs/42190641824).
 
+## Work #115 implementation and validation sequence
+
+The [maintainer decision for Work #115](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6828197659)
+accepts an inactive implementation followed by normal Validation. Readiness
+establishes design feasibility, ownership and authority, and the validation and
+rollback plan. The separate live pilot previously proposed during Preparing is
+superseded. Standing publication and native auto-merge remain inactive by
+default. The current protected manual path remains effective through the
+authorized cutover.
+
+The read-only request workflow verifies a current direct maintainer record on
+Work #115 before reporting an eligible request for observation. The record
+binds the repository, controller bot and workflow path and states the two
+delegations separately with an expiry. This observation grants no write
+authority. Actual execution must reread the record and verify the controller
+installation, effective protections and the writer boundary before each
+privileged action. The post-release cancellation proof remains a Validation
+requirement.
+
+The target uses one controller on protected main and one candidate-bound
+request contract. A request identifies the repository, Work, PR, head, base,
+evidence and authority context. The controller reads current authority and
+candidate evidence before any effect. Its proposed private GitHub App is
+restricted to this repository. Keep required check publication in the separate
+checks-only issuer and Project reads and writes in their own protected
+credentials. No installation, ruleset, permission or activation change follows
+from accepting this design.
+
+A successful Repository CI event wakes the request workflow. A new candidate-bound evidence comment can also wake the protected controller after CI. A read-only intake verifies the comment issuer before it can enter the protected queue. The controller uses both events only as hints and reloads applicable required checks, candidate facts and authority. The
+controller separately resolves the owning Work and checks the active Project
+classification, GitHub Issue characteristics and complete PR file inventory.
+The controller discovers the current evidence on the Work Issue and owning PR.
+The protected composition supplies the applicable Method roles and their
+verified author and App identities. Incomplete inventories, ambiguous records,
+expired or changed authority, and unresolved Tasks defer standing integration.
+
+The protected observation job can report the candidate's classification,
+paths and facts digest for Code Review. It uses the existing Project reader
+environment. The report does not issue a check, reserve the journal or arm a
+native merge.
+
+The impact assessment is tied to the Work, PR, head, base, classification and
+sorted paths, including both sides of a rename. The assessment must come from
+an applicable accepted review. An absent, outdated or manual-only assessment
+prevents standing publication. Changes to GitHub configuration, project policy,
+ADR records, delivery automation, agent instructions or submodule
+configuration stay on the protected manual path. The impact review remains
+responsible for detecting sensitive changes outside these paths.
+
+Before arming a native request, persist the exact reservation and the pending
+required check identity. Verify the arm and complete that same App-owned check
+only after the applicable protections and independent writers are verified.
+For an invalidating write, stop further arms and releases and wait until the
+prior native request is conclusively resolved. Treat ambiguous GitHub responses
+as unresolved. A previously passing check cannot authorize another attempt
+against stale evidence. The
+[emergency administrator exception](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6827728442)
+is limited to the human administrator-only access path outside agent reach.
+
+During Validation, prove pending-check, native-arm and same-check release on
+the effective protected configuration. Cover exact candidate identity, stale
+checks, direct ordinary writer denial, conflicting writes on both sides of
+check release, uncertain responses, revocation, and rollback. Confirm an
+eligible native squash and its downstream events without routine maintainer
+steps. Activation requires those proofs and the applicable separate authority.
+For rollback, stop arming, resolve or quarantine the outstanding request, and
+use the protected manual exception. Preserve the existing required checks.
+
+**Standing execution remains off by default.** The protected job can run
+in one of two authorized modes. For supervised Validation, an immutable
+maintainer record on Work #115 is selected by
+`DELIVERY_STANDING_VALIDATION_COMMENT_ID` and binds one exact candidate and
+expiry. For standing execution, `DELIVERY_STANDING_EXECUTION_ENABLED` and
+`DELIVERY_STANDING_BOUNDARY_COMMENT_ID` select the distinct activation record
+after successful supervised Validation. The record identifies the tested
+repository, Project, two App installations, effective rulesets, authorities
+and Validation run. It also binds the protected Git trees and lockfile, so an
+ordinary integration does not require renewing it. Code or configuration
+changes affecting those bindings require a refreshed activation record.
+The runtime checks the live branch, rulesets, actors and candidate facts.
+Validation must establish the actual writer exclusions before that record
+is issued. The record does not replace their technical enforcement.
+
+The standing controller and revocation use separate, narrowly scoped
+installation tokens within the shared protected Actions group. The checks-only
+token cannot merge or update Project state. The native merge token cannot
+publish the required check. The Project reader remains read-only. The
+completion writer joins the same group and permits a completion touching a
+reserved Work or its dependency only after conclusive resolution. With a
+verified dependency inventory, unrelated completions remain available.
+
+### Controller installation verification
+
+Run **Delivery Work Controller Identity** on protected `main` during
+supervised Validation. The `delivery-work-controller` environment must
+restrict deployments to `main`. Set `DELIVERY_CONTROLLER_APP_CLIENT_ID` and
+`DELIVERY_CONTROLLER_INSTALLATION_ID` from the private App registration and
+its selected-repository installation. Store `DELIVERY_CONTROLLER_APP_PRIVATE_KEY`
+only as an environment secret on the protected GitHub side. Keep gate issuer
+and Project credentials in their existing separate trust boundaries.
+
+The job mints a read-only token across the installation's repository scope,
+checks that the scope contains exactly Architecture Web by name and repository
+ID, and records the installation and bot identifiers. It does not publish a
+check, write operational state, or arm a merge. This result establishes the
+credential binding for supervised Validation. Each privileged operation still
+requires verified writer isolation and effective repository protections.
+
+### Writer boundary and activation evidence
+
+The Validation record must identify which credential or native GitHub control
+covers each writer below. A deployment variable or a successful evaluation
+cannot establish the writer boundary.
+
+| Merge input                                                                  | Writer to account for                                                                    | Required verification before standing activation                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Work State, Work Type, Workflow Depth, Project membership                    | Projects MCP, Project automations, trusted Project writers, and direct UI access         | Deny ordinary direct writes. Verify authorized writes use the controller when they affect its reservation. Exercise the active Work Completion workflow against a different reserved candidate and a shared dependency. |
+| Tasks, dependencies, Work characteristic labels, review and decision records | Issues and PR credentials, evidence authors, and workflows that can change these records | Include creation, edit, removal, close and reopen where they can change the result. Prove exclusion or mediation across the full reservation window.                                                                    |
+| Owning PR and native merge state                                             | PR editors, branch writers, the manual integration path, and controller App              | Verify head, base and PR identity, and prove an independent request or direct squash cannot consume the standing check.                                                                                                 |
+| Required checks and protected refs                                           | Checks-only issuer, workflow credentials, controller App, ruleset administrators         | Verify accepted App and installation bindings, effective checks and restrictions, and exclusive creation of journal refs. Verify who can change or remove those refs.                                                   |
+| Standing delegation and revocation                                           | Protected control configuration and its privileged writers                               | Serialize prospective revocation with admission and handoff. Hold other invalidating writes until conclusive resolution.                                                                                                |
+
+Keep emergency GitHub administration on the maintainer-only path. The merge
+identity must stay without repository administration write access. An
+independent administrative observation can verify bypass metadata, which
+GitHub omits from ordinary read responses. To use that observation in the
+controller, bind it to the effective ruleset and enforce the writer boundary
+for subsequent rule changes. A missing binding leaves standing integration
+disabled.
+
+The journal reserves `refs/tags/delivery-control/r*`. Ordinary revocations use
+`refs/tags/delivery-control/disabled-*`, keyed by the exact standing-delegation
+comment ID. Coordinated Status receipts use `refs/tags/delivery-control/status-*`, keyed by command comment ID. Two active tag rulesets protect these patterns. The creation ruleset restricts creation with the
+controller App as its sole bypass actor. The immutability ruleset restricts
+updates and deletions with an empty bypass list, including for the controller.
+The standing runner reads both exact rulesets before trusting the journal,
+and again inside the existing writer boundary before privileged operations.
+If GitHub hides bypass actors, use an independent observation bound to the
+current ruleset. Missing or changed protection blocks standing operation.
+
+The controller requires the verified writer boundary before it creates the
+initial journal reservation as well as before check publication, native arm
+and check release. Recheck delegation after verifying the boundary and before
+creating that reservation.
+
+For cancellation after check release, a successful disable response or a null
+auto-merge request does not establish that a squash already in progress was
+prevented. Until the effective GitHub configuration yields conclusive evidence,
+keep the write deferred. A verified squash is handled by the recovery path.
+
+When a run restarts with a pending operation, it may reconcile that operation
+from positive GitHub evidence. Independent authority for the reserved
+candidate is required to record an observation after revocation or expiry.
+Recovery never replays a lost mutation, and resuming publication or arming
+requires current standing delegation.
+
+### Coordinated Project Status writes
+
+The [Task #139 review](https://github.com/Oxelio/architecture-web/issues/139#issuecomment-6943012143)
+identified a missing protected entry point for the existing Status adapter.
+The following composition is the proposed implementation target. The
+direct Project writer stays available until supervised cutover proves its
+replacement.
+
+A read-only intake authenticates an immutable command on the owning Work
+Issue using GitHub's numeric author and App provenance. A current,
+maintainer-authorized channel policy names the permitted Workflow Coordinator
+principal and its operational scope. The command identifies the repository,
+Project, Work, exact previous and next Status, the source field update
+timestamp, and attributable Method evidence. The evidence records bind the
+same timestamp and must be newer than the current source field value. It does not establish the result of an Activity or satisfy an
+Authority Gate. Readiness still requires its formal result. The existing
+protected Work Completion flow continues to own writes to Done.
+
+Run the writer on protected main in the existing shared controller Actions
+group. Re-read the command, channel policy, canonical Project item and
+current Status before any mutation. Use a separate Project writer token.
+Use the controller journal as the write-ahead record. Preserve the current
+merge reservation, if present, and append the pending Status intent before
+dispatch. Bind the intent to the immutable command ID, canonical field
+identities, expected and target values, and exact authority. Admit that
+command once by creating an immutable command receipt under the same
+controller-only create and immutable update/delete rules. Keep these
+receipts outside the merge revision discovery prefix. The winning execution
+must verify both durable steps and fresh authority before sending the write.
+
+Recovery verifies the pending intent and canonical read-back. It does not
+submit the previous write again. Quarantine an unconfirmed outcome before
+another mutation, including a new merge reservation that may depend on the
+Status being changed. Missing proof of handoff or a timeout on its own
+cannot resolve the intent. Keep the protected manual path available when
+the journal proves it is safe.
+
+The Status target and the merge reservation are separate identities. A
+command affecting a reserved Work or its dependency defers the write until
+the reservation is conclusively cancelled or the squash is confirmed. An unrelated write may
+proceed while a reservation is active only when the complete, current
+dependency inventory proves nonintersection. If the journal has no active
+merge reservation, it still records Status admission and uncertainty.
+Incomplete inventories or unverified ref protections defer mutation.
+
+The [Delivery Project Status workflow](../../.github/workflows/delivery-project-status.yml)
+is inactive unless `DELIVERY_PROJECT_STATUS_COMMANDS_ENABLED` is set on the
+repository and a mode-specific boundary record is available.
+`DELIVERY_PROJECT_STATUS_CHANNEL_COMMENT_ID` identifies the direct,
+unchanged maintainer record on #115. The mode, scoped supervised Works,
+authorized author/App and transition evidence requirements must be present
+in the authorization. Use a distinct `DELIVERY_PROJECT_STATUS_WRITE_TOKEN`
+in the protected controller environment. The intake gets repository reads
+only. The recorder gets no check-publication credential. The shared
+delegation revocation also stops ordinary Status writes.
+
+For positive-only recovery use a protected dispatch bound to the original
+Work and command IDs and to a distinct, unexpired direct maintainer record
+of kind `recover-project-status`. Recovery does not start a new write.
+
+Enable this route first for authorized supervised validation. Verify ordinary
+direct-write denial, authorized command success, replay after an intervening
+Status change, contradictory evidence, revocation, uncertain write
+acknowledgement, and affected versus unrelated operations. Record the
+effective principal and credential inventory in [Work #140](https://github.com/Oxelio/architecture-web/issues/140).
+Work #140 follows the protected integration of the inactive controller from
+[PR #141](https://github.com/Oxelio/architecture-web/pull/141) and owns the
+supervised native squash and rollback evidence required before activation.
+
+### Final release admission
+
+The [maintainer amendment](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6927632751)
+is part of the Approved Target. The protected candidate-specific integration
+path remains Current Truth. Standing publication and native squash stay
+inactive until the separate activation gate is satisfied.
+
+Keep the existing reservation and the pending release intent. Before the
+checks-only issuer initiates final publication, persist a separate admission
+for the exact repository, Work, PR, head, base, reserved check and reservation.
+Bind the admission to a fingerprint of the accepted authority and evidence.
+Re-read verified candidate facts and live authority under the same protected
+controller boundary that makes ordinary revocations effective. Revalidate
+live authority after the journal receipt and before handing off the request.
+Only the invocation that won the exact compare-and-append may initiate the
+publication. An expired, revoked or uncertain receipt cannot start it.
+A replacement runner can only reconcile the exact admitted operation through
+positive GitHub observations. A known-unstarted attempt cannot be recovered
+by repeating the write. Keep inconclusive reservations quarantined.
+
+The deployment must serialize ordinary revocation against admission and
+handoff for the same protected repository. Use the controller's exclusive
+execution path and existing create-only journal for this sequence. Every
+ordinary effective revocation must enter that path. A freely editable
+setting or comment and an independent poll do not establish this ordering.
+Verify that every credential-capable path is covered before activation.
+Emergency administration retains its separate accepted exception.
+
+The manual evaluated Gate publisher enters the same repository Actions group,
+`delivery-work-controller-protected`, and reads the reservation journal before
+publishing with the checks-only App. An active or unreadable reservation
+blocks this competing publisher. An empty journal or a proven terminal state
+allows the usual manual path. Standing execution and ordinary revocation must
+use the same group once deployed. A queue entry does not revoke authority.
+The durable journal still protects the outstanding native operation after the
+Actions job ends.
+
+To revoke one delegation, a maintainer records an immutable JSON comment on
+Work #115 with `kind` set to `revoke-standing-work-integration`, the exact
+`repositoryId` and `delegationCommentId`. Dispatch **Delivery Work Controller
+Identity** on protected `main` with that comment ID. The job verifies the
+direct decision, controller installation and both active tag rulesets before
+creating the immutable revocation ref. A queued dispatch has no authority
+effect. A verified ref makes the revocation effective for that delegation
+and survives reinstalls and runner restarts. New authority requires a new
+maintainer decision. Recovery of an earlier reservation remains separate.
+
+Expiry and ordinary revocation stop new admissions, arms and publications.
+A publication started under a valid admission may complete after revocation
+or expiry. The independent writer boundary still holds through conclusive
+cancellation or confirmed squash. GitHub acknowledgments and ambiguous
+results alone cannot release a reservation or permit an invalidating write.
+
+Historically the design required the delegation to stay valid through the
+atomic squash. GitHub's native request and required check cannot enforce the
+controller deadline at that boundary. The amendment replaced that deadline
+for the one admitted operation. Existing merge correctness and activation
+requirements still apply.
+
 ## Delegated request identity
 
 The integration request identifies the repository, Work, PR and evaluated head

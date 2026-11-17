@@ -1,9 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { MergeReservation } from "../control/merge-reservation.js";
 import {
+  executeWorkIntegrationOperation,
+  type WorkIntegrationReservationReceipt,
+} from "../control/work-integration-controller.js";
+import { performReservedGitHubIntegration } from "./reserved-work-integration.js";
+import {
+  armReservedWorkSquash,
+  cancelReservedNativeSquash,
   evaluateScopedWorkGate,
+  observeReservedWorkSquash,
   observeWorkMerge,
   publishWorkMerge,
+  readAcceptedStandingImpact,
+  releaseReservedWorkMergeGate,
+  type StandingRulesetObservation,
   type WorkGateEvaluationGrant,
   type WorkMergeGrant,
   type WorkMergePublisher,
@@ -26,6 +38,19 @@ const checks = [
   { name: gate, id: 7 },
 ];
 
+const reservedCheckId = 133;
+const controllerBotId = 12;
+const checkIssuerToken = "isolated-check-issuer-fixture";
+const reservationId = "delivery-control/r12";
+const armIntent = {
+  candidate,
+  state: {
+    phase: "pending",
+    operation: "arm-squash",
+    checkId: reservedCheckId,
+  },
+} as const;
+
 const evaluationCandidate = { ...candidate, workNumber: 120, pullNumber: 125 };
 
 function fixture(scoped = false) {
@@ -47,11 +72,21 @@ function fixture(scoped = false) {
     } | null,
     untrustedGate: false,
     staleGate: false,
+    reservedGate: null as "queued" | "completed" | null,
+    reservedGateOnTestMerge: false,
+    priorGreenGate: false,
+    incompleteGateInventory: false,
+    armTimeout: false,
+    cancelTimeout: false,
+    mergeDuringCancel: false,
+    mergeParent: candidate.baseSha,
+    mergeOnMain: true,
     mergeTimeout: false,
     receiptTimeout: false,
     receiptUnexpected: false,
     merged: false,
     armed: false,
+    armBotId: controllerBotId,
     observation: false,
     bypassActors: [] as readonly unknown[] | null | undefined,
     strictChecks: true,
@@ -59,6 +94,9 @@ function fixture(scoped = false) {
     closingIssues: 0,
     title: "feat: integrate ordinary Work",
     evidenceEdited: false,
+    standingImpact: "ordinary",
+    standingFactsDigest: "d".repeat(64),
+    revokeGrant: false,
     tasks: [] as unknown[],
     owningPullBody: `Refs #${target.workNumber}`,
     additionalPullBody: null as string | null,
@@ -77,10 +115,19 @@ function fixture(scoped = false) {
       { kind: "code-review", commentId: 1, authorId: 12 },
       { kind: "working-decisions", commentId: 2, authorId: 12 },
       {
-        kind: scoped ? "validation" : "functional-approval",
+        kind: "validation",
         commentId: 3,
         authorId: 13,
       },
+      ...(scoped
+        ? []
+        : [
+            {
+              kind: "functional-approval" as const,
+              commentId: 4,
+              authorId: 13,
+            },
+          ]),
     ],
   };
   const writes: { url: string; method: string; body: unknown }[] = [];
@@ -114,6 +161,18 @@ function fixture(scoped = false) {
               },
             },
           },
+        });
+      }
+      if (url === `${repoUrl}/commits/${mergeSha}`) {
+        return Response.json({
+          sha: mergeSha,
+          parents: [{ sha: state.mergeParent }],
+        });
+      }
+      if (url === `${repoUrl}/compare/${mergeSha}...main`) {
+        return Response.json({
+          status: state.mergeOnMain ? "ahead" : "diverged",
+          merge_base_commit: { sha: state.mergeOnMain ? mergeSha : testSha },
         });
       }
       if (url.endsWith("/git/refs")) {
@@ -156,6 +215,28 @@ function fixture(scoped = false) {
       }
       if (
         url === "https://api.github.com/graphql" &&
+        String(init?.body).includes("disablePullRequestAutoMerge")
+      ) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          "Bearer isolated-merge-fixture",
+        );
+        writes.push({ url, method: "POST", body });
+        state.armed = false;
+        state.merged = state.mergeDuringCancel;
+        if (state.cancelTimeout) {
+          throw new Error("native cancellation response lost");
+        }
+        return Response.json({
+          data: {
+            disablePullRequestAutoMerge: {
+              clientMutationId: reservationId,
+              pullRequest: { id: "pr-node", autoMergeRequest: null },
+            },
+          },
+        });
+      }
+      if (
+        url === "https://api.github.com/graphql" &&
         String(init?.body).includes("enablePullRequestAutoMerge")
       ) {
         expect(new Headers(init?.headers).get("authorization")).toBe(
@@ -163,6 +244,9 @@ function fixture(scoped = false) {
         );
         writes.push({ url, method: "POST", body });
         state.armed = true;
+        if (state.armTimeout) {
+          throw new Error("native arm response lost");
+        }
         return Response.json({
           data: {
             enablePullRequestAutoMerge: {
@@ -199,7 +283,12 @@ function fixture(scoped = false) {
           mergeable: true,
           merged: state.merged,
           merge_commit_sha: state.merged ? mergeSha : testSha,
-          auto_merge: state.armed ? {} : null,
+          auto_merge: state.armed
+            ? {
+                merge_method: "squash",
+                enabled_by: { type: "Bot", id: state.armBotId },
+              }
+            : null,
           head: {
             ref: "codex/91",
             sha:
@@ -250,7 +339,7 @@ function fixture(scoped = false) {
         const id = Number(url.split("/").at(-1));
         if (
           (id === 1 && state.missingReview) ||
-          (id === 3 && state.missingApproval)
+          (id === (scoped ? 3 : 4) && state.missingApproval)
         ) {
           return new Response(null, { status: 404 });
         }
@@ -267,6 +356,8 @@ function fixture(scoped = false) {
           body: JSON.stringify({
             ...target,
             kind: reference?.kind,
+            standingImpact: state.standingImpact,
+            standingFactsDigest: state.standingFactsDigest,
             decision:
               id === 2 && state.revokedDecision ? "revoked" : "accepted",
           }),
@@ -275,6 +366,7 @@ function fixture(scoped = false) {
       if (url.endsWith("/rulesets/9")) {
         return Response.json({
           id: 9,
+          updated_at: "2026-11-12T15:00:00Z",
           target: "branch",
           enforcement: "active",
           bypass_actors: state.bypassActors,
@@ -306,37 +398,93 @@ function fixture(scoped = false) {
       if (url === repoUrl) {
         return Response.json({ id: 8, default_branch: "main" });
       }
+      if (
+        url === `${repoUrl}/check-runs` ||
+        url === `${repoUrl}/check-runs/${reservedCheckId}`
+      ) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(
+          `Bearer ${checkIssuerToken}`,
+        );
+        if (init?.method === "POST") {
+          writes.push({ url, method: "POST", body });
+          state.reservedGate = "queued";
+        }
+        if (init?.method === "PATCH") {
+          expect(state.armed).toBe(true);
+          writes.push({ url, method: "PATCH", body });
+          state.reservedGate = "completed";
+        }
+        return Response.json(
+          {
+            id: reservedCheckId,
+            html_url: "https://github.com/Oxelio/architecture-web/runs/133",
+            name: gate,
+            head_sha: candidate.headSha,
+            external_id: reservationId,
+            app: { id: 7 },
+            status: state.reservedGate,
+            conclusion: state.reservedGate === "completed" ? "success" : null,
+          },
+          { status: init?.method === "POST" ? 201 : 200 },
+        );
+      }
       if (url.includes("/check-runs")) {
-        if (url.includes(testSha)) {
+        const onTestMerge = url.includes(testSha);
+        if (onTestMerge && !state.reservedGateOnTestMerge) {
           return Response.json({ total_count: 0, check_runs: [] });
         }
         const runs = checks
+          .filter(({ name }) => !onTestMerge || name === gate)
           .filter(
             (item) => item.name !== "Quality checks" || !state.missingCheck,
           )
           .map(({ name, id }) => ({
+            id: name === gate ? reservedCheckId : id,
             name:
               state.observation && name === gate
                 ? `${gate} (observation)`
                 : name,
-            head_sha: candidate.headSha,
+            head_sha: onTestMerge ? testSha : candidate.headSha,
             started_at: "2026-01-02T00:00:00Z",
             status:
-              name === "Quality checks" && state.check === "pending"
-                ? "in_progress"
-                : "completed",
+              name === gate && state.reservedGate
+                ? state.reservedGate
+                : name === "Quality checks" && state.check === "pending"
+                  ? "in_progress"
+                  : "completed",
             conclusion:
               name === "Quality checks"
                 ? state.check === "pending"
                   ? null
                   : state.check
-                : "success",
+                : name === gate && state.reservedGate === "queued"
+                  ? null
+                  : "success",
             external_id:
               name === gate && !state.staleGate
-                ? `work:91:pr:92:${candidate.headSha}:${candidate.baseSha}`
+                ? state.reservedGate
+                  ? reservationId
+                  : `work:91:pr:92:${candidate.headSha}:${candidate.baseSha}`
                 : null,
             app: { id: name === gate && state.untrustedGate ? 999 : id },
           }));
+        if (url.includes("filter=all")) {
+          const gates = runs.filter((check) => check.name === gate);
+          const [current] = gates;
+          if (current && state.priorGreenGate) {
+            gates.push({
+              ...current,
+              id: reservedCheckId - 1,
+              external_id: "delivery-control/r1",
+              status: "completed",
+              conclusion: "success",
+            });
+          }
+          return Response.json({
+            total_count: gates.length + (state.incompleteGateInventory ? 1 : 0),
+            check_runs: gates,
+          });
+        }
         if (state.supersededQualityCheck) {
           const quality = runs.find(({ name }) => name === "Quality checks");
           if (quality) {
@@ -371,7 +519,7 @@ function fixture(scoped = false) {
         taskParent: true,
         taskClaim: false,
       },
-      readGrant: async () => grant,
+      readGrant: async () => (state.revokeGrant ? null : grant),
       withinVerifiedBoundary: async (_candidate, _mode, action) =>
         state.boundary ? action() : null,
     };
@@ -735,5 +883,440 @@ describe("trusted Work integration publisher", () => {
         },
       },
     });
+  });
+});
+
+describe("reserved native squash", () => {
+  it("uses the reserved queued check as the only pending prerequisite", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    await expect(
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => true,
+      ),
+    ).resolves.toEqual({ status: "auto-merge-requested" });
+    expect(f.writes).toHaveLength(1);
+    expect(f.writes[0]?.body).toMatchObject({
+      variables: {
+        input: {
+          pullRequestId: "pr-node",
+          expectedHeadOid: candidate.headSha,
+          mergeMethod: "SQUASH",
+        },
+      },
+    });
+  });
+
+  it("rejects already-green, foreign, replaced, or unverifiable checks before arming", async () => {
+    for (const change of [
+      { reservedGate: "completed" },
+      { untrustedGate: true },
+      { reservedGateOnTestMerge: true },
+      { staleGate: true },
+      { boundary: false },
+      { check: "pending" },
+      { bypassActors: undefined },
+    ] as const) {
+      const f = fixture();
+      f.state.reservedGate = "queued";
+      Object.assign(f.state, change);
+      await expect(
+        armReservedWorkSquash(
+          f.publisher(),
+          armIntent,
+          reservationId,
+          async () => true,
+        ),
+      ).resolves.toMatchObject({ status: "blocked" });
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+
+  it("rejects a hidden prior green check or incomplete history even when the latest check is queued", async () => {
+    for (const change of [
+      { priorGreenGate: true },
+      { incompleteGateInventory: true },
+    ]) {
+      const f = fixture();
+      f.state.reservedGate = "queued";
+      Object.assign(f.state, change);
+      await expect(
+        armReservedWorkSquash(
+          f.publisher(),
+          armIntent,
+          reservationId,
+          async () => true,
+        ),
+      ).resolves.toMatchObject({ status: "blocked" });
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+
+  it("binds omitted bypass actors to the same independently observed ruleset revision", async () => {
+    for (const mismatch of [
+      "none",
+      "stale",
+      "rules",
+      "visible bypass",
+    ] as const) {
+      const f = fixture();
+      f.state.reservedGate = "queued";
+      f.state.bypassActors =
+        mismatch === "visible bypass" ? [{ actor_id: 123 }] : undefined;
+      const publisher = f.publisher();
+      const observe = async () => {
+        const response = await f.fetchImpl(`${repoUrl}/rulesets/9`);
+        const view = (await response.json()) as {
+          updated_at: string;
+          conditions: StandingRulesetObservation["conditions"];
+          rules: StandingRulesetObservation["rules"];
+        };
+        return {
+          repositoryId: publisher.repositoryId,
+          rulesetId: 9,
+          updatedAt:
+            mismatch === "stale" ? "2026-11-11T15:00:00Z" : view.updated_at,
+          enforcement: "active",
+          target: "branch",
+          conditions: view.conditions,
+          rules: mismatch === "rules" ? [] : view.rules,
+          bypassActors: [],
+        };
+      };
+      const result = await armReservedWorkSquash(
+        {
+          ...publisher,
+          readStandingRulesetObservation: observe,
+        },
+        armIntent,
+        reservationId,
+        async () => true,
+      );
+      expect(result.status).toBe(
+        mismatch === "none" ? "auto-merge-requested" : "blocked",
+      );
+      expect(f.writes).toHaveLength(mismatch === "none" ? 1 : 0);
+    }
+  });
+
+  it("rechecks standing authority at the native arm boundary", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    await expect(
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => false,
+      ),
+    ).resolves.toEqual({
+      status: "blocked",
+      reason: "STANDING_ARM_AUTHORITY_UNVERIFIED",
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("rejects an unrelated reserved check ID", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    await expect(
+      armReservedWorkSquash(
+        f.publisher(),
+        { ...armIntent, state: { ...armIntent.state, checkId: 134 } },
+        reservationId,
+        async () => true,
+      ),
+    ).resolves.toMatchObject({ status: "blocked" });
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("does not confirm a native arm until the same PR reports the expected controller", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    f.state.armBotId = f.publisher().actorId + 1;
+    await expect(
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => true,
+      ),
+    ).resolves.toEqual({
+      status: "uncertain",
+      reason: "MUTATION_NOT_CONFIRMED",
+    });
+    expect(f.writes).toHaveLength(1);
+  });
+
+  it("does not replay an arm when its response was lost", async () => {
+    const f = fixture();
+    f.state.reservedGate = "queued";
+    f.state.armTimeout = true;
+    await expect(
+      armReservedWorkSquash(
+        f.publisher(),
+        armIntent,
+        reservationId,
+        async () => true,
+      ),
+    ).resolves.toEqual({
+      status: "uncertain",
+      reason: "MUTATION_NOT_CONFIRMED",
+    });
+    expect(f.writes).toHaveLength(1);
+  });
+});
+
+describe("reserved squash outcome", () => {
+  it("confirms the exact squash in protected main without issuing a mutation", async () => {
+    const f = fixture();
+    f.state.merged = true;
+    await expect(
+      observeReservedWorkSquash(f.publisher(), candidate),
+    ).resolves.toEqual({
+      kind: "squash-merged",
+      sha: mergeSha,
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("keeps the outcome unresolved on a wrong parent, changed owner, or absent merge", async () => {
+    for (const state of [
+      { mergeOnMain: false },
+      { mergeParent: testSha },
+      { owningPullBody: "Refs #93" },
+      { merged: false, armed: false },
+    ]) {
+      const f = fixture();
+      f.state.merged = true;
+      Object.assign(f.state, state);
+      await expect(
+        observeReservedWorkSquash(f.publisher(), candidate),
+      ).resolves.toBeNull();
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+});
+
+describe("reserved gate release", () => {
+  const releaseIntent = {
+    candidate,
+    state: {
+      phase: "pending",
+      operation: "release-check",
+      checkId: reservedCheckId,
+    },
+  } as const;
+
+  it("keeps the same check pending until the durable arm and releases that check only", async () => {
+    const f = fixture();
+    let current: WorkIntegrationReservationReceipt = {
+      revision: 1,
+      reservation: { candidate, state: { phase: "reserved" } },
+    };
+    const publisher = f.publisher();
+    const ports: Parameters<
+      typeof executeWorkIntegrationOperation
+    >[0]["ports"] = {
+      readReservation: async () => current,
+      append: async (
+        previous: WorkIntegrationReservationReceipt,
+        reservation: MergeReservation,
+      ) => {
+        if (previous.revision !== current.revision) {
+          return null;
+        }
+        current = { revision: current.revision + 1, reservation };
+        return current;
+      },
+      authorize: async () => true,
+      readReleaseAuthority: async () => ({
+        identity: "fixture",
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      }),
+      perform: ({ reservation }, admit) =>
+        performReservedGitHubIntegration(
+          reservation,
+          {
+            publisher,
+            reservationId,
+            checksToken: checkIssuerToken,
+            checksAppId: 7,
+            controllerBotId,
+          },
+          admit,
+          async () => true,
+        ),
+    };
+    for (const operation of [
+      "queue-check",
+      "arm-squash",
+      "release-check",
+    ] as const) {
+      await expect(
+        executeWorkIntegrationOperation({
+          candidate,
+          operation,
+          standingEnabled: true,
+          ports,
+        }),
+      ).resolves.toMatchObject({ status: "confirmed" });
+    }
+    expect(current.reservation.state).toEqual({
+      phase: "released",
+      checkId: reservedCheckId,
+    });
+    expect(f.writes.map(({ method, url }) => [method, url])).toEqual([
+      ["POST", `${repoUrl}/check-runs`],
+      ["POST", "https://api.github.com/graphql"],
+      ["PATCH", `${repoUrl}/check-runs/${reservedCheckId}`],
+    ]);
+  });
+
+  it("keeps the check pending if the request changed or current authority was revoked", async () => {
+    for (const change of [
+      { armed: false },
+      { armBotId: controllerBotId + 1 },
+      { revokedDecision: true },
+      { dependencyOpen: true },
+      { boundary: false },
+    ]) {
+      const f = fixture();
+      f.state.armed = true;
+      f.state.reservedGate = "queued";
+      Object.assign(f.state, change);
+      await expect(
+        releaseReservedWorkMergeGate(
+          f.publisher(),
+          releaseIntent,
+          reservationId,
+          checkIssuerToken,
+          controllerBotId,
+          async () => Number.MAX_SAFE_INTEGER,
+        ),
+      ).resolves.toMatchObject({ status: "blocked" });
+      expect(f.writes).toHaveLength(0);
+      expect(f.state.reservedGate).toBe("queued");
+    }
+  });
+});
+
+describe("reserved native cancellation", () => {
+  const scope = {
+    reservationId,
+    checksAppId: 7,
+    rulesetId: 9,
+    controllerBotId,
+  };
+  const cancel = (previousPhase: "armed" | "released") =>
+    ({
+      candidate,
+      state: {
+        phase: "pending",
+        operation: "resolve",
+        checkId: reservedCheckId,
+        previousPhase,
+      },
+    }) as const;
+
+  it("confirms cancellation only when the exact check held the merge throughout", async () => {
+    const f = fixture();
+    f.state.armed = true;
+    f.state.reservedGate = "queued";
+    await expect(
+      cancelReservedNativeSquash(f.publisher(), cancel("armed"), scope),
+    ).resolves.toEqual({ kind: "squash-cancelled" });
+    expect(f.writes).toHaveLength(1);
+    expect(f.writes[0]?.body).toMatchObject({
+      variables: {
+        input: { pullRequestId: "pr-node", clientMutationId: reservationId },
+      },
+    });
+  });
+
+  it("treats lost responses and acknowledgements after release as unresolved", async () => {
+    for (const previousPhase of ["armed", "released"] as const) {
+      const f = fixture();
+      f.state.armed = true;
+      f.state.cancelTimeout = previousPhase === "armed";
+      f.state.reservedGate = previousPhase === "armed" ? "queued" : "completed";
+      await expect(
+        cancelReservedNativeSquash(f.publisher(), cancel(previousPhase), scope),
+      ).resolves.toBeNull();
+      expect(f.writes).toHaveLength(1);
+    }
+  });
+
+  it("preserves the verified squash when merge wins the race", async () => {
+    const f = fixture();
+    f.state.armed = true;
+    f.state.reservedGate = "completed";
+    f.state.mergeDuringCancel = true;
+    await expect(
+      cancelReservedNativeSquash(f.publisher(), cancel("released"), scope),
+    ).resolves.toEqual({ kind: "squash-merged", sha: mergeSha });
+    expect(f.writes).toHaveLength(1);
+  });
+
+  it("does not cancel outside the controller's verified writer boundary", async () => {
+    const f = fixture();
+    f.state.armed = true;
+    f.state.reservedGate = "queued";
+    f.state.boundary = false;
+    await expect(
+      cancelReservedNativeSquash(f.publisher(), cancel("armed"), scope),
+    ).resolves.toBeNull();
+    expect(f.writes).toHaveLength(0);
+  });
+});
+
+describe("standing impact evidence reader", () => {
+  const scope = (f: ReturnType<typeof fixture>) => ({
+    ...f.publisher(),
+    repository: "Oxelio/architecture-web",
+  });
+
+  it("uses the accepted candidate-bound Code Review record", async () => {
+    const f = fixture();
+    expect(await readAcceptedStandingImpact(scope(f), candidate)).toEqual({
+      candidate,
+      disposition: "ordinary",
+      factsDigest: "d".repeat(64),
+    });
+    expect(f.writes).toHaveLength(0);
+  });
+
+  it("fails closed when evidence is edited, missing, malformed or revoked", async () => {
+    for (const fault of [
+      { evidenceEdited: true },
+      { missingReview: true },
+      { standingFactsDigest: "invalid" },
+      { revokeGrant: true },
+      { tasks: [{ number: 123, state: "open" }] },
+    ]) {
+      const f = fixture();
+      Object.assign(f.state, fault);
+      expect(await readAcceptedStandingImpact(scope(f), candidate)).toBeNull();
+      expect(f.writes).toHaveLength(0);
+    }
+  });
+
+  it("rejects a grant revoked during evidence resolution", async () => {
+    const f = fixture();
+    const publisher = scope(f);
+    let reads = 0;
+    expect(
+      await readAcceptedStandingImpact(
+        {
+          ...publisher,
+          readGrant: () =>
+            ++reads === 1 ? publisher.readGrant() : Promise.resolve(null),
+        },
+        candidate,
+      ),
+    ).toBeNull();
   });
 });

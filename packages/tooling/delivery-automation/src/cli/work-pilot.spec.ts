@@ -272,6 +272,8 @@ function completionFixture(recovery: boolean | "comment" = false) {
     );
     const path = url.pathname.slice("/repos/Oxelio/architecture-web".length);
     switch (path) {
+      case "/git/matching-refs/tags/delivery-control/r":
+        return Response.json([]);
       case "/issues/comments/14":
         return Response.json(record);
       case "/issues/96/comments":
@@ -491,6 +493,10 @@ function issuerFixture(pass = true) {
         case "/branches/main":
           expect(authorization).toBe("Bearer repository-fixture");
           return Response.json({ commit: current });
+        case "/git/matching-refs/tags/delivery-control/r":
+          expect(authorization).toBe("Bearer repository-fixture");
+          expect(init?.method).toBeUndefined();
+          return Response.json([]);
         case "/check-runs":
           expect(authorization).toBe("Bearer checks-only-fixture");
           expect(init?.redirect).toBe("error");

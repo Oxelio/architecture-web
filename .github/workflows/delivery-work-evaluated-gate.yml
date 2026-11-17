@@ -72,6 +72,9 @@ jobs:
 
   publish:
     needs: evaluate
+    concurrency:
+      group: delivery-work-controller-protected
+      queue: max
     if: >-
       needs.evaluate.result == 'success' &&
       github.ref == 'refs/heads/main' &&
