@@ -22,12 +22,14 @@ export const sonarGateConditionsDigest = digest(conditions);
 export interface ProtectedSonarSubmission {
   readonly repositoryId: number;
   readonly projectKey: string;
+  readonly workNumber: number;
   readonly pullNumber: number;
   readonly headSha: string;
   readonly baseSha: string;
   readonly sourceBranch: string;
   readonly taskId: string;
   readonly producerRunId: number;
+  readonly producerRunAttempt: number;
   readonly controlSha: string;
   readonly scannerConfigDigest: string;
   readonly conditionsDigest: string;
@@ -37,6 +39,7 @@ export interface ProtectedSonarSubmission {
 
 export interface SonarCandidate {
   readonly repositoryId: number;
+  readonly workNumber: number;
   readonly pullNumber: number;
   readonly headSha: string;
   readonly baseSha: string;
@@ -92,6 +95,7 @@ function matchesSubmission(
 ) {
   return (
     candidate?.repositoryId === 1336937640 &&
+    candidate.workNumber === submission.workNumber &&
     candidate.pullNumber === submission.pullNumber &&
     candidate.headSha === submission.headSha &&
     candidate.baseSha === submission.baseSha &&
@@ -121,6 +125,9 @@ export async function readSonarAnalysisEvidence(input: {
       !input.token.trim() ||
       submission.repositoryId !== 1336937640 ||
       submission.projectKey !== projectKey ||
+      !Number.isSafeInteger(submission.workNumber) ||
+      submission.workNumber <= 0 ||
+      submission.producerRunAttempt !== 1 ||
       !Number.isSafeInteger(submission.pullNumber) ||
       submission.pullNumber <= 0 ||
       !Number.isSafeInteger(submission.producerRunId) ||

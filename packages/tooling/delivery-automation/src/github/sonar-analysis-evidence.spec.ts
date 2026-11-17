@@ -10,12 +10,14 @@ import {
 const submission: ProtectedSonarSubmission = {
   repositoryId: 1336937640,
   projectKey: "Oxelio_architecture-web",
+  workNumber: 140,
   pullNumber: 146,
   headSha: "a".repeat(40),
   baseSha: "b".repeat(40),
   sourceBranch: "codex/work-140",
   taskId: "ce-task-1",
   producerRunId: 42,
+  producerRunAttempt: 1,
   controlSha: "c".repeat(40),
   scannerConfigDigest: "d".repeat(64),
   conditionsDigest: sonarGateConditionsDigest,
@@ -148,6 +150,8 @@ describe("preparation-only authenticated Sonar reader", () => {
 
   it.each([
     { repositoryId: 1 },
+    { workNumber: 1 },
+    { producerRunAttempt: 2 },
     { projectKey: "another-project" },
     { taskId: "https://attacker.invalid/task" },
     { conditionsDigest: "0".repeat(64) },
