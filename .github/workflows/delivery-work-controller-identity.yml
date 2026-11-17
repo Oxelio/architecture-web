@@ -3,6 +3,10 @@ name: Delivery Work Controller Identity
 on:
   workflow_dispatch:
     inputs:
+      probe_journal:
+        description: Verify live protection with one permanent, non-operational test tag.
+        type: boolean
+        default: false
       revoke_comment_id:
         description: Direct maintainer comment on Work #115 recording an ordinary revocation
         required: false
@@ -18,7 +22,8 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.run_attempt == 1 &&
       github.actor_id == '83680141' &&
-      inputs.revoke_comment_id == ''
+      inputs.revoke_comment_id == '' &&
+      !inputs.probe_journal
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment: delivery-work-controller
@@ -60,7 +65,8 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.run_attempt == 1 &&
       github.actor_id == '83680141' &&
-      inputs.revoke_comment_id != ''
+      inputs.revoke_comment_id != '' &&
+      !inputs.probe_journal
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment: delivery-work-controller
@@ -105,3 +111,51 @@ jobs:
           DELIVERY_CONTROLLER_RULESET_OBSERVATIONS: ${{ vars.DELIVERY_CONTROLLER_RULESET_OBSERVATIONS }}
           REVOCATION_COMMENT_ID: ${{ inputs.revoke_comment_id }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/revoke-standing-delegation.ts
+
+  probe-journal:
+    if: >-
+      github.repository_id == '1336937640' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.actor_id == '83680141' &&
+      inputs.revoke_comment_id == '' &&
+      inputs.probe_journal &&
+      vars.DELIVERY_STANDING_EXECUTION_ENABLED != 'true' &&
+      vars.DELIVERY_STANDING_VALIDATION_COMMENT_ID == ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: delivery-work-controller
+    permissions:
+      contents: write
+    concurrency:
+      group: delivery-work-controller-protected
+      queue: max
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: controller-token
+        with:
+          client-id: ${{ vars.DELIVERY_CONTROLLER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_CONTROLLER_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-contents: write
+      - name: Verify journal ref enforcement against distinct credentials
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTROLLER_INSTALLATION_TOKEN: ${{ steps.controller-token.outputs.token }}
+          CONTROLLER_APP_SLUG: ${{ steps.controller-token.outputs.app-slug }}
+          CONTROLLER_INSTALLATION_ID: ${{ steps.controller-token.outputs.installation-id }}
+          EXPECTED_CONTROLLER_INSTALLATION_ID: ${{ vars.DELIVERY_CONTROLLER_INSTALLATION_ID }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/controller-journal-probe.ts
