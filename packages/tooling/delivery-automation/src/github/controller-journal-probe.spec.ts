@@ -135,6 +135,66 @@ describe("controller journal enforcement probe", () => {
     ).rejects.toThrow("target is inconsistent");
   });
 
+  it.each([
+    { runId: 0 },
+    { mainSha: "invalid" },
+    { parentSha: input.mainSha },
+    { controllerToken: input.workflowToken },
+  ])(
+    "rejects invalid probe context before accessing GitHub",
+    async (overrides) => {
+      const fetchImpl = mockGitHub();
+      await expect(
+        verifyControllerJournalEnforcement({
+          ...input,
+          ...overrides,
+          fetchImpl,
+        }),
+      ).rejects.toThrow("Invalid probe context");
+      expect(fetchImpl).not.toHaveBeenCalled();
+    },
+  );
+
+  it("requires positive controller creation and the exact ref before attempting to update it", async () => {
+    for (const result of [
+      new Response(null, { status: 422 }),
+      reference(201, input.parentSha),
+    ]) {
+      const fetchImpl = mockGitHub(
+        new Response(null, { status: 404 }),
+        denial(),
+        result,
+      );
+      await expect(
+        verifyControllerJournalEnforcement({ ...input, fetchImpl }),
+      ).rejects.toThrow(/probe ref/i);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    }
+  });
+
+  it.each([
+    { name: "update", results: () => [reference(200)], calls: 4 },
+    {
+      name: "deletion",
+      results: () => [denial(), new Response(null, { status: 204 })],
+      calls: 5,
+    },
+  ])(
+    "fails when controller $name unexpectedly succeeds",
+    async ({ name, results, calls }) => {
+      const fetchImpl = mockGitHub(
+        new Response(null, { status: 404 }),
+        denial(),
+        reference(201),
+        ...results(),
+      );
+      await expect(
+        verifyControllerJournalEnforcement({ ...input, fetchImpl }),
+      ).rejects.toThrow(`controller ${name}`);
+      expect(fetchImpl).toHaveBeenCalledTimes(calls);
+    },
+  );
+
   it("does not retry a lost controller creation response", async () => {
     const fetchImpl = mockGitHub(new Response(null, { status: 404 }), denial());
     fetchImpl.mockRejectedValueOnce(new Error("connection interrupted"));
