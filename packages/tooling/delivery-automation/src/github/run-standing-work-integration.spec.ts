@@ -36,11 +36,13 @@ const delegation = {
   gatePublication: true,
   nativeSquash: true,
   expiresAt: "2099-01-01T00:00:00Z",
+  decisionCommentId: 9876,
 };
 const execute = vi.mocked(executeEligibleStandingWorkIntegration);
 
 function fixture() {
   const readDelegation = vi.fn(async () => delegation);
+  const readMarker = vi.fn(async () => new Response(null, { status: 404 }));
   const authorizeRecovery = vi.fn(async () => true);
   const input = {
     standingEnabled: true,
@@ -49,11 +51,17 @@ function fixture() {
     readDelegation,
     authorizeRecovery,
     scope: {
-      publisher: { repository, repositoryId, actorId: controllerBotId },
+      publisher: {
+        repository,
+        repositoryId,
+        actorId: controllerBotId,
+        repositoryToken: "repo-reader",
+        fetchImpl: readMarker,
+      },
       controllerBotId,
     },
   } as unknown as Parameters<typeof runStandingWorkIntegration>[0];
-  return { input, readDelegation, authorizeRecovery };
+  return { input, readDelegation, authorizeRecovery, readMarker };
 }
 
 beforeEach(() => {
@@ -122,6 +130,26 @@ describe("protected standing integration sequence", () => {
     expect(readReservedGitHubWorkIntegration).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it.each([200, 503])(
+    "denies new publication after an effective or unverified revocation (%s)",
+    async (status) => {
+      const { input, readMarker } = fixture();
+      readMarker.mockImplementation(async () =>
+        Response.json(
+          {
+            ref: "refs/tags/delivery-control/disabled-9876",
+            object: { type: "commit", sha: "a".repeat(40) },
+          },
+          { status },
+        ),
+      );
+      expect(await runStandingWorkIntegration(input)).toEqual({
+        status: "denied",
+      });
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
 
   it("rechecks the two delegated permissions before each confirmed step", async () => {
     const { input, readDelegation } = fixture();

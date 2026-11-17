@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canPublishManualWorkGate,
+  canRecordWorkCompletion,
   createGitHubWorkReservationJournal,
 } from "./github-work-reservation-journal.js";
 import {
@@ -58,6 +59,7 @@ function fixture() {
     loseProjectResponse: false,
     merged: false,
     squashParent: candidate.baseSha,
+    dependencies: [] as number[],
   };
   const publishedChecks: object[] = [];
   const fetchImpl = async (request: RequestInfo | URL, init?: RequestInit) => {
@@ -167,6 +169,16 @@ function fixture() {
         status: "ahead",
         merge_base_commit: { sha: squashSha },
       });
+    }
+    if (path.endsWith("/issues/115/dependencies/blocked_by")) {
+      expect(auth).toBe("Bearer test-reader");
+      return Response.json(
+        state.dependencies.map((number) => ({
+          number,
+          repository_url:
+            "https://api.github.com/repos/Oxelio/architecture-web",
+        })),
+      );
     }
     if (path.endsWith("/pulls/141")) {
       expect(auth).toBe("Bearer test-reader");
@@ -606,5 +618,32 @@ describe("observed native squash", () => {
       await journal.reserve({ ...candidate, workNumber: 139 }),
     ).not.toBeNull();
     expect(f.checkReservations).toEqual([]);
+  });
+});
+
+describe("Work Completion in the protected group", () => {
+  it("defers a conflicting completion while leaving unrelated Work available", async () => {
+    const f = fixture();
+    const journal = f.journal();
+    const initial = await journal.reserve(candidate);
+    if (!initial) {
+      throw new Error("Expected reservation");
+    }
+    await journal.append(initial, {
+      candidate,
+      state: { phase: "released", checkId: 17 },
+    });
+    f.state.dependencies = [139];
+    const { repositoryToken, fetchImpl } = f.input.scope.publisher;
+    const reader = { repositoryToken, ...(fetchImpl ? { fetchImpl } : {}) };
+    await expect(
+      canRecordWorkCompletion(reader, candidate.workNumber),
+    ).resolves.toBe(false);
+    await expect(canRecordWorkCompletion(reader, 139)).resolves.toBe(false);
+    await expect(canRecordWorkCompletion(reader, 140)).resolves.toBe(true);
+    f.state.merged = true;
+    await expect(
+      canRecordWorkCompletion(reader, candidate.workNumber),
+    ).resolves.toBe(true);
   });
 });

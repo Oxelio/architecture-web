@@ -5,6 +5,7 @@ import {
   publishWorkCompletion,
   type WorkCompletionSnapshot,
 } from "../control/work-completion.js";
+import { canRecordWorkCompletion } from "../github/github-work-reservation-journal.js";
 import {
   type CompletionRecord,
   isCompletionRecord,
@@ -125,6 +126,17 @@ if (process.env["COMPLETION_WAIT_FOR_DOWNSTREAM"] === "true") {
     }
     await setTimeout(20_000);
   }
+}
+
+if (
+  !(await canRecordWorkCompletion(
+    { repositoryToken: requiredEnvironment("GITHUB_TOKEN") },
+    workNumber,
+  ))
+) {
+  throw new Error(
+    "Work completion conflicts with an unresolved native reservation",
+  );
 }
 
 let verifiedItem: {

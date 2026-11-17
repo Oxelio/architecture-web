@@ -15,7 +15,10 @@ import {
   type MergeJournalPosition,
   readMergeJournalTail,
 } from "./merge-reservation-journal.js";
-import type { MergeCandidate } from "./work-merge-publisher.js";
+import {
+  type MergeCandidate,
+  observeReservedWorkSquash,
+} from "./work-merge-publisher.js";
 
 interface JournalConnection {
   readonly repositoryToken: string;
@@ -26,15 +29,76 @@ interface JournalConnection {
 // Keep that writer out until the native reservation has conclusively ended.
 export async function canPublishManualWorkGate(connection: JournalConnection) {
   const entry = await createGitHubWorkReservationJournal(connection).read();
-  switch (entry?.reservation.state.phase) {
-    case undefined:
-    case "cancelled":
-    case "merged":
-    case "invalidated":
-      return true;
-    default:
-      return false;
+  return !entry || isTerminal(entry.reservation.state);
+}
+
+function isTerminal(state: MergeReservationState): boolean {
+  return (
+    state.phase === "cancelled" ||
+    state.phase === "merged" ||
+    state.phase === "invalidated"
+  );
+}
+
+export async function canRecordWorkCompletion(
+  connection: JournalConnection,
+  workNumber: number,
+): Promise<boolean> {
+  const entry = await createGitHubWorkReservationJournal(connection).read();
+  if (!entry || isTerminal(entry.reservation.state)) {
+    return true;
   }
+  const { candidate } = entry.reservation;
+  if (
+    await observeReservedWorkSquash(
+      {
+        ...connection,
+        repository: "Oxelio/architecture-web",
+        repositoryId: 1336937640,
+      },
+      candidate,
+    )
+  ) {
+    return true;
+  }
+  if (candidate.workNumber === workNumber) {
+    return false;
+  }
+
+  const repository = "https://api.github.com/repos/Oxelio/architecture-web";
+  const response = await (connection.fetchImpl ?? fetch)(
+    `${repository}/issues/${candidate.workNumber}/dependencies/blocked_by?per_page=100`,
+    {
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${connection.repositoryToken}`,
+        "x-github-api-version": "2022-11-28",
+      },
+      redirect: "error",
+    },
+  );
+  if (response.status !== 200 || response.headers.has("link")) {
+    return false;
+  }
+  const dependencies: unknown = await response.json();
+  return (
+    Array.isArray(dependencies) &&
+    dependencies.length < 100 &&
+    dependencies.every((dependency: unknown) => {
+      if (!dependency || typeof dependency !== "object") {
+        return false;
+      }
+      const item = dependency as {
+        readonly number?: number;
+        readonly repository_url?: string;
+      };
+      return (
+        Number.isSafeInteger(item.number) &&
+        item.repository_url === repository &&
+        item.number !== workNumber
+      );
+    })
+  );
 }
 
 interface PersistedReservation

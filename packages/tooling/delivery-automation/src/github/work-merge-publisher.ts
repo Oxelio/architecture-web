@@ -681,7 +681,10 @@ export async function verifyStandingJournalRules(
       ruleset?.id !== id ||
       ruleset.target !== "tag" ||
       ruleset.enforcement !== "active" ||
-      !isDeepStrictEqual(refs?.include, ["refs/tags/delivery-control/r*"]) ||
+      !isDeepStrictEqual(refs?.include, [
+        "refs/tags/delivery-control/r*",
+        "refs/tags/delivery-control/disabled-*",
+      ]) ||
       !isDeepStrictEqual(refs?.exclude, []) ||
       !Array.isArray(ruleset.rules) ||
       ruleset.rules.length !== expectedRules.length ||

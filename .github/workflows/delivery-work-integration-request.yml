@@ -75,3 +75,71 @@ jobs:
           DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
           DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
         run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts
+
+  standing-controller:
+    if: >-
+      github.repository_id == '1336937640' &&
+      github.event_name == 'workflow_run' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      github.event.workflow_run.conclusion == 'success' &&
+      ((vars.DELIVERY_STANDING_EXECUTION_ENABLED == 'true' &&
+        vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID != '') ||
+       (vars.DELIVERY_STANDING_EXECUTION_ENABLED != 'true' &&
+        vars.DELIVERY_STANDING_VALIDATION_COMMENT_ID != ''))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: delivery-work-controller
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+      checks: read
+    concurrency:
+      group: delivery-work-controller-protected
+      queue: max
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: controller-token
+        with:
+          client-id: ${{ vars.DELIVERY_CONTROLLER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_CONTROLLER_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: gate-token
+        with:
+          client-id: ${{ vars.DELIVERY_GATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_GATE_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-checks: write
+      - name: Evaluate and integrate an eligible candidate through the protected controller
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_STANDING_EXECUTION_ENABLED: ${{ vars.DELIVERY_STANDING_EXECUTION_ENABLED }}
+          DELIVERY_STANDING_VALIDATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_VALIDATION_COMMENT_ID }}
+          DELIVERY_STANDING_BOUNDARY_COMMENT_ID: ${{ vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID }}
+          DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+          CONTROLLER_INSTALLATION_TOKEN: ${{ steps.controller-token.outputs.token }}
+          CONTROLLER_APP_SLUG: ${{ steps.controller-token.outputs.app-slug }}
+          CONTROLLER_INSTALLATION_ID: ${{ steps.controller-token.outputs.installation-id }}
+          EXPECTED_CONTROLLER_INSTALLATION_ID: ${{ vars.DELIVERY_CONTROLLER_INSTALLATION_ID }}
+          GATE_APP_TOKEN: ${{ steps.gate-token.outputs.token }}
+          GATE_INSTALLATION_ID: ${{ steps.gate-token.outputs.installation-id }}
+        run: pnpm --filter @architecture/delivery-automation exec tsx src/cli/work-integration-request.ts

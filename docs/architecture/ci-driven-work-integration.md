@@ -97,6 +97,29 @@ steps. Activation requires those proofs and the applicable separate authority.
 For rollback, stop arming, resolve or quarantine the outstanding request, and
 use the protected manual exception. Preserve the existing required checks.
 
+**Standing execution remains off by default.** The protected job can run
+in one of two authorized modes. For supervised Validation, an immutable
+maintainer record on Work #115 is selected by
+`DELIVERY_STANDING_VALIDATION_COMMENT_ID` and binds one exact candidate and
+expiry. For standing execution, `DELIVERY_STANDING_EXECUTION_ENABLED` and
+`DELIVERY_STANDING_BOUNDARY_COMMENT_ID` select the distinct activation record
+after successful supervised Validation. The record identifies the tested
+repository, Project, two App installations, effective rulesets, authorities
+and Validation run. It also binds the protected Git trees and lockfile, so an
+ordinary integration does not require renewing it. Code or configuration
+changes affecting those bindings require a refreshed activation record.
+The runtime checks the live branch, rulesets, actors and candidate facts.
+Validation must establish the actual writer exclusions before that record
+is issued. The record does not replace their technical enforcement.
+
+The standing controller and revocation use separate, narrowly scoped
+installation tokens within the shared protected Actions group. The checks-only
+token cannot merge or update Project state. The native merge token cannot
+publish the required check. The Project reader remains read-only. The
+completion writer joins the same group and permits a completion touching a
+reserved Work or its dependency only after conclusive resolution. With a
+verified dependency inventory, unrelated completions remain available.
+
 ### Controller installation verification
 
 Run **Delivery Work Controller Identity** on protected `main` during
@@ -136,8 +159,9 @@ controller, bind it to the effective ruleset and enforce the writer boundary
 for subsequent rule changes. A missing binding leaves standing integration
 disabled.
 
-The journal reserves `refs/tags/delivery-control/r*`. Two active tag rulesets
-protect that namespace. The creation ruleset restricts creation with the
+The journal reserves `refs/tags/delivery-control/r*`. Ordinary revocations use
+`refs/tags/delivery-control/disabled-*`, keyed by the exact standing-delegation
+comment ID. Two active tag rulesets protect both patterns. The creation ruleset restricts creation with the
 controller App as its sole bypass actor. The immutability ruleset restricts
 updates and deletions with an empty bypass list, including for the controller.
 The standing runner reads both exact rulesets before trusting the journal,
@@ -197,6 +221,16 @@ allows the usual manual path. Standing execution and ordinary revocation must
 use the same group once deployed. A queue entry does not revoke authority.
 The durable journal still protects the outstanding native operation after the
 Actions job ends.
+
+To revoke one delegation, a maintainer records an immutable JSON comment on
+Work #115 with `kind` set to `revoke-standing-work-integration`, the exact
+`repositoryId` and `delegationCommentId`. Dispatch **Delivery Work Controller
+Identity** on protected `main` with that comment ID. The job verifies the
+direct decision, controller installation and both active tag rulesets before
+creating the immutable revocation ref. A queued dispatch has no authority
+effect. A verified ref makes the revocation effective for that delegation
+and survives reinstalls and runner restarts. New authority requires a new
+maintainer decision. Recovery of an earlier reservation remains separate.
 
 Expiry and ordinary revocation stop new admissions, arms and publications.
 A publication started under a valid admission may complete after revocation

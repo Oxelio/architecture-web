@@ -17,7 +17,13 @@ const common = {
   updated_at: "2026-11-16T10:00:00Z",
   enforcement: "active",
   conditions: {
-    ref_name: { include: ["refs/tags/delivery-control/r*"], exclude: [] },
+    ref_name: {
+      include: [
+        "refs/tags/delivery-control/r*",
+        "refs/tags/delivery-control/disabled-*",
+      ],
+      exclude: [],
+    },
   },
 };
 const controller = {

@@ -9,6 +9,7 @@ import {
   reconcileReservedGitHubWorkIntegration,
   recordReleasedNativeSquash,
 } from "./reserved-work-integration.js";
+import { isStandingDelegationRevoked } from "./standing-delegation-revocation.js";
 import {
   discoverStandingWorkMergeGrant,
   type StandingEvidenceAuthority,
@@ -27,6 +28,7 @@ export interface StandingDelegation {
   readonly gatePublication: boolean;
   readonly nativeSquash: boolean;
   readonly expiresAt: string;
+  readonly decisionCommentId: number;
 }
 
 export async function runStandingWorkIntegration(
@@ -102,14 +104,25 @@ export async function runStandingWorkIntegration(
   const readLiveDelegation = async (): Promise<StandingDelegation | null> => {
     try {
       const delegation = await input.readDelegation();
-      return delegation?.repositoryId === context.repositoryId &&
+      if (
+        delegation?.repositoryId === context.repositoryId &&
         delegation.controllerBotId === scope.controllerBotId &&
         delegation.workflowSha === context.workflowSha &&
         delegation.gatePublication === true &&
         delegation.nativeSquash === true &&
+        Date.parse(delegation.expiresAt) > Date.now() &&
+        !(await isStandingDelegationRevoked({
+          repositoryToken: bindings.publisher.repositoryToken,
+          delegationCommentId: delegation.decisionCommentId,
+          ...(bindings.publisher.fetchImpl
+            ? { fetchImpl: bindings.publisher.fetchImpl }
+            : {}),
+        })) &&
         Date.parse(delegation.expiresAt) > Date.now()
-        ? delegation
-        : null;
+      ) {
+        return delegation;
+      }
+      return null;
     } catch {
       return null;
     }
