@@ -38,6 +38,7 @@ validation evidence are reviewed together.
 | [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)     | Approved       | Security event audit trail                                   |
 | [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)   | Approved       | Dynamic security feature and policy configuration            |
 | [SF-SESSION-001](SF-SESSION-001.md)                   | Implementation | Enrich active sessions with identification information       |
+| [SF-WEB-ERROR-FEEDBACK-001](SF-WEB-ERROR-FEEDBACK-001.md) | Proposed       | Localized validation and API error feedback in the Web UI     |
 | [SF-PASSWORD-001](SF-PASSWORD-001.md)                 | Implementation | Configurable secure password policy                          |
 
 ## Observed implementation coverage
