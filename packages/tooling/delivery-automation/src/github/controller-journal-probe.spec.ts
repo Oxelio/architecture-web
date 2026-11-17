@@ -11,9 +11,16 @@ const input = {
   controllerToken: "controller",
 };
 
-function denial() {
+function denial(rule: "creations" | "updates" | "deletions" = "creations") {
+  const action = {
+    creations: "create",
+    updates: "update",
+    deletions: "delete",
+  }[rule];
   return Response.json(
-    { message: "Repository rule violations found" },
+    {
+      message: `GH013: Repository rule violations found. Cannot ${action} ref due to ${rule} being restricted.`,
+    },
     { status: 422 },
   );
 }
@@ -36,8 +43,8 @@ describe("controller journal enforcement probe", () => {
       new Response(null, { status: 404 }),
       denial(),
       reference(201),
-      denial(),
-      denial(),
+      denial("updates"),
+      denial("deletions"),
       reference(200),
     );
 
@@ -113,6 +120,43 @@ describe("controller journal enforcement probe", () => {
     }
   });
 
+  it.each([
+    "GH013: Repository rule violations found",
+    "Repository rule violations found. Commits must have verified signatures.",
+    "Repository rule violations found. Cannot update ref due to updates being restricted.",
+  ])(
+    "requires evidence of a creation restriction before testing App writes",
+    async (message) => {
+      const fetchImpl = mockGitHub(
+        new Response(null, { status: 404 }),
+        Response.json({ message }, { status: 422 }),
+      );
+      await expect(
+        verifyControllerJournalEnforcement({ ...input, fetchImpl }),
+      ).rejects.toThrow("specific to ordinary creation");
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("does not count an unrelated update denial as immutability", async () => {
+    const fetchImpl = mockGitHub(
+      new Response(null, { status: 404 }),
+      denial(),
+      reference(201),
+      Response.json(
+        {
+          message:
+            "GH013: Repository rule violations found. Cannot force-push to this branch.",
+        },
+        { status: 422 },
+      ),
+    );
+    await expect(
+      verifyControllerJournalEnforcement({ ...input, fetchImpl }),
+    ).rejects.toThrow("specific to controller update");
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
   it("stops without creating a ref when the probe ref already exists", async () => {
     const fetchImpl = mockGitHub(reference(200));
     await expect(
@@ -126,8 +170,8 @@ describe("controller journal enforcement probe", () => {
       new Response(null, { status: 404 }),
       denial(),
       reference(201),
-      denial(),
-      denial(),
+      denial("updates"),
+      denial("deletions"),
       reference(200, input.parentSha),
     );
     await expect(
@@ -176,7 +220,7 @@ describe("controller journal enforcement probe", () => {
     { name: "update", results: () => [reference(200)], calls: 4 },
     {
       name: "deletion",
-      results: () => [denial(), new Response(null, { status: 204 })],
+      results: () => [denial("updates"), new Response(null, { status: 204 })],
       calls: 5,
     },
   ])(

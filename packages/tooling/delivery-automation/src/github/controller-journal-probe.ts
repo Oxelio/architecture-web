@@ -12,7 +12,19 @@ interface ProbeInput {
 const gitApi = "https://api.github.com/repos/Oxelio/architecture-web/git";
 const shaPattern = /^[a-f0-9]{40}$/u;
 
-async function requireRulesetDenial(response: Response, operation: string) {
+const expectedDenials = {
+  "ordinary creation":
+    /\b(?:creations being restricted|creations are restricted)\b/iu,
+  "controller update":
+    /\b(?:updates being restricted|updates are restricted)\b/iu,
+  "controller deletion":
+    /\b(?:deletions being restricted|deletions are restricted)\b/iu,
+} as const;
+
+async function requireRulesetDenial(
+  response: Response,
+  operation: keyof typeof expectedDenials,
+) {
   if (response.status === 403 || response.status === 422) {
     const result: unknown = await response.json().catch(() => null);
     if (
@@ -20,13 +32,14 @@ async function requireRulesetDenial(response: Response, operation: string) {
       typeof result === "object" &&
       "message" in result &&
       typeof result.message === "string" &&
-      /\bGH013\b|repository rule violations?/iu.test(result.message)
+      /\bGH013\b|repository rule violations?/iu.test(result.message) &&
+      expectedDenials[operation].test(result.message)
     ) {
       return;
     }
   }
   throw new Error(
-    `Expected ruleset denial for ${operation}; received HTTP ${response.status}`,
+    `Expected rule denial specific to ${operation}; received HTTP ${response.status}`,
   );
 }
 
