@@ -141,12 +141,26 @@ separate protected boundaries. Verify each installation's actual grant before
 using it for an authoring operation. An authoring token's technical ability to
 write a ref is not new authority to merge or alter protected control-plane code.
 
-The existing ordinary write paths must become technically unavailable in the
-agent execution profile before arming is permitted. Preserve reads through
-public/read-only access and the intake's constrained Project projection. No
-additional OAuth account or connection is needed solely to test known scopes.
-Any All-repositories installation change must preserve unrelated access and
-explicitly address future-repository behavior before approval or execution.
+The existing ordinary write paths must become technically unavailable to every
+ordinary agent or automation identity that can reach this repository or Project,
+including agents working on other repositories. Isolating this chat alone while
+another agent retains an owner-wide token would leave the same bypass.
+
+Use an enforced execution/tool boundary without owner GCM, owner browser,
+writable connectors or an escape to the host principal. An agent that retains
+host tools cannot become isolated merely by running selected commands inside
+a container. The current desktop's ability to enforce such a profile is not
+established. Keep the ultimate owner session in a separate human-only path.
+Preserve reads through public/read-only access and the private Project projection.
+
+No additional OAuth account or connection is needed solely to test known scopes.
+Broad ordinary credentials may need replacement with repository-selected grants
+or inaccessible credential custody across other agent contexts. That operational
+impact is not authorized by repository-only preparation. Any All-repositories
+installation change must preserve unrelated access and explicitly address
+future-repository behavior before approval or execution. If exclusion cannot be
+proved, retain inactive operation; this decision does not reduce the guarantee
+to agents that voluntarily use the intake.
 
 The accepted emergency administrator exception remains unchanged. This ADR
 does not extend it to an agent-accessible owner token or silently add a provider

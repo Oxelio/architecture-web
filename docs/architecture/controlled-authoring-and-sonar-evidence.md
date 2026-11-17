@@ -88,6 +88,16 @@ scope. A repository-scoped App does not automatically replace it. Proving a
 Project read/write split and a usable, restricted submission channel remains
 mandatory. Do not request redundant OAuth test accounts or unrelated Projects.
 
+Exclusion covers all ordinary agent/automation credentials that can reach the
+governed repository or Project, even when used from another workspace. An
+Architecture-only tool profile cannot neutralize a broad owner token still
+available to an agent elsewhere. An enforced runtime boundary must remove host
+credential/browser/tool access, not merely select a container for some commands.
+The current desktop provides no established proof of that isolation. Scope any
+necessary replacement of broad grants and its other/future-repository impact
+as a distinct cutover decision. Preserve the full accepted guarantee; do not
+substitute an agreement to use the intake for technical exclusion.
+
 ### Complete workflow scan
 
 All twelve deployed workflow files were inspected. The earlier
