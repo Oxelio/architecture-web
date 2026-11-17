@@ -189,6 +189,15 @@ setting or comment and an independent poll do not establish this ordering.
 Verify that every credential-capable path is covered before activation.
 Emergency administration retains its separate accepted exception.
 
+The manual evaluated Gate publisher enters the same repository Actions group,
+`delivery-work-controller-protected`, and reads the reservation journal before
+publishing with the checks-only App. An active or unreadable reservation
+blocks this competing publisher. An empty journal or a proven terminal state
+allows the usual manual path. Standing execution and ordinary revocation must
+use the same group once deployed. A queue entry does not revoke authority.
+The durable journal still protects the outstanding native operation after the
+Actions job ends.
+
 Expiry and ordinary revocation stop new admissions, arms and publications.
 A publication started under a valid admission may complete after revocation
 or expiry. The independent writer boundary still holds through conclusive

@@ -4,6 +4,7 @@ import {
   workMergeRequiredCheckName,
 } from "../control/work-merge-gate.js";
 import { publishGateCheck } from "../github/gate-check-publisher.js";
+import { canPublishManualWorkGate } from "../github/github-work-reservation-journal.js";
 import type { MergeCandidate } from "../github/work-merge-publisher.js";
 import {
   positiveInteger,
@@ -124,6 +125,15 @@ if (
 ) {
   throw new Error(
     "The evaluated Gate has already been published for this candidate",
+  );
+}
+if (
+  !(await canPublishManualWorkGate({
+    repositoryToken: requiredEnvironment("GITHUB_TOKEN"),
+  }))
+) {
+  throw new Error(
+    "An outstanding standing integration reservation prevents manual gate publication",
   );
 }
 const published = await publishGateCheck({

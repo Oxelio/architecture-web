@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
-import { createGitHubWorkReservationJournal } from "./github-work-reservation-journal.js";
+import {
+  canPublishManualWorkGate,
+  createGitHubWorkReservationJournal,
+} from "./github-work-reservation-journal.js";
 import {
   executeReservedGitHubInvalidation,
   executeReservedGitHubWorkIntegration,
@@ -178,7 +181,9 @@ function fixture() {
         auto_merge: null,
       });
     }
-    expect(auth).toBe(`Bearer ${controllerToken}`);
+    if (init?.method === "POST" || auth !== "Bearer test-reader") {
+      expect(auth).toBe(`Bearer ${controllerToken}`);
+    }
     if (path.includes("/matching-refs/")) {
       return Response.json([...refs.values()]);
     }
@@ -263,6 +268,58 @@ function fixture() {
   };
   return { journal, input, state, checkReservations };
 }
+
+describe("protected manual check publisher", () => {
+  it("admits the ordinary publisher on an empty journal", async () => {
+    const { input } = fixture();
+    const { repositoryToken, fetchImpl } = input.scope.publisher;
+    await expect(
+      canPublishManualWorkGate({
+        repositoryToken,
+        ...(fetchImpl ? { fetchImpl } : {}),
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it.each(["armed", "released"] as const)(
+    "keeps the manual check out while the native request is %s",
+    async (phase) => {
+      const { input, journal } = fixture();
+      const persisted = journal();
+      const initial = await persisted.reserve(candidate);
+      if (!initial) {
+        throw new Error("Expected reservation");
+      }
+      const active = await persisted.append(initial, {
+        candidate,
+        state: { phase, checkId: 17 },
+      });
+      if (!active) {
+        throw new Error("Expected native request");
+      }
+      const { repositoryToken, fetchImpl } = input.scope.publisher;
+      const connection = {
+        repositoryToken,
+        ...(fetchImpl ? { fetchImpl } : {}),
+      };
+      await expect(canPublishManualWorkGate(connection)).resolves.toBe(false);
+      await persisted.append(active, {
+        candidate,
+        state: { phase: "merged", sha: squashSha },
+      });
+      await expect(canPublishManualWorkGate(connection)).resolves.toBe(true);
+    },
+  );
+
+  it("refuses manual publication if the live journal cannot be verified", async () => {
+    await expect(
+      canPublishManualWorkGate({
+        repositoryToken: "test-reader",
+        fetchImpl: async () => new Response(null, { status: 503 }),
+      }),
+    ).rejects.toThrow("MERGE_JOURNAL_INVENTORY_UNAVAILABLE");
+  });
+});
 
 describe("persistent GitHub Work integration reservation", () => {
   it("uses the original persisted revision as check identity after a restart", async () => {

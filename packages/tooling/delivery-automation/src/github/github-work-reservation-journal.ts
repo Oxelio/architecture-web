@@ -22,6 +22,21 @@ interface JournalConnection {
   readonly fetchImpl?: FetchLike;
 }
 
+// The trusted manual check writer runs in the shared protected Actions group.
+// Keep that writer out until the native reservation has conclusively ended.
+export async function canPublishManualWorkGate(connection: JournalConnection) {
+  const entry = await createGitHubWorkReservationJournal(connection).read();
+  switch (entry?.reservation.state.phase) {
+    case undefined:
+    case "cancelled":
+    case "merged":
+    case "invalidated":
+      return true;
+    default:
+      return false;
+  }
+}
+
 interface PersistedReservation
   extends WorkIntegrationReservationReceipt, MergeJournalPosition {
   readonly reservationId: string;
