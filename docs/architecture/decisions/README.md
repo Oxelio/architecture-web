@@ -61,6 +61,10 @@ IAM-owned erasure evidence for delivery eligibility.
 [ADR-0011](0011-iam-recipient-directory-queries.md) records IAM ownership of
 recipient directory queries and the API composition adapter.
 
+[ADR-0012](0012-protected-authoring-intake.md) proposes an isolated authoring
+intake and trusted-main execution boundary for Task #140. It is **Proposed**;
+the preparation decision does not accept or deploy this architecture.
+
 ## Open decisions
 
 The following topics are not established decisions merely because they are

@@ -187,6 +187,110 @@ by the same request ID. Transport delivery/retry never authorizes re-execution.
 The command admits no arbitrary workflow path, target repository, API path,
 shell program or credential selector.
 
+### Proposed deployment and sealed-request flow
+
+[ADR-0012](decisions/0012-protected-authoring-intake.md) proposes the structural
+choice: one private remote MCP intake outside the agent security principal,
+dispatch-only GitHub access, and execution in an existing protected-main Actions
+boundary. The ADR is Proposed. No service, App or permission is provisioned by
+this preparation. The product API is not the intake host.
+
+The service exposes the two authoring methods above and a fixed read-only
+Project #3 context projection. Protected-main execution fetches that projection
+through the existing isolated reader and returns a dated result. The intake and
+ordinary agent receive no underlying Projects grant. A cached projection cannot
+authorize a mutation; the controller rereads its canonical preconditions.
+Avoid a new OAuth connection just to repeat a scope test. Remove the ordinary
+Projects write capability from the execution profile only after equivalent
+reads and authorized writes through the replacement have been demonstrated.
+
+Use this concrete request path for the proposed implementation:
+
+1. Intake authenticates the ordinary caller and accepts a repository/Work-bound
+   typed operation, client idempotency key, exact before-state and content digest.
+   Derive the request ID from the fixed repository, authenticated subject and
+   client key. Lost first replies can therefore be retried with the same key.
+   Identical retries return the original request; a digest mismatch is rejected.
+   Consult the durable request identity when staging state has been disposed of.
+   Human approval remains a separately authenticated canonical record.
+2. Seal the immutable payload before dispatch. A commit publication carries a
+   Git bundle or equivalent exact objects, expected old head and full path
+   inventory. Stage under finite configured byte/lifetime limits with no payload
+   logging. Return explicit rejection when a limit is exceeded. A sealed object
+   cannot be replaced by an agent upload after dispatch.
+3. Intake dispatches only the proposed `delivery-authoring.yml` on `main` with
+   request ID and digest. The dispatch credential has Actions-write and Metadata-
+   read for this repository, no Contents/PR/Issue/Project/Checks write. No such
+   current independent credential is verified. Prefer a separately keyed private
+   App if an equivalent isolated credential cannot be reused. The native/gate
+   App keys remain in their existing protected environments.
+   A dispatch response or returned run ID proves no authoring outcome. Duplicate
+   jobs for the same request still require the same single-use journal admission.
+4. The trusted workflow authenticates the intake subject and fetches sealed
+   bytes from a fixed origin using a separate payload-read capability. Verify
+   repository, digest, request identity, operation schema, current authority and
+   canonical owners. Reconstruct forward/reverse dependencies and PR/ref sharing.
+   Authenticate current Role permission; a caller-supplied Role string or scope
+   closure is not sufficient.
+5. Enter the existing protected queue, reread the durable journal and execute
+   the current cancel-or-resolve boundary. Persist an authoring intent containing
+   the exact command digest, expected state, verified affected scope and journal
+   revision before remote handoff. Reader migration must make every existing
+   journal consumer defer on an unresolved authoring intent. No old reader may
+   interpret the new envelope as an empty journal.
+6. Publish only the admitted operation. For Git, validate objects in an isolated
+   bare repository with hooks/configuration/helpers disabled, no candidate code
+   execution and a fixed remote. Use server-enforced expected-old-ref semantics
+   through Git's ref-update protocol; REST `PATCH git/refs` has no expected-old
+   parameter and a preceding GET is not a compare-and-swap. For metadata APIs,
+   rely on exclusive writer custody, exact before-state and positive read-back.
+7. A matching canonical result confirms the operation. Lost responses retain a
+   pending intent. Request-ID markers and exact result digests aid read-only
+   reconciliation; absence at one read is not proof that a delayed POST cannot
+   create an object later. Do not issue another create or release a conflicting
+   writer on that basis. Quarantine outcomes lacking positive resolution.
+8. Result lookup returns sanitized status and canonical links. Dispose of staging
+   bytes after conclusive completion or verified abandonment; after handoff,
+   retain minimized intent/digests rather than payloads merely to enable retries.
+   Staging expiry never settles an admitted operation. Revocation prevents new
+   admission and any known-unstarted handoff. Reconcile an already-started
+   operation without authorizing a replacement. Do not extend the merge-specific
+   final-release delegation exception to ordinary authoring implicitly.
+
+The service's sealed payload store is transport staging, not another reservation
+database. Journal tags continue to own admission and recovery. A service outage
+defers remote operations without giving the agent a fallback write credential.
+Public repository reads/local Git editing continue. The isolated Project view
+must cover the private context needed for Method work.
+
+The exact-old-ref choice follows the documented
+[Git push lease with an explicit expected value](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force-with-leaseltrefnamegtltexpectgt).
+The current [REST ref-update contract](https://docs.github.com/en/rest/git/refs#update-a-reference)
+offers the new SHA and fast-forward/force choice without an expected-old SHA.
+Do not authorize a non-fast-forward update merely because the transport can
+enforce a lease; the operation still needs its existing scope/authority.
+
+### Runtime preparation sequence and Readiness allocation
+
+The new structural boundary requires explicit acceptance of Proposed ADR-0012.
+Provisioning its host or dispatch App is a later separate operation. Design
+acceptance does not authorize any live credential or issuer change.
+
+| Sequence | Execution unit and canonical input                                                         | Required result before advancing                                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | Structural review of ADR-0012 and this intake contract                                     | Human project acceptance or a concrete architecture revision; no deployment                                                                    |
+| 2        | Inactive request validation and bounded authoring journal envelope in the delivery package | Formal Readiness, immutable subject/request binding, all existing journal readers fail closed, migration and crash/replay fixtures             |
+| 3        | Inactive fixed Git/PR/Issue/Task/evidence adapters and Project projection                  | Exact before-state, credential-free fixture tests, shared dependency invalidation, positive-only recovery and unrelated-operation preservation |
+| 4        | Protected producer/receipt and check-only publisher composition, still disabled            | Source/run/artifact provenance and strict identity verification; fixtures for all six current Sonar criteria and substitution failures         |
+| 5        | Separately authorized provisioned shadow Validation                                        | Actual isolated credentials, provider contract, writer denial, cancellation races, native outcomes and rollback evidence                       |
+| 6        | Separately authorized cutover, supervised candidate, then standing gate                    | Existing delivery authorities and positive evidence; uninterrupted mandatory CI/Sonar/Work Gate enforcement                                    |
+
+Do not create another Work or premature Sub-issues for this proposed sequence.
+Keep #140's operational owner and #146's journal-probe scope. The current
+preparation PR owns these proposed artifacts, not live credential migration.
+Steps 2–4 require their applicable Readiness and accepted structural inputs;
+step 5 evidence does not have to exist to write inactive implementation.
+
 | Operation                    | Required exact precondition and result                                                                                                                                                                                                                                                      |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Publish commit               | Work-owned source branch, expected old head, proposed commit/tree/blob digests, source base, no ordinary protected-file edit, commit parent and full path inventory. Use expected-old ref update and re-read. Stage an immutable bundle as data, never execute it in the privileged intake. |
@@ -255,6 +359,25 @@ It double-reads the task and PR snapshot to detect changed/replaced results.
 The protected producer receipt is a required caller-side trust boundary.
 Its issuer/run/source authentication is still a runtime integration obligation.
 The offline adapter cannot validate that boundary on its own.
+
+The proposed producer/publisher handoff is an immutable receipt from a trusted-
+main producer run, retrieved using an independently authenticated GitHub read
+path. Bind the receipt's digest and artifact ID to the durable candidate record.
+The publisher must verify repository, exact workflow identity/control revision,
+main ref, run ID/attempt, successful producer job and immutable artifact digest,
+then the scanner task/configuration and exact candidate tuple. Use fixed workflow
+and artifact contracts. A candidate-produced artifact with a matching name, a
+caller-supplied run ID or a re-run artifact is not trusted producer evidence.
+This uses existing GitHub run/artifact identity rather than introducing a new
+signing-key service. The actual artifact and authentication contract remains a
+runtime Validation requirement before release of a passing check.
+
+Before native arming, account for outstanding provider work as well as token
+custody. Drain or conclusively account for earlier submitted CE tasks that could
+replace the selected PR analysis. New submissions and gate-configuration changes
+must use their controlled path. A callback detecting a change after check release
+cannot retroactively prevent a native merge. Do not silently exempt a Sonar
+administrator or an old candidate workflow retaining an analysis credential.
 
 Sonar's live API catalog describes `api/ce/task` as requiring Execute Analysis,
 `api/project_pull_requests/list` as requiring Browse or Execute Analysis,
@@ -387,11 +510,12 @@ local Docker result is required for these delivery-tooling-only changes.
 
 ## Review disposition for preparation
 
-The inactive modules introduce no new service, credential, port exposed to a
+The inactive modules introduce no deployed service, credential, port exposed to a
 bounded context, workflow, journal schema, check name or production switch.
 Their existing-package responsibilities do not require an additional ADR.
-Choosing and provisioning a new protected intake host or effective Sonar issuer
-is a separate structural/governance acceptance and cutover boundary.
+The new protected intake structure now has a concrete Proposed ADR-0012 for
+Human project acceptance. Provisioning it and changing the effective Sonar issuer
+retain their separate operational/governance and cutover boundaries.
 
 Code, architecture and compliance review use the adopted Method's separate
 perspectives. A single physical reviewer may change Role with refreshed context.
