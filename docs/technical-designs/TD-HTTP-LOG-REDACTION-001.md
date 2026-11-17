@@ -2,7 +2,7 @@
 
 > **Identifier:** TD-HTTP-LOG-REDACTION-001
 >
-> **Artifact status:** Prepared for implementation
+> **Artifact status:** In Preparation — Nginx error-log handling unresolved
 >
 > **Content status:** Proposed Target (Work #145; not effective Current Truth)
 >
@@ -120,7 +120,8 @@ No durable structural rule with contested alternatives is established by the sel
 **Task Planning triggered:** API/Fastify and Web Nginx are independently changeable, independently testable security boundaries. Create two GitHub Sub-issues under Work #145, each referencing this Technical Design and its upstream specifications. The tasks can proceed in parallel on the **single Work integration branch** but final cross-boundary security validation requires both completed. Do not add Task Sub-issues as independent Project Work items or assign an autonomous `agent:*` route without human assignment.
 
 **Risks carried forward:**
-- **R1 / Nginx error logs:** access-log changes do not necessarily sanitize `error_log`. Developer must reproduce/assess with synthetic failures and escalate if the remaining source needs a new technical/functional/structural decision. A positive assertion of no leaked tokens requires Nginx error-log coverage.
+- **B1 / Technical Design blocker (Software Architect):** Nginx error logs can embed raw request lines on failure, and `log_format` only controls access logs. No demonstrated, supportable Nginx error-path mitigation has yet been selected that both prevents token disclosure and preserves adequate diagnostics. The Software Architect must establish a safe bounded strategy (and its evidence) before a positive Readiness result. If no suitable approach exists without changing token-bearing links/ingress contracts, route that different target to the appropriate Functional Specification/architecture authority rather than silently accepting partial confidentiality.
+- **R1 / Implementation + Validation after B1 resolution:** Test the selected Nginx error-log protection using synthetic failure paths and verify no canary token is emitted by access **or** error logging. Failure returns to the Software Architect.
 - **R2 / Fastify early failures:** the safe path must cover default 404, validation errors and errors outside ordinary successful request hooks. Developer validates against the exact Fastify runtime/version in this repository.
 - **R3 / Historical logs:** no access to deployed log retention/aggregation and no verified evidence of the extent of past disclosure. Operator performs separate immediate scope, containment and rotation assessment; changes cannot retroactively purge copies.
 - **R4 / Monitoring:** changed log shape may affect consumers of raw URLs. Verify actual log consumers during implementation/operations; no consumer is assumed present or absent.
