@@ -1,0 +1,406 @@
+# Technical Design — Controlled authoring and Sonar evidence
+
+**Artifact status** Proposed technical design with inactive preparation modules
+
+**Content status** Verified current deployment, preparation-approved target, and unresolved cutover
+
+**Operational owner** [Task #140](https://github.com/Oxelio/architecture-web/issues/140), following completed Work #115
+
+## Context and authority
+
+The [bounded human decision](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6960488409)
+authorizes repository-only preparation, inactive implementation after Readiness,
+and non-destructive tests. The [PR #146 handoff](https://github.com/Oxelio/architecture-web/pull/146#issuecomment-6960494542)
+keeps its journal probe separate. Repository 1336937640 is the only mutation
+target. The [Project Method Profile](../project/project-method-profile.md),
+[delivery profile](../project/delivery-pipeline.md),
+[existing integration design](ci-driven-work-integration.md), and
+[validation policy](../development/testing.md) retain their subjects.
+The adopted Method gitlink is `703051af50189a70399d82c82ca0f2b17c35f998`.
+
+The focused context is resolved for offline preparation. Credential provenance,
+authenticated Sonar producer evidence, and effective writer exclusion remain
+partially resolved for deployment. Human functional, structural and governance
+decisions keep their existing owners. This design does not establish a new
+standing grant or an accepted ADR.
+
+## Verified current deployment
+
+The public GitHub read-back on 2026-11-17 establishes the following.
+
+- Protected `main` is `03c18061a221f508f1f9826a5b9ad19655ecc568`.
+  Ruleset `21839336` is active, updated `2026-11-05T16:23:27.687Z`,
+  with strict required checks `Quality checks` from App `15368`,
+  `SonarCloud Code Analysis` from App `12526`, and
+  `Architecture Web / Work Merge Gate` from App `5625775`.
+- Tag creation rule `27472739` and immutability rule `27472760` remain
+  active at the revisions recorded in [the administrator settings observation](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6953601088).
+  The public REST response omits bypass actors. Preserve the separate
+  administrator observation for those fields.
+- Controller installation `182503016` passed the [read-only identity job](https://github.com/Oxelio/architecture-web/actions/runs/44120372995).
+  This verifies repository scope for that run. It does not verify its full
+  installed permissions or writer isolation today.
+- PR #146 at `51ff29f090612add9c46972b5580d322e7401b54` passed
+  [full CI](https://github.com/Oxelio/architecture-web/actions/runs/44128410055)
+  and Sonar. Its probe remains draft and unmerged.
+- The ordinary Git transport can publish an authoring branch. A creation
+  attempt at `delivery-control/disabled-probe-agent-140-20261117` was
+  rejected with `GH013` and the creations-restricted reason. The exact tag
+  remained absent. This proves that particular denial.
+- A fresh administrator-installation read encountered GitHub reauthentication.
+  The earlier settings observations below remain dated evidence requiring
+  refresh before cutover. No credential value was read.
+
+Authenticated administrative REST read-back also confirms an empty bypass list on 21839336 and 27472760, and only Integration 5781545 / Always on 27472739. This read used an agent-accessible owner credential, so it establishes configuration observation while also confirming an exclusion blocker.
+
+Repository variables for standing execution/requests, supervised boundary and coordinated Status are unset. Evaluated Gate and completion are enabled. All four protected delivery environments restrict deployment to the main branch. The controller environment contains only its App-key secret, its isolated Project Status writer and gate-issuer composition are not fully provisioned there. Environment secret names were inspected without reading their values.
+
+Standing integration stays inactive. The protected manual integration path
+remains effective. The original strict delegation-through-squash deadline is
+historical rationale in the integration design. The accepted final-release
+admission amendment continues to govern reservations and prospective revocation.
+
+## Writer and permission inventory
+
+An observed permission is distinguished from the exact credential used by a
+particular connector invocation. Completion of this inventory for activation
+requires effective access evidence for every credential and workflow.
+
+| Path and principal                                                 | Observed grant and repository reach                                                                                                                                                                                                                                                                                                                                       | Candidate-invalidating facts                                                                                                  | Replacement and proof obligation                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Agent Git via Git Credential Manager                               | Helper `manager`, authenticated API identifies user Oxelio / 83680141 with OAuth scopes `gist, repo, workflow` and repository `admin, maintain, push, triage, pull`. Token value was kept out of output. Issuing client, expiry, other repositories and alternate SSH/askpass paths remain unverified. A classic broad scope has no demonstrated repository-only removal. | Source head, deletion/recreation, force push, candidate-controlled workflows, competing merge through an overprivileged token | Agent retains local Git and read/fetch. An authenticated submission binds commit, parent, source tree and Work to an immutable request. Protected author publishes allowed files with expected-old-ref compare-and-swap. Prove raw Git denial after cutover and audit all usable credential sources.                     |
+| ChatGPT Codex Connector installation `154356750`                   | Previous settings show All repositories, write Actions/code/Issues/PRs/workflows and read checks/statuses/metadata. PR author attribution `Oxelio` does not identify its underlying grant.                                                                                                                                                                                | Issue/PR edits, base/head, review records, workflow/rerun writes, candidate publication                                       | Repository-only exclusion requires a selected-repository allowlist preserving every other repository and its intended future access. Third-party App permission categories cannot be reduced by this installation UI. Preserve development through the replacement before removal.                                       |
+| GitHub Projects MCP                                                | Existing `projects_write` capability and successful Project #3 writes, current reads available. OAuth client, scopes and complete reach remain unverified.                                                                                                                                                                                                                | Status, classification, membership, ordering where relevant                                                                   | A separately scoped read identity and isolated existing trusted write token. Establish whether the grant can be restricted for this Project without affecting other operations. Refuse a broader revocation without authority.                                                                                           |
+| Owner browser and owner-issued credentials                         | Previous Project access lists Oxelio Admin and no other direct member. Repository lists no invited collaborators. Browser session is agent-reachable.                                                                                                                                                                                                                     | All owner-writable facts and protection/configuration                                                                         | Keep the ultimate emergency session inaccessible to agents. An agent-controllable owner browser/token cannot use the accepted emergency exception. Restrict its availability in the ordinary execution environment and prove exclusion.                                                                                  |
+| Issues, Tasks, dependencies, labels and evidence                   | Connector and owner identities above, plus workflow credentials                                                                                                                                                                                                                                                                                                           | Open/close/reopen, links, blocking dependencies, labels/classification and creation/edit/deletion of review/decision comments | Typed operations with exact object/revision, accountable Role and authority provenance. Build the affected closure from canonical owners, including reverse/shared dependencies. An arbitrary comment or caller-supplied closure cannot authorize a write.                                                               |
+| Native Project workflows                                           | Dated settings show auto-add sub-issues, auto-add open Issues, archive closed Issues after two weeks, close Issue when Status Done. Lifecycle-on-add/close/merge rules were off.                                                                                                                                                                                          | Membership and Issue disposition, including shared dependencies                                                               | Mediate the triggering write and any asynchronous consequence. A queued native workflow may outlive cancellation. Demonstrate terminal processing or replace the relevant native action with a protected equivalent. Do not disable unrelated workflows speculatively.                                                   |
+| Candidate branches, PR head/base and authoring APIs                | Code/PR writers above and GitHub REST/GraphQL APIs                                                                                                                                                                                                                                                                                                                        | Source edits and competing direct or native merge, changed target                                                             | Ordinary author has no remote Contents/PR credential. Controller validates the exact branch and expected head. Every PR pointing at that head and the complete affected Work closure enter invalidation. Source branch rules alone do not restrict PR metadata or Issue APIs.                                            |
+| Evaluated manual Gate publisher                                    | Main-only job, App `5625775`, separate check token, shared `delivery-work-controller-protected` queue and durable journal guard                                                                                                                                                                                                                                           | Competing success check or native merge authority                                                                             | Preserve it. Recheck the journal inside the queue. An unreadable/active reservation denies a competing publication.                                                                                                                                                                                                      |
+| Work completion workflow                                           | Main-only protected completion environment, Project writer and `GITHUB_TOKEN Issues:write`, shared protected queue                                                                                                                                                                                                                                                        | Status Done, Issue close, dependent Work eligibility                                                                          | Existing completion guard must cover the reserved Work and shared dependencies. Test positive unaffected completion and affected deferral, including native auto-close.                                                                                                                                                  |
+| Task claim publisher                                               | Main-only validation inside workflow, independent per-Work queue, `ARCHITECTURE_WEB_PROJECTS_TOKEN` and repository reader                                                                                                                                                                                                                                                 | Claim records and facts used by execution/gate checks                                                                         | Audit the token's actual permissions and where claim records live. Join mediated admission for any validity-affecting mutation. Per-Work queue alone does not serialize with final release.                                                                                                                              |
+| Repository CI and PR-triggered workflows                           | Candidate revision controls same-repository PR workflow content. Existing validation restores type/coverage artifacts and uses repository `SONAR_TOKEN` in its scan job. Ordinary jobs use read permissions.                                                                                                                                                              | Analysis forgery, credential use or altered workflow granting itself write permissions                                        | Keep privileged code on trusted main, protect its sources from ordinary authoring, use no write/analysis credential in candidate execution. A default read permission is insufficient proof if candidate YAML can request more. Trace transitive scripts, local actions, archive extraction and credential availability. |
+| Release publisher                                                  | Trusted main, separate release concurrency, `GITHUB_TOKEN Contents:write`                                                                                                                                                                                                                                                                                                 | Repository-wide permission includes heads beyond intended release tags                                                        | Validate the exact trusted workflow and source digest, confine intended tag/release operations, verify token cannot be reached by candidate code. Its broad token scope is an explicit trust boundary even if the code intends only release writes.                                                                      |
+| SonarQubeCloud installation `168653618`, App `12526`               | Earlier installation settings show All repositories. Fresh public check data shows checks/statuses/PR write, Contents/metadata read, security-events write and additional account/organization reads.                                                                                                                                                                     | PR metadata, check outcomes and review decoration outside the controller                                                      | First choice is a provider-supported restriction preserving issuer `12526`. No such per-installation permission reduction has been demonstrated. The alternative below needs separate cutover authority.                                                                                                                 |
+| Gate and controller Apps, Project tokens and configuration writers | Controller and gate installations are distinct. Public configuration establishes expected IDs rather than complete effective grants.                                                                                                                                                                                                                                      | Journal, final check, arms, Status, delegation and protection changes                                                         | Verify exact installations, token permissions, repository selection, protected environments and no cross-credential substitution. Main-only environment selection does not by itself prove only intended workflows can consume a secret.                                                                                 |
+
+The existing user-owned Project writer token can carry account-wide Projects
+scope. A repository-scoped App does not automatically replace it. Proving a
+Project read/write split and a usable, restricted submission channel remains
+mandatory. Do not request redundant OAuth test accounts or unrelated Projects.
+
+### Complete workflow scan
+
+All twelve deployed workflow files were inspected. The earlier
+`delivery-work-merge-gate.yml` can publish a check using the Actions token with
+`Checks:write`, outside the protected controller group. Its App 15368 identity
+cannot satisfy the dedicated Work Merge Gate issuer 5625775. Its check-writing
+privilege still belongs in the credential inventory and cannot be ignored when
+proving other Actions-issued required checks. Keep arbitrary dispatch/rerun and
+candidate-controlled workflow editing outside ordinary execution.
+
+The coordinator dry-run and observation workflows read inventory. The dry-run
+can receive `ARCHITECTURE_WEB_PROJECTS_TOKEN` during main dispatch and
+installs dependencies without `--ignore-scripts`. The task-claim and earlier
+Gate workflows also have such installs. Audit transitive install scripts and
+secret exposure before treating any token as isolated. Keep a token's actual
+granted permission separate from the code's intended read-only usage.
+
+Administrative metadata read-back lists only `ARCHITECTURE_WEB_PROJECTS_TOKEN`
+and `SONAR_TOKEN` as repository secrets. The four protected environments
+each hold their own existing key or Projects token. The controller environment
+holds only `DELIVERY_CONTROLLER_APP_PRIVATE_KEY`. Thus the deployed standing
+job cannot currently obtain the gate key and Projects reader under that
+environment, and the proposed Status writer secret is absent. Provisioning a
+future isolated composition remains separately authorized work. No secret value
+was read for this inventory.
+
+## Controlled authoring and intake target
+
+Reuse the existing durable reservation and `executeReservedGitHubInvalidation`.
+Extend its concrete journal envelope only when adding a runtime writer. Do not
+add a second lock service. Keep one exact command admission and one durable
+write-ahead intent for each remote operation, including when no merge is active.
+The protected Actions queue serializes cooperating runtime operations. Exclusive
+credentials and durable journal admission protect the intervals after jobs exit.
+
+The smallest useful capability set is commit publication to an authoring branch,
+PR creation/editing, ordinary Issue/Task/dependency changes, attributable evidence
+recording, and Project classification/Status operations. Existing Status and
+completion adapters remain their owners. Prepare these as bounded typed
+operations, rather than passing raw HTTP, GraphQL, shell, file paths or tokens.
+
+1. Ordinary agents produce a commit bundle or content-addressed source artifact
+   and a typed request without a GitHub write credential. The intake principal
+   and Role must be independently authenticated through a protected channel.
+   An Issue comment requiring the owner connector token would preserve the
+   bypass and cannot establish this boundary. The transport's principal and
+   credential lifecycle remain an explicit deployment decision.
+2. Trusted main validates repository, Work, operation, source precondition,
+   requested changes, protected-file policy and the responsible Role's existing
+   authority. Human approval records require authenticated human provenance.
+   Agent records cannot impersonate those decisions. Every operation has an
+   immutable request ID and command digest. Evidence authorship remains
+   attributable to the initiating Role/principal even if an App posts it.
+3. Reload the reservation and a complete candidate/Work dependency inventory.
+   Unknown scope defers. An affecting request goes through existing cancellation
+   and journaled invalidation. `cancelled` proof permits a new write admission.
+   A confirmed squash routes to recovery/replanning against the integrated state.
+   Null auto-merge, an HTTP ACK, timeout, or lease expiry never proves cancellation.
+4. A complete nonintersecting operation may proceed after its durable admission.
+   Ref writes use expected-old SHA, source/workflow digest restrictions and
+   positive read-back. Issue/PR APIs lacking an atomic expected-version condition
+   depend on writer exclusion and single-use admission. The implementation must
+   not claim a final read prevents an independent writer race.
+5. Revocation before admission prevents new writes. After an uncertain API
+   handoff keep the exact intent pending and reconcile the canonical object.
+   Never repeat POST creation or append-only evidence publication speculatively.
+   If the outcome is known unstarted, close the intent with proof. A new request
+   after revocation needs fresh authority. Quarantine ambiguous results.
+6. Authoring remains available for unrelated Work. An incomplete reverse
+   dependency graph or an unknown writer is a deployment blocker, not a reason
+   to globally pause unrelated operations. The offline planner in this change
+   classifies only a verified, complete snapshot, it grants no mutation authority.
+
+Protect trusted main workflows, governance, ADRs, delivery scripts and transitive
+privileged dependencies from ordinary authoring. Changes to those surfaces keep
+the current protected manual integration route. Supporting normal product
+changes does not require granting ordinary agents remote workflow-edit rights.
+Keep candidate builds secret-free and isolate restored archives before use.
+
+### Concrete intake and operation contracts
+
+The proposed deployment is one repository-specific authenticated intake adapter
+in a protected runtime outside the ordinary agent process. It exposes only
+`submit-authoring-request` and `read-authoring-result`. It holds a narrowly
+scoped dispatch credential and an authenticated binding to the workflow principal.
+Agents receive neither that credential nor generic GitHub API access.
+Reuse an existing independently isolated MCP/runtime if its credential boundary
+can be proved. If none exists, a small isolated intake deployment is necessary
+and needs explicit provisioning authority. A local wrapper in the same owner
+desktop cannot enforce this boundary.
+
+Each submission carries an immutable request ID, repository ID, Work ID, typed
+operation, exact canonical before-state, expiring actor/Role authorization, and
+a digest of its requested content. Store the exact bytes and authenticate the
+producer independently before protected-main dispatch. Persist result lookup
+by the same request ID. Transport delivery/retry never authorizes re-execution.
+The command admits no arbitrary workflow path, target repository, API path,
+shell program or credential selector.
+
+| Operation                    | Required exact precondition and result                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publish commit               | Work-owned source branch, expected old head, proposed commit/tree/blob digests, source base, no ordinary protected-file edit, commit parent and full path inventory. Use expected-old ref update and re-read. Stage an immutable bundle as data, never execute it in the privileged intake. |
+| Create or edit PR            | Work, exact head/base and existing PR node/revision for edits. Verify all Work-owning PR relationships. Creation needs a single-use request receipt and exact positive PR lookup after response loss.                                                                                       |
+| Edit Work or Task/dependency | Object IDs and complete old fields/relations with role-scoped requested changes. Rebuild affected forward/reverse dependencies and required Task closure. Preserve classification and human decision authority.                                                                             |
+| Record evidence              | Kind, candidate tuple, role, authenticated issuer and immutable content digest. The controller records provenance without manufacturing review or approval. Edits/removals are new invalidating requests.                                                                                   |
+| Project fields               | Exact Project/item/field/option and source revision. Reuse Status admission and completion owners. Classification changes have their own authorized Method result.                                                                                                                          |
+| Read result                  | Request ID and authenticated subject. Return sanitized admitted/pending/confirmed/denied outcome and canonical evidence links. No write or recovery-by-replay.                                                                                                                              |
+
+The existing deployed pending journal envelope is specialized to Project Status.
+The preparation planner does not generalize or migrate it. Before runtime
+authoring is implemented, add a bounded authoring intent envelope understood by
+all existing journal readers, retaining the original candidate and revision.
+A pending request blocks overlapping admissions until positive reconciliation.
+Validate migration from existing reservation and Status entries. Keep the
+current journal schema untouched in this preparation unit.
+
+## Sonar strategy and evidence
+
+### Retain issuer 12526 when feasible
+
+The [installed App model](https://docs.github.com/en/apps/using-github-apps/reviewing-and-modifying-installed-github-apps)
+lets the installer select repositories and review requested permission sets.
+Token permission narrowing belongs to the App token issuer. Sonar owns that
+issuer. No documented installer control removes only PR mutation while leaving
+its Checks permission. Turning off summaries or annotations controls features,
+not the granted permission. GitHub's PR-update endpoint accepts PR write for
+body, base and state. Branch protection does not mediate those operations.
+A vendor-supported lower-permission integration would be preferred after an
+actual installation-token denial test, obtain confirmation without changing live
+access. Current evidence does not establish that route.
+
+### Protected alternative prepared for review
+
+Use a trusted-main Sonar scan producer and an isolated check-only publisher.
+The latter receives no Contents, PR, Issue, Project or Administration write.
+Keep the native merge App and Work Gate issuer separate. An eventual new Sonar
+check identity, its name and installation must be explicitly accepted and
+bound in the protected ruleset and all readers before use.
+
+The smallest proposed publisher reuses the existing checks-only App 5625775
+in a separate protected job and installation token, with a hard-coded distinct
+context such as `Architecture Web / Sonar Quality Gate`. Public metadata from
+the accepted #141 Gate check confirms only `Checks:write` and
+`Metadata:read`. No additional App is necessary for this prepared option.
+GitHub scopes that permission to all check names, so reviewed trusted code must
+confine this entry point to its Sonar context. Reusing the issuer gives that App
+the technical capability to issue both gate contexts, which belongs in the
+explicit issuer-acceptance decision. If stronger issuer independence is required,
+a separate checks-only App is the bounded alternative. Both retain a distinct
+native merge identity. No current issuer or ruleset is changed here.
+
+The protected producer binds repository, Work, PR, head, base, trusted control
+revision, run attempt, scanner/configuration digest and submission time to the
+actual CE task ID returned by the scanner. It checks out exact source as data
+and supplies trusted scanner arguments. It runs no candidate scripts or local
+actions with an analysis or publishing secret. Reject candidate-supplied
+`report-task.txt`, arbitrary task IDs and workflow artifacts as authority.
+A GitHub workflow run ID alone proves neither Sonar analysis nor its source.
+
+The prepared read-only adapter uses fixed `https://sonarcloud.io` endpoints,
+Bearer authentication, redirect rejection, bounded requests and sanitized
+failure outcomes. It verifies authentication and reads the exact CE task,
+PR inventory, assigned gate, gate definition and analysis-specific result.
+It double-reads the task and PR snapshot to detect changed/replaced results.
+The protected producer receipt is a required caller-side trust boundary.
+Its issuer/run/source authentication is still a runtime integration obligation.
+The offline adapter cannot validate that boundary on its own.
+
+Sonar's live API catalog describes `api/ce/task` as requiring Execute Analysis,
+`api/project_pull_requests/list` as requiring Browse or Execute Analysis,
+and `api/qualitygates/project_status` as accepting `analysisId`.
+`api/project_analyses/search` exposes long-lived branch filtering and no PR
+parameter. Do not fabricate a PR-analysis-history query. A protected receipt
+plus exact task ID is necessary to bind the analysis to the known scan.
+The CE task endpoint requires an Execute Analysis-capable credential even for
+GET. Place this collector in the protected producer boundary. Its performed
+operations are read-only, but its credential is not proven Browse-only. Keep
+that credential out of the check-only publisher and ordinary candidate execution.
+The later publisher validates the producer's authenticated receipt and rereads
+Browse-accessible analysis/gate evidence. Live credential permissions and the
+producer attestation must be validated before wiring this adapter into that
+composition. The preparation module does not claim to solve this credential
+separation on its own.
+
+The PR inventory gives the current PR, branch, target, revision and analysis
+date. Recheck before check release. A newer different revision or ambiguous
+inventory invalidates the receipt.
+
+Public diagnostics on 2026-11-17 show project `Oxelio_architecture-web` assigned
+gate `9`, `Sonar way`, with these existing criteria.
+
+| Metric                         | Comparator | Error threshold |
+| ------------------------------ | ---------- | --------------- |
+| new_security_rating            | GT         | 1               |
+| new_reliability_rating         | GT         | 1               |
+| new_maintainability_rating     | GT         | 1               |
+| new_coverage                   | LT         | 80              |
+| new_duplicated_lines_density   | GT         | 3               |
+| new_security_hotspots_reviewed | LT         | 100             |
+
+Snapshot the assigned gate and ordered condition tuples in the protected
+producer receipt and compare them on read-back. Preserve the existing provider's
+small-change/ignored-condition semantics. Missing numeric conditions,
+unexpected duplicates or unverified ignored-condition evidence defer the
+prepared verifier. Do not convert them to a passing outcome. Runtime evidence
+must cover the provider's actual small-change behavior before cutover.
+The prepared verifier accepts only complete nonignored successful conditions.
+
+For the alternative, derive a candidate-specific check from the verified task,
+analysis ID, Quality Gate result, exact GitHub context and reserved check ID.
+Authenticate the check installation, refuse namesakes and previous-check reuse,
+and use single-use durable publication admission with positive reconciliation.
+Keep provider task/analysis and gate digest in the accepted evidence identity.
+A later Sonar analysis or gate change is an invalidating write. Restrict
+analysis submission and gate-admin credentials to the appropriate trusted
+boundaries, removing the GitHub App alone does not restrict Sonar administrators
+or leaked analysis tokens.
+
+## Migration, rollback and cutover decision packet
+
+1. Integrate and validate the separate #146 probe only through its existing
+   authority. Its live run and the replacement in this document have distinct
+   acceptance evidence.
+2. Review this preparation PR. Fixture-test all writers and exact Sonar
+   responses. Independently verify a protected producer's real CE response,
+   gate assignment, condition handling and PR binding using a reviewed
+   credential inside a protected job. Keep every existing required check.
+3. Prepare a restricted intake principal, controller-only repository writer,
+   Project reader/writer split and isolated Sonar publisher. Record each exact
+   credential/App, repository selection and allowed operation. Inventory all
+   workflow-originated writes and owner sessions. Obtain the separate
+   provisioning and credential-cutover authority.
+4. Shadow the prospective Sonar publisher as an additional distinct check.
+   Compare against App 12526 for passing, failing, missing, stale, replaced,
+   small-change and unavailable analyses. Do not give it the effective required
+   name or treat it as integration authority.
+5. After explicit issuer/ruleset authorization, require both old and replacement
+   checks while both producers are available. Verify expected App IDs, strict
+   policy, Work Gate readers and cancellation behavior. Replace the old required
+   issuer only after the replacement is effective. Keep an uninterrupted
+   mandatory Sonar path. There is no one-step remove-then-add migration.
+6. With separately authorized repository-only access changes, replace ordinary
+   Git/connector/MCP writes and verify actual denial plus all normal authoring,
+   PR, Issue, review and Project operations. Prove every affected operation both
+   before and after check release. Broad All-repositories installations require
+   an explicit allowlist and future-repository impact decision before editing.
+7. Only a separate exact supervised-candidate grant can start native squash.
+   Record downstream release/completion, revocation, cancellation and recovery
+   evidence. Standing activation is a subsequent distinct decision.
+
+Rollback stops new admissions, resolves or quarantines outstanding operations,
+and preserves restricted writers until no stale native merge remains possible.
+Keep the existing manual path. Before restoring any old writer or removing a
+replacement mandatory check, restore and verify a viable mandatory Sonar path.
+A retained old check with a disconnected producer blocks integration and is not
+a functional rollback. Re-enable previous connections only after exact authority
+and explicit resolution evidence. Preserve journal entries and audit records.
+
+The remaining human-only packet covers the exact principals and scopes in the
+inventory, the producer/issuer choice, any new production credentials,
+repository selection changes and their impact on other/future repositories,
+required-check and reader migration, owner-session exclusion, and eventually
+supervised and standing activation. Approval of preparation does not decide
+these. No live change is performed by this PR.
+
+## Readiness, implementation sequence and validation
+
+For the **offline preparation unit**, Readiness is **READY WITH RISKS**.
+Authority is the bounded preparation decision. The design uses existing
+reservation/cancellation semantics and fixed provider reads. It can implement
+a pure controlled-write disposition planner and a read-only Sonar evidence
+adapter with injected fixture transport. Neither module is wired to a workflow
+or a write credential. No production mutation is possible through them.
+
+Task #140 remains **Preparing**. Readiness for live writer cutover is
+**NOT READY** until the principal/credential boundary, all protected producer
+bindings, permission/provenance evidence and separate authority are resolved.
+A favorable fixture result cannot set the operational Work Ready for cutover.
+
+The smallest sequence is documentation and scoped Readiness, the two inactive
+modules with focused tests, separate perspective review, and candidate-bound
+repository validation. Runtime authoring adapters and publication wiring follow
+only when the listed input contracts and deployment decisions are resolved.
+Carry the following risks to independent review and controlled Validation.
+
+| Boundary                          | Required evidence                                                                                                                                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Controlled-write planning         | Inactive default, repository scoping, unknown scope, shared/transitive dependency, unrelated write, exact PR/ref match, every nonterminal phase, confirmed cancellation, confirmed squash and command replay                                                        |
+| Existing journal and controller   | Competing admissions, durable append conflict, revocation before admission, known-unstarted result, lost handoff/ACK, replacement worker, positive-only recovery, held and released cancellation, no reuse of final admission                                       |
+| Sonar reader                      | Credential rejected or absent, no redirect, no arbitrary host, exact project/PR/head/base, pending/failed/missing CE task, gate errors, changed assignment/conditions, wrong analysis, duplicate PR, stale receipt, changed snapshot and sanitized network failures |
+| Producer and check-only publisher | Actual authenticated provider responses, protected source/run binding, secret-free candidate execution, namesake/substituted check, wrong App/install, changed head/base, single use and uncertain publication reconciliation                                       |
+| Live cutover and rollback         | Actual ordinary writer denial across the armed-to-terminal window, allowed independent writes, native automation consequences, mandatory check continuity, supervised squash, source/completion events and restoration                                              |
+
+Fixture tests establish logic only. Existing GitHub CI and mandatory Sonar
+remain candidate-bound validation for the new preparation PR. No unavailable
+local Docker result is required for these delivery-tooling-only changes.
+
+## Review disposition for preparation
+
+The inactive modules introduce no new service, credential, port exposed to a
+bounded context, workflow, journal schema, check name or production switch.
+Their existing-package responsibilities do not require an additional ADR.
+Choosing and provisioning a new protected intake host or effective Sonar issuer
+is a separate structural/governance acceptance and cutover boundary.
+
+Code, architecture and compliance review use the adopted Method's separate
+perspectives. A single physical reviewer may change Role with refreshed context.
+Review of these modules cannot accept runtime producer provenance, installed
+permission exclusion, hosted intake deployment, or production activation.
+
+Public provider observations are diagnostic evidence. The prepared adapter
+requires authenticated responses and a trusted producer record. The actual
+provider contracts and supported authentication are described in the
+[Sonar Web API](https://docs.sonarsource.com/sonarqube-cloud/appendices/web-api).
+The current endpoint descriptions were read from Sonar's live API catalog,
+and gate assignment/definition were read without changing any policy.

@@ -313,6 +313,14 @@ controller deadline at that boundary. The amendment replaced that deadline
 for the one admitted operation. Existing merge correctness and activation
 requirements still apply.
 
+### Task #140 bounded preparation
+
+The [controlled authoring and Sonar evidence design](controlled-authoring-and-sonar-evidence.md)
+records the [preparation-only decision](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6960488409),
+writer inventory, inactive verification modules and separate cutover requirements.
+It leaves the effective Sonar issuer, protected manual path and standing switches
+with their existing owners and operational settings.
+
 ## Delegated request identity
 
 The integration request identifies the repository, Work, PR and evaluated head
