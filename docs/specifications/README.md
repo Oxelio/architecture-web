@@ -33,6 +33,7 @@ validation evidence are reviewed together.
 | [SF-ACCOUNT-DATA-001](SF-ACCOUNT-DATA-001.md)         | Approved       | Account data export and deletion                             |
 | [SF-ACCOUNT-RECOVERY-001](SF-ACCOUNT-RECOVERY-001.md) | Approved       | Account recovery and password reset                          |
 | [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md)           | Implementation | Search and pagination for user administration                |
+| [SF-EMAIL-VERIFICATION-001](SF-EMAIL-VERIFICATION-001.md) | Approved       | Explicit user confirmation for email verification           |
 | [SF-MFA-001](SF-MFA-001.md)                           | Approved       | Multifactor authentication with an authenticator application |
 | [SF-NOTIFICATIONS-001](SF-NOTIFICATIONS-001.md)       | Approved       | Notification center and multichannel delivery                |
 | [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)     | Approved       | Security event audit trail                                   |
