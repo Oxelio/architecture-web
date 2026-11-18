@@ -1,11 +1,14 @@
+import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import {
   type PreparedAuthoringRequest,
   projectAuthoringIntent,
+  type PublicAuthoringIntent,
 } from "../control/authoring-request.js";
 import {
   type ControlledWriteScope,
+  isControlledWriteScope,
   planControlledWrite,
   type ReservedWriteContext,
 } from "../control/controlled-write.js";
@@ -43,6 +46,40 @@ import {
 interface JournalConnection {
   readonly repositoryToken: string;
   readonly fetchImpl?: FetchLike;
+}
+
+interface AdmissionContext {
+  readonly enabled?: boolean;
+  readonly previous: MergeJournalPosition | null;
+  readonly workflowSha: string;
+  readonly inventoryComplete: boolean;
+  readonly reserved: ReservedWriteContext | null;
+  readonly maximumHistoryRevisions: number;
+  readonly readAuthority: () => Promise<string | null>;
+}
+
+type SonarJournalKind =
+  "sonar-submit" | "sonar-queue-check" | "sonar-complete-check";
+
+function sonarJournalDigest(value: unknown) {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+export function protectedSonarJournalRequestId(
+  candidate: MergeCandidate,
+  kind: SonarJournalKind,
+  operationId: string,
+) {
+  return sonarJournalDigest([
+    "protected-sonar-operation",
+    1336937640,
+    candidate.workNumber,
+    candidate.pullNumber,
+    candidate.headSha,
+    candidate.baseSha,
+    kind,
+    operationId,
+  ]);
 }
 
 // The trusted manual check writer runs in the shared protected Actions group.
@@ -708,6 +745,81 @@ export function createGitHubWorkReservationJournal(
     });
   }
 
+  async function beginWrite(
+    input: AdmissionContext,
+    intent: PublicAuthoringIntent,
+  ): Promise<AuthoringAdmissionResult> {
+    if (!sha.test(input.workflowSha)) {
+      return { status: "denied" };
+    }
+    const reserved = input.reserved ? structuredClone(input.reserved) : null;
+    try {
+      const tail = await readTail();
+      if (
+        !isDeepStrictEqual(input.previous, tail?.position ?? null) ||
+        !isDeepStrictEqual(
+          reserved?.reservation ?? null,
+          tail?.reservation
+            ? {
+                candidate: tail.reservation.candidate,
+                state: tail.reservation.state,
+              }
+            : null,
+        )
+      ) {
+        return { status: "deferred" };
+      }
+      const seen = await authoringHistory(
+        intent.requestId,
+        input.maximumHistoryRevisions,
+        tail,
+      );
+      if (seen) {
+        return { status: authoringReplayStatus(seen, intent) };
+      }
+      const plan = planControlledWrite({
+        enabled: true,
+        scope: intent.scope,
+        inventoryComplete: input.inventoryComplete,
+        writePending:
+          Boolean(tail?.pending) ||
+          (tail?.authoring.some((entry) =>
+            authoringScopesOverlap(entry.intent.scope, intent.scope),
+          ) ??
+            false),
+        reserved,
+      });
+      if (plan === "cancel-or-resolve" || plan === "recover-merged") {
+        return { status: plan };
+      }
+      if (
+        plan !== "admit" ||
+        (await input.readAuthority()) !== intent.authorityDigest
+      ) {
+        return { status: "deferred" };
+      }
+      const admission = {
+        intent,
+        admissionRevision: (tail?.position.revision ?? 0) + 1,
+      };
+      const result = await appendAuthoringEvent(
+        tail,
+        input.workflowSha,
+        [...(tail?.authoring ?? []), admission],
+        { ...admission, outcome: "admitted", proofDigest: null },
+      );
+      if (
+        result.status !== "committed" ||
+        (await input.readAuthority()) !== intent.authorityDigest
+      ) {
+        return { status: "deferred" };
+      }
+      return { status: "admitted", admission, position: result.position };
+    } catch {
+      return { status: "deferred" };
+    }
+  }
+
   return {
     read,
 
@@ -715,93 +827,81 @@ export function createGitHubWorkReservationJournal(
       return authoringHistory(requestId, maximumRevisions, await readTail());
     },
 
-    // No workflow calls this default-off admission. A matching history read
-    // after a lost response never grants a replacement executor permission.
-    async beginAuthoringWrite(input: {
-      readonly enabled?: boolean;
-      readonly previous: MergeJournalPosition | null;
-      readonly workflowSha: string;
-      readonly request: PreparedAuthoringRequest;
-      readonly scope: ControlledWriteScope;
-      readonly authorityDigest: string;
-      readonly inventoryComplete: boolean;
-      readonly reserved: ReservedWriteContext | null;
-      readonly maximumHistoryRevisions: number;
-      readonly readAuthority: () => Promise<string | null>;
-    }): Promise<AuthoringAdmissionResult> {
+    // A matching history read after a lost response never grants a replacement
+    // executor permission to repeat the provider or repository operation.
+    async beginAuthoringWrite(
+      input: AdmissionContext & {
+        readonly request: PreparedAuthoringRequest;
+        readonly scope: ControlledWriteScope;
+        readonly authorityDigest: string;
+      },
+    ): Promise<AuthoringAdmissionResult> {
       if (input.enabled !== true) {
         return { status: "inactive" };
       }
       const intent = projectAuthoringIntent(input);
-      if (!intent || !sha.test(input.workflowSha)) {
+      return intent ? beginWrite(input, intent) : { status: "denied" };
+    },
+
+    // Internal to the protected producer/publisher. None of these verbs is
+    // accepted by the authoring intake. Scope comes from canonical owners.
+    async beginProtectedSonarOperation(
+      input: AdmissionContext & {
+        readonly candidate: MergeCandidate;
+        readonly operation: SonarJournalKind;
+        readonly operationId: string;
+        readonly evidenceDigest: string;
+        readonly authorityDigest: string;
+        readonly scope: ControlledWriteScope;
+      },
+    ): Promise<AuthoringAdmissionResult> {
+      if (input.enabled !== true) {
+        return { status: "inactive" };
+      }
+      const {
+        candidate,
+        operation,
+        operationId,
+        evidenceDigest,
+        authorityDigest,
+        scope,
+      } = input;
+      if (
+        !isWorkIntegrationCandidate(candidate) ||
+        !["sonar-submit", "sonar-queue-check", "sonar-complete-check"].includes(
+          operation,
+        ) ||
+        ![operationId, evidenceDigest, authorityDigest].every((value) =>
+          digest.test(value),
+        ) ||
+        !isControlledWriteScope(scope) ||
+        scope.kind !== operation ||
+        !scope.affectedWorks.includes(candidate.workNumber) ||
+        !scope.affectedPulls.includes(candidate.pullNumber)
+      ) {
         return { status: "denied" };
       }
-      const reserved = input.reserved ? structuredClone(input.reserved) : null;
-      try {
-        const tail = await readTail();
-        if (
-          !isDeepStrictEqual(input.previous, tail?.position ?? null) ||
-          !isDeepStrictEqual(
-            reserved?.reservation ?? null,
-            tail?.reservation
-              ? {
-                  candidate: tail.reservation.candidate,
-                  state: tail.reservation.state,
-                }
-              : null,
-          )
-        ) {
-          return { status: "deferred" };
-        }
-        const seen = await authoringHistory(
-          intent.requestId,
-          input.maximumHistoryRevisions,
-          tail,
-        );
-        if (seen) {
-          return { status: authoringReplayStatus(seen, intent) };
-        }
-        const plan = planControlledWrite({
-          enabled: true,
-          scope: intent.scope,
-          inventoryComplete: input.inventoryComplete,
-          writePending:
-            Boolean(tail?.pending) ||
-            (tail?.authoring.some((entry) =>
-              authoringScopesOverlap(entry.intent.scope, intent.scope),
-            ) ??
-              false),
-          reserved,
-        });
-        if (plan === "cancel-or-resolve" || plan === "recover-merged") {
-          return { status: plan };
-        }
-        if (
-          plan !== "admit" ||
-          (await input.readAuthority()) !== intent.authorityDigest
-        ) {
-          return { status: "deferred" };
-        }
-        const admission = {
-          intent,
-          admissionRevision: (tail?.position.revision ?? 0) + 1,
-        };
-        const result = await appendAuthoringEvent(
-          tail,
-          input.workflowSha,
-          [...(tail?.authoring ?? []), admission],
-          { ...admission, outcome: "admitted", proofDigest: null },
-        );
-        if (
-          result.status !== "committed" ||
-          (await input.readAuthority()) !== intent.authorityDigest
-        ) {
-          return { status: "deferred" };
-        }
-        return { status: "admitted", admission, position: result.position };
-      } catch {
-        return { status: "deferred" };
-      }
+      const requestId = protectedSonarJournalRequestId(
+        candidate,
+        operation,
+        operationId,
+      );
+      return beginWrite(input, {
+        schema: 1,
+        requestId,
+        actorDigest: sonarJournalDigest(["protected-sonar", 1336937640]),
+        commandDigest: sonarJournalDigest([requestId, evidenceDigest]),
+        authorityDigest,
+        beforeStateDigest: evidenceDigest,
+        scope: {
+          ...scope,
+          affectedWorks: [...scope.affectedWorks].sort((a, b) => a - b),
+          affectedPulls: [...scope.affectedPulls].sort((a, b) => a - b),
+          affectedRefs: [...scope.affectedRefs].sort((a, b) =>
+            a.localeCompare(b),
+          ),
+        },
+      });
     },
 
     // Observation is a trusted read-only proof adapter. A digest alone, a

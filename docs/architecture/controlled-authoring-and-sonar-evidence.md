@@ -714,7 +714,12 @@ adapter combines the GitHub producer receipt, authenticated Sonar provider
 read-back and a protected admission for the exact issuer/check/evidence tuple.
 It verifies the completed check through the existing check adapter. These
 functions still require the protected job's validated credential and authority
-composition, including durable provider submission/completion admission.
+composition. Sonar submission, check creation and check completion now use
+the shared journal's single-use admission. A pending CE submission intersects
+the candidate reservation until the trusted receipt and the authenticated
+provider establish a terminal task outcome. Task settlement records completion
+of the transport operation. The Quality Gate independently evaluates success
+against the existing criteria.
 
 These paths are relative to `packages/tooling/delivery-automation`. No workflow
 or installed service calls this composition. The private host must exclude

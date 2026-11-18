@@ -23,6 +23,7 @@ interface ProducerInput {
   // Verify accepted producer operation, exact trusted source material,
   // controller queue and absence/resolution of conflicting provider writes.
   readonly verifyBoundary: () => Promise<boolean>;
+  readonly admitSubmission: (factsDigest: string) => Promise<number | null>;
   // Only the protected runner may implement this port. It executes a pinned
   // scanner against exact candidate data with a trusted settings file.
   readonly scan: (
@@ -111,6 +112,16 @@ export async function produceProtectedSonarSubmission(
         ]),
       )
       .digest("hex");
+    const admitted = await input.admitSubmission(scannerConfigDigest);
+    if (
+      admitted === null ||
+      !Number.isFinite(admitted) ||
+      !(await input.verifyBoundary()) ||
+      !isDeepStrictEqual(await input.readCandidate(), candidate) ||
+      now() >= Math.min(admitted, Date.parse(input.expiresAt))
+    ) {
+      return null;
+    }
     const startedAt = new Date(now()).toISOString();
     const taskId = taskFromReport(await input.scan(settings));
     if (

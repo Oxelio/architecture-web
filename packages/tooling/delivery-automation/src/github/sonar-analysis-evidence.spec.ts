@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   completeProtectedSonarCheck,
   protectedSonarCheckExternalId,
+  queueProtectedSonarCheck,
 } from "./protected-sonar-check.js";
 import * as producerSource from "./protected-sonar-submission.js";
+import { readProtectedSonarTaskSettlement } from "./protected-sonar-task-settlement.js";
 import {
   type ProtectedSonarSubmission,
   readSonarAnalysisEvidence,
@@ -140,8 +142,9 @@ describe("protected Sonar check completion", () => {
       lostResponse: false,
     };
     const githubFetch = vi.fn<typeof fetch>(async (url, options) => {
+      const suffix = options?.method === "POST" ? "" : `/${checkId}`;
       expect(String(url)).toBe(
-        `https://api.github.com/repos/Oxelio/architecture-web/check-runs/${checkId}`,
+        `https://api.github.com/repos/Oxelio/architecture-web/check-runs${suffix}`,
       );
       expect(new Headers(options?.headers).get("authorization")).toBe(
         "Bearer fixture-checks",
@@ -152,16 +155,19 @@ describe("protected Sonar check completion", () => {
           throw new Error("fixture lost reply");
         }
       }
-      return Response.json({
-        id: checkId,
-        html_url: "https://github.com/Oxelio/architecture-web/runs/88",
-        name: "Architecture Web / Sonar Quality Gate",
-        app: { id: state.issuer },
-        head_sha: candidate.headSha,
-        external_id: protectedSonarCheckExternalId(candidate, source),
-        status: state.completed ? "completed" : "queued",
-        conclusion: state.completed ? "success" : null,
-      });
+      return Response.json(
+        {
+          id: checkId,
+          html_url: "https://github.com/Oxelio/architecture-web/runs/88",
+          name: "Architecture Web / Sonar Quality Gate",
+          app: { id: state.issuer },
+          head_sha: candidate.headSha,
+          external_id: protectedSonarCheckExternalId(candidate, source),
+          status: state.completed ? "completed" : "queued",
+          conclusion: state.completed ? "success" : null,
+        },
+        { status: options?.method === "POST" ? 201 : 200 },
+      );
     });
     const provenance = vi
       .spyOn(producerSource, "readGitHubProtectedSonarSubmission")
@@ -266,6 +272,49 @@ describe("protected Sonar check completion", () => {
       ),
     ).toHaveLength(1);
   });
+
+  it("queues a check only after durable admission and verifies the queued identity", async () => {
+    const f = publication();
+    const admitQueue = vi
+      .fn<() => Promise<number | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(Date.now() + 1000);
+    expect(
+      await queueProtectedSonarCheck({ ...f.input, admitQueue }),
+    ).toBeNull();
+    expect(f.input.githubFetch).not.toHaveBeenCalled();
+    expect(
+      await queueProtectedSonarCheck({ ...f.input, admitQueue }),
+    ).toMatchObject({ id: 88 });
+    expect(
+      f.input.githubFetch.mock.calls.map(
+        ([, options]) => options?.method ?? "GET",
+      ),
+    ).toEqual(["POST", "GET"]);
+  });
+});
+
+it("settles only a positively observed terminal CE task without treating failure as passing", async () => {
+  const { input, value } = setup();
+  const read = () =>
+    readProtectedSonarTaskSettlement({
+      token: input.token,
+      readTrustedSubmission: input.readTrustedSubmission,
+      fetchImpl: input.fetchImpl,
+      now: input.now,
+    });
+  value.task.status = "IN_PROGRESS";
+  expect(await read()).toBeNull();
+  value.task.status = "FAILED";
+  expect(await read()).toMatchObject({
+    outcome: "confirmed",
+    proofDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
+  });
+  expect(await readSonarAnalysisEvidence(input)).toEqual({
+    status: "deferred",
+  });
+  value.task.id = "unrelated-task";
+  expect(await read()).toBeNull();
 });
 
 describe("preparation-only authenticated Sonar reader", () => {

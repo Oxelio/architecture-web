@@ -8,7 +8,10 @@ export type ControlledWriteKind =
   | "edit-work"
   | "edit-task-dependency"
   | "record-evidence"
-  | "record-project-field";
+  | "record-project-field"
+  | "sonar-submit"
+  | "sonar-queue-check"
+  | "sonar-complete-check";
 
 export interface ControlledWriteScope {
   readonly repositoryId: number;
@@ -45,6 +48,9 @@ const kinds = new Set<ControlledWriteKind>([
   "edit-task-dependency",
   "record-evidence",
   "record-project-field",
+  "sonar-submit",
+  "sonar-queue-check",
+  "sonar-complete-check",
 ]);
 
 function validIds(values: unknown): values is readonly number[] {

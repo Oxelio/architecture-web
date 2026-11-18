@@ -38,6 +38,9 @@ function fixture() {
     sourceContextDigest: "e".repeat(64),
     now: () => now,
     readCandidate: vi.fn(async () => candidate),
+    admitSubmission: vi.fn<() => Promise<number | null>>(
+      async () => now + 60_000,
+    ),
     verifyBoundary: vi.fn(async () => true),
     scan: vi.fn(async () => report),
   };
@@ -53,6 +56,9 @@ it("uses its own scan settings and binds a successful provider task to the exact
     scannerConfigDigest: expect.stringMatching(/^[a-f0-9]{64}$/u),
   });
   expect(f.scan).toHaveBeenCalledTimes(1);
+  expect(f.admitSubmission).toHaveBeenCalledWith(
+    expect.stringMatching(/^[a-f0-9]{64}$/u),
+  );
   expect(f.scan).toHaveBeenCalledWith(
     expect.objectContaining({
       "sonar.projectKey": projectKey,
@@ -82,6 +88,9 @@ it("prevents submission when inactive, expired or bound to an old base", async (
     ).toBeNull();
   }
   expect(f.scan).not.toHaveBeenCalled();
+  f.admitSubmission.mockResolvedValueOnce(null);
+  expect(await produceProtectedSonarSubmission(f)).toBeNull();
+  expect(f.scan).not.toHaveBeenCalled();
 });
 
 it("withholds a producer receipt on malformed reports, uncertainty or revoked authority", async () => {
@@ -102,7 +111,10 @@ it("withholds a producer receipt on malformed reports, uncertainty or revoked au
   }
   f.scan.mockRejectedValueOnce(new Error("fixture response lost"));
   expect(await produceProtectedSonarSubmission(f)).toBeNull();
-  f.verifyBoundary.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+  f.verifyBoundary
+    .mockResolvedValueOnce(true)
+    .mockResolvedValueOnce(true)
+    .mockResolvedValueOnce(false);
   expect(await produceProtectedSonarSubmission(f)).toBeNull();
 });
 

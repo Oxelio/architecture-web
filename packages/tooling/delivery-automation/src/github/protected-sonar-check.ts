@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import {
   completeReservedGateCheck,
   observeReservedGateCheck,
+  queueReservedGateCheck,
 } from "./gate-check-publisher.js";
 import {
   type ProtectedSonarArtifactBinding,
@@ -17,6 +18,62 @@ import {
 const checkName = "Architecture Web / Sonar Quality Gate";
 const digest = (values: unknown) =>
   createHash("sha256").update(JSON.stringify(values)).digest("hex");
+
+type CheckConnection = Pick<
+  PublicationInput,
+  "candidate" | "source" | "checkToken" | "issuerAppId" | "githubFetch"
+>;
+
+function checkScope(input: CheckConnection) {
+  return {
+    repository: "Oxelio/architecture-web",
+    checksToken: input.checkToken,
+    expectedAppId: input.issuerAppId,
+    name: checkName,
+    headSha: input.candidate.headSha,
+    reservationId: protectedSonarCheckExternalId(input.candidate, input.source),
+    ...(input.githubFetch ? { fetchImpl: input.githubFetch } : {}),
+  };
+}
+
+export async function queueProtectedSonarCheck(
+  input: CheckConnection & {
+    readonly enabled?: boolean;
+    readonly verifyPublicationBoundary: () => Promise<boolean>;
+    readonly readCandidate: () => Promise<SonarCandidate | null>;
+    readonly admitQueue: (factsDigest: string) => Promise<number | null>;
+  },
+) {
+  if (input.enabled !== true) {
+    return null;
+  }
+  try {
+    const scope = checkScope(input);
+    const current = async () =>
+      (await input.verifyPublicationBoundary()) &&
+      isDeepStrictEqual(await input.readCandidate(), input.candidate);
+    if (!(await current())) {
+      return null;
+    }
+    const deadline = await input.admitQueue(
+      digest([scope.reservationId, input.issuerAppId]),
+    );
+    if (
+      deadline === null ||
+      !Number.isFinite(deadline) ||
+      !(await current()) ||
+      Date.now() >= deadline
+    ) {
+      return null;
+    }
+    const queued = await queueReservedGateCheck(scope);
+    return queued
+      ? observeReservedGateCheck(scope, { state: "queued", checkId: queued.id })
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 interface PublicationInput {
   readonly enabled?: boolean;
@@ -97,15 +154,7 @@ export async function completeProtectedSonarCheck(input: PublicationInput) {
       input.candidate,
       input.source,
     );
-    const scope = {
-      repository: "Oxelio/architecture-web",
-      checksToken: input.checkToken,
-      expectedAppId: input.issuerAppId,
-      name: checkName,
-      headSha: input.candidate.headSha,
-      reservationId: externalId,
-      ...(input.githubFetch ? { fetchImpl: input.githubFetch } : {}),
-    };
+    const scope = checkScope(input);
     const check = await completeReservedGateCheck({
       ...scope,
       checkId: input.checkId,

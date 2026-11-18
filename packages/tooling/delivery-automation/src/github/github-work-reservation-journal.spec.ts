@@ -9,6 +9,7 @@ import {
   createGitHubWorkReservationJournal,
 } from "./github-work-reservation-journal.js";
 import { appendMergeJournalRevision } from "./merge-reservation-journal.js";
+import { createProtectedSonarAdmission } from "./protected-sonar-admission.js";
 import {
   executeReservedGitHubInvalidation,
   executeReservedGitHubWorkIntegration,
@@ -378,6 +379,100 @@ function rewriteRevision(
 }
 
 describe("inactive durable authoring admission", () => {
+  it("quarantines an uncertain Sonar submission and prevents a duplicate handoff", async () => {
+    const f = fixture();
+    const authorityDigest = "e".repeat(64);
+    const journal = f.journal();
+    const admission = createProtectedSonarAdmission({
+      enabled: true,
+      journal,
+      workflowSha: "f".repeat(40),
+      candidate,
+      operation: "sonar-submit",
+      operationId: "b".repeat(64),
+      maximumHistoryRevisions: 100,
+      readContext: async () => ({
+        scope: {
+          repositoryId: 1336937640,
+          kind: "sonar-submit",
+          affectedWorks: [candidate.workNumber],
+          affectedPulls: [candidate.pullNumber],
+          affectedRefs: ["refs/heads/codex/work-115"],
+        },
+        reserved: null,
+        inventoryComplete: true,
+        authorityDigest,
+        expiresAt: 10000,
+      }),
+      authorizeRecovery: async () => true,
+      now: () => 1,
+    });
+    expect(await admission.admit("c".repeat(64))).toBe(10000);
+    expect(await journal.reserve(candidate)).toBeNull();
+    expect(await admission.settle("c".repeat(64), async () => null)).toBe(
+      "deferred",
+    );
+    expect(await admission.admit("c".repeat(64))).toBeNull();
+    expect(await admission.admit("d".repeat(64))).toBeNull();
+    const proof = async () => ({
+      outcome: "confirmed" as const,
+      proofDigest: "a".repeat(64),
+    });
+    expect(await admission.settle("d".repeat(64), proof)).toBe("deferred");
+    expect(await admission.settle("c".repeat(64), proof)).toBe("settled");
+    expect(await admission.admit("c".repeat(64))).toBeNull();
+    expect(
+      (await journal.readAuthoringRequest(admission.requestId, 100))?.outcome,
+    ).toBe("confirmed");
+    expect(await journal.reserve(candidate)).not.toBeNull();
+  });
+
+  it("never admits a Sonar completion with unrelated scope or expired authority", async () => {
+    const f = fixture();
+    const journal = f.journal();
+    const bound = {
+      enabled: true,
+      journal,
+      workflowSha: "f".repeat(40),
+      candidate,
+      operation: "sonar-complete-check" as const,
+      operationId: "b".repeat(64),
+      maximumHistoryRevisions: 100,
+      authorizeRecovery: async () => true,
+      now: () => 50,
+    };
+    const context = {
+      reserved: null,
+      inventoryComplete: true,
+      authorityDigest: "e".repeat(64),
+      expiresAt: 100,
+      scope: {
+        repositoryId: 1336937640,
+        kind: "sonar-complete-check" as const,
+        affectedWorks: [candidate.workNumber],
+        affectedPulls: [999],
+        affectedRefs: [],
+      },
+    };
+    const admission = createProtectedSonarAdmission({
+      ...bound,
+      readContext: async () => context,
+    });
+    expect(await admission.admit("a".repeat(64))).toBeNull();
+    const expired = createProtectedSonarAdmission({
+      ...bound,
+      readContext: async () => ({ ...context, expiresAt: 50 }),
+    });
+    expect(await expired.admit("a".repeat(64))).toBeNull();
+    const inactive = createProtectedSonarAdmission({
+      ...bound,
+      enabled: false,
+      readContext: async () => context,
+    });
+    expect(await inactive.admit("a".repeat(64))).toBeNull();
+    expect((await journal.readAuthoringBoundary()).authoring).toHaveLength(0);
+  });
+
   it("records proven non-application separately from success without permitting replay", async () => {
     const f = fixture();
     const input = await authoringInput(f);
