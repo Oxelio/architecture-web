@@ -620,7 +620,35 @@ authoring intents. Normal scoped Status mutations must migrate through their
 typed authoring adapter before activation; this conservative migration guard is
 not the final ordinary-write route. Scoped manual/completion reads can proceed
 for unaffected Work; unknown targets defer. No hosted intake or workflow calls
-authoring admission. Valid deployed reservation/Status behavior is preserved;
+authoring admission. The inactive intake implementation now includes:
+
+- `src/intake/authoring-intake.ts`: the official MCP SDK transport, caller-bound
+  submission/result tools, private Project reader boundary, bounded HTTP bodies
+  and authenticated private job exchanges. Construction never opens a listener;
+  both the web handler and Node mounting factory remain disabled by default.
+- `src/intake/sealed-authoring-store.ts`: private single-host staging, immutable
+  payload/header/dispatch/job/result receipts, atomic create-if-absent, finite
+  explicitly configured byte/lifetime limits and payload disposal. Receipt
+  retention is separate; staging expiry cannot prove executor quiescence.
+- `src/intake/github-job-authentication.ts`: signed GitHub OIDC verification of
+  the exact protected main workflow/control revision, repository/owner,
+  environment, audience and first run attempt. Reusable jobs are rejected until
+  their distinct identity contract is explicitly supported and verified.
+- `src/intake/authoring-dispatch.ts`: one fixed main-workflow endpoint using only
+  the separately provisioned short-lived dispatch credential. Its capability
+  narrowing and renewal still require actual deployment Validation.
+- `src/github/controlled-authoring-execution.ts`: durable admission followed by
+  at most one remote handoff, current authority/before-state checks and a
+  separate read-only recovery path. Runtime canonical scope, authority,
+  cancellation and operation-specific proof adapters remain required inputs.
+
+These paths are relative to `packages/tooling/delivery-automation`. No workflow
+or installed service calls this composition. The private host must exclude
+agents from its volume/configuration and enforce its ACLs; Unix mode bits alone
+do not establish that boundary on Windows. Configure and schedule staging
+cleanup before deployment. No transport receipt expiry, general repository
+retention policy or live service credential is established by these modules.
+Valid deployed reservation/Status behavior is preserved;
 unsupported or contradictory protocol data is not an empty boundary.
 
 | Boundary                          | Required evidence                                                                                                                                                                                                                                                         |
