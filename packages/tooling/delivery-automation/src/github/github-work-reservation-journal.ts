@@ -45,6 +45,7 @@ import {
 
 interface JournalConnection {
   readonly repositoryToken: string;
+  readonly publicRead?: true;
   readonly fetchImpl?: FetchLike;
 }
 
@@ -561,6 +562,17 @@ async function verifyAuthoringSources(
       throw new Error("AUTHORING_ADMISSION_SOURCE_UNVERIFIED");
     }
   }
+}
+
+export function createPublicAuthoringReceiptReader(fetchImpl?: FetchLike) {
+  return (requestId: string, maximumRevisions: number) => {
+    const signal = AbortSignal.timeout(10_000);
+    return createGitHubWorkReservationJournal({
+      repositoryToken: "",
+      publicRead: true,
+      fetchImpl: (url, init) => (fetchImpl ?? fetch)(url, { ...init, signal }),
+    }).readAuthoringRequest(requestId, maximumRevisions);
+  };
 }
 
 export function createGitHubWorkReservationJournal(

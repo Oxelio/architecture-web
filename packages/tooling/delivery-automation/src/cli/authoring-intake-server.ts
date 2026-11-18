@@ -9,6 +9,7 @@ import {
 } from "../intake/authoring-dispatch.js";
 import { createAuthoringIntakeNodeServer } from "../intake/authoring-intake.js";
 import { createAuthoringProjectProjection } from "../intake/authoring-project-projection.js";
+import { createAuthoringTerminalResultReader } from "../intake/authoring-terminal-result.js";
 import { createGitHubJobAuthenticator } from "../intake/github-job-authentication.js";
 import { SealedAuthoringStore } from "../intake/sealed-authoring-store.js";
 import {
@@ -102,6 +103,11 @@ async function main() {
     }),
     dispatch: createAuthoringDispatcher({ readToken }),
     acceptProjectContext: projection.accept,
+    readTerminalResult: createAuthoringTerminalResultReader({
+      maximumHistoryRevisions: positiveInteger(
+        "DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS",
+      ),
+    }),
     readProjectContext: async (subject) => {
       const allowed =
         callers.find((caller) => caller.subject === subject)?.workNumbers ?? [];

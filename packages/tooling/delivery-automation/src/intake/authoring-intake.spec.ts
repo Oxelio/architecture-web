@@ -170,7 +170,14 @@ describe("sealed authoring transport", () => {
 });
 
 describe("inactive private MCP intake", () => {
-  async function setup(enabled = true) {
+  async function setup(
+    enabled = true,
+    workNumbers = [140],
+    readTerminalResult?: () => Promise<{
+      status: "confirmed";
+      canonicalUrls: string[];
+    }>,
+  ) {
     const f = await fixture();
     const access = "synthetic-caller-".repeat(4);
     const dispatch = vi.fn().mockResolvedValue("dispatched");
@@ -182,10 +189,12 @@ describe("inactive private MCP intake", () => {
         {
           subject: "fixture-agent",
           tokenDigest: createHash("sha256").update(access).digest("hex"),
+          workNumbers,
         },
       ],
       store: f.store,
       dispatch,
+      ...(readTerminalResult ? { readTerminalResult } : {}),
       authenticateJob: async () => null,
       readProjectContext: async () => ({
         projectNumber: 3,
@@ -250,6 +259,41 @@ describe("inactive private MCP intake", () => {
     await f.intake.close();
   });
 
+  it("denies a caller outside the configured Work scope before staging or dispatch", async () => {
+    const f = await setup(true, [146]);
+    const result = await f.call("submit-authoring-request", {
+      envelope: f.envelope,
+      payloadBase64: f.bytes.toString("base64"),
+    });
+    expect(result.status).toBe(200);
+    expect(await result.text()).toContain("denied");
+    expect(f.dispatch).not.toHaveBeenCalled();
+    expect(await readdir(f.directory)).toEqual([]);
+    await f.store.seal(f.request, f.bytes);
+    const previous = await f.call("read-authoring-result", {
+      requestId: f.request.requestId,
+    });
+    expect(await previous.text()).toContain("unavailable");
+    await f.intake.close();
+  });
+
+  it("returns a journal-backed terminal result even after the transport payload is disposed", async () => {
+    const readTerminalResult = vi
+      .fn()
+      .mockResolvedValue({ status: "confirmed", canonicalUrls: [] });
+    const f = await setup(true, [140], readTerminalResult);
+    await f.store.seal(f.request, f.bytes);
+    await f.store.disposePayload(f.request.requestId);
+    const response = await f.call("read-authoring-result", {
+      requestId: f.request.requestId,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("confirmed");
+    expect(readTerminalResult).toHaveBeenCalledWith(f.request);
+    expect(f.dispatch).not.toHaveBeenCalled();
+    await f.intake.close();
+  });
+
   it("keeps job payloads and immutable results inside the authenticated private path", async () => {
     const f = await fixture();
     await f.store.seal(f.request, f.bytes);
@@ -258,7 +302,13 @@ describe("inactive private MCP intake", () => {
       enabled: true,
       publicOrigin: "https://intake.invalid",
       maximumRequestBytes: 4096,
-      callers: [{ subject: "fixture-agent", tokenDigest: "a".repeat(64) }],
+      callers: [
+        {
+          subject: "fixture-agent",
+          tokenDigest: "a".repeat(64),
+          workNumbers: [140],
+        },
+      ],
       store: f.store,
       dispatch: vi.fn(),
       authenticateJob: async () => f.job,

@@ -5,21 +5,27 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import { prepareAuthoringRequest } from "../control/authoring-request.js";
+import {
+  prepareAuthoringRequest,
+  type PreparedAuthoringRequest,
+} from "../control/authoring-request.js";
 import type {
   AuthoringJobBinding,
   PrivateAuthoringResult,
   SealedAuthoringStore,
 } from "./sealed-authoring-store.js";
 
+interface IntakeCaller {
+  readonly subject: string;
+  readonly tokenDigest: string;
+  readonly workNumbers: readonly number[];
+}
+
 export interface AuthoringIntakeConfiguration {
   readonly enabled?: boolean;
   readonly publicOrigin: string;
   readonly maximumRequestBytes: number;
-  readonly callers: readonly {
-    readonly subject: string;
-    readonly tokenDigest: string;
-  }[];
+  readonly callers: readonly IntakeCaller[];
   readonly store: SealedAuthoringStore;
   readonly authenticateJob: (
     token: string,
@@ -31,6 +37,9 @@ export interface AuthoringIntakeConfiguration {
   // The protected reader returns a dated private view, never its credential.
   readonly readProjectContext: (subject: string) => Promise<unknown>;
   readonly acceptProjectContext?: (value: unknown) => boolean;
+  readonly readTerminalResult?: (
+    request: PreparedAuthoringRequest,
+  ) => Promise<PrivateAuthoringResult | null>;
 }
 
 function bearer(request: Request) {
@@ -47,7 +56,7 @@ function caller(request: Request, configuration: AuthoringIntakeConfiguration) {
   const matches = configuration.callers.filter(({ tokenDigest }) =>
     timingSafeEqual(digest, Buffer.from(tokenDigest, "hex")),
   );
-  return matches.length === 1 ? (matches[0]?.subject ?? null) : null;
+  return matches.length === 1 ? (matches[0] ?? null) : null;
 }
 
 function response(value: unknown, status = 200) {
@@ -115,17 +124,20 @@ const resultSchema = z.strictObject({
 });
 
 async function submit(
-  subject: string,
+  caller: IntakeCaller,
   envelope: unknown,
   payloadBase64: string,
   configuration: AuthoringIntakeConfiguration,
 ) {
   const request = prepareAuthoringRequest({
-    authenticatedSubject: subject,
+    authenticatedSubject: caller.subject,
     envelope,
   });
+  if (!request || !caller.workNumbers.includes(request.workNumber)) {
+    return { status: "denied" };
+  }
   const bytes = Buffer.from(payloadBase64, "base64");
-  if (!request || bytes.toString("base64") !== payloadBase64) {
+  if (bytes.toString("base64") !== payloadBase64) {
     return { status: "denied" };
   }
   const sealed = await configuration.store.seal(request, bytes);
@@ -147,7 +159,11 @@ async function submit(
   return { status: "pending", requestId: request.requestId };
 }
 
-function server(subject: string, configuration: AuthoringIntakeConfiguration) {
+function server(
+  caller: IntakeCaller,
+  configuration: AuthoringIntakeConfiguration,
+) {
+  const { subject, workNumbers } = caller;
   const mcp = new McpServer({
     name: "architecture-web-authoring",
     version: "1.0.0",
@@ -163,7 +179,7 @@ function server(subject: string, configuration: AuthoringIntakeConfiguration) {
       }),
     },
     async ({ envelope, payloadBase64 }) =>
-      toolResult(() => submit(subject, envelope, payloadBase64, configuration)),
+      toolResult(() => submit(caller, envelope, payloadBase64, configuration)),
   );
   mcp.registerTool(
     "read-authoring-result",
@@ -180,12 +196,19 @@ function server(subject: string, configuration: AuthoringIntakeConfiguration) {
         const actorDigest = createHash("sha256")
           .update(JSON.stringify(["authoring-actor", 1336937640, subject]))
           .digest("hex");
-        if (!header || header.request.actorDigest !== actorDigest) {
+        if (
+          !header ||
+          header.request.actorDigest !== actorDigest ||
+          !workNumbers.includes(header.request.workNumber)
+        ) {
           return { status: "unavailable" };
         }
         await configuration.store.expirePayload(requestId);
         return (
-          (await configuration.store.result(requestId)) ?? { status: "pending" }
+          (await configuration.store.result(requestId)) ??
+          (await configuration.readTerminalResult?.(header.request)) ?? {
+            status: "pending",
+          }
         );
       }),
   );
@@ -274,9 +297,12 @@ export function createAuthoringIntake(
     configuration.maximumRequestBytes < 1 ||
     configuration.callers.length === 0 ||
     configuration.callers.some(
-      ({ subject, tokenDigest }) =>
+      ({ subject, tokenDigest, workNumbers }) =>
         !/^[A-Za-z0-9_+=:/.-]{1,200}$/u.test(subject) ||
-        !/^[a-f0-9]{64}$/u.test(tokenDigest),
+        !/^[a-f0-9]{64}$/u.test(tokenDigest) ||
+        workNumbers.some(
+          (number) => !Number.isSafeInteger(number) || number < 1,
+        ),
     ) ||
     new Set(configuration.callers.map(({ tokenDigest }) => tokenDigest))
       .size !== configuration.callers.length
@@ -285,11 +311,13 @@ export function createAuthoringIntake(
   }
   const mcp = createMcpHandler(
     ({ requestInfo }) => {
-      const subject = requestInfo ? caller(requestInfo, configuration) : null;
-      if (!subject) {
+      const authenticated = requestInfo
+        ? caller(requestInfo, configuration)
+        : null;
+      if (!authenticated) {
         throw new Error("AUTHORING_CALLER_UNVERIFIED");
       }
-      return server(subject, configuration);
+      return server(authenticated, configuration);
     },
     {
       responseMode: "json",

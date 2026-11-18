@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { readPreparedAuthoringRequest } from "../control/authoring-request.js";
+import { createAuthoringTerminalResultReader } from "../intake/authoring-terminal-result.js";
 import { payloadDigest } from "../intake/sealed-authoring-store.js";
 import {
   type AuthoringExecutionPorts,
@@ -105,17 +106,11 @@ async function reportOutcome(
   input: WorkerInput,
   request: NonNullable<ReturnType<typeof readPreparedAuthoringRequest>>,
 ) {
-  const receipt = await input.journalReader.readAuthoringRequest(
-    input.requestId,
-    input.maximumHistoryRevisions,
-  );
-  if (
-    !receipt ||
-    receipt.outcome === "admitted" ||
-    receipt.intent.requestId !== input.requestId ||
-    receipt.intent.actorDigest !== request.actorDigest ||
-    receipt.intent.commandDigest !== request.commandDigest
-  ) {
+  const result = await createAuthoringTerminalResultReader({
+    maximumHistoryRevisions: input.maximumHistoryRevisions,
+    readReceipt: input.journalReader.readAuthoringRequest,
+  })(request);
+  if (!result) {
     return "deferred" as const;
   }
   const response = await (input.fetchImpl ?? fetch)(
@@ -126,11 +121,7 @@ async function reportOutcome(
         Authorization: `Bearer ${await input.getJobToken()}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        status:
-          receipt.outcome === "known-unstarted" ? "denied" : receipt.outcome,
-        canonicalUrls: [],
-      }),
+      body: JSON.stringify(result),
       redirect: "error",
       signal: AbortSignal.timeout(15000),
     },

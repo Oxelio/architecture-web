@@ -722,6 +722,13 @@ must exclude ordinary agents from the host, configuration and staging volume
 using effective access controls. Payload expiry leaves the receipt intact
 and does not resolve an uncertain write.
 
+The intake checks the authenticated caller's Work allowlist before staging,
+dispatching or returning a receipt. If a terminal callback is lost, the intake
+can return a matching settled receipt from the public GitHub journal without
+an additional credential. Missing or unreadable history leaves the request
+pending. This read does not fetch the staged payload or reconcile an operation
+that has yet to settle.
+
 The inactive [analysis workflow](../../.github/workflows/delivery-protected-sonar.yml)
 collects coverage without analysis credentials, verifies the candidate
 checkout and scanner distribution, and derives scanner settings from the

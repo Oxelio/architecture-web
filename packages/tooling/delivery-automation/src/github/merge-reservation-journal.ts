@@ -38,13 +38,16 @@ function tagName(revision: number): string {
   return `delivery-control/r${revision}`;
 }
 
-function headers(repositoryToken: string): Record<string, string> {
-  if (!repositoryToken.trim()) {
+function headers(
+  repositoryToken: string,
+  publicRead = false,
+): Record<string, string> {
+  if (!publicRead && !repositoryToken.trim()) {
     throw new Error("MERGE_JOURNAL_CREDENTIAL_MISSING");
   }
   return {
     accept: "application/vnd.github+json",
-    authorization: `Bearer ${repositoryToken}`,
+    ...(publicRead ? {} : { authorization: `Bearer ${repositoryToken}` }),
     "content-type": "application/json",
     "x-github-api-version": "2026-03-10",
   };
@@ -52,6 +55,7 @@ function headers(repositoryToken: string): Record<string, string> {
 
 export async function readMergeJournalRevision(input: {
   readonly repositoryToken: string;
+  readonly publicRead?: true;
   readonly revision: number;
   readonly fetchImpl?: FetchLike;
 }): Promise<MergeJournalEntry | null> {
@@ -59,7 +63,7 @@ export async function readMergeJournalRevision(input: {
   const fetchImpl = input.fetchImpl ?? fetch;
   const options = {
     redirect: "error",
-    headers: headers(input.repositoryToken),
+    headers: headers(input.repositoryToken, input.publicRead),
   } as const;
   const refResponse = await fetchImpl(`${gitApi}/ref/tags/${name}`, options);
   if (refResponse.status === 404) {
@@ -119,11 +123,15 @@ export async function readMergeJournalRevision(input: {
 // can grant a subsequent remote effect, so a stale reader cannot act.
 export async function readMergeJournalTail(input: {
   readonly repositoryToken: string;
+  readonly publicRead?: true;
   readonly fetchImpl?: FetchLike;
 }): Promise<MergeJournalEntry | null> {
   const response = await (input.fetchImpl ?? fetch)(
     `${gitApi}/matching-refs/tags/delivery-control/r`,
-    { redirect: "error", headers: headers(input.repositoryToken) },
+    {
+      redirect: "error",
+      headers: headers(input.repositoryToken, input.publicRead),
+    },
   );
   if (response.status !== 200 || response.headers.has("link")) {
     throw new Error("MERGE_JOURNAL_INVENTORY_UNAVAILABLE");
