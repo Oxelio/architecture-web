@@ -2,7 +2,7 @@
 
 > **Identifier:** TD-HTTP-LOG-REDACTION-001
 >
-> **Artifact status:** In Preparation — Nginx error-log strategy selected; pinned-image security proof pending
+> **Artifact status:** Prepared for implementation — mandatory pinned-image security validation pending
 >
 > **Content status:** Proposed Target (Work #145; not effective Current Truth)
 >
@@ -18,6 +18,7 @@
 - **Change Characteristics:** security-sensitive and cross-system (`apps/api` plus Web Nginx)
 - **Exploration:** [Work #145 findings](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6962784839)
 - **Human-approved target / rationale:** [2026-11-18 security and IAM-fragment decision](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6965227785); separate functional ownership is preserved for verification (#152), recovery and deletion cancellation.
+- **Readiness positioning:** The selected design can be implemented with an explicit fail-closed candidate-bound test gate; the pinned Nginx image proof belongs to implementation/validation, not to approval of the technical choice. This does not claim proven safety.
 - **Authoritative expected behavior:** [SF-ACCOUNT-RECOVERY-001](../specifications/SF-ACCOUNT-RECOVERY-001.md) (no usable tokens in logs), [SF-SECURITY-AUDIT-001](../specifications/SF-SECURITY-AUDIT-001.md) (no credentials in audit), [SF-PASSWORD-001](../specifications/SF-PASSWORD-001.md) (no password logging), [SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md) (cancellation token confidentiality), and [SF-SESSION-001](../specifications/SF-SESSION-001.md). Existing business behavior is unchanged; no new Functional Specification or Functional Approval is required.
 - **Architecture and delivery:** [Architecture principles](../project/architecture-principles.md), [overview](../architecture/overview.md), [dependency rules](../architecture/dependency-rules.md), [testing and verification](../development/testing.md), [delivery profile](../project/delivery-pipeline.md).
 - **Observed code/configuration:** `apps/api/src/server.ts`, `types/error-handler.ts`, `helpers/register-http-audit.ts`, related HTTP tests, `apps/web/nginx.conf`, `apps/web/Dockerfile`, `docker-compose.yml`, and Web verification/recovery/deletion-cancellation links.
@@ -87,7 +88,7 @@ http {
 }
 ```
 
-**Proof status:** Earlier synthetic PoC in the analysis environment on Nginx **1.26.3** observed unsafe request lines under regular error logging and no canary in the tested suppress-HTTP-error configuration. That is **not** repository-image 1.31.3, full early-error coverage, or deployment evidence. Before accepting Readiness, exercise missing assets, unavailable upstream, invalid/malformed/oversized requests and arbitrary URL canaries, inspecting **stdout, stderr, all configured files and inherited main-scope error paths**. Do not claim token redaction from changing the access log format alone.
+**Proof status and gate:** Earlier synthetic PoC in the analysis environment on Nginx **1.26.3** observed unsafe request lines under regular error logging and no canary in the tested suppress-HTTP-error configuration. That is **not** repository-image 1.31.3, full early-error coverage, or deployment evidence. This remaining evidence is a **mandatory Implementation/Security Review/Validation check rather than a prerequisite to starting implementation**, because the target and its fail-closed test procedure are now selected. Before passing security validation or merging, exercise missing assets, unavailable upstream, invalid/malformed/oversized requests and arbitrary URL canaries, inspecting **stdout, stderr, all configured files and inherited main-scope error paths**. A failed canary test forces a return to the architect, not a relaxation of the confidentiality objective. Do not claim token redaction from changing access log format alone.
 
 ### Other owners and external infrastructure
 
@@ -163,8 +164,8 @@ No durable structural rule with contested alternatives is established by the sel
 **Task Planning triggered:** API/Fastify and Web Nginx are independently changeable, independently testable security boundaries. Create two GitHub Sub-issues under Work #145, each referencing this Technical Design and its upstream specifications. The tasks can proceed in parallel on the **single Work integration branch** but final cross-boundary security validation requires both completed. Do not add Task Sub-issues as independent Project Work items or assign an autonomous `agent:*` route without human assignment.
 
 **Risks carried forward:**
-- **B1 / Verification blocker (Software Architect + Validation):** The maintainer **selected** suppression of request-scoped Nginx native errors plus safe JSON access logs while retaining safe process errors. The **pinned-image proof is still missing**. Verify, on the actual Nginx 1.31.3 image and synthetic canaries, that no early parsing, main-scope inheritance, startup/reload or failure path emits a secret to stderr/stdout/file sinks. If not proven, return to design; the human decision does not manufacture a passing Readiness or Validation result.
-- **R1 / Implementation + Validation after B1 resolution:** Test the selected Nginx error-log protection using synthetic failure paths and verify no canary token is emitted by access **or** error logging. Failure returns to the Software Architect.
+- **R0 / Security-validation risk (Developer + Security Review / Validation):** The maintainer **selected** suppression of request-scoped Nginx native errors plus safe JSON access logs while retaining safe process errors. The **pinned-image proof is still missing**. The selected technical approach is sufficiently bounded to implement, and reproduction on Nginx 1.26.3 was only preliminary feasibility evidence, **not acceptance evidence**. In implementation and on the actual Nginx 1.31.3 image, test synthetic canaries across early parsing, main-scope inheritance, startup/reload and failure paths to stderr/stdout/file sinks. **This is a non-blocking Readiness risk but a strict security Validation/merge blocker:** if any sink emits a secret, validation must fail and the work must return to the Software Architect for redesign; no workaround is authorized by the Developer.
+- **R1 / Implementation + Validation:** Test the selected Nginx error-log protection using synthetic failure paths and verify no canary token is emitted by access **or** error logging. Process/main-scope logging is included; failure returns to the Software Architect.
 - **R2 / Fastify early failures:** the safe path must cover default 404, validation errors and errors outside ordinary successful request hooks. Developer validates against the exact Fastify runtime/version in this repository.
 - **R3 / Historical logs:** no access to deployed log retention/aggregation and no verified evidence of the extent of past disclosure. Operator performs separate immediate scope, containment and rotation assessment; changes cannot retroactively purge copies.
 - **R4 / Monitoring:** changed log shape may affect consumers of raw URLs. Verify actual log consumers during implementation/operations; no consumer is assumed present or absent.
