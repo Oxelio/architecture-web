@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { describe, expect, it } from "vitest";
 
+import { prepareAuthoringRequest } from "../control/authoring-request.js";
 import {
   canPublishManualWorkGate,
   canRecordWorkCompletion,
@@ -287,8 +288,408 @@ function fixture() {
       },
     },
   };
-  return { journal, input, state, checkReservations };
+  return { journal, input, state, checkReservations, tags, refs };
 }
+
+type AuthoringInput = Parameters<
+  ReturnType<typeof createGitHubWorkReservationJournal>["beginAuthoringWrite"]
+>[0];
+
+async function authoringInput(
+  f: ReturnType<typeof fixture>,
+  workNumber = 140,
+): Promise<AuthoringInput> {
+  const boundary = await f.journal().readAuthoringBoundary();
+  const request = prepareAuthoringRequest({
+    authenticatedSubject: "agent:fixture",
+    envelope: {
+      schema: 1,
+      repositoryId: 1336937640,
+      workNumber,
+      clientKey: `28df4e21-8049-4f84-9ec3-${workNumber.toString(16).padStart(12, "0")}`,
+      command: {
+        kind: "edit-work",
+        beforeStateDigest: "b".repeat(64),
+        payloadDigest: "a".repeat(64),
+      },
+    },
+  });
+  if (!request) {
+    throw new Error("Expected request");
+  }
+  const native = boundary.reservation;
+  return {
+    enabled: true,
+    previous: boundary.position,
+    workflowSha: "f".repeat(40),
+    request,
+    scope: {
+      repositoryId: 1336937640,
+      kind: "edit-work",
+      affectedWorks: [workNumber],
+      affectedPulls: [],
+      affectedRefs: [],
+    },
+    authorityDigest: "e".repeat(64),
+    inventoryComplete: true,
+    maximumHistoryRevisions: 100,
+    reserved: native
+      ? {
+          reservation: native.reservation,
+          relevantWorks: [native.reservation.candidate.workNumber],
+          relevantPulls: [native.reservation.candidate.pullNumber],
+          relevantRefs: ["refs/heads/main", "refs/heads/codex/work-115"],
+        }
+      : null,
+    readAuthority: async () => "e".repeat(64),
+  };
+}
+
+function settlement(
+  requestId: string,
+  outcome: "confirmed" | "known-unstarted" | "not-applied" = "confirmed",
+) {
+  return {
+    enabled: true,
+    requestId,
+    maximumHistoryRevisions: 100,
+    authorizeRecovery: async () => true,
+    observeOutcome: async () => ({ outcome, proofDigest: "d".repeat(64) }),
+  };
+}
+
+function rewriteRevision(
+  f: ReturnType<typeof fixture>,
+  revision: number,
+  change: (body: Record<string, unknown>) => Record<string, unknown>,
+) {
+  const ref = f.refs.get(`refs/tags/delivery-control/r${revision}`);
+  const tag = ref
+    ? (f.tags.get(ref.object.sha) as { message: string } | undefined)
+    : undefined;
+  if (!ref || !tag) {
+    throw new Error("Expected fixture revision");
+  }
+  const payload = JSON.parse(tag.message) as { body: string };
+  payload.body = JSON.stringify(
+    change(JSON.parse(payload.body) as Record<string, unknown>),
+  );
+  f.tags.set(ref.object.sha, { ...tag, message: JSON.stringify(payload) });
+}
+
+describe("inactive durable authoring admission", () => {
+  it("records proven non-application separately from success without permitting replay", async () => {
+    const f = fixture();
+    const input = await authoringInput(f);
+    await f.journal().beginAuthoringWrite(input);
+    expect(
+      await f
+        .journal()
+        .finishAuthoringWrite(
+          settlement(input.request.requestId, "not-applied"),
+        ),
+    ).toBe("settled");
+    expect(
+      (await f.journal().readAuthoringRequest(input.request.requestId, 100))
+        ?.outcome,
+    ).toBe("not-applied");
+    expect(
+      (await f.journal().beginAuthoringWrite(await authoringInput(f))).status,
+    ).toBe("settled");
+  });
+  it("does no I/O until enabled", async () => {
+    const f = fixture();
+    const input = await authoringInput(f);
+    const before = f.state.calls;
+    expect(
+      await f.journal().beginAuthoringWrite({ ...input, enabled: false }),
+    ).toEqual({ status: "inactive" });
+    expect(
+      await f.journal().finishAuthoringWrite({
+        ...settlement(input.request.requestId),
+        enabled: false,
+      }),
+    ).toBe("inactive");
+    expect(f.state.calls).toBe(before);
+  });
+
+  it("keeps replay identity after a terminal and never returns another admission", async () => {
+    const f = fixture();
+    const input = await authoringInput(f);
+    expect((await f.journal().beginAuthoringWrite(input)).status).toBe(
+      "admitted",
+    );
+    expect(
+      (await f.journal().beginAuthoringWrite(await authoringInput(f))).status,
+    ).toBe("pending");
+    expect(
+      await f
+        .journal()
+        .finishAuthoringWrite(settlement(input.request.requestId)),
+    ).toBe("settled");
+    expect(
+      (await f.journal().beginAuthoringWrite(await authoringInput(f))).status,
+    ).toBe("settled");
+    expect(
+      await f
+        .journal()
+        .finishAuthoringWrite(settlement(input.request.requestId)),
+    ).toBe("already-settled");
+    expect(f.refs.size).toBe(2);
+    expect(f.state.projectWrites).toBe(0);
+  });
+
+  it("allows unrelated intents and completion while preserving affected quarantine", async () => {
+    const f = fixture();
+    const first = await authoringInput(f);
+    await f.journal().beginAuthoringWrite(first);
+    expect(
+      (await f.journal().beginAuthoringWrite(await authoringInput(f, 999)))
+        .status,
+    ).toBe("admitted");
+    expect((await f.journal().readAuthoringBoundary()).authoring).toHaveLength(
+      2,
+    );
+    const fetchImpl = f.input.scope.publisher.fetchImpl;
+    if (!fetchImpl) {
+      throw new Error("Expected fixture transport");
+    }
+    const connection = { repositoryToken: controllerToken, fetchImpl };
+    expect(await canRecordWorkCompletion(connection, 998)).toBe(true);
+    expect(await canPublishManualWorkGate(connection, 998)).toBe(true);
+    await expect(canRecordWorkCompletion(connection, 140)).rejects.toThrow(
+      "AUTHORING_WRITE_PENDING",
+    );
+    await expect(canPublishManualWorkGate(connection)).rejects.toThrow(
+      "AUTHORING_WRITE_PENDING",
+    );
+    expect(
+      await f
+        .journal()
+        .finishAuthoringWrite(
+          settlement(first.request.requestId, "known-unstarted"),
+        ),
+    ).toBe("settled");
+    expect((await f.journal().readAuthoringBoundary()).authoring).toHaveLength(
+      1,
+    );
+  });
+
+  it("preserves strict native admission versions across independent global appends", async () => {
+    const f = fixture();
+    let injected = false;
+    const result = await executeReservedGitHubWorkIntegration({
+      ...f.input,
+      authorize: async () => {
+        const boundary = await f.journal().readAuthoringBoundary();
+        if (
+          !injected &&
+          boundary.reservation?.reservation.state.phase === "pending"
+        ) {
+          injected = true;
+          expect(
+            (await f.journal().beginAuthoringWrite(await authoringInput(f)))
+              .status,
+          ).toBe("admitted");
+        }
+        return true;
+      },
+    });
+    expect(injected).toBe(true);
+    expect(result.status).toBe("confirmed");
+    const boundary = await f.journal().readAuthoringBoundary();
+    expect(boundary.position?.revision).toBe(4);
+    expect(boundary.reservation?.revision).toBe(3);
+    expect(boundary.reservation?.nativePosition.revision).toBe(4);
+    expect(boundary.reservation?.reservation.state.phase).toBe("queued");
+    expect(boundary.authoring).toHaveLength(1);
+    expect(f.checkReservations).toHaveLength(1);
+  });
+
+  it("requires cancel-or-resolve for shared dependencies and never appends first", async () => {
+    const f = fixture();
+    await f.journal().reserve(candidate);
+    const input = await authoringInput(f);
+    if (!input.reserved) {
+      throw new Error("Expected native context");
+    }
+    const count = f.refs.size;
+    expect(
+      (
+        await f.journal().beginAuthoringWrite({
+          ...input,
+          reserved: { ...input.reserved, relevantWorks: [115, 140] },
+        })
+      ).status,
+    ).toBe("cancel-or-resolve");
+    expect(f.refs.size).toBe(count);
+    expect(
+      (
+        await f
+          .journal()
+          .beginAuthoringWrite({ ...input, inventoryComplete: false })
+      ).status,
+    ).toBe("deferred");
+  });
+
+  it("does not promote a matching read-back after a lost creation response", async () => {
+    const f = fixture();
+    f.state.loseRef = "r1";
+    const input = await authoringInput(f);
+    expect((await f.journal().beginAuthoringWrite(input)).status).toBe(
+      "deferred",
+    );
+    expect(
+      (await f.journal().readAuthoringRequest(input.request.requestId, 100))
+        ?.outcome,
+    ).toBe("admitted");
+    expect(
+      (await f.journal().beginAuthoringWrite(await authoringInput(f))).status,
+    ).toBe("pending");
+    expect(f.refs.size).toBe(1);
+  });
+
+  it("leaves admission pending when authority is revoked and unknown results remain", async () => {
+    const f = fixture();
+    const input = await authoringInput(f);
+    let checks = 0;
+    expect(
+      (
+        await f.journal().beginAuthoringWrite({
+          ...input,
+          readAuthority: async () =>
+            ++checks === 1 ? input.authorityDigest : null,
+        })
+      ).status,
+    ).toBe("deferred");
+    expect((await f.journal().readAuthoringBoundary()).authoring).toHaveLength(
+      1,
+    );
+    expect(
+      await f.journal().finishAuthoringWrite({
+        ...settlement(input.request.requestId),
+        observeOutcome: async () => null,
+      }),
+    ).toBe("deferred");
+    expect((await f.journal().readAuthoringBoundary()).authoring).toHaveLength(
+      1,
+    );
+    expect(f.refs.size).toBe(1);
+  });
+
+  it("gives only one caller a new admission when append attempts race", async () => {
+    const f = fixture();
+    const first = await authoringInput(f);
+    const second = await authoringInput(f, 999);
+    const results = await Promise.all([
+      f.journal().beginAuthoringWrite(first),
+      f.journal().beginAuthoringWrite(second),
+    ]);
+    expect(results.filter(({ status }) => status === "admitted")).toHaveLength(
+      1,
+    );
+    expect((await f.journal().readAuthoringBoundary()).authoring).toHaveLength(
+      1,
+    );
+    expect(f.refs.size).toBe(1);
+  });
+
+  it("rejects conflicting bytes and incomplete history instead of treating them as unseen", async () => {
+    const f = fixture();
+    const input = await authoringInput(f);
+    await f.journal().beginAuthoringWrite(input);
+    const changed = await authoringInput(f);
+    const request = prepareAuthoringRequest({
+      authenticatedSubject: "agent:fixture",
+      envelope: {
+        schema: 1,
+        repositoryId: 1336937640,
+        workNumber: 140,
+        clientKey: "28df4e21-8049-4f84-9ec3-00000000008c",
+        command: {
+          kind: "edit-work",
+          ...{
+            beforeStateDigest: "b".repeat(64),
+            payloadDigest: "c".repeat(64),
+          },
+        },
+      },
+    });
+    if (!request) {
+      throw new Error("Expected changed request");
+    }
+    expect(
+      (await f.journal().beginAuthoringWrite({ ...changed, request })).status,
+    ).toBe("conflict");
+    expect(
+      (
+        await f.journal().beginAuthoringWrite({
+          ...(await authoringInput(f, 999)),
+          maximumHistoryRevisions: 0,
+        })
+      ).status,
+    ).toBe("deferred");
+    await f.journal().finishAuthoringWrite(settlement(input.request.requestId));
+    await expect(
+      f.journal().readAuthoringRequest(input.request.requestId, 1),
+    ).rejects.toThrow("HISTORY_INCOMPLETE");
+  });
+
+  it("verifies the immutable native-version source after independent appends", async () => {
+    const f = fixture();
+    const initial = await f.journal().reserve(candidate);
+    if (!initial) {
+      throw new Error("Expected native reservation");
+    }
+    await f
+      .journal()
+      .append(initial, { candidate, state: { phase: "queued", checkId: 17 } });
+    await f.journal().beginAuthoringWrite(await authoringInput(f));
+    await f.journal().beginAuthoringWrite(await authoringInput(f, 999));
+    rewriteRevision(f, 2, (body) => ({
+      ...body,
+      state: { phase: "armed", checkId: 17 },
+    }));
+    await expect(f.journal().read()).rejects.toThrow(
+      "NATIVE_VERSION_SOURCE_UNVERIFIED",
+    );
+  });
+
+  it("rejects dropping another pending intent from the copied snapshot", async () => {
+    const f = fixture();
+    await f.journal().beginAuthoringWrite(await authoringInput(f));
+    await f.journal().beginAuthoringWrite(await authoringInput(f, 999));
+    rewriteRevision(f, 2, (body) => ({
+      ...body,
+      authoring: (body["authoring"] as unknown[]).slice(1),
+    }));
+    await expect(f.journal().readAuthoringBoundary()).rejects.toThrow(
+      "INTENT_DISCONTINUITY",
+    );
+  });
+
+  it("rejects a legacy downgrade that could hide outstanding intents", async () => {
+    const f = fixture();
+    await f.journal().beginAuthoringWrite(await authoringInput(f));
+    const boundary = await f.journal().readAuthoringBoundary();
+    await appendMergeJournalRevision({
+      repositoryToken: controllerToken,
+      previous: boundary.position,
+      candidateHeadSha: candidate.headSha,
+      body: JSON.stringify({
+        reservationId: "delivery-control/r2",
+        candidate,
+        state: { phase: "reserved" },
+      }),
+      ...(f.input.scope.publisher.fetchImpl
+        ? { fetchImpl: f.input.scope.publisher.fetchImpl }
+        : {}),
+    });
+    await expect(f.journal().reserve(candidate)).rejects.toThrow(
+      "PROTOCOL_DOWNGRADE",
+    );
+  });
+});
 
 describe("protected manual check publisher", () => {
   it.each(["authoring", "unknown", null, 1])(
@@ -335,7 +736,11 @@ describe("protected manual check publisher", () => {
         () => canRecordWorkCompletion(connection, 140),
       ];
       for (const check of checks) {
-        await expect(check()).rejects.toThrow("MERGE_JOURNAL_KIND_UNVERIFIED");
+        await expect(check()).rejects.toThrow(
+          kind === "authoring"
+            ? "AUTHORING_JOURNAL_STATE_UNVERIFIED"
+            : "MERGE_JOURNAL_KIND_UNVERIFIED",
+        );
       }
       expect(state.projectWrites).toBe(0);
     },
@@ -812,7 +1217,7 @@ describe("Project Status intent in the shared controller journal", () => {
         }),
       ).toBeNull();
       const position = await store.beginProjectStatusWrite({
-        previous: { revision: active.revision, tagSha: active.tagSha },
+        previous: (await f.journal().readProjectStatusBoundary()).position,
         workflowSha: candidate.baseSha,
         intent,
       });

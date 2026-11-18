@@ -226,6 +226,28 @@ describe("authoring metadata preparation", () => {
 });
 
 describe("minimized public authoring intent", () => {
+  it("canonicalizes complete scope independently of graph enumeration order", () => {
+    const request = prepare(commands[1]);
+    const firstScope = { ...scope(request), affectedPulls: [148, 147] };
+    const reversed = {
+      ...firstScope,
+      affectedWorks: [...firstScope.affectedWorks].reverse(),
+      affectedPulls: [...firstScope.affectedPulls].reverse(),
+      affectedRefs: [...firstScope.affectedRefs].reverse(),
+    };
+    const first = projectAuthoringIntent({
+      request,
+      scope: firstScope,
+      authorityDigest: "e".repeat(64),
+    });
+    const second = projectAuthoringIntent({
+      request,
+      scope: reversed,
+      authorityDigest: "e".repeat(64),
+    });
+    expect(first).toEqual(second);
+    expect(first?.scope.affectedPulls).toEqual([147, 148]);
+  });
   it.each(commands)(
     "projects $kind without raw subject, payload or command bytes",
     (command) => {
@@ -329,6 +351,9 @@ describe("authoring request replay classification", () => {
     ).toBe("settled");
     expect(
       classifyAuthoringReplay(request, receipt(request, "known-unstarted")),
+    ).toBe("settled");
+    expect(
+      classifyAuthoringReplay(request, receipt(request, "not-applied")),
     ).toBe("settled");
   });
 

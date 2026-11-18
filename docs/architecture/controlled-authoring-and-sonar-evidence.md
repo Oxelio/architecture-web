@@ -344,13 +344,67 @@ step 5 evidence does not have to exist to write inactive implementation.
 | Project fields               | Exact Project/item/field/option and source revision. Reuse Status admission and completion owners. Classification changes have their own authorized Method result.                                                                                                                          |
 | Read result                  | Request ID and authenticated subject. Return sanitized admitted/pending/confirmed/denied outcome and canonical evidence links. No write or recovery-by-replay.                                                                                                                              |
 
-The existing deployed pending journal envelope is specialized to Project Status.
-The preparation planner does not generalize or migrate it. Before runtime
-authoring is implemented, add a bounded authoring intent envelope understood by
-all existing journal readers, retaining the original candidate and revision.
-A pending request blocks overlapping admissions until positive reconciliation.
-Validate migration from existing reservation and Status entries. Keep the
-current journal schema untouched in this preparation unit.
+The deployed pending journal envelope is specialized to Project Status. The
+original planner/collector unit did not migrate it. The inactive integration
+extends the code with a bounded authoring envelope retaining the native candidate
+and operation version. No activated writer emits that format. A pending request
+blocks overlapping admissions until positive reconciliation. Validate all
+reservation/Status readers and runtime composition before activating the format.
+
+### Authoring journal integration contract
+
+The following is the next inactive implementation unit under accepted ADR-0012.
+Use the existing immutable `delivery-control/rN` log and compare-and-append
+boundary. Add no tag namespace, second lock service or live writer.
+
+The extended envelope has `kind: authoring`, schema 1, the current native
+reservation, a native-version marker, existing Status intent, pending authoring
+intents and at most one admission/terminal event for that revision. Pending
+intents contain only the public projection, their admission revision and proof
+digests. The envelope copies unresolved intents on every append. A terminal
+event never grants another handoff. Request lookup verifies immutable history;
+discarding payload bytes does not erase its replay identity.
+
+Separate the global journal position from the native operation version. Global
+revision advances on every append. Within one native reservation, its logical
+version advances by exactly one only when its native state changes. Store the
+global source revision for that version, verify that immutable source and its
+state on read, and preserve the version across independent authoring appends.
+The native controller keeps its exact version/state checks, single-use release
+admission and existing authority/candidate verification. Its strict increment
+checks are not weakened to arbitrary greater-than comparisons.
+Consumers use the boundary's global position for journal CAS; a native receipt's
+logical version and source tag must not be repackaged as a global position.
+
+An affecting write first uses the existing cancellation/resolution owner.
+Confirmed merge requires replan/recovery rather than an old-state mutation.
+After the boundary is conclusive, authoring admission requires a fresh authority
+check, exact command/before-state, complete owner-derived scope and an exact
+create-only append. An observed matching tag after a lost append response does
+not establish that a caller may perform the remote operation.
+
+An independent intent can coexist with a native reservation or another
+nonintersecting authoring intent. Readers must compare complete affected scope
+against the governed Work/PR/base rather than pause all unrelated operations.
+Missing scope or an unsupported protocol remains fail-closed. Existing Status
+and manual publishers need that scoped integration before activation; migration
+guards alone do not meet this requirement.
+
+After uncertain handoff, only canonical result/proof observation can settle an
+intent. Replacement workers reconcile without repeating the mutation. A known-
+unstarted result needs evidence that the old executor cannot still hand off;
+lease expiry, cache absence, staging expiry and a missing API object do not
+supply that proof. Preserve current authority checks and separate the native
+delegation amendment from ordinary authoring behavior.
+A proven server rejection with no applied effect is terminal `not-applied`,
+separate from confirmed success and known-unstarted execution. It still consumes
+the request identity. A partial or uncertain result is not non-application proof.
+
+Validation covers strict native-version increments across independent global
+appends, source-pointer mismatch, concurrent append losers, shared dependency
+conflicts, unknown scope, duplicate request IDs, lost ACKs, terminal replay and
+all reservation/Status/manual/completion readers. None of these fixtures proves
+installed credential exclusion or authorizes live cutover.
 
 ## Sonar strategy and evidence
 
@@ -529,16 +583,20 @@ a pure controlled-write disposition planner and a read-only Sonar evidence
 adapter with injected fixture transport. Neither module is wired to a workflow
 or a write credential. No production mutation is possible through them.
 
-Task #140 remains **Preparing**. Readiness for live writer cutover is
-**NOT READY** until the principal/credential boundary, all protected producer
-bindings, permission/provenance evidence and separate authority are resolved.
-A favorable fixture result cannot set the operational Work Ready for cutover.
+The [implementation Readiness assessment](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6974194387)
+is **READY WITH RISKS** for the complete authorized inactive implementation,
+including runtime adapters and intake/publisher composition. Its accepted design
+and contracts are sufficient to write that code. Provisioned identity, provider
+integration and writer-denial evidence belong to subsequent Validation; they
+are not circular prerequisites for implementing the inactive mechanisms.
+The [operational transitions](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6974221171)
+are recorded in the owning Work. Project #3 remains the current Work State owner.
 
-The smallest sequence is documentation and scoped Readiness, the two inactive
-modules with focused tests, separate perspective review, and candidate-bound
-repository validation. Runtime authoring adapters and publication wiring follow
-only when the listed input contracts and deployment decisions are resolved.
-Carry the following risks to independent review and controlled Validation.
+Live writer cutover remains **NOT READY** until the principal/credential boundary,
+protected producer bindings, permission/provenance evidence and separate authority
+are resolved. An implementation Readiness result does not authorize deployment.
+Complete the inactive units, then perform independent review and candidate-bound
+validation. Carry the following risks to that review and controlled Validation.
 
 After [structural acceptance](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963322874)
 and the [next scoped Readiness](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963430002),
@@ -550,10 +608,20 @@ Raw subject, client key, payload and private Project values are absent from the
 projection. Existing journal consumers explicitly reject unsupported kinds,
 including a record with otherwise valid legacy reservation fields.
 
-Durable request history/admission, creation forms, scoped writer integration and
-remote adapters remain following units. No hosted intake or workflow invokes
-the request metadata functions. Current valid reservation/Status records keep
-their existing behavior; unsupported protocol data is not an empty boundary.
+Inactive durable history/admission now uses the existing log. It preserves
+pending intents and native operation versions, verifies source pointers and
+predecessor continuity, and settles only through a trusted read-only proof
+adapter. History read capacity is an explicit resource bound: incomplete history
+defers rather than invents absence or a replay horizon.
+
+Creation forms, runtime scope/authority/proof resolution and remote adapters
+remain following units. The legacy Status pending slot remains exclusive with
+authoring intents. Normal scoped Status mutations must migrate through their
+typed authoring adapter before activation; this conservative migration guard is
+not the final ordinary-write route. Scoped manual/completion reads can proceed
+for unaffected Work; unknown targets defer. No hosted intake or workflow calls
+authoring admission. Valid deployed reservation/Status behavior is preserved;
+unsupported or contradictory protocol data is not an empty boundary.
 
 | Boundary                          | Required evidence                                                                                                                                                                                                                                                         |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

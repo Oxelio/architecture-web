@@ -128,9 +128,12 @@ if (
   );
 }
 if (
-  !(await canPublishManualWorkGate({
-    repositoryToken: requiredEnvironment("GITHUB_TOKEN"),
-  }))
+  !(await canPublishManualWorkGate(
+    {
+      repositoryToken: requiredEnvironment("GITHUB_TOKEN"),
+    },
+    workNumber,
+  ))
 ) {
   throw new Error(
     "An outstanding standing integration reservation prevents manual gate publication",

@@ -104,34 +104,50 @@ function command(value: unknown): AuthoringCommand | null {
   }
   const payloadDigest = item["payloadDigest"];
   if (item["kind"] === "publish-commit") {
-    if (
-      !keys(item, [
-        "kind",
-        "sourceRef",
-        "expectedHeadSha",
-        "proposedHeadSha",
-        "payloadDigest",
-      ]) ||
-      !isControlledBranchRef(item["sourceRef"]) ||
-      item["sourceRef"] === "refs/heads/main" ||
-      !isSha(item["expectedHeadSha"]) ||
-      !isSha(item["proposedHeadSha"]) ||
-      item["expectedHeadSha"] === item["proposedHeadSha"]
-    ) {
-      return null;
-    }
-    return {
-      kind: "publish-commit",
-      sourceRef: item["sourceRef"],
-      expectedHeadSha: item["expectedHeadSha"],
-      proposedHeadSha: item["proposedHeadSha"],
-      payloadDigest,
-    };
+    return publicationCommand(item, payloadDigest);
   }
   if (!isDigest(item["beforeStateDigest"])) {
     return null;
   }
-  const beforeStateDigest = item["beforeStateDigest"];
+  return metadataCommand(item, {
+    beforeStateDigest: item["beforeStateDigest"],
+    payloadDigest,
+  });
+}
+
+function publicationCommand(
+  item: Record<string, unknown>,
+  payloadDigest: string,
+): AuthoringCommand | null {
+  if (
+    !keys(item, [
+      "kind",
+      "sourceRef",
+      "expectedHeadSha",
+      "proposedHeadSha",
+      "payloadDigest",
+    ]) ||
+    !isControlledBranchRef(item["sourceRef"]) ||
+    item["sourceRef"] === "refs/heads/main" ||
+    !isSha(item["expectedHeadSha"]) ||
+    !isSha(item["proposedHeadSha"]) ||
+    item["expectedHeadSha"] === item["proposedHeadSha"]
+  ) {
+    return null;
+  }
+  return {
+    kind: "publish-commit",
+    sourceRef: item["sourceRef"],
+    expectedHeadSha: item["expectedHeadSha"],
+    proposedHeadSha: item["proposedHeadSha"],
+    payloadDigest,
+  };
+}
+
+function metadataCommand(
+  item: Record<string, unknown>,
+  { beforeStateDigest, payloadDigest }: Metadata,
+): AuthoringCommand | null {
   const common = ["kind", "beforeStateDigest", "payloadDigest"];
   switch (item["kind"]) {
     case "edit-pull-request":
@@ -287,11 +303,38 @@ export function projectAuthoringIntent(input: {
     scope: {
       repositoryId,
       kind: scope.kind,
-      affectedWorks: [...scope.affectedWorks],
-      affectedPulls: [...scope.affectedPulls],
-      affectedRefs: [...scope.affectedRefs],
+      affectedWorks: [...scope.affectedWorks].sort((a, b) => a - b),
+      affectedPulls: [...scope.affectedPulls].sort((a, b) => a - b),
+      affectedRefs: [...scope.affectedRefs].sort((a, b) => a.localeCompare(b)),
     },
   };
+}
+
+export function isPublicAuthoringIntent(
+  value: unknown,
+): value is PublicAuthoringIntent {
+  const item = object(value);
+  return (
+    item !== null &&
+    keys(item, [
+      "schema",
+      "requestId",
+      "actorDigest",
+      "commandDigest",
+      "authorityDigest",
+      "beforeStateDigest",
+      "scope",
+    ]) &&
+    item["schema"] === 1 &&
+    [
+      "requestId",
+      "actorDigest",
+      "commandDigest",
+      "authorityDigest",
+      "beforeStateDigest",
+    ].every((key) => isDigest(item[key])) &&
+    isControlledWriteScope(item["scope"])
+  );
 }
 
 // A null receipt must mean verified canonical absence, not an empty cache.
@@ -328,6 +371,7 @@ export function classifyAuthoringReplay(
       return "pending";
     case "confirmed":
     case "known-unstarted":
+    case "not-applied":
       return "settled";
     default:
       return "conflict";
