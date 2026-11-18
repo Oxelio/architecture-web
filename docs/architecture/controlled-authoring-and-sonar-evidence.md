@@ -695,6 +695,27 @@ be verified during controlled Validation. The corresponding provider contracts
 are [issue creation](https://docs.github.com/en/rest/issues/issues#create-an-issue)
 and [native dependencies](https://docs.github.com/en/rest/issues/issue-dependencies).
 
+The inactive execution composition now reads Work membership from Project #3,
+walks native parents, sub-issues and both dependency directions, and matches
+open PRs against the affected Work and source refs. It rechecks the resolved
+scope before handoff. Ordinary PR metadata edits preserve the explicit owning
+Work. Unavailable or incomplete scope defers the operation.
+
+The job transport binds the sealed bytes to the request and reports only an
+exact terminal journal receipt. The intake verifies the signed dispatch actor
+and the workflow revision against the protected baseline. A new `main` commit
+with identical privileged Git trees and install configuration remains eligible.
+The whole lockfile is part of that baseline. A dependency change requires an
+updated accepted baseline.
+
+The inactive Sonar producer derives scanner settings from the trusted candidate
+and reads the CE task from the scanner's private output. The check completion
+adapter combines the GitHub producer receipt, authenticated Sonar provider
+read-back and a protected admission for the exact issuer/check/evidence tuple.
+It verifies the completed check through the existing check adapter. These
+functions still require the protected job's validated credential and authority
+composition, including durable provider submission/completion admission.
+
 These paths are relative to `packages/tooling/delivery-automation`. No workflow
 or installed service calls this composition. The private host must exclude
 agents from its volume/configuration and enforce its ACLs; Unix mode bits alone

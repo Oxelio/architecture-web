@@ -317,7 +317,12 @@ it("accepts only the exact authenticated protected GitHub job", async () => {
     workflowSha: "a".repeat(40),
   };
   const authenticate = createGitHubJobAuthenticator(
-    expected,
+    {
+      ...expected,
+      dispatchActorId: "99",
+      verifyWorkflowRevision: async (revision) =>
+        revision === expected.workflowSha || revision === "c".repeat(40),
+    },
     async () => publicKey,
   );
   const claims = {
@@ -328,6 +333,8 @@ it("accepts only the exact authenticated protected GitHub job", async () => {
     workflow_ref:
       "Oxelio/architecture-web/.github/workflows/delivery-authoring.yml@refs/heads/main",
     workflow_sha: expected.workflowSha,
+    sha: expected.workflowSha,
+    actor_id: "99",
     environment: expected.environment,
     event_name: "workflow_dispatch",
     run_id: "123",
@@ -348,11 +355,17 @@ it("accepts only the exact authenticated protected GitHub job", async () => {
     runAttempt: "1",
     workflowSha: expected.workflowSha,
   });
+  expect(
+    await authenticate(
+      await sign({ workflow_sha: "c".repeat(40), sha: "c".repeat(40) }),
+    ),
+  ).toMatchObject({ workflowSha: "c".repeat(40) });
   for (const changed of [
     { repository_id: "1" },
     { repository_owner_id: "1" },
     { ref: "refs/pull/147/merge" },
-    { workflow_sha: "b".repeat(40) },
+    { workflow_sha: "b".repeat(40), sha: "b".repeat(40) },
+    { actor_id: "100" },
     { run_attempt: "2" },
     { environment: "another" },
     { job_workflow_ref: "unaccepted" },

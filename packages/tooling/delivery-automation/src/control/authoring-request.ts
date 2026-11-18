@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import {
   type ControlledWriteScope,
@@ -313,6 +314,31 @@ function isPreparedRequest(value: PreparedAuthoringRequest) {
     digest([1, repositoryId, value.workNumber, normalized]) ===
       value.commandDigest
   );
+}
+
+export function readPreparedAuthoringRequest(
+  value: unknown,
+): PreparedAuthoringRequest | null {
+  const item = object(value);
+  if (
+    !item ||
+    !keys(item, [
+      "schema",
+      "repositoryId",
+      "workNumber",
+      "requestId",
+      "actorDigest",
+      "commandDigest",
+      "command",
+    ])
+  ) {
+    return null;
+  }
+  const request = item as unknown as PreparedAuthoringRequest;
+  return isPreparedRequest(request) &&
+    isDeepStrictEqual(request.command, command(request.command))
+    ? request
+    : null;
 }
 
 // The trusted owner resolver supplies scope and authority evidence. This

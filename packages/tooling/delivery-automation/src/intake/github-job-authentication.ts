@@ -5,7 +5,8 @@ import type { AuthoringJobBinding } from "./sealed-authoring-store.js";
 export interface TrustedAuthoringJob {
   readonly audience: string;
   readonly subject: string;
-  readonly workflowSha: string;
+  readonly verifyWorkflowRevision: (revision: string) => Promise<boolean>;
+  readonly dispatchActorId: string;
   readonly environment: string;
 }
 
@@ -19,7 +20,7 @@ export function createGitHubJobAuthenticator(
   ),
 ) {
   if (
-    !/^[a-f0-9]{40}$/u.test(expected.workflowSha) ||
+    !/^[1-9][0-9]*$/u.test(expected.dispatchActorId) ||
     !expected.audience.startsWith("https://") ||
     !expected.environment ||
     expected.subject !==
@@ -34,7 +35,7 @@ export function createGitHubJobAuthenticator(
     ref: "refs/heads/main",
     workflow_ref:
       "Oxelio/architecture-web/.github/workflows/delivery-authoring.yml@refs/heads/main",
-    workflow_sha: expected.workflowSha,
+    actor_id: expected.dispatchActorId,
     environment: expected.environment,
     event_name: "workflow_dispatch",
     run_attempt: "1",
@@ -48,12 +49,16 @@ export function createGitHubJobAuthenticator(
         algorithms: ["RS256"],
         requiredClaims: ["iat", "exp", "nbf"],
       });
+      const revision = payload["workflow_sha"];
       if (
         !Object.entries(claims).every(
           ([name, value]) => payload[name] === value,
         ) ||
         typeof payload["run_id"] !== "string" ||
         !/^[1-9][0-9]*$/u.test(payload["run_id"]) ||
+        typeof revision !== "string" ||
+        !/^[a-f0-9]{40}$/u.test(revision) ||
+        payload["sha"] !== revision ||
         payload["job_workflow_ref"] !== undefined ||
         payload["job_workflow_sha"] !== undefined ||
         typeof payload.iat !== "number" ||
@@ -63,10 +68,16 @@ export function createGitHubJobAuthenticator(
       ) {
         return null;
       }
+      if (
+        !(await expected.verifyWorkflowRevision(revision)) ||
+        Date.now() >= payload.exp * 1000
+      ) {
+        return null;
+      }
       return {
         runId: payload["run_id"],
         runAttempt: "1",
-        workflowSha: expected.workflowSha,
+        workflowSha: revision,
       };
     } catch {
       return null;
