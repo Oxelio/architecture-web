@@ -2,7 +2,7 @@
 
 > **Identifier:** TD-HTTP-LOG-REDACTION-001
 >
-> **Artifact status:** In Preparation — Nginx error-log handling unresolved
+> **Artifact status:** In Preparation — Nginx error-log strategy selected; pinned-image security proof pending
 >
 > **Content status:** Proposed Target (Work #145; not effective Current Truth)
 >
@@ -17,6 +17,7 @@
 - **Work Type / Workflow Depth:** Defect Correction / Complex
 - **Change Characteristics:** security-sensitive and cross-system (`apps/api` plus Web Nginx)
 - **Exploration:** [Work #145 findings](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6962784839)
+- **Human-approved target / rationale:** [2026-11-18 security and IAM-fragment decision](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6965227785); separate functional ownership is preserved for verification (#152), recovery and deletion cancellation.
 - **Authoritative expected behavior:** [SF-ACCOUNT-RECOVERY-001](../specifications/SF-ACCOUNT-RECOVERY-001.md) (no usable tokens in logs), [SF-SECURITY-AUDIT-001](../specifications/SF-SECURITY-AUDIT-001.md) (no credentials in audit), [SF-PASSWORD-001](../specifications/SF-PASSWORD-001.md) (no password logging), [SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md) (cancellation token confidentiality), and [SF-SESSION-001](../specifications/SF-SESSION-001.md). Existing business behavior is unchanged; no new Functional Specification or Functional Approval is required.
 - **Architecture and delivery:** [Architecture principles](../project/architecture-principles.md), [overview](../architecture/overview.md), [dependency rules](../architecture/dependency-rules.md), [testing and verification](../development/testing.md), [delivery profile](../project/delivery-pipeline.md).
 - **Observed code/configuration:** `apps/api/src/server.ts`, `types/error-handler.ts`, `helpers/register-http-audit.ts`, related HTTP tests, `apps/web/nginx.conf`, `apps/web/Dockerfile`, `docker-compose.yml`, and Web verification/recovery/deletion-cancellation links.
@@ -24,7 +25,7 @@
 
 ## 1. Scope and invariant
 
-Prevent **usable credentials** from being emitted to **repository-controlled HTTP request/access/error log sinks**. Current Web/API flows use browser query links (`/verify?token=...`, `/recovery?token=...`, `/cancel-deletion?token=...`) and an API GET `/v1/iam/verify?token=...` that must continue to work. Credential classes in scope include verification, recovery and cancellation tokens, session cookies, Authorization values, passwords, MFA/TOTP and backup codes when present in logged HTTP data.
+Prevent **usable credentials** from being emitted to **repository-controlled HTTP request/access/error log sinks**. **Current Truth** on `main`: Web links contain `?token=...` for verification, recovery and deletion cancellation, and the API currently exposes GET `/v1/iam/verify?token=...`. **Approved Target** for separate IAM work: fragment-based email links for all three flows, verification user confirmation + POST body (Work #152), existing POST body APIs for recovery/cancellation. The maintainer explicitly authorized dropping verification's GET/query contract without legacy support; #145 must **not** require preserving that deprecated target API. Credential classes in this logging Work include verification, recovery and cancellation tokens, session cookies, Authorization values, passwords, MFA/TOTP and backup codes when present in logged HTTP data.
 
 This is *not* a broad IAM refactor, new logging retention policy, change to token transport/business API, or expansion into unverified external infrastructure. Keep stable response and error contracts, session flows, HTTP authorization, domain/application layers, and security Audit semantics. Closed #49 separately owns the prior session bearer credential representation change. A broken/degraded logging sink must not turn an otherwise successful business response into a new business failure.
 
@@ -44,9 +45,49 @@ Review all **currently identified** error log paths (global error handler, Fasti
 
 `apps/web/nginx.conf` currently uses `access_log /tmp/nginx_access.log;` without a safe format. Nginx defaults to the **combined** format, whose request line contains URL and query; browser token-bearing links therefore present an additional concrete log-exposure path.
 
-**Selected local correction:** Give the Nginx access log an explicit minimal format built from allowlisted safe attributes such as method, status, request duration, timestamp, response size and Nginx request ID if available. **Never include** `$request`, `$request_uri`, `$args`, `$query_string`, `$http_referer`, `$http_authorization`, cookie values or unreviewed `$uri` in the emitted format. Raw URL paths can contain secrets in path segments as well as queries. If any route value is required for observability, use a static nonsecret category rather than the untrusted concrete URI. Do not remove all access diagnostics.
+**Selected Nginx production correction (human-approved target):**
 
-**Nginx error-log caveat:** `error_log /tmp/nginx_error.log notice;` is a *separate sink*; built-in error messages may contain a raw request line, and `log_format` does **not** sanitize it. Before claiming the leak is fixed, exercise Nginx errors (missing asset, upstream failure, malformed/invalid requests, and token-bearing route handling) and inspect *both* access and error logs using unique fake tokens. If error paths can still expose usable secrets, select a narrowly scoped safe configuration or return to the Software Architect with the proven limitation. **Do not claim access-log formatting alone solves the Nginx error-log issue.** A necessary change to token URLs, ingress ownership, or product/API contract would be an upstream functional/structural decision, not a hidden Developer workaround.
+- Use a native **JSON access log to container stdout** containing only allowlisted safe operational metadata: timestamp, Nginx request ID, a bounded nonsecret request group (e.g. static `web`/`api` classification), status, method **from an explicit HTTP verb allowlist if needed**, total request time, upstream status/connect/response time when available. Use `log_format ... escape=json`. No raw URL, path, query string, referrer, Authorization header, cookie, body, request line or arbitrary client-controlled field. Avoid directly logging `$uri`, `$request`, `$request_uri`, `$args`, `$query_string`, `$http_referer` or `$http_authorization`. Nonstandard methods should map to a safe constant rather than echo attacker-supplied bytes.
+- Nginx's native **request-associated error log is a separate sink that cannot be sanitized via `log_format`**. Suppress these HTTP-scoped messages (`http { error_log /dev/null error; }`) while retaining a **main-scope process diagnostic sink** (`error_log /dev/stderr warn;`) **only if early-parse/process paths are shown not to emit usable request secrets**. Nginx inheritance and request-processing stages must be tested in the actual pinned image. If main-scope output still contains canaries, the target is not safe and needs an explicit amended strategy.
+- Preserve safe request/outcome diagnostics via access records, upstream timings and Fastify's separate safe error categories. Prefer a **single production-safe configuration also used in local development**. If detailed Nginx error traces are needed for a rare incident, enable them temporarily in an isolated diagnostic setup with synthetic data, rather than automatically writing real tokens in development. Do not introduce a generic log processor, regex redactor or duplicate full dev/prod configuration by default.
+
+**Proposed bounded Nginx shape (must be tested on the repository's pinned 1.31.3 image):**
+
+```nginx
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 1024;
+}
+http {
+    error_log /dev/null error;
+    map $uri $request_group {
+        default web;
+        ~^/api/ api;
+    }
+    map $request_method $safe_method {
+        default OTHER;
+        GET GET;
+        HEAD HEAD;
+        POST POST;
+        PUT PUT;
+        PATCH PATCH;
+        DELETE DELETE;
+        OPTIONS OPTIONS;
+    }
+    log_format safe_access escape=json
+        '{"time":"$time_iso8601","request_id":"$request_id",'
+        '"group":"$request_group","method":"$safe_method",'
+        '"status":"$status","duration":"$request_time",'
+        '"upstream_status":"$upstream_status",'
+        '"upstream_connect_time":"$upstream_connect_time",'
+        '"upstream_response_time":"$upstream_response_time"}';
+    access_log /dev/stdout safe_access;
+    # Keep existing MIME, SPA, proxy, runtime and server directives.
+}
+```
+
+**Proof status:** Earlier synthetic PoC in the analysis environment on Nginx **1.26.3** observed unsafe request lines under regular error logging and no canary in the tested suppress-HTTP-error configuration. That is **not** repository-image 1.31.3, full early-error coverage, or deployment evidence. Before accepting Readiness, exercise missing assets, unavailable upstream, invalid/malformed/oversized requests and arbitrary URL canaries, inspecting **stdout, stderr, all configured files and inherited main-scope error paths**. Do not claim token redaction from changing the access log format alone.
 
 ### Other owners and external infrastructure
 
@@ -90,14 +131,14 @@ Minimal structured records should reduce log volume. Use the existing Fastify/Pi
 
 **API (Fastify):**
 - Use an in-memory captured logging stream in targeted Vitest/Fastify `inject` tests with **production-equivalent logger initialization**; avoid relying solely on arbitrary test instances where logging is disabled by default.
-- Exercise `GET /v1/iam/verify?token=<fake>` on success, invalid/expired token, schema-invalid token, unexpected exception and 404/unmatched query. Assert the raw fake token, the encoded form and sensitive headers/cookies/body/error strings are absent from **every emitted log record**.
+- Exercise synthetic token-bearing HTTP requests on both current GET/query and approved new POST/body verification shapes as appropriate to the tested code candidate (without preserving the GET compatibility route). Cover success, invalid/expired token, schema-invalid body, unexpected exception and 404/unmatched query. Assert the raw fake token, its encoded form and sensitive headers/cookies/body/error strings are absent from **every emitted log record**.
 - Verify useful metadata is still present (method, safe template or fallback, status, request ID and duration if available) and that HTTP responses stay unchanged.
 - Cover global `errorHandler` and audit-write error logging with fake secret-bearing exception text to prove safe handling; ensure no real secret is used.
 
 **Web Nginx:**
 - Validate Nginx configuration syntax using the actual built image or compatible Nginx runtime (`nginx -t`).
 - Send synthetic token-bearing browser routes (`/verify`, `/recovery`, `/cancel-deletion`), proxy requests (including failure and unavailable API), unmatched routes and deliberately failing assets.
-- Inspect **both** `/tmp/nginx_access.log` and `/tmp/nginx_error.log` and any configured output sinks after test requests. Assert synthetic tokens do not appear anywhere while status/timing records remain.
+- Inspect all actual Nginx log destinations on the tested candidate, including Docker **stdout/stderr**, any legacy files and main-scope/inherited process diagnostics. Verify zero canary tokens while JSON access metadata (status, group, timings, upstream and request ID) remains useful; confirm no request-associated error narrative is emitted.
 - If Nginx error messages still include token-bearing raw request lines, **do not pass validation** or claim safety; escalate for a limited corrective change with the appropriate design owner.
 
 **Cross-boundary / reviews:**
@@ -110,8 +151,9 @@ Minimal structured records should reduce log volume. Use the existing Fastify/Pi
 - **Only redact `token` query keys in Pino:** rejected as incomplete against arbitrary URI, other credential classes and Fastify error/404 paths.
 - **Turn off all API/Nginx logs:** rejected; loses essential diagnostic, security response and correlation evidence.
 - **Regex scrub emitted full strings after the fact:** rejected as fragile; secrets may already have been formatted or sent to a sink, and new forms evade filters.
-- **Allowlisted structured Fastify logs and minimal Nginx access format (selected):** keeps useful diagnostic fields and avoids serializing untrusted URL contents at capture.
-- **Change verification/recovery URLs to fragments or new endpoints as part of this defect:** not authorized **inside Work #145**. The maintainer separately approved the **email-verification-only** fragment + manual confirmation + POST target in [#152](https://github.com/Oxelio/architecture-web/issues/152). That target is not yet Current Truth and does not cover recovery/deletion URLs or clear the Nginx error-log blocker; coordinate compatibility and safe logging at integration rather than absorbing #152 into #145.
+- **Allowlisted Fastify error/request diagnostics + JSON Nginx access records (selected):** retain safe request IDs, status, route template (Fastify only), bounded group, duration and upstream timings without raw URL/body material.
+- **Suppress HTTP-scoped native Nginx error text, preserve demonstrably safe process diagnostics (selected):** accepted loss of individual Nginx error narratives to avoid request-line leaks. Native Nginx has no supported error-log equivalent to `log_format`. Preserve observability through safe access/upstream diagnostics and the API logger.
+- **Remove tokens from all three emailed URLs (approved target, separate functional owners):** the maintainer approved fragments for verification, recovery and deletion cancellation ([record](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6965227785)). #152 owns the verified-email behavior; existing recovery and deletion Functional Specifications own their product behavior. These changes are **not** implemented by #145 and do **not** replace the independent defense-in-depth logging fix.
 - **New generalized logging infrastructure:** not required to correct the currently identified repository sinks.
 
 No durable structural rule with contested alternatives is established by the selected bounded logging correction. **No ADR** is currently triggered.
@@ -121,7 +163,7 @@ No durable structural rule with contested alternatives is established by the sel
 **Task Planning triggered:** API/Fastify and Web Nginx are independently changeable, independently testable security boundaries. Create two GitHub Sub-issues under Work #145, each referencing this Technical Design and its upstream specifications. The tasks can proceed in parallel on the **single Work integration branch** but final cross-boundary security validation requires both completed. Do not add Task Sub-issues as independent Project Work items or assign an autonomous `agent:*` route without human assignment.
 
 **Risks carried forward:**
-- **B1 / Technical Design blocker (Software Architect):** Nginx error logs can embed raw request lines on failure, and `log_format` only controls access logs. No demonstrated, supportable Nginx error-path mitigation has yet been selected that both prevents token disclosure and preserves adequate diagnostics. The Software Architect must establish a safe bounded strategy (and its evidence) before a positive Readiness result. If no suitable approach exists without changing token-bearing links/ingress contracts, route that different target to the appropriate Functional Specification/architecture authority rather than silently accepting partial confidentiality.
+- **B1 / Verification blocker (Software Architect + Validation):** The maintainer **selected** suppression of request-scoped Nginx native errors plus safe JSON access logs while retaining safe process errors. The **pinned-image proof is still missing**. Verify, on the actual Nginx 1.31.3 image and synthetic canaries, that no early parsing, main-scope inheritance, startup/reload or failure path emits a secret to stderr/stdout/file sinks. If not proven, return to design; the human decision does not manufacture a passing Readiness or Validation result.
 - **R1 / Implementation + Validation after B1 resolution:** Test the selected Nginx error-log protection using synthetic failure paths and verify no canary token is emitted by access **or** error logging. Failure returns to the Software Architect.
 - **R2 / Fastify early failures:** the safe path must cover default 404, validation errors and errors outside ordinary successful request hooks. Developer validates against the exact Fastify runtime/version in this repository.
 - **R3 / Historical logs:** no access to deployed log retention/aggregation and no verified evidence of the extent of past disclosure. Operator performs separate immediate scope, containment and rotation assessment; changes cannot retroactively purge copies.
