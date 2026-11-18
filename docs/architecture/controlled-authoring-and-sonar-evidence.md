@@ -501,11 +501,14 @@ The CE task endpoint requires an Execute Analysis-capable credential even for
 GET. Place this collector in the protected producer boundary. Its performed
 operations are read-only, but its credential is not proven Browse-only. Keep
 that credential out of the check-only publisher and ordinary candidate execution.
-The later publisher validates the producer's authenticated receipt and rereads
-Browse-accessible analysis/gate evidence. Live credential permissions and the
-producer attestation must be validated before wiring this adapter into that
-composition. The preparation module does not claim to solve this credential
-separation on its own.
+The protected producer reads the terminal CE observation with its analysis
+credential and binds it to the immutable receipt. The publisher verifies the
+receipt and rereads Browse-accessible analysis and gate evidence. The publisher
+requires a terminal task observation for the exact submission to complete a
+check. An earlier receipt without a terminal task can support authorized
+reconciliation, while a pending or unverified result leaves the intent open.
+Live credential permissions and the provider's attestation path remain
+Validation requirements.
 
 The PR inventory gives the current PR, branch, target, revision and analysis
 date. Recheck before check release. A newer different revision or ambiguous

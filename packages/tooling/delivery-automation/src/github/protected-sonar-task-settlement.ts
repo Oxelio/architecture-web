@@ -3,27 +3,19 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import type { AuthoringOutcomeProof } from "./controlled-authoring-execution.js";
+import { protectedSonarTaskSchema } from "./protected-sonar-submission.js";
 import type { ProtectedSonarSubmission } from "./sonar-analysis-evidence.js";
 
-const task = z.object({
-  task: z.object({
-    id: z.string(),
-    componentKey: z.literal("Oxelio_architecture-web"),
-    type: z.literal("REPORT"),
-    status: z.enum(["SUCCESS", "FAILED", "CANCELED"]),
-    submittedAt: z.string(),
-    executedAt: z.string(),
-  }),
-});
+const task = z.object({ task: protectedSonarTaskSchema });
 
 // Transport settlement only. Failed or cancelled CE tasks prove that an
 // earlier submission ended, while the quality evaluator still rejects them.
-export async function readProtectedSonarTaskSettlement(input: {
+export async function readProtectedSonarTaskObservation(input: {
   readonly token: string;
   readonly readTrustedSubmission: () => Promise<ProtectedSonarSubmission | null>;
   readonly fetchImpl?: typeof fetch;
   readonly now?: () => number;
-}): Promise<AuthoringOutcomeProof | null> {
+}) {
   if (!input.token.trim()) {
     return null;
   }
@@ -69,13 +61,22 @@ export async function readProtectedSonarTaskSettlement(input: {
     )) {
       return null;
     }
-    return {
-      outcome: "confirmed",
-      proofDigest: createHash("sha256")
-        .update(JSON.stringify([submitted, observed]))
-        .digest("hex"),
-    };
+    return { submission: submitted, task: observed };
   } catch {
     return null;
   }
+}
+
+export async function readProtectedSonarTaskSettlement(
+  input: Parameters<typeof readProtectedSonarTaskObservation>[0],
+): Promise<AuthoringOutcomeProof | null> {
+  const observation = await readProtectedSonarTaskObservation(input);
+  return observation
+    ? {
+        outcome: "confirmed",
+        proofDigest: createHash("sha256")
+          .update(JSON.stringify(observation))
+          .digest("hex"),
+      }
+    : null;
 }

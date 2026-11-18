@@ -82,6 +82,24 @@ const submissionSchema = z.strictObject({
   expiresAt: instant,
 });
 
+export const protectedSonarTaskSchema = z.object({
+  id: z.string().regex(/^[A-Za-z0-9_-]{1,200}$/u),
+  componentKey: z.literal("Oxelio_architecture-web"),
+  type: z.literal("REPORT"),
+  status: z.enum(["SUCCESS", "FAILED", "CANCELED"]),
+  analysisId: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,200}$/u)
+    .optional(),
+  submittedAt: z.string(),
+  executedAt: z.string(),
+});
+export type ProtectedSonarTask = z.infer<typeof protectedSonarTaskSchema>;
+const receiptSchema = z.strictObject({
+  submission: submissionSchema,
+  task: protectedSonarTaskSchema.nullable(),
+});
+
 export interface ProtectedSonarArtifactBinding {
   readonly producerRunId: number;
   readonly producerWorkflowId: number;
@@ -273,7 +291,7 @@ function decodeSubmission(archive: Uint8Array) {
   if (entries !== 1 || !bytes || bytes.byteLength > maximumReceiptBytes) {
     return null;
   }
-  const parsed = submissionSchema.safeParse(
+  const parsed = receiptSchema.safeParse(
     JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(bytes),
     ) as unknown,
@@ -303,6 +321,7 @@ export async function readGitHubProtectedSonarSubmission(
   input: SourceInput,
 ): Promise<{
   readonly submission: ProtectedSonarSubmission;
+  readonly task: ProtectedSonarTask | null;
   readonly provenanceDigest: string;
 } | null> {
   if (input.enabled !== true) {
@@ -316,11 +335,13 @@ export async function readGitHubProtectedSonarSubmission(
     const job = run ? await readProducerJob(input) : null;
     const artifact = job ? await readArtifact(input) : null;
     const archive = artifact ? await downloadArchive(input) : null;
-    const submission = archive ? decodeSubmission(archive) : null;
+    const receipt = archive ? decodeSubmission(archive) : null;
+    const submission = receipt?.submission;
     if (
       !run ||
       !job ||
       !artifact ||
+      !receipt ||
       !submission ||
       !matchesSource(input, submission)
     ) {
@@ -328,6 +349,20 @@ export async function readGitHubProtectedSonarSubmission(
     }
     const now = (input.now ?? Date.now)();
     const completedAt = Date.parse(job.completed_at ?? "");
+    if (receipt.task) {
+      const sent = Date.parse(receipt.task.submittedAt);
+      const ended = Date.parse(receipt.task.executedAt);
+      if (
+        receipt.task.id !== submission.taskId ||
+        !(
+          Date.parse(submission.startedAt) <= sent &&
+          sent <= ended &&
+          ended <= completedAt
+        )
+      ) {
+        return null;
+      }
+    }
     if (
       Date.parse(submission.startedAt) < Date.parse(run.run_started_at) ||
       Date.parse(submission.startedAt) > completedAt ||
@@ -347,6 +382,7 @@ export async function readGitHubProtectedSonarSubmission(
     }
     return {
       submission,
+      task: receipt.task,
       provenanceDigest: digest([
         "protected-sonar-source",
         input.binding,

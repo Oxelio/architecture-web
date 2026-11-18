@@ -125,7 +125,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("protected Sonar check completion", () => {
   function publication() {
-    const { input } = setup();
+    const { input, value } = setup();
     const source = {
       producerRunId: submission.producerRunId,
       producerWorkflowId: 51,
@@ -171,7 +171,16 @@ describe("protected Sonar check completion", () => {
     });
     const provenance = vi
       .spyOn(producerSource, "readGitHubProtectedSonarSubmission")
-      .mockResolvedValue({ submission, provenanceDigest: "f".repeat(64) });
+      .mockResolvedValue({
+        submission,
+        provenanceDigest: "f".repeat(64),
+        task: {
+          ...value.task,
+          componentKey: "Oxelio_architecture-web",
+          type: "REPORT",
+          status: "SUCCESS",
+        },
+      });
     const now = input.now();
     vi.spyOn(Date, "now").mockReturnValue(now);
     return {
@@ -216,6 +225,11 @@ describe("protected Sonar check completion", () => {
       status: "deferred",
     });
     expect(f.input.admitCompletion).toHaveBeenCalledTimes(1);
+    expect(
+      f.input.sonarFetch.mock.calls.some(
+        ([url]) => new URL(String(url)).pathname === "/api/ce/task",
+      ),
+    ).toBe(false);
   });
 
   it.each([

@@ -24,8 +24,17 @@ function fixture() {
     startedAt: "2026-11-18T08:02:00Z",
     expiresAt: "2026-11-18T08:30:00Z",
   };
+  const task = {
+    id: submission.taskId,
+    componentKey: submission.projectKey,
+    type: "REPORT",
+    status: "SUCCESS",
+    analysisId: "fixture-analysis",
+    submittedAt: "2026-11-18T08:02:10Z",
+    executedAt: "2026-11-18T08:03:00Z",
+  };
   let archive = zipSync({
-    "submission.json": strToU8(JSON.stringify(submission)),
+    "submission.json": strToU8(JSON.stringify({ submission, task })),
   });
   const binding = {
     producerRunId: 456,
@@ -123,6 +132,7 @@ function fixture() {
   return {
     input,
     submission,
+    task,
     run,
     job,
     artifact,
@@ -161,6 +171,7 @@ it.each([
   "wrong-archive",
   "extra-file",
   "wrong-candidate",
+  "wrong-task",
   "changed-criteria",
   "unsafe-redirect",
   "oversized-body",
@@ -193,7 +204,9 @@ it.each([
       case "extra-file":
         f.replace(
           zipSync({
-            "submission.json": strToU8(JSON.stringify(f.submission)),
+            "submission.json": strToU8(
+              JSON.stringify({ submission: f.submission, task: f.task }),
+            ),
             "extra.txt": strToU8("fixture"),
           }),
         );
@@ -202,7 +215,10 @@ it.each([
         f.replace(
           zipSync({
             "submission.json": strToU8(
-              JSON.stringify({ ...f.submission, headSha: "e".repeat(40) }),
+              JSON.stringify({
+                submission: { ...f.submission, headSha: "e".repeat(40) },
+                task: f.task,
+              }),
             ),
           }),
         );
@@ -212,8 +228,23 @@ it.each([
           zipSync({
             "submission.json": strToU8(
               JSON.stringify({
-                ...f.submission,
-                conditionsDigest: "e".repeat(64),
+                submission: {
+                  ...f.submission,
+                  conditionsDigest: "e".repeat(64),
+                },
+                task: f.task,
+              }),
+            ),
+          }),
+        );
+        break;
+      case "wrong-task":
+        f.replace(
+          zipSync({
+            "submission.json": strToU8(
+              JSON.stringify({
+                submission: f.submission,
+                task: { ...f.task, id: "unrelated-task" },
               }),
             ),
           }),

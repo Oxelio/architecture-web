@@ -127,6 +127,11 @@ export async function readSonarAnalysisEvidence(input: {
   readonly token: string;
   readonly readTrustedSubmission: () => Promise<ProtectedSonarSubmission | null>;
   readonly readCandidate: () => Promise<SonarCandidate | null>;
+  // In the check publisher, the CE observation comes from a verified
+  // protected producer record. Its credential carries Browse only.
+  readonly readAttestedTask?: (
+    submission: ProtectedSonarSubmission,
+  ) => Promise<unknown>;
   readonly now?: () => number;
   readonly fetchImpl?: typeof fetch;
 }): Promise<SonarEvidenceResult> {
@@ -185,7 +190,11 @@ export async function readSonarAnalysisEvidence(input: {
 
     const taskPath = `ce/task?id=${encodeURIComponent(submission.taskId)}`;
     const prPath = `project_pull_requests/list?project=${projectKey}`;
-    const task = record((await get(taskPath))["task"]);
+    const readTask = () =>
+      input.readAttestedTask
+        ? input.readAttestedTask(submission)
+        : get(taskPath).then((response) => response["task"]);
+    const task = record(await readTask());
     if (
       task["id"] !== submission.taskId ||
       task["componentKey"] !== projectKey ||
@@ -259,7 +268,7 @@ export async function readSonarAnalysisEvidence(input: {
     // Detect provider replacement, policy drift, candidate changes, producer
     // revocation and receipt expiry before returning a read-only observation.
     if (
-      !isDeepStrictEqual(task, (await get(taskPath))["task"]) ||
+      !isDeepStrictEqual(task, await readTask()) ||
       !isDeepStrictEqual(pull, await readPull()) ||
       !isDeepStrictEqual(
         assignment,

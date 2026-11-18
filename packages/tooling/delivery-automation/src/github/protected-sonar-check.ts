@@ -124,11 +124,18 @@ async function readEvidence(input: PublicationInput) {
       candidate: input.candidate,
       ...(input.githubFetch ? { fetchImpl: input.githubFetch } : {}),
     });
+  // The immutable producer receipt binds the terminal CE observation.
+  // The publisher reads only Browse-accessible provider endpoints.
+  let loaded: Awaited<ReturnType<typeof source>> = null;
   return readSonarAnalysisEvidence({
     enabled: true,
     token: input.sonarReadToken,
-    readTrustedSubmission: async () => (await source())?.submission ?? null,
+    readTrustedSubmission: async () => {
+      loaded = await source();
+      return loaded?.task ? loaded.submission : null;
+    },
     readCandidate: input.readCandidate,
+    readAttestedTask: async () => loaded?.task ?? null,
     ...(input.sonarFetch ? { fetchImpl: input.sonarFetch } : {}),
   });
 }
