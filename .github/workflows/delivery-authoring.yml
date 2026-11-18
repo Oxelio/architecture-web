@@ -1,0 +1,142 @@
+name: Protected authoring
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        required: false
+        type: string
+      payload_digest:
+        required: false
+        type: string
+      project_context:
+        default: false
+        type: boolean
+
+permissions: {}
+
+jobs:
+  authoring:
+    if: >-
+      vars.DELIVERY_AUTHORING_ENABLED == 'true' &&
+      inputs.project_context == false &&
+      github.repository_id == '1336937640' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: delivery-authoring
+    concurrency:
+      group: delivery-work-controller-protected
+      queue: max
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: controller
+        with:
+          client-id: ${{ vars.DELIVERY_CONTROLLER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_CONTROLLER_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: author
+        with:
+          client-id: ${{ vars.DELIVERY_AUTHORING_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_AUTHORING_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: checks
+        with:
+          client-id: ${{ vars.DELIVERY_GATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_GATE_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-checks: read
+      - name: Process one sealed authoring request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          AUTHORING_REQUEST_ID: ${{ inputs.request_id }}
+          AUTHORING_PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+          DELIVERY_AUTHORING_ENABLED: ${{ vars.DELIVERY_AUTHORING_ENABLED }}
+          DELIVERY_AUTHORING_INTAKE_ORIGIN: ${{ vars.DELIVERY_AUTHORING_INTAKE_ORIGIN }}
+          DELIVERY_AUTHORING_CHANNEL_COMMENT_ID: ${{ vars.DELIVERY_AUTHORING_CHANNEL_COMMENT_ID }}
+          DELIVERY_AUTHORING_MAXIMUM_EXCHANGE_BYTES: ${{ vars.DELIVERY_AUTHORING_MAXIMUM_EXCHANGE_BYTES }}
+          DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS: ${{ vars.DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS }}
+          DELIVERY_STANDING_BOUNDARY_COMMENT_ID: ${{ vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID }}
+          DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
+          DELIVERY_PROJECT_STATUS_CHANNEL_COMMENT_ID: ${{ vars.DELIVERY_PROJECT_STATUS_CHANNEL_COMMENT_ID }}
+          DELIVERY_PROJECT_STATUS_FIELD_ID: ${{ vars.DELIVERY_PROJECT_STATUS_FIELD_ID }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+          DELIVERY_PROJECT_STATUS_WRITE_TOKEN: ${{ secrets.DELIVERY_PROJECT_STATUS_WRITE_TOKEN }}
+          CONTROLLER_INSTALLATION_TOKEN: ${{ steps.controller.outputs.token }}
+          CONTROLLER_INSTALLATION_ID: ${{ steps.controller.outputs.installation-id }}
+          CONTROLLER_APP_SLUG: ${{ steps.controller.outputs.app-slug }}
+          DELIVERY_AUTHORING_TOKEN: ${{ steps.author.outputs.token }}
+          DELIVERY_AUTHORING_INSTALLATION_ID: ${{ steps.author.outputs.installation-id }}
+          DELIVERY_AUTHORING_APP_SLUG: ${{ steps.author.outputs.app-slug }}
+          EXPECTED_AUTHORING_APP_SLUG: ${{ vars.DELIVERY_AUTHORING_APP_SLUG }}
+          GATE_APP_TOKEN: ${{ steps.checks.outputs.token }}
+          GATE_INSTALLATION_ID: ${{ steps.checks.outputs.installation-id }}
+        run: pnpm --dir packages/tooling/delivery-automation exec tsx src/cli/protected-authoring.ts
+
+  project-context:
+    if: >-
+      vars.DELIVERY_AUTHORING_ENABLED == 'true' &&
+      inputs.project_context == true &&
+      inputs.request_id == '' && inputs.payload_digest == '' &&
+      github.repository_id == '1336937640' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: delivery-authoring
+    permissions:
+      contents: read
+      issues: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with:
+          install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Return an authenticated private projection
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          AUTHORING_PROJECT_CONTEXT: "true"
+          DELIVERY_AUTHORING_ENABLED: ${{ vars.DELIVERY_AUTHORING_ENABLED }}
+          DELIVERY_AUTHORING_INTAKE_ORIGIN: ${{ vars.DELIVERY_AUTHORING_INTAKE_ORIGIN }}
+          DELIVERY_AUTHORING_CHANNEL_COMMENT_ID: ${{ vars.DELIVERY_AUTHORING_CHANNEL_COMMENT_ID }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+        run: pnpm --dir packages/tooling/delivery-automation exec tsx src/cli/protected-authoring.ts

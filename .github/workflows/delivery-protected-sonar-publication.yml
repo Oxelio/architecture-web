@@ -1,0 +1,150 @@
+name: Protected Sonar check publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        required: true
+        options: [queue, complete, reconcile-analysis]
+      check_id:
+        type: string
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: delivery-work-controller-protected
+  queue: max
+
+env:
+  DELIVERY_PROTECTED_SONAR_ENABLED: ${{ vars.DELIVERY_PROTECTED_SONAR_ENABLED }}
+  DELIVERY_SONAR_PUBLICATION_COMMENT_ID: ${{ vars.DELIVERY_SONAR_PUBLICATION_COMMENT_ID }}
+  SONAR_CHECK_OPERATION: ${{ inputs.operation }}
+  SONAR_CHECK_ID: ${{ inputs.check_id }}
+  TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+
+jobs:
+  admit:
+    if: >-
+      vars.DELIVERY_PROTECTED_SONAR_ENABLED == 'true' &&
+      github.repository_id == '1336937640' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    environment: delivery-protected-sonar-producer
+    timeout-minutes: 5
+    outputs:
+      digest: ${{ steps.command.outputs.digest }}
+      until: ${{ steps.command.outputs.until }}
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-delivery-control
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: controller
+        with:
+          client-id: ${{ vars.DELIVERY_CONTROLLER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_CONTROLLER_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-contents: write
+      - name: Admit one exact publication
+        id: command
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS: ${{ vars.DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS }}
+          DELIVERY_STANDING_BOUNDARY_COMMENT_ID: ${{ vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID }}
+          DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+          CONTROLLER_INSTALLATION_TOKEN: ${{ steps.controller.outputs.token }}
+          CONTROLLER_INSTALLATION_ID: ${{ steps.controller.outputs.installation-id }}
+          CONTROLLER_APP_SLUG: ${{ steps.controller.outputs.app-slug }}
+          SONAR_BROWSE_TOKEN: ${{ secrets.DELIVERY_SONAR_BROWSE_TOKEN }}
+        run: pnpm --dir packages/tooling/delivery-automation exec tsx src/cli/protected-sonar-publication.ts admit
+
+  publish:
+    needs: admit
+    if: needs.admit.outputs.digest != ''
+    runs-on: ubuntu-24.04
+    environment: delivery-protected-sonar-publisher
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-delivery-control
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: issuer
+        with:
+          client-id: ${{ vars.DELIVERY_SONAR_CHECK_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_SONAR_CHECK_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-checks: write
+      - name: Publish with the isolated check identity
+        id: command
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SONAR_ADMITTED_DIGEST: ${{ needs.admit.outputs.digest }}
+          SONAR_ADMITTED_UNTIL: ${{ needs.admit.outputs.until }}
+          SONAR_CHECK_TOKEN: ${{ steps.issuer.outputs.token }}
+          SONAR_CHECK_INSTALLATION_ID: ${{ steps.issuer.outputs.installation-id }}
+          SONAR_CHECK_APP_SLUG: ${{ steps.issuer.outputs.app-slug }}
+          SONAR_BROWSE_TOKEN: ${{ secrets.DELIVERY_SONAR_BROWSE_TOKEN }}
+        run: pnpm --dir packages/tooling/delivery-automation exec tsx src/cli/protected-sonar-publication.ts publish
+
+  settle:
+    needs: [admit, publish]
+    if: always() && needs.admit.outputs.digest != ''
+    runs-on: ubuntu-24.04
+    environment: delivery-protected-sonar-producer
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      checks: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-delivery-control
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: controller
+        with:
+          client-id: ${{ vars.DELIVERY_CONTROLLER_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DELIVERY_CONTROLLER_APP_PRIVATE_KEY }}
+          owner: Oxelio
+          repositories: architecture-web
+          permission-contents: write
+      - name: Settle only from positive GitHub read-back
+        id: command
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS: ${{ vars.DELIVERY_AUTHORING_MAXIMUM_HISTORY_REVISIONS }}
+          DELIVERY_STANDING_BOUNDARY_COMMENT_ID: ${{ vars.DELIVERY_STANDING_BOUNDARY_COMMENT_ID }}
+          DELIVERY_STANDING_DELEGATION_COMMENT_ID: ${{ vars.DELIVERY_STANDING_DELEGATION_COMMENT_ID }}
+          DELIVERY_OBSERVATION_PROJECTS_TOKEN: ${{ secrets.DELIVERY_OBSERVATION_PROJECTS_TOKEN }}
+          CONTROLLER_INSTALLATION_TOKEN: ${{ steps.controller.outputs.token }}
+          CONTROLLER_INSTALLATION_ID: ${{ steps.controller.outputs.installation-id }}
+          CONTROLLER_APP_SLUG: ${{ steps.controller.outputs.app-slug }}
+          SONAR_ADMITTED_DIGEST: ${{ needs.admit.outputs.digest }}
+        run: pnpm --dir packages/tooling/delivery-automation exec tsx src/cli/protected-sonar-publication.ts settle

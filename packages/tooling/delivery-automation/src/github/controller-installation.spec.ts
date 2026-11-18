@@ -26,6 +26,24 @@ function responses(
 }
 
 describe("Work integration controller installation", () => {
+  it.each([42, 44])(
+    "requires the pinned App ID when provided (%s)",
+    async (id) => {
+      const fetchImpl = responses(
+        Response.json(accessible),
+      ).mockResolvedValueOnce(Response.json({ id }));
+      const result = await verifyControllerInstallation({
+        ...binding,
+        expectedAppId: 42,
+        fetchImpl,
+      });
+      expect(Boolean(result)).toBe(id === 42);
+      expect(fetchImpl.mock.calls[2]?.[0]).toBe(
+        "https://api.github.com/apps/architecture-web-work-controller",
+      );
+    },
+  );
+
   it("binds the installation to one repository and the registered App bot", async () => {
     const fetchImpl = responses(Response.json(accessible));
     await expect(

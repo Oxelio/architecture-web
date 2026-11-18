@@ -17,40 +17,56 @@ export function createAuthoringDispatcher(input: {
     ) {
       return "denied" as const;
     }
-    try {
-      const credential = await input.readToken();
-      if (
-        !credential ||
-        !credential.token ||
-        !Number.isFinite(credential.expiresAt) ||
-        Date.now() >= credential.expiresAt
-      ) {
-        return "unstarted" as const;
-      }
-      const response = await (input.fetchImpl ?? fetch)(
-        "https://api.github.com/repos/Oxelio/architecture-web/actions/workflows/delivery-authoring.yml/dispatches",
-        {
-          method: "POST",
-          redirect: "error",
-          signal: AbortSignal.timeout(10000),
-          headers: {
-            Authorization: `Bearer ${credential.token}`,
-            Accept: "application/vnd.github+json",
-            "Content-Type": "application/json",
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-          body: JSON.stringify({
-            ref: "main",
-            inputs: { request_id: requestId, payload_digest: payloadDigest },
-          }),
-        },
-      );
-      // Even a successful dispatch is not an authoring admission or result.
-      return response.status === 204
-        ? ("dispatched" as const)
-        : ("uncertain" as const);
-    } catch {
-      return "uncertain" as const;
-    }
+    return dispatchAuthoringJob(input, {
+      request_id: requestId,
+      payload_digest: payloadDigest,
+    });
   };
+}
+
+export function createProjectProjectionDispatcher(
+  input: Parameters<typeof createAuthoringDispatcher>[0],
+) {
+  return () => dispatchAuthoringJob(input, { project_context: true });
+}
+
+async function dispatchAuthoringJob(
+  input: Parameters<typeof createAuthoringDispatcher>[0],
+  inputs: Record<string, string | boolean>,
+) {
+  try {
+    const credential = await input.readToken();
+    if (
+      !credential ||
+      !credential.token ||
+      !Number.isFinite(credential.expiresAt) ||
+      Date.now() >= credential.expiresAt
+    ) {
+      return "unstarted" as const;
+    }
+    const response = await (input.fetchImpl ?? fetch)(
+      "https://api.github.com/repos/Oxelio/architecture-web/actions/workflows/delivery-authoring.yml/dispatches",
+      {
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          Authorization: `Bearer ${credential.token}`,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        body: JSON.stringify({
+          ref: "main",
+          inputs,
+        }),
+      },
+    );
+    // Even a successful dispatch is not an authoring admission or result.
+    return response.status === 204
+      ? ("dispatched" as const)
+      : ("uncertain" as const);
+  } catch {
+    return "uncertain" as const;
+  }
 }

@@ -711,25 +711,40 @@ with identical privileged Git trees and install configuration remains eligible.
 The whole lockfile is part of that baseline. A dependency change requires an
 updated accepted baseline.
 
-The inactive Sonar producer derives scanner settings from the trusted candidate
-and reads the CE task from the scanner's private output. The check completion
-adapter combines the GitHub producer receipt, authenticated Sonar provider
-read-back and a protected admission for the exact issuer/check/evidence tuple.
-It verifies the completed check through the existing check adapter. These
-functions still require the protected job's validated credential and authority
-composition. Sonar submission, check creation and check completion now use
-the shared journal's single-use admission. A pending CE submission intersects
-the candidate reservation until the trusted receipt and the authenticated
-provider establish a terminal task outcome. Task settlement records completion
-of the transport operation. The Quality Gate independently evaluates success
-against the existing criteria.
+The inactive [authoring workflow](../../.github/workflows/delivery-authoring.yml)
+dispatches a sealed request to the worker or returns an authenticated
+read-only Project projection. The private intake entry point is
+`src/cli/authoring-intake-server.ts`. It binds locally behind the trusted TLS
+proxy and expires staged payloads on startup and periodically. Deployment
+must exclude ordinary agents from the host, configuration and staging volume
+using effective access controls. Payload expiry leaves the receipt intact
+and does not resolve an uncertain write.
 
-These paths are relative to `packages/tooling/delivery-automation`. No workflow
-or installed service calls this composition. The private host must exclude
-agents from its volume/configuration and enforce its ACLs; Unix mode bits alone
-do not establish that boundary on Windows. Configure and schedule staging
-cleanup before deployment. No transport receipt expiry, general repository
-retention policy or live service credential is established by these modules.
+The inactive [analysis workflow](../../.github/workflows/delivery-protected-sonar.yml)
+collects coverage without analysis credentials, verifies the candidate
+checkout and scanner distribution, and derives scanner settings from the
+trusted control revision. The producer obtains the CE task from the scanner's
+private output and records the authenticated terminal task when available.
+A possibly submitted analysis holds its journal scope until positive
+provider reconciliation. Settlement of the transport is independent of
+the Quality Gate outcome.
+
+The inactive [publication workflow](../../.github/workflows/delivery-protected-sonar-publication.yml)
+separates admission and settlement from publication. A check-only job
+requires the exact admission from its first workflow attempt and rechecks
+the durable scope. Completion independently reads the GitHub producer
+receipt and Sonar evidence. The settlement job positively verifies the
+check issuer, candidate and exact check state, including when publication
+returned an uncertain result. Rerunning a publication is not a recovery
+operation. The configured deployment authority binds the approved control
+revision, operator, candidate, artifact and check identity.
+
+These paths are relative to `packages/tooling/delivery-automation`. Both
+channels remain disabled. The protected collector and publisher require
+controlled validation of real Sonar evidence and comparison with the
+current coverage and type-context path before any cutover. The live
+SonarCloud check issuer and the protected manual integration path remain
+effective.
 Valid deployed reservation/Status behavior is preserved;
 unsupported or contradictory protocol data is not an empty boundary.
 

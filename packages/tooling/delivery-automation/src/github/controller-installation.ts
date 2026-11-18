@@ -7,6 +7,7 @@ export async function verifyControllerInstallation(input: {
   readonly expectedAppSlug: string;
   readonly installationId: number;
   readonly expectedInstallationId: number;
+  readonly expectedAppId?: number;
   readonly fetchImpl?: typeof fetch;
 }): Promise<{
   repositoryId: number;
@@ -37,9 +38,10 @@ export async function verifyControllerInstallation(input: {
 
   try {
     const login = `${input.appSlug}[bot]`;
-    const [repositoryResponse, botResponse] = await Promise.all([
+    const [repositoryResponse, botResponse, appResponse] = await Promise.all([
       get("/installation/repositories?per_page=2"),
       get(`/users/${encodeURIComponent(login)}`),
+      input.expectedAppId === undefined ? null : get(`/apps/${input.appSlug}`),
     ]);
     if (!repositoryResponse.ok || !botResponse.ok) {
       return null;
@@ -57,6 +59,9 @@ export async function verifyControllerInstallation(input: {
       readonly login?: string;
       readonly type?: string;
     };
+    const app = appResponse?.ok
+      ? ((await appResponse.json()) as { readonly id?: number })
+      : null;
     if (
       accessible.total_count !== 1 ||
       !Array.isArray(accessible.repositories) ||
@@ -65,6 +70,7 @@ export async function verifyControllerInstallation(input: {
       accessible.repositories[0]?.full_name !== repository ||
       bot.login !== login ||
       bot.type !== "Bot" ||
+      (input.expectedAppId !== undefined && app?.id !== input.expectedAppId) ||
       !Number.isSafeInteger(bot.id) ||
       bot.id <= 0
     ) {

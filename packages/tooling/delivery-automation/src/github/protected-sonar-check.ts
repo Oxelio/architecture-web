@@ -24,7 +24,7 @@ type CheckConnection = Pick<
   "candidate" | "source" | "checkToken" | "issuerAppId" | "githubFetch"
 >;
 
-function checkScope(input: CheckConnection) {
+export function protectedSonarCheckScope(input: CheckConnection) {
   return {
     repository: "Oxelio/architecture-web",
     checksToken: input.checkToken,
@@ -48,16 +48,14 @@ export async function queueProtectedSonarCheck(
     return null;
   }
   try {
-    const scope = checkScope(input);
+    const scope = protectedSonarCheckScope(input);
     const current = async () =>
       (await input.verifyPublicationBoundary()) &&
       isDeepStrictEqual(await input.readCandidate(), input.candidate);
     if (!(await current())) {
       return null;
     }
-    const deadline = await input.admitQueue(
-      digest([scope.reservationId, input.issuerAppId]),
-    );
+    const deadline = await input.admitQueue(protectedSonarQueueDigest(input));
     if (
       deadline === null ||
       !Number.isFinite(deadline) ||
@@ -115,7 +113,27 @@ export function protectedSonarCheckExternalId(
   ]);
 }
 
-async function readEvidence(input: PublicationInput) {
+export function protectedSonarQueueDigest(
+  input: Pick<CheckConnection, "candidate" | "source" | "issuerAppId">,
+) {
+  return digest([
+    protectedSonarCheckExternalId(input.candidate, input.source),
+    input.issuerAppId,
+  ]);
+}
+
+async function readEvidence(
+  input: Pick<
+    PublicationInput,
+    | "candidate"
+    | "source"
+    | "githubReadToken"
+    | "sonarReadToken"
+    | "readCandidate"
+    | "githubFetch"
+    | "sonarFetch"
+  >,
+) {
   const source = () =>
     readGitHubProtectedSonarSubmission({
       enabled: true,
@@ -140,6 +158,24 @@ async function readEvidence(input: PublicationInput) {
   });
 }
 
+export async function readProtectedSonarCompletion(
+  input: Parameters<typeof readEvidence>[0] &
+    Pick<PublicationInput, "checkId" | "issuerAppId">,
+) {
+  const evidence = await readEvidence(input);
+  return evidence.status === "verified"
+    ? {
+        factsDigest: digest([
+          protectedSonarCheckExternalId(input.candidate, input.source),
+          input.issuerAppId,
+          input.checkId,
+          evidence.factsDigest,
+        ]),
+        expiresAt: Date.parse(evidence.submission.expiresAt),
+      }
+    : null;
+}
+
 export async function completeProtectedSonarCheck(input: PublicationInput) {
   if (input.enabled !== true) {
     return { status: "inactive" } as const;
@@ -157,11 +193,7 @@ export async function completeProtectedSonarCheck(input: PublicationInput) {
     ) {
       return { status: "deferred" } as const;
     }
-    const externalId = protectedSonarCheckExternalId(
-      input.candidate,
-      input.source,
-    );
-    const scope = checkScope(input);
+    const scope = protectedSonarCheckScope(input);
     const check = await completeReservedGateCheck({
       ...scope,
       checkId: input.checkId,
@@ -169,21 +201,11 @@ export async function completeProtectedSonarCheck(input: PublicationInput) {
       summary:
         "Verified the authenticated analysis for the exact pull request candidate.",
       beforePatch: async () => {
-        const evidence = await readEvidence(input);
-        if (
-          evidence.status !== "verified" ||
-          !(await input.verifyPublicationBoundary())
-        ) {
+        const evidence = await readProtectedSonarCompletion(input);
+        if (!evidence || !(await input.verifyPublicationBoundary())) {
           return null;
         }
-        const admitted = await input.admitCompletion(
-          digest([
-            externalId,
-            input.issuerAppId,
-            input.checkId,
-            evidence.factsDigest,
-          ]),
-        );
+        const admitted = await input.admitCompletion(evidence.factsDigest);
         if (
           admitted === null ||
           !(await input.verifyPublicationBoundary()) ||
@@ -191,7 +213,7 @@ export async function completeProtectedSonarCheck(input: PublicationInput) {
         ) {
           return null;
         }
-        return Math.min(admitted, Date.parse(evidence.submission.expiresAt));
+        return Math.min(admitted, evidence.expiresAt);
       },
     });
     if (

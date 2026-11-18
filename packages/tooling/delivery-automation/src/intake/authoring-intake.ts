@@ -30,6 +30,7 @@ export interface AuthoringIntakeConfiguration {
   ) => Promise<unknown>;
   // The protected reader returns a dated private view, never its credential.
   readonly readProjectContext: (subject: string) => Promise<unknown>;
+  readonly acceptProjectContext?: (value: unknown) => boolean;
 }
 
 function bearer(request: Request) {
@@ -209,6 +210,20 @@ async function jobExchange(
   );
   const token = bearer(request);
   const job = token ? await configuration.authenticateJob(token) : null;
+  if (
+    new URL(request.url).pathname === "/jobs/project-context" &&
+    job &&
+    request.method === "POST" &&
+    configuration.acceptProjectContext
+  ) {
+    const accepted = configuration.acceptProjectContext(
+      await boundedJson(request, configuration.maximumRequestBytes),
+    );
+    return response(
+      { status: accepted ? "recorded" : "denied" },
+      accepted ? 200 : 403,
+    );
+  }
   if (!match?.[1] || !job) {
     return response({ status: "denied" }, 403);
   }

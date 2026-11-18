@@ -7,9 +7,12 @@ import { readGitHubInventory } from "../github/github-project-inventory.js";
 import { canRecordWorkCompletion } from "../github/github-work-reservation-journal.js";
 import {
   authenticateProjectStatusCommand,
-  type ProjectStatusCommand,
   type ProjectStatusComment,
 } from "../github/project-status-command.js";
+import {
+  type StatusChannel,
+  verifyTransitionEvidence,
+} from "../github/project-status-evidence.js";
 import { runCoordinatedStatusWrite } from "../github/run-coordinated-status-write.js";
 import {
   matchesStandingControllerBoundary,
@@ -30,22 +33,6 @@ import {
   readMaintainerRecord,
   requireTrustedMain,
 } from "./work-pilot-support.js";
-
-interface TransitionEvidenceRule {
-  readonly kind: string;
-  readonly actorId: number;
-  readonly appId: number | null;
-}
-
-interface StatusChannel {
-  readonly mode: "standing" | "supervised";
-  readonly workNumbers?: readonly number[];
-  readonly transitions: readonly {
-    readonly from: ProjectStatusCommand["from"];
-    readonly to: ProjectStatusCommand["to"];
-    readonly requirements: readonly TransitionEvidenceRule[];
-  }[];
-}
 
 interface SourceEntry {
   readonly name: string;
@@ -131,7 +118,9 @@ async function main() {
       (mode === "supervised" &&
         (!Array.isArray(policy.workNumbers) ||
           !policy.workNumbers.includes(workNumber))) ||
-      !(await verifyTransitionEvidence(command, policy)) ||
+      !(await verifyTransitionEvidence(command, policy, (id) =>
+        githubRepositoryRequest<ProjectStatusComment>(`/issues/comments/${id}`),
+      )) ||
       (await isStandingDelegationRevoked({
         repositoryToken,
         delegationCommentId,
@@ -286,84 +275,6 @@ function readBoundary(mode: "standing" | "supervised") {
       ? "DELIVERY_STANDING_BOUNDARY_COMMENT_ID"
       : "DELIVERY_STANDING_VALIDATION_COMMENT_ID",
     115,
-  );
-}
-
-async function verifyTransitionEvidence(
-  command: ProjectStatusCommand,
-  policy: StatusChannel,
-): Promise<boolean> {
-  if (!Array.isArray(policy.transitions)) {
-    return false;
-  }
-  const transitions = policy.transitions.filter(
-    (transition) =>
-      transition?.from === command.from && transition.to === command.to,
-  );
-  const requirements = transitions[0]?.requirements;
-  if (
-    transitions.length !== 1 ||
-    !Array.isArray(requirements) ||
-    requirements.length !== command.evidenceCommentIds.length ||
-    (command.to === "Ready" &&
-      !requirements.some(
-        (rule: TransitionEvidenceRule) => rule?.kind === "readiness",
-      ))
-  ) {
-    return false;
-  }
-  const evidence = await Promise.all(
-    command.evidenceCommentIds.map(async (id) => {
-      const comment = await githubRepositoryRequest<ProjectStatusComment>(
-        `/issues/comments/${id}`,
-      );
-      if (
-        comment.id !== id ||
-        comment.issue_url !==
-          `https://api.github.com/repos/${repository}/issues/${command.workNumber}` ||
-        !comment.created_at ||
-        comment.created_at !== comment.updated_at ||
-        !(
-          Date.parse(comment.created_at) > Date.parse(command.statusUpdatedAt)
-        ) ||
-        comment.body.length > 4096
-      ) {
-        return null;
-      }
-      const record = JSON.parse(comment.body) as Record<string, unknown> | null;
-      const issuerApp = comment.performed_via_github_app;
-      if (
-        !record ||
-        record["decision"] !== "accepted" ||
-        record["workNumber"] !== command.workNumber ||
-        record["from"] !== command.from ||
-        record["to"] !== command.to ||
-        record["statusUpdatedAt"] !== command.statusUpdatedAt ||
-        typeof record["kind"] !== "string" ||
-        issuerApp === undefined
-      ) {
-        return null;
-      }
-      return {
-        kind: record["kind"],
-        actorId: comment.user.id,
-        appId: issuerApp?.id ?? null,
-      };
-    }),
-  );
-  return (
-    new Set(requirements.map((entry: TransitionEvidenceRule) => entry?.kind))
-      .size === requirements.length &&
-    requirements.every(
-      (required: TransitionEvidenceRule) =>
-        typeof required?.kind === "string" &&
-        evidence.some(
-          (actual) =>
-            actual?.kind === required.kind &&
-            actual.actorId === required.actorId &&
-            actual.appId === required.appId,
-        ),
-    )
   );
 }
 

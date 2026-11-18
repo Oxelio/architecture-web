@@ -317,8 +317,9 @@ function matchesSource(
   );
 }
 
-export async function readGitHubProtectedSonarSubmission(
+async function readSubmission(
   input: SourceInput,
+  allowExpired: boolean,
 ): Promise<{
   readonly submission: ProtectedSonarSubmission;
   readonly task: ProtectedSonarTask | null;
@@ -369,7 +370,7 @@ export async function readGitHubProtectedSonarSubmission(
       Date.parse(artifact.created_at) < Date.parse(run.run_started_at) ||
       Date.parse(artifact.created_at) > completedAt ||
       completedAt > now ||
-      Date.parse(submission.expiresAt) <= now ||
+      (!allowExpired && Date.parse(submission.expiresAt) <= now) ||
       Date.parse(submission.expiresAt) <= Date.parse(submission.startedAt)
     ) {
       return null;
@@ -394,4 +395,16 @@ export async function readGitHubProtectedSonarSubmission(
     // No provider diagnostics, redirect URLs, tokens or receipt bytes in logs.
     return null;
   }
+}
+
+export function readGitHubProtectedSonarSubmission(input: SourceInput) {
+  return readSubmission(input, false);
+}
+
+// A stale receipt can locate an earlier provider operation for read-only
+// settlement. It cannot establish current evidence for a passing check.
+export function readGitHubProtectedSonarSubmissionForRecovery(
+  input: SourceInput,
+) {
+  return readSubmission(input, true);
 }
