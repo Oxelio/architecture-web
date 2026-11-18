@@ -376,6 +376,7 @@ export async function resolveAuthoringCreationOperation(
     authorityDigest: input.authorityDigest,
     readAuthority: input.readAuthority,
     isCurrent,
+    observeOutcome: () => observeAuthoringCreationOutcome(input),
     async perform(authorize) {
       if (!(await isCurrent()) || !(await authorize())) {
         return {

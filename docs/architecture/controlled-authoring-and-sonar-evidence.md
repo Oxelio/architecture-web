@@ -729,6 +729,12 @@ an additional credential. Missing or unreadable history leaves the request
 pending. This read does not fetch the staged payload or reconcile an operation
 that has yet to settle.
 
+After a lost creation or evidence-write response, the original worker can
+observe the exact GitHub object or comment before leaving the request pending.
+It verifies the request marker, authenticated writer and expected content and
+never repeats the write. A crash that prevents this observation still requires
+replacement-worker reconciliation.
+
 The inactive [analysis workflow](../../.github/workflows/delivery-protected-sonar.yml)
 collects coverage without analysis credentials, verifies the candidate
 checkout and scanner distribution, and derives scanner settings from the

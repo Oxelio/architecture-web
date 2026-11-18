@@ -11,9 +11,12 @@ import {
   type AuthoringExecutionPorts,
   executeControlledAuthoring,
   reconcileControlledAuthoring,
+  type ResolvedAuthoringOperation,
 } from "./controlled-authoring-execution.js";
 
-function fixture() {
+function fixture(
+  observeOutcome?: ResolvedAuthoringOperation["observeOutcome"],
+) {
   const payload = Buffer.from("synthetic operation");
   const request = prepareAuthoringRequest({
     authenticatedSubject: "fixture",
@@ -82,6 +85,7 @@ function fixture() {
       isCurrent,
       readAuthority: async () => authorityDigest,
       perform,
+      ...(observeOutcome ? { observeOutcome } : {}),
     }),
     cancelOrResolve: vi.fn(),
     authorizeRecovery: vi.fn().mockResolvedValue(true),
@@ -106,6 +110,31 @@ function fixture() {
     admission: { intent, admissionRevision: 1 },
   };
 }
+
+it.each([true, false])(
+  "observes an uncertain handoff without repeating the mutation (%s)",
+  async (observed) => {
+    const proof = {
+      outcome: "confirmed" as const,
+      proofDigest: "e".repeat(64),
+    };
+    const observeOutcome = vi.fn().mockResolvedValue(observed ? proof : null);
+    const f = fixture(observeOutcome);
+    f.perform.mockRejectedValueOnce(new Error("response lost"));
+    f.finishAuthoringWrite.mockImplementationOnce(async (input) =>
+      (await input.authorizeRecovery()) &&
+      (await input.observeOutcome(f.admission))
+        ? "settled"
+        : "deferred",
+    );
+    await expect(executeControlledAuthoring(f.input)).resolves.toBe(
+      observed ? "settled" : "deferred",
+    );
+    expect(f.perform).toHaveBeenCalledOnce();
+    expect(observeOutcome).toHaveBeenCalledOnce();
+    expect(f.beginAuthoringWrite).toHaveBeenCalledOnce();
+  },
+);
 
 it("does not touch credentials or the journal while inactive", async () => {
   const f = fixture();

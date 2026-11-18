@@ -347,6 +347,7 @@ async function resolveEvidence(
     authorityDigest: input.authorityDigest,
     readAuthority: input.readAuthority,
     isCurrent,
+    observeOutcome: () => observeAuthoringEvidenceOutcome(input),
     async perform(authorize) {
       if (!(await isCurrent()) || !(await authorize())) {
         return {

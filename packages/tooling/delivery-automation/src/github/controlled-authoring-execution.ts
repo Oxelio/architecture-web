@@ -34,6 +34,9 @@ export interface ResolvedAuthoringOperation {
   readonly perform: (
     authorize: () => Promise<boolean>,
   ) => Promise<AuthoringOutcomeProof | null>;
+  // The current worker may observe the result of its own uncertain handoff.
+  // This hook reads the provider and never issues a second mutation.
+  readonly observeOutcome?: () => Promise<AuthoringOutcomeProof | null>;
 }
 
 export interface AuthoringExecutionPorts {
@@ -165,7 +168,7 @@ async function admitAndPerform(
     return "deferred" as const;
   }
   const proof = (await authorize())
-    ? await operation.perform(authorize)
+    ? await operation.perform(authorize).catch(() => null)
     : {
         outcome: "known-unstarted" as const,
         proofDigest: createHash("sha256")
@@ -178,7 +181,7 @@ async function admitAndPerform(
           )
           .digest("hex"),
       };
-  if (!proof) {
+  if (!proof && !operation.observeOutcome) {
     return "deferred" as const;
   }
   const outcome = await ports.journal.finishAuthoringWrite({
@@ -187,7 +190,7 @@ async function admitAndPerform(
     maximumHistoryRevisions: input.maximumHistoryRevisions,
     authorizeRecovery: async () =>
       (await ports.verifyBoundary()) && (await ports.authorizeRecovery()),
-    observeOutcome: async () => proof,
+    observeOutcome: async () => proof ?? operation.observeOutcome?.() ?? null,
   });
   return outcome === "settled" ? ("settled" as const) : ("deferred" as const);
 }
