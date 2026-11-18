@@ -702,7 +702,9 @@ The inactive execution composition now reads Work membership from Project #3,
 walks native parents, sub-issues and both dependency directions, and matches
 open PRs against the affected Work and source refs. It rechecks the resolved
 scope before handoff. Ordinary PR metadata edits preserve the explicit owning
-Work. Unavailable or incomplete scope defers the operation.
+Work. A Work label edit or PR draft transition requires an exact sealed
+command grant and positive read-back. Work closure uses the existing
+completion route. Unavailable or incomplete scope defers the operation.
 
 The job transport binds the sealed bytes to the request and reports only an
 exact terminal journal receipt. The intake verifies the signed dispatch actor

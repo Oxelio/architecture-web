@@ -178,6 +178,9 @@ export function createProtectedAuthoringAuthority(input: {
     const base = {
       authorityDigest: current.digest,
       readAuthority,
+      allowExactMetadataChange: current.grant.commandDigests.includes(
+        request.commandDigest,
+      ),
       ...(current.grant.priorityCommandDigests?.includes(request.commandDigest)
         ? { readPriorityAuthority: readAuthority }
         : {}),

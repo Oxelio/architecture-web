@@ -38,6 +38,7 @@ export interface AuthoringOwnerBinding {
   ) => Promise<boolean>;
   readonly authenticatedStatus?: ProjectStatusCommand;
   readonly readPriorityAuthority?: () => Promise<string | null>;
+  readonly allowExactMetadataChange?: boolean;
 }
 
 interface ResolverConfiguration {

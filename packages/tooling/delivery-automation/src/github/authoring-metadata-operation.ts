@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import { z } from "zod";
 
@@ -16,10 +17,13 @@ const digest = (value: unknown) =>
 const editSchema = z.strictObject({
   title: z.string().min(1).max(256).optional(),
   body: z.string().max(65536).optional(),
+  labels: z.array(z.string().min(1).max(50)).max(64).optional(),
+  draft: z.boolean().optional(),
 });
 const snapshotSchema = z.object({
   id: z.number().int().positive(),
   number: z.number().int().positive(),
+  node_id: z.string().min(1).optional(),
   title: z.string(),
   body: z.string().nullable(),
   state: z.enum(["open", "closed"]),
@@ -27,6 +31,7 @@ const snapshotSchema = z.object({
   repository_url: z.string().optional(),
   pull_request: z.unknown().optional(),
   draft: z.boolean().optional(),
+  labels: z.array(z.object({ name: z.string().min(1) })).optional(),
   head: z
     .object({
       sha: z.string().regex(/^[a-f0-9]{40}$/u),
@@ -45,6 +50,7 @@ const snapshotSchema = z.object({
 export interface AuthoringMetadataSnapshot {
   readonly id: number;
   readonly number: number;
+  readonly nodeId?: string;
   readonly title: string;
   readonly body: string | null;
   readonly state: "open" | "closed";
@@ -52,6 +58,7 @@ export interface AuthoringMetadataSnapshot {
   readonly draft: boolean | null;
   readonly headSha: string | null;
   readonly baseSha: string | null;
+  readonly labels?: readonly string[];
 }
 
 export function authoringMetadataBeforeDigest(
@@ -68,7 +75,12 @@ export function authoringMetadataBeforeDigest(
     snapshot.draft,
     snapshot.headSha,
     snapshot.baseSha,
+    snapshot.labels ?? null,
   ]);
+}
+
+function sortLabels(labels: readonly string[]) {
+  return [...labels].sort((first, second) => first.localeCompare(second, "en"));
 }
 
 function path(request: PreparedAuthoringRequest) {
@@ -134,6 +146,7 @@ export async function readAuthoringMetadataSnapshot(input: {
   return {
     id: value.id,
     number: value.number,
+    ...(value.node_id ? { nodeId: value.node_id } : {}),
     title: value.title,
     body: value.body,
     state: value.state,
@@ -141,7 +154,33 @@ export async function readAuthoringMetadataSnapshot(input: {
     draft: value.draft ?? null,
     headSha: value.head?.sha ?? null,
     baseSha: value.base?.sha ?? null,
+    ...(value.labels
+      ? { labels: sortLabels(value.labels.map(({ name }) => name)) }
+      : {}),
   };
+}
+
+function sendDraftChange(
+  fetchImpl: FetchLike,
+  token: string,
+  nodeId: string,
+  draft: boolean,
+) {
+  const mutation = draft
+    ? "convertPullRequestToDraft"
+    : "markPullRequestReadyForReview";
+  return fetchImpl("https://api.github.com/graphql", {
+    method: "POST",
+    headers: headers(token),
+    redirect: "error",
+    signal: AbortSignal.timeout(10000),
+    body: JSON.stringify({
+      query: `mutation SetAuthoringDraft($id: ID!) {
+        ${mutation}(input: {pullRequestId: $id}) { pullRequest { id isDraft } }
+      }`,
+      variables: { id: nodeId },
+    }),
+  });
 }
 
 // Fixed PATCH adapters only. No arbitrary path, raw HTTP, closure, merge or
@@ -158,6 +197,7 @@ export async function resolveAuthoringMetadataOperation(input: {
   readonly inventoryComplete: boolean;
   readonly authorityDigest: string;
   readonly readAuthority: () => Promise<string | null>;
+  readonly allowExactMetadataChange?: boolean;
 }): Promise<ResolvedAuthoringOperation | null> {
   const { request } = input;
   const target = path(request);
@@ -179,9 +219,31 @@ export async function resolveAuthoringMetadataOperation(input: {
   ) {
     return null;
   }
+  const { draft, ...fields } = edit;
+  const labels = edit.labels ? sortLabels(edit.labels) : undefined;
+  if (
+    ((draft !== undefined || labels !== undefined) &&
+      !input.allowExactMetadataChange) ||
+    (labels &&
+      (request.command.kind !== "edit-work" ||
+        !before.labels ||
+        new Set(labels.map((label) => label.toLowerCase())).size !==
+          labels.length)) ||
+    (draft !== undefined &&
+      (request.command.kind !== "edit-pull-request" ||
+        before.state !== "open" ||
+        !before.nodeId ||
+        edit.title !== undefined ||
+        edit.body !== undefined ||
+        labels !== undefined))
+  ) {
+    return null;
+  }
   if (
     (edit.title === undefined || edit.title === before.title) &&
-    (edit.body === undefined || edit.body === before.body)
+    (edit.body === undefined || edit.body === before.body) &&
+    (labels === undefined || isDeepStrictEqual(labels, before.labels)) &&
+    (draft === undefined || draft === before.draft)
   ) {
     return null;
   }
@@ -211,16 +273,22 @@ export async function resolveAuthoringMetadataOperation(input: {
           ]),
         };
       }
-      const response = await (input.fetchImpl ?? fetch)(
-        `${repository}${target}`,
-        {
-          method: "PATCH",
-          headers: headers(input.authoringToken),
-          redirect: "error",
-          signal: AbortSignal.timeout(10000),
-          body: JSON.stringify(edit),
-        },
-      );
+      const fetchImpl = input.fetchImpl ?? fetch;
+      const response =
+        draft !== undefined && before.nodeId
+          ? await sendDraftChange(
+              fetchImpl,
+              input.authoringToken,
+              before.nodeId,
+              draft,
+            )
+          : await fetchImpl(`${repository}${target}`, {
+              method: "PATCH",
+              headers: headers(input.authoringToken),
+              redirect: "error",
+              signal: AbortSignal.timeout(10000),
+              body: JSON.stringify(fields),
+            });
       if (response.status !== 200) {
         return null;
       }
@@ -228,8 +296,11 @@ export async function resolveAuthoringMetadataOperation(input: {
       if (
         !observed ||
         observed.id !== before.id ||
+        observed.state !== before.state ||
         (edit.title !== undefined && observed.title !== edit.title) ||
-        (edit.body !== undefined && observed.body !== edit.body)
+        (edit.body !== undefined && observed.body !== edit.body) ||
+        (draft !== undefined && observed.draft !== draft) ||
+        (labels !== undefined && !isDeepStrictEqual(observed.labels, labels))
       ) {
         return null;
       }
