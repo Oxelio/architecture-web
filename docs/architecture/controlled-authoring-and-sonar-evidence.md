@@ -668,6 +668,12 @@ authoring admission. The inactive intake implementation now includes:
   attributable evidence append, with complete paginated source reads, exact
   old state, one remote operation and canonical read-back. Evidence is issued
   by the verified automation identity and cannot impersonate Human Approval.
+- `src/github/authoring-project-field-operation.ts`: the currently activated
+  non-Status single-select fields (Work Type, Workflow Depth and Priority), exact
+  Project/item/field/option binding and independently held read/write credentials.
+  Priority additionally requires its authenticated human authority. Classification
+  permission cannot supply that decision. Status continues through its dedicated
+  Method owner, and unsupported or ambiguous field mappings are rejected.
 
 The two creation verbs extend the inactive typed protocol without accepting
 arbitrary REST/GraphQL input. Installed provider support and identity fields must
