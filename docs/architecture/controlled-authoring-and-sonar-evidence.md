@@ -641,6 +641,16 @@ authoring admission. The inactive intake implementation now includes:
   at most one remote handoff, current authority/before-state checks and a
   separate read-only recovery path. Runtime canonical scope, authority,
   cancellation and operation-specific proof adapters remain required inputs.
+- `src/github/authoring-metadata-operation.ts`: fixed Work/PR title/body PATCH
+  adapters with authenticated exact before-state reads and canonical result
+  verification. Payloads cannot select an API path, close/merge operation or
+  approval verb. Creation, dependency and evidence adapters remain separate
+  implementation steps.
+- `src/github/authoring-status-operation.ts`: the existing authenticated Status
+  command and canonical writer mapped into scoped authoring admission. Match
+  sealed bytes to that exact command and its Project/item/field/before-state;
+  preserve the existing transition/evidence owner. No activated Status workflow
+  is rerouted by adding this adapter.
 
 These paths are relative to `packages/tooling/delivery-automation`. No workflow
 or installed service calls this composition. The private host must exclude
