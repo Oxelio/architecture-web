@@ -23,10 +23,20 @@ export type AuthoringCommand =
   | {
       readonly kind: "publish-commit";
       readonly sourceRef: string;
-      readonly expectedHeadSha: string;
+      readonly expectedHeadSha: string | null;
       readonly proposedHeadSha: string;
       readonly payloadDigest: string;
     }
+  | (Metadata & {
+      readonly kind: "create-pull-request";
+      readonly sourceRef: string;
+      readonly headSha: string;
+      readonly baseSha: string;
+    })
+  | (Metadata & {
+      readonly kind: "create-task";
+      readonly parentIssueId: number;
+    })
   | (Metadata & {
       readonly kind: "edit-pull-request";
       readonly pullNumber: number;
@@ -109,10 +119,50 @@ function command(value: unknown): AuthoringCommand | null {
   if (!isDigest(item["beforeStateDigest"])) {
     return null;
   }
+  if (
+    item["kind"] === "create-pull-request" ||
+    item["kind"] === "create-task"
+  ) {
+    return creationCommand(item, {
+      beforeStateDigest: item["beforeStateDigest"],
+      payloadDigest,
+    });
+  }
   return metadataCommand(item, {
     beforeStateDigest: item["beforeStateDigest"],
     payloadDigest,
   });
+}
+
+function creationCommand(
+  item: Record<string, unknown>,
+  metadata: Metadata,
+): AuthoringCommand | null {
+  const common = ["kind", "beforeStateDigest", "payloadDigest"];
+  if (item["kind"] === "create-task") {
+    return keys(item, [...common, "parentIssueId"]) && id(item["parentIssueId"])
+      ? {
+          kind: "create-task",
+          parentIssueId: item["parentIssueId"],
+          ...metadata,
+        }
+      : null;
+  }
+  return keys(item, [...common, "sourceRef", "headSha", "baseSha"]) &&
+    isControlledBranchRef(item["sourceRef"]) &&
+    !["refs/heads/main", "refs/heads/development"].includes(
+      item["sourceRef"],
+    ) &&
+    isSha(item["headSha"]) &&
+    isSha(item["baseSha"])
+    ? {
+        kind: "create-pull-request",
+        sourceRef: item["sourceRef"],
+        headSha: item["headSha"],
+        baseSha: item["baseSha"],
+        ...metadata,
+      }
+    : null;
 }
 
 function publicationCommand(
@@ -128,8 +178,8 @@ function publicationCommand(
       "payloadDigest",
     ]) ||
     !isControlledBranchRef(item["sourceRef"]) ||
-    item["sourceRef"] === "refs/heads/main" ||
-    !isSha(item["expectedHeadSha"]) ||
+    ["refs/heads/main", "refs/heads/development"].includes(item["sourceRef"]) ||
+    (item["expectedHeadSha"] !== null && !isSha(item["expectedHeadSha"])) ||
     !isSha(item["proposedHeadSha"]) ||
     item["expectedHeadSha"] === item["proposedHeadSha"]
   ) {
@@ -279,7 +329,8 @@ export function projectAuthoringIntent(input: {
     !isControlledWriteScope(scope) ||
     scope.kind !== request.command.kind ||
     !scope.affectedWorks.includes(request.workNumber) ||
-    (request.command.kind === "publish-commit" &&
+    ((request.command.kind === "publish-commit" ||
+      request.command.kind === "create-pull-request") &&
       !scope.affectedRefs.includes(request.command.sourceRef)) ||
     (request.command.kind === "edit-pull-request" &&
       !scope.affectedPulls.includes(request.command.pullNumber))

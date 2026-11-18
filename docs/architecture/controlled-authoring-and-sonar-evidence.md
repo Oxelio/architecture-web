@@ -601,7 +601,7 @@ validation. Carry the following risks to that review and controlled Validation.
 After [structural acceptance](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963322874)
 and the [next scoped Readiness](https://github.com/Oxelio/architecture-web/issues/140#issuecomment-6963430002),
 the request metadata unit adds deterministic subject/client-key identity and
-command digests for the six fixed operation classes. It checks existing-object
+command digests for the initial six fixed operation classes. It checks existing-object
 metadata and creates a minimized public intent projection. Neither preparation,
 projection nor replay classification grants admission or verifies Role authority.
 Raw subject, client key, payload and private Project values are absent from the
@@ -614,8 +614,8 @@ predecessor continuity, and settles only through a trusted read-only proof
 adapter. History read capacity is an explicit resource bound: incomplete history
 defers rather than invents absence or a replay horizon.
 
-Creation forms, runtime scope/authority/proof resolution and remote adapters
-remain following units. The legacy Status pending slot remains exclusive with
+Runtime scope/authority/proof composition and the remaining owner operations
+are following units. The legacy Status pending slot remains exclusive with
 authoring intents. Normal scoped Status mutations must migrate through their
 typed authoring adapter before activation; this conservative migration guard is
 not the final ordinary-write route. Scoped manual/completion reads can proceed
@@ -644,13 +644,36 @@ authoring admission. The inactive intake implementation now includes:
 - `src/github/authoring-metadata-operation.ts`: fixed Work/PR title/body PATCH
   adapters with authenticated exact before-state reads and canonical result
   verification. Payloads cannot select an API path, close/merge operation or
-  approval verb. Creation, dependency and evidence adapters remain separate
-  implementation steps.
+  approval verb.
 - `src/github/authoring-status-operation.ts`: the existing authenticated Status
   command and canonical writer mapped into scoped authoring admission. Match
   sealed bytes to that exact command and its Project/item/field/before-state;
   preserve the existing transition/evidence owner. No activated Status workflow
   is rerouted by adding this adapter.
+- `src/github/git-authoring-operation.ts`: isolated bare-Git bundle inspection,
+  exact advertised ref/commit, canonical base/prerequisite verification, complete
+  new-commit and final-delta path inventory, sanitized diagnostics and one leased
+  push to the fixed repository. Expected absence supports branch creation.
+  Non-fast-forward publication additionally requires explicit existing Work/Role
+  authorization; the lease supplies no authority. The trusted inventory verifier
+  still owns branch scope and protected-file enforcement.
+- `src/github/authoring-creation-operation.ts`: PR and native Task creation under
+  an existing Work. Task creation supplies GitHub's `parent_issue_id` in the one
+  create request and verifies the resulting native parent. PR creation verifies
+  absence of an existing owning/source PR and the exact head/base. Positive
+  recovery requires one authenticated, exact marked object; absence or multiple
+  matches cannot release the intent. This does not invent a provisional owner
+  or another registration policy for new top-level Work ideas.
+- `src/github/authoring-facts-operation.ts`: native Task dependency changes and
+  attributable evidence append, with complete paginated source reads, exact
+  old state, one remote operation and canonical read-back. Evidence is issued
+  by the verified automation identity and cannot impersonate Human Approval.
+
+The two creation verbs extend the inactive typed protocol without accepting
+arbitrary REST/GraphQL input. Installed provider support and identity fields must
+be verified during controlled Validation. The corresponding provider contracts
+are [issue creation](https://docs.github.com/en/rest/issues/issues#create-an-issue)
+and [native dependencies](https://docs.github.com/en/rest/issues/issue-dependencies).
 
 These paths are relative to `packages/tooling/delivery-automation`. No workflow
 or installed service calls this composition. The private host must exclude

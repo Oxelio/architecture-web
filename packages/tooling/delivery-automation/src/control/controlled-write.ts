@@ -2,6 +2,8 @@ import type { MergeReservation } from "./merge-reservation.js";
 
 export type ControlledWriteKind =
   | "publish-commit"
+  | "create-pull-request"
+  | "create-task"
   | "edit-pull-request"
   | "edit-work"
   | "edit-task-dependency"
@@ -36,6 +38,8 @@ export type ControlledWriteDisposition =
 
 const kinds = new Set<ControlledWriteKind>([
   "publish-commit",
+  "create-pull-request",
+  "create-task",
   "edit-pull-request",
   "edit-work",
   "edit-task-dependency",

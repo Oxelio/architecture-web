@@ -185,6 +185,7 @@ describe("authoring metadata preparation", () => {
 
   it.each([
     "refs/heads/main",
+    "refs/heads/development",
     "refs/tags/v1",
     "refs/heads/",
     "refs/heads/a..b",
@@ -222,6 +223,47 @@ describe("authoring metadata preparation", () => {
         }),
       ).toBeNull();
     }
+  });
+
+  it("represents branch absence and creation verbs without manufacturing object IDs", () => {
+    expect(
+      prepareAuthoringRequest({
+        authenticatedSubject: subject,
+        envelope: envelope({ ...commands[0], expectedHeadSha: null }),
+      }),
+    ).not.toBeNull();
+    expect(
+      prepareAuthoringRequest({
+        authenticatedSubject: subject,
+        envelope: envelope({
+          kind: "create-pull-request",
+          sourceRef: "refs/heads/codex/work-140",
+          headSha: "c".repeat(40),
+          baseSha: "d".repeat(40),
+          ...metadata,
+        }),
+      }),
+    ).not.toBeNull();
+    expect(
+      prepareAuthoringRequest({
+        authenticatedSubject: subject,
+        envelope: envelope({
+          kind: "create-task",
+          parentIssueId: 123,
+          ...metadata,
+        }),
+      }),
+    ).not.toBeNull();
+    expect(
+      prepareAuthoringRequest({
+        authenticatedSubject: subject,
+        envelope: envelope({
+          kind: "create-task",
+          parentIssueId: "caller-selected-parent",
+          ...metadata,
+        }),
+      }),
+    ).toBeNull();
   });
 });
 
