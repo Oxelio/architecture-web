@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  completeProtectedSonarCheck,
+  protectedSonarCheckExternalId,
+} from "./protected-sonar-check.js";
+import * as producerSource from "./protected-sonar-submission.js";
+import {
   type ProtectedSonarSubmission,
   readSonarAnalysisEvidence,
   type SonarCandidate,
@@ -115,6 +120,153 @@ function setup(edit?: (value: ReturnType<typeof fixture>) => void) {
 }
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("protected Sonar check completion", () => {
+  function publication() {
+    const { input } = setup();
+    const source = {
+      producerRunId: submission.producerRunId,
+      producerWorkflowId: 51,
+      controlSha: submission.controlSha,
+      scannerConfigDigest: submission.scannerConfigDigest,
+      artifactId: 63,
+      archiveDigest: "e".repeat(64),
+    };
+    const issuerAppId = 5625775;
+    const checkId = 88;
+    const state = {
+      issuer: issuerAppId,
+      completed: false,
+      lostResponse: false,
+    };
+    const githubFetch = vi.fn<typeof fetch>(async (url, options) => {
+      expect(String(url)).toBe(
+        `https://api.github.com/repos/Oxelio/architecture-web/check-runs/${checkId}`,
+      );
+      expect(new Headers(options?.headers).get("authorization")).toBe(
+        "Bearer fixture-checks",
+      );
+      if (options?.method === "PATCH") {
+        state.completed = true;
+        if (state.lostResponse) {
+          throw new Error("fixture lost reply");
+        }
+      }
+      return Response.json({
+        id: checkId,
+        html_url: "https://github.com/Oxelio/architecture-web/runs/88",
+        name: "Architecture Web / Sonar Quality Gate",
+        app: { id: state.issuer },
+        head_sha: candidate.headSha,
+        external_id: protectedSonarCheckExternalId(candidate, source),
+        status: state.completed ? "completed" : "queued",
+        conclusion: state.completed ? "success" : null,
+      });
+    });
+    const provenance = vi
+      .spyOn(producerSource, "readGitHubProtectedSonarSubmission")
+      .mockResolvedValue({ submission, provenanceDigest: "f".repeat(64) });
+    const now = input.now();
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    return {
+      state,
+      provenance,
+      input: {
+        enabled: true,
+        candidate,
+        source,
+        githubReadToken: "fixture-github",
+        sonarReadToken: "fixture-sonar",
+        checkToken: "fixture-checks",
+        checkId,
+        issuerAppId,
+        githubFetch,
+        sonarFetch: input.fetchImpl,
+        readCandidate: input.readCandidate,
+        verifyPublicationBoundary: vi.fn(async () => true),
+        admitCompletion: vi.fn<() => Promise<number | null>>(
+          async () => now + 1000,
+        ),
+      },
+    };
+  }
+
+  it("requires exact provider evidence, a durable admission and completion read-back", async () => {
+    const f = publication();
+    expect(await completeProtectedSonarCheck(f.input)).toMatchObject({
+      status: "published",
+      check: { id: 88 },
+    });
+    expect(f.provenance).toHaveBeenCalledTimes(2);
+    expect(f.input.admitCompletion).toHaveBeenCalledWith(
+      expect.stringMatching(/^[a-f0-9]{64}$/u),
+    );
+    expect(
+      f.input.githubFetch.mock.calls.map(
+        ([, options]) => options?.method ?? "GET",
+      ),
+    ).toEqual(["GET", "PATCH", "GET"]);
+    expect(await completeProtectedSonarCheck(f.input)).toEqual({
+      status: "deferred",
+    });
+    expect(f.input.admitCompletion).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    "issuer",
+    "provenance",
+    "admission",
+    "revocation",
+    "stale",
+  ] as const)("withholds a passing check after %s changes", async (reason) => {
+    const f = publication();
+    if (reason === "issuer") {
+      f.state.issuer = 100;
+    }
+    if (reason === "provenance") {
+      f.provenance.mockResolvedValue(null);
+    }
+    if (reason === "admission") {
+      f.input.admitCompletion.mockResolvedValue(null);
+    }
+    if (reason === "revocation") {
+      f.input.verifyPublicationBoundary
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValue(false);
+    }
+    if (reason === "stale") {
+      f.input.readCandidate
+        .mockResolvedValueOnce(candidate)
+        .mockResolvedValueOnce(candidate)
+        .mockResolvedValue({ ...candidate, baseSha: "f".repeat(40) });
+    }
+    expect(await completeProtectedSonarCheck(f.input)).toEqual({
+      status: "deferred",
+    });
+    expect(
+      f.input.githubFetch.mock.calls.some(
+        ([, options]) => options?.method === "PATCH",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not retry a check completion whose response was lost", async () => {
+    const f = publication();
+    f.state.lostResponse = true;
+    expect(await completeProtectedSonarCheck(f.input)).toEqual({
+      status: "deferred",
+    });
+    expect(await completeProtectedSonarCheck(f.input)).toEqual({
+      status: "deferred",
+    });
+    expect(
+      f.input.githubFetch.mock.calls.filter(
+        ([, options]) => options?.method === "PATCH",
+      ),
+    ).toHaveLength(1);
+  });
+});
 
 describe("preparation-only authenticated Sonar reader", () => {
   it("is disabled without an explicit caller and never publishes a check", async () => {
