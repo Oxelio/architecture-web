@@ -458,6 +458,20 @@ The protected producer receipt is a required caller-side trust boundary.
 Its issuer/run/source authentication is still a runtime integration obligation.
 The offline adapter cannot validate that boundary on its own.
 
+The inactive `protected-sonar-submission.ts` adapter now implements the GitHub
+side of that boundary. It independently reads the exact trusted-main producer
+run and first-attempt producer job, verifies the bound immutable artifact and
+SHA-256 archive digest, and accepts exactly one bounded `submission.json` file.
+It matches the complete candidate, control revision, scanner configuration and
+all six criteria, then rereads the run/artifact identities. The signed artifact
+download receives no GitHub bearer. Unknown redirect hosts, incomplete job
+inventory, reruns, extra ZIP entries, stale or mismatched receipts defer.
+This proves provenance only: a green run/receipt still cannot replace the
+authenticated Sonar CE/analysis/Quality Gate verification in the existing reader.
+The producer job, actual provider contract and check-only publication composition
+remain separate implementation/Validation obligations. No workflow calls this
+new reader and the required issuer remains unchanged.
+
 The proposed producer/publisher handoff is an immutable receipt from a trusted-
 main producer run, retrieved using an independently authenticated GitHub read
 path. Bind the receipt's digest and artifact ID to the durable candidate record.
