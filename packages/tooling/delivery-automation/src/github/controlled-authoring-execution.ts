@@ -6,7 +6,10 @@ import {
   planControlledWrite,
   type ReservedWriteContext,
 } from "../control/controlled-write.js";
-import type { AuthoringTerminalOutcome } from "./authoring-journal-state.js";
+import {
+  authoringScopesOverlap,
+  type AuthoringTerminalOutcome,
+} from "./authoring-journal-state.js";
 import type { createGitHubWorkReservationJournal } from "./github-work-reservation-journal.js";
 
 type Journal = ReturnType<typeof createGitHubWorkReservationJournal>;
@@ -46,7 +49,11 @@ export interface AuthoringExecutionPorts {
   ) => Promise<ResolvedAuthoringOperation | null>;
   // Reuse the native controller's cancel/resolve owner. This callback must not
   // perform the requested write. Confirmed merge requires replan, not mutation.
-  readonly cancelOrResolve: (boundary: Boundary) => Promise<void>;
+  readonly cancelOrResolve: (
+    boundary: Boundary,
+    request: PreparedAuthoringRequest,
+    authorizeWrite: () => Promise<boolean>,
+  ) => Promise<void>;
   readonly authorizeRecovery: () => Promise<boolean>;
 }
 
@@ -64,7 +71,11 @@ async function resolveAtBoundary(
     enabled: true,
     scope: operation.scope,
     inventoryComplete: operation.inventoryComplete,
-    writePending: boundary.projectStatus !== null,
+    writePending:
+      boundary.projectStatus !== null ||
+      boundary.authoring.some(({ intent }) =>
+        authoringScopesOverlap(intent.scope, operation.scope),
+      ),
     reserved: operation.reserved,
   });
   return { boundary, operation, disposition };
@@ -96,7 +107,12 @@ export async function executeControlledAuthoring(input: {
     }
     let resolved = await resolveAtBoundary(request, payload, ports);
     if (resolved?.disposition === "cancel-or-resolve") {
-      await ports.cancelOrResolve(resolved.boundary);
+      const operation = resolved.operation;
+      const authorize = () => authorizeAuthoringOperation(ports, operation);
+      if (!(await authorize())) {
+        return "denied";
+      }
+      await ports.cancelOrResolve(resolved.boundary, request, authorize);
       resolved = await resolveAtBoundary(request, payload, ports);
     }
     if (resolved?.disposition === "recover-merged") {
@@ -112,16 +128,24 @@ export async function executeControlledAuthoring(input: {
   }
 }
 
+async function authorizeAuthoringOperation(
+  ports: AuthoringExecutionPorts,
+  operation: ResolvedAuthoringOperation,
+) {
+  return (
+    (await ports.verifyBoundary()) &&
+    (await operation.isCurrent()) &&
+    (await operation.readAuthority()) === operation.authorityDigest
+  );
+}
+
 async function admitAndPerform(
   input: Parameters<typeof executeControlledAuthoring>[0],
   resolved: NonNullable<Awaited<ReturnType<typeof resolveAtBoundary>>>,
 ) {
   const { request, ports } = input;
   const { operation, boundary } = resolved;
-  const authorize = async () =>
-    (await ports.verifyBoundary()) &&
-    (await operation.isCurrent()) &&
-    (await operation.readAuthority()) === operation.authorityDigest;
+  const authorize = () => authorizeAuthoringOperation(ports, operation);
   if (!(await authorize())) {
     return "denied" as const;
   }

@@ -99,6 +99,8 @@ function fixture() {
     ports,
     perform,
     isCurrent,
+    scope,
+    readAuthoringBoundary,
     beginAuthoringWrite,
     finishAuthoringWrite,
     admission: { intent, admissionRevision: 1 },
@@ -111,6 +113,52 @@ it("does not touch credentials or the journal while inactive", async () => {
     "inactive",
   );
   expect(f.ports.verifyBoundary).not.toHaveBeenCalled();
+  expect(f.beginAuthoringWrite).not.toHaveBeenCalled();
+});
+
+it("keeps an armed reservation in place when the invalidating request has lost authority", async () => {
+  const f = fixture();
+  const reservation = {
+    candidate: {
+      workNumber: 140,
+      pullNumber: 147,
+      headSha: "a".repeat(40),
+      baseSha: "b".repeat(40),
+    },
+    state: { phase: "armed" as const, checkId: 567 },
+  };
+  f.readAuthoringBoundary.mockResolvedValue({
+    authoring: [],
+    projectStatus: null,
+    position: null,
+    reservation: {
+      reservation,
+      revision: 1,
+      reservationId: "delivery-control/r1",
+      nativePosition: { revision: 1, tagSha: "c".repeat(40) },
+    },
+  });
+  const resolve = async () => ({
+    scope: f.scope,
+    reserved: {
+      reservation,
+      relevantWorks: [140],
+      relevantPulls: [147],
+      relevantRefs: ["refs/heads/main"],
+    },
+    inventoryComplete: true,
+    authorityDigest: "a".repeat(64),
+    isCurrent: async () => true,
+    readAuthority: async () => null,
+    perform: f.perform,
+  });
+  expect(
+    await executeControlledAuthoring({
+      ...f.input,
+      ports: { ...f.ports, resolve },
+    }),
+  ).toBe("denied");
+  expect(f.ports.cancelOrResolve).not.toHaveBeenCalled();
   expect(f.beginAuthoringWrite).not.toHaveBeenCalled();
 });
 
