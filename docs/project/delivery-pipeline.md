@@ -568,10 +568,8 @@ The approved target delegates only native squash auto-merge requests for
 ordinary eligible Work to an authenticated control workflow running on
 protected main in repository 1336937640. The workflow must use a restricted
 credential and verify the delegation is still effective before arming
-auto-merge. The delegation must be revocable. Until GitHub can enforce the
-applicable prerequisites throughout the wait, use explicit candidate
-authorization and verify that those prerequisites remain stable. Human
-Functional Approval and material governance decisions
+auto-merge. The delegation must be revocable. Human Functional Approval and
+material governance decisions
 remain with their assigned authorities. Custom delegated direct squash was
 closed as `not planned` in [Work #102](https://github.com/Oxelio/architecture-web/issues/102).
 
@@ -584,6 +582,14 @@ and check. An already-started publication admitted under valid authority may
 finish for that candidate after expiry or revocation. Authority must still
 be current to start publication. Recover uncertain operations by positive
 observation while the reservation remains quarantined.
+
+The [accepted mode in Work #156](https://github.com/Oxelio/architecture-web/issues/156)
+uses final verified observations of mutable Issue, Project and PR metadata
+for the exact candidate. Changes after the last verified observation may race
+an already engaged native merge. The controller still checks current scoped
+delegation and exact evidence before each new admission, arm and final release.
+GitHub still enforces the existing current-base rule and required CI, SonarCloud
+and Work Merge Gate checks from their configured issuers.
 
 This is an Approved Target. Candidate-specific protected integration remains
 the effective path while standing operation is inactive. The

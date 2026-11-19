@@ -340,7 +340,10 @@ async function executeStandingCandidate(candidate: MergeCandidate) {
   };
   const boundary = await readBoundary();
   if (!boundary) {
-    return { status: "denied", reason: "STANDING_WRITER_BOUNDARY_UNVERIFIED" };
+    return {
+      status: "denied",
+      reason: "STANDING_ACTIVATION_BOUNDARY_UNVERIFIED",
+    };
   }
   const rules = async (rulesetId: number) => {
     const records = (await readBoundary())?.rulesetObservations.filter(

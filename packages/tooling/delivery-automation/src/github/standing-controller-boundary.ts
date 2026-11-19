@@ -7,15 +7,6 @@ import type {
   StandingRulesetObservation,
 } from "./work-merge-publisher.js";
 
-const writerKinds = [
-  "project-state",
-  "tasks-dependencies",
-  "review-decision-records",
-  "pr-head-base",
-  "gate-issuer",
-  "journal-refs",
-  "delegation",
-] as const;
 const sha = /^[0-9a-f]{40}$/u;
 
 export interface StandingControllerBoundary {
@@ -28,7 +19,7 @@ export interface StandingControllerBoundary {
   readonly controllerInstallationId: number;
   readonly checksInstallationId: number;
   readonly sources: Readonly<Record<string, string>>;
-  readonly validatedWriters: readonly string[];
+  readonly freshnessPolicy: "final-observation";
   readonly validationRef: string;
   readonly journalCreationRulesetId: number;
   readonly journalImmutabilityRulesetId: number;
@@ -64,9 +55,7 @@ export function matchesStandingControllerBoundary(
     value.checksInstallationId !== expected.checksInstallationId ||
     Object.values(expected.sources).some((oid) => !sha.test(oid)) ||
     !isDeepStrictEqual(value.sources, expected.sources) ||
-    !Array.isArray(value.validatedWriters) ||
-    value.validatedWriters.length !== writerKinds.length ||
-    !writerKinds.every((writer) => value.validatedWriters.includes(writer)) ||
+    value.freshnessPolicy !== "final-observation" ||
     !/^https:\/\/github\.com\/Oxelio\/architecture-web\/actions\/runs\/[1-9]\d*$/u.test(
       value.validationRef,
     )
