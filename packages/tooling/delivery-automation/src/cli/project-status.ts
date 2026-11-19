@@ -213,6 +213,7 @@ async function main() {
       mode,
       ...(candidate ? { candidate } : {}),
       now: Date.now(),
+      requireWriterExclusion: true,
     })
   ) {
     return "denied";
