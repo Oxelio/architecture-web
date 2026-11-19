@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -26,6 +26,7 @@ type SignUpError = "accountAlreadyExists" | "generic";
 
 export function SignUpPage() {
   const { t } = useTranslation();
+  const loginErrorId = useId();
   const policyQuery = useQuery({
     queryKey: ["password-policy"],
     queryFn: getPasswordPolicy,
@@ -171,11 +172,17 @@ export function SignUpPage() {
             <input
               type="text"
               autoComplete="username"
+              aria-invalid={Boolean(errors.loginValue)}
+              aria-describedby={errors.loginValue ? loginErrorId : undefined}
               className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
               {...register("loginValue")}
             />
             {errors.loginValue && (
-              <p className="mt-2 text-sm text-rose-400">
+              <p
+                id={loginErrorId}
+                role="alert"
+                className="mt-2 text-sm text-rose-400"
+              >
                 {errors.loginValue.message}
               </p>
             )}
