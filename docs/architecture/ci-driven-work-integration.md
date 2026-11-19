@@ -249,6 +249,10 @@ in the protected controller environment. The intake gets repository reads
 only. The recorder gets no check-publication credential. The shared
 delegation revocation also stops ordinary Status writes.
 
+The final-observation amendment applies to native squash only. The
+optional coordinated Status writer still requires evidence of exclusion
+for the competing writers in its existing activation boundary.
+
 For positive-only recovery use a protected dispatch bound to the original
 Work and command IDs and to a distinct, unexpired direct maintainer record
 of kind `recover-project-status`. Recovery does not start a new write.

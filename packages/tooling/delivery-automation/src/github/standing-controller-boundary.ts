@@ -8,6 +8,15 @@ import type {
 } from "./work-merge-publisher.js";
 
 const sha = /^[0-9a-f]{40}$/u;
+const statusWriterKinds = [
+  "project-state",
+  "tasks-dependencies",
+  "review-decision-records",
+  "pr-head-base",
+  "gate-issuer",
+  "journal-refs",
+  "delegation",
+] as const;
 
 export interface StandingControllerBoundary {
   readonly kind: "standing-work-controller-boundary";
@@ -20,6 +29,7 @@ export interface StandingControllerBoundary {
   readonly checksInstallationId: number;
   readonly sources: Readonly<Record<string, string>>;
   readonly freshnessPolicy: "final-observation";
+  readonly validatedWriters?: readonly string[];
   readonly validationRef: string;
   readonly journalCreationRulesetId: number;
   readonly journalImmutabilityRulesetId: number;
@@ -44,6 +54,7 @@ export function matchesStandingControllerBoundary(
     readonly mode: StandingControllerBoundary["mode"];
     readonly candidate?: MergeCandidate;
     readonly now: number;
+    readonly requireWriterExclusion?: true;
   },
 ): value is StandingControllerBoundary {
   if (
@@ -71,6 +82,17 @@ export function matchesStandingControllerBoundary(
       !(Date.parse(value.expiresAt ?? "") > use.now))
   ) {
     return false;
+  }
+
+  if (use.requireWriterExclusion) {
+    const writers = value.validatedWriters;
+    if (
+      !Array.isArray(writers) ||
+      writers.length !== statusWriterKinds.length ||
+      !statusWriterKinds.every((writer) => writers.includes(writer))
+    ) {
+      return false;
+    }
   }
 
   const rulesetIds = [

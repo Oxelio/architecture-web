@@ -42,6 +42,18 @@ describe("the deployed controller activation boundary", () => {
     expect(matchesStandingControllerBoundary(proof, scope, use)).toBe(true);
   });
 
+  it("does not use the native squash amendment to authorize coordinated Status writes", () => {
+    const status = { ...use, requireWriterExclusion: true } as const;
+    expect(matchesStandingControllerBoundary(proof, scope, status)).toBe(false);
+    expect(
+      matchesStandingControllerBoundary(
+        { ...proof, validatedWriters: ["project-state"] },
+        scope,
+        status,
+      ),
+    ).toBe(false);
+  });
+
   it("requires the explicit accepted freshness policy on the wire", () => {
     const { freshnessPolicy: _, ...withoutPolicy } = proof;
     for (const record of [
