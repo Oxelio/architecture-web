@@ -33,13 +33,17 @@ describe("HTTP logging confidentiality", () => {
       "/v1/iam/verify",
       async (request, reply) =>
         request.query.invalid
-          ? reply.code(400).send({ error: { code: "email_verification.invalid_token" } })
+          ? reply
+              .code(400)
+              .send({ error: { code: "email_verification.invalid_token" } })
           : reply.code(204).send(),
     );
     // The approved new POST-body transport is exercised without changing
     // current production IAM routing (which belongs to Work #152).
     app.post("/v1/iam/verify", async (_request, reply) =>
-      reply.code(400).send({ error: { code: "email_verification.invalid_token" } }),
+      reply
+        .code(400)
+        .send({ error: { code: "email_verification.invalid_token" } }),
     );
     app.get("/items/:itemId", async (request) => {
       request.log.info({ req: request }, "serialized request diagnostic");
@@ -181,7 +185,8 @@ describe("HTTP logging confidentiality", () => {
         records.some(
           (record) =>
             record["msg"] === "technical error diagnostic" &&
-            (record["err"] as { category: string }).category === "redacted_error",
+            (record["err"] as { category: string }).category ===
+              "redacted_error",
         ),
       ).toBe(true);
     } finally {

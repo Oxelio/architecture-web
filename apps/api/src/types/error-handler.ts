@@ -20,7 +20,9 @@ export function errorHandler(
   request.log.error(
     {
       statusCode,
-      errorCategory: isServerError ? "internal.unexpected_error" : clientErrorCode,
+      errorCategory: isServerError
+        ? "internal.unexpected_error"
+        : clientErrorCode,
     },
     "HTTP request failed",
   );

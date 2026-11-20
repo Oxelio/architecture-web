@@ -28,7 +28,7 @@
 
 Prevent **usable credentials** from being emitted to **repository-controlled HTTP request/access/error log sinks**. **Current Truth** on `main`: Web links contain `?token=...` for verification, recovery and deletion cancellation, and the API currently exposes GET `/v1/iam/verify?token=...`. **Approved Target** for separate IAM work: fragment-based email links for all three flows, verification user confirmation + POST body (Work #152), existing POST body APIs for recovery/cancellation. The maintainer explicitly authorized dropping verification's GET/query contract without legacy support; #145 must **not** require preserving that deprecated target API. Credential classes in this logging Work include verification, recovery and cancellation tokens, session cookies, Authorization values, passwords, MFA/TOTP and backup codes when present in logged HTTP data.
 
-This is *not* a broad IAM refactor, new logging retention policy, change to token transport/business API, or expansion into unverified external infrastructure. Keep stable response and error contracts, session flows, HTTP authorization, domain/application layers, and security Audit semantics. Closed #49 separately owns the prior session bearer credential representation change. A broken/degraded logging sink must not turn an otherwise successful business response into a new business failure.
+This is _not_ a broad IAM refactor, new logging retention policy, change to token transport/business API, or expansion into unverified external infrastructure. Keep stable response and error contracts, session flows, HTTP authorization, domain/application layers, and security Audit semantics. Closed #49 separately owns the prior session bearer credential representation change. A broken/degraded logging sink must not turn an otherwise successful business response into a new business failure.
 
 ## 2. Observed logging paths and ownership
 
@@ -92,11 +92,12 @@ http {
 
 ### Other owners and external infrastructure
 
-`registerHttpAudit` is a structured *security-event* recorder with separate approved constraints; preserve its domain/application contract. This Work does not automatically rewrite Audit retention or credential schemas. Docker Compose declares API and Web Nginx, but **does not establish visibility into any deployed external proxy, platform ingress, log shipper, browser history or retained logs**. Document those boundaries for the operator-owned incident review instead of claiming protection for unknown infrastructure.
+`registerHttpAudit` is a structured _security-event_ recorder with separate approved constraints; preserve its domain/application contract. This Work does not automatically rewrite Audit retention or credential schemas. Docker Compose declares API and Web Nginx, but **does not establish visibility into any deployed external proxy, platform ingress, log shipper, browser history or retained logs**. Document those boundaries for the operator-owned incident review instead of claiming protection for unknown infrastructure.
 
 ## 3. Data, state, correlation and diagnostic contract
 
 No new persisted business fields or migrations. No new domain model, application port or cross-context events. Existing technical log records MAY add safe fields such as:
+
 - `reqId` (existing per-request correlation identity);
 - `method` (verified safe HTTP verb);
 - `route` (Fastify matched route template or constant fallback);
@@ -131,18 +132,21 @@ Minimal structured records should reduce log volume. Use the existing Fastify/Pi
 ## 7. Validation strategy and acceptance evidence
 
 **API (Fastify):**
+
 - Use an in-memory captured logging stream in targeted Vitest/Fastify `inject` tests with **production-equivalent logger initialization**; avoid relying solely on arbitrary test instances where logging is disabled by default.
 - Exercise synthetic token-bearing HTTP requests on both current GET/query and approved new POST/body verification shapes as appropriate to the tested code candidate (without preserving the GET compatibility route). Cover success, invalid/expired token, schema-invalid body, unexpected exception and 404/unmatched query. Assert the raw fake token, its encoded form and sensitive headers/cookies/body/error strings are absent from **every emitted log record**.
 - Verify useful metadata is still present (method, safe template or fallback, status, request ID and duration if available) and that HTTP responses stay unchanged.
 - Cover global `errorHandler` and audit-write error logging with fake secret-bearing exception text to prove safe handling; ensure no real secret is used.
 
 **Web Nginx:**
+
 - Validate Nginx configuration syntax using the actual built image or compatible Nginx runtime (`nginx -t`).
 - Send synthetic token-bearing browser routes (`/verify`, `/recovery`, `/cancel-deletion`), proxy requests (including failure and unavailable API), unmatched routes and deliberately failing assets.
 - Inspect all actual Nginx log destinations on the tested candidate, including Docker **stdout/stderr**, any legacy files and main-scope/inherited process diagnostics. Verify zero canary tokens while JSON access metadata (status, group, timings, upstream and request ID) remains useful; confirm no request-associated error narrative is emitted.
 - If Nginx error messages still include token-bearing raw request lines, **do not pass validation** or claim safety; escalate for a limited corrective change with the appropriate design owner.
 
 **Cross-boundary / reviews:**
+
 - Validate representative application statuses and authentication/session routes, safe Audit metadata and no secret leakage with `pnpm --filter api test`, focused typecheck/lint/build as applicable, and deployment-level Nginx inspection.
 - Apply separate Code Review, Architecture Review for ingress/logging boundary, Functional Compliance Review (preserve existing IAM behavior) and **security/privacy-focused Review**.
 - Record candidate commit SHA, CI/test run identity, exact commands, results, environment coverage and any skipped operational tests in Validation evidence. Passing unit tests alone do not certify deployment or historical log cleanup.
@@ -164,6 +168,7 @@ No durable structural rule with contested alternatives is established by the sel
 **Task Planning triggered:** API/Fastify and Web Nginx are independently changeable, independently testable security boundaries. Create two GitHub Sub-issues under Work #145, each referencing this Technical Design and its upstream specifications. The tasks can proceed in parallel on the **single Work integration branch** but final cross-boundary security validation requires both completed. Do not add Task Sub-issues as independent Project Work items or assign an autonomous `agent:*` route without human assignment.
 
 **Risks carried forward:**
+
 - **R0 / Security-validation risk (Developer + Security Review / Validation):** The maintainer **selected** suppression of request-scoped Nginx native errors plus safe JSON access logs while retaining safe process errors. The **pinned-image proof is still missing**. The selected technical approach is sufficiently bounded to implement, and reproduction on Nginx 1.26.3 was only preliminary feasibility evidence, **not acceptance evidence**. In implementation and on the actual Nginx 1.31.3 image, test synthetic canaries across early parsing, main-scope inheritance, startup/reload and failure paths to stderr/stdout/file sinks. **This is a non-blocking Readiness risk but a strict security Validation/merge blocker:** if any sink emits a secret, validation must fail and the work must return to the Software Architect for redesign; no workaround is authorized by the Developer.
 - **R1 / Implementation + Validation:** Test the selected Nginx error-log protection using synthetic failure paths and verify no canary token is emitted by access **or** error logging. Process/main-scope logging is included; failure returns to the Software Architect.
 - **R2 / Fastify early failures:** the safe path must cover default 404, validation errors and errors outside ordinary successful request hooks. Developer validates against the exact Fastify runtime/version in this repository.
