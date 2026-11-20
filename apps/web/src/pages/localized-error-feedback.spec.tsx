@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  notifyManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, type ReactElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import {
   afterAll,
   afterEach,
+  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -58,6 +63,12 @@ let container: HTMLDivElement;
 let client: QueryClient;
 let root: Root;
 
+beforeAll(() => {
+  notifyManager.setNotifyFunction((callback) => {
+    void act(callback);
+  });
+});
+
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("fetch", fetchApi);
@@ -84,6 +95,7 @@ afterEach(async () => {
 });
 
 afterAll(() => {
+  notifyManager.setNotifyFunction((callback) => callback());
   vi.unstubAllGlobals();
 });
 
