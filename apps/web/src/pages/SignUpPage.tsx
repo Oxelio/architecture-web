@@ -29,6 +29,8 @@ interface SignUpFormValues {
 
 export function SignUpPage() {
   const { t } = useTranslation();
+  const loginValueId = useId();
+  const loginKindId = useId();
   const loginErrorId = useId();
   const passwordErrorId = useId();
   const confirmationErrorId = useId();
@@ -150,22 +152,35 @@ export function SignUpPage() {
           </p>
         ) : null}
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-slate-200">
-            Identifiant de connexion
+          <div className="text-sm font-medium text-slate-200">
+            <label htmlFor={loginValueId} className="block">
+              {t("auth.identifier")}
+            </label>
             {(capabilitiesQuery.data?.allowedLoginIdentifiers.length ?? 0) >
             1 ? (
-              <select
-                className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white"
-                {...register("loginKind")}
-              >
-                {capabilitiesQuery.data?.allowedLoginIdentifiers.map((kind) => (
-                  <option key={kind} value={kind}>
-                    {kind === "email" ? t("common.email") : "Pseudonyme"}
-                  </option>
-                ))}
-              </select>
+              <>
+                <label htmlFor={loginKindId} className="sr-only">
+                  {t("auth.identifierType")}
+                </label>
+                <select
+                  id={loginKindId}
+                  className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white"
+                  {...register("loginKind")}
+                >
+                  {capabilitiesQuery.data?.allowedLoginIdentifiers.map(
+                    (kind) => (
+                      <option key={kind} value={kind}>
+                        {kind === "email"
+                          ? t("common.email")
+                          : t("auth.username")}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </>
             ) : null}
             <input
+              id={loginValueId}
               type="text"
               autoComplete="username"
               aria-invalid={Boolean(errors.loginValue)}
@@ -182,7 +197,7 @@ export function SignUpPage() {
                 {fieldErrorMessage(t, errors.loginValue.message)}
               </p>
             )}
-          </label>
+          </div>
 
           <label className="block text-sm font-medium text-slate-200">
             {t("common.password")}

@@ -192,6 +192,50 @@ async function fillRegistration(identifier = "member@example.invalid") {
   await enter('input[name="passwordConfirmation"]', newPassword);
 }
 
+it.each([
+  ["sign-in", SignInPage],
+  ["registration", SignUpPage],
+] as const)(
+  "labels both identifier controls in %s with both types enabled",
+  async (_name, Page) => {
+    client.setQueryData(["public-capabilities"], {
+      publicRegistration: true,
+      allowedLoginIdentifiers: ["username", "email"],
+    });
+    await render(<Page />);
+
+    const identifier = element<HTMLInputElement>('input[name="loginValue"]');
+    const kind = element<HTMLSelectElement>('select[name="loginKind"]');
+    const identifierLabels = () =>
+      Array.from(identifier.labels ?? [], (label) => label.textContent?.trim());
+    const kindLabels = () =>
+      Array.from(kind.labels ?? [], (label) => label.textContent?.trim());
+
+    expect(identifierLabels()).toEqual(["Sign-in identifier"]);
+    expect(kindLabels()).toEqual(["Identifier type"]);
+    await act(() => {
+      kind.value = "username";
+      kind.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await submit();
+
+    const errorId = identifier.getAttribute("aria-describedby");
+    expect(fieldFeedback("loginValue")).toBe("Enter your sign-in identifier.");
+    expect(identifierLabels()).toEqual(["Sign-in identifier"]);
+    expect(kind.hasAttribute("aria-describedby")).toBe(false);
+
+    await changeLocale("fr");
+    expect(identifierLabels()).toEqual(["Identifiant de connexion"]);
+    expect(kindLabels()).toEqual(["Type d’identifiant"]);
+    expect(identifier.getAttribute("aria-describedby")).toBe(errorId);
+    expect(fieldFeedback("loginValue")).toBe(
+      "Saisissez votre identifiant de connexion.",
+    );
+    expect(kind.value).toBe("username");
+    expect(fetchApi).not.toHaveBeenCalled();
+  },
+);
+
 describe("sign-in feedback", () => {
   it("localizes the required identifier and interpolates the existing password minimum without resubmitting", async () => {
     await render(<SignInPage />);

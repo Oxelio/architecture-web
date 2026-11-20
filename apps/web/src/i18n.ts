@@ -158,6 +158,9 @@ const resources = {
           "Utilise l’API GET /iam/me pour récupérer le profil utilisateur.",
       },
       auth: {
+        identifier: "Identifiant de connexion",
+        identifierType: "Type d’identifiant",
+        username: "Pseudonyme",
         identifierRequired: "Saisissez votre identifiant de connexion.",
         identifierNotAllowed: "Choisissez un type d’identifiant autorisé.",
         invalidEmail: "Email invalide",
@@ -509,6 +512,9 @@ const resources = {
         apiHelp: "Use the GET /iam/me API to retrieve the user profile.",
       },
       auth: {
+        identifier: "Sign-in identifier",
+        identifierType: "Identifier type",
+        username: "Username",
         identifierRequired: "Enter your sign-in identifier.",
         identifierNotAllowed: "Choose an allowed sign-in identifier type.",
         invalidEmail: "Invalid email",
