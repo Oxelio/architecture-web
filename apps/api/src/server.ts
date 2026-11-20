@@ -20,14 +20,17 @@ import { buildIamRoutes } from "./features/iam/routes/index.js";
 import { buildSecurityRoutes } from "./features/iam/security/security.routes.js";
 import { buildNotificationRoutes } from "./notifications/notification.routes.js";
 import { errorHandler } from "./types/error-handler.js";
+import { httpLoggingOptions, registerHttpRequestLogging } from "./http-logging.js";
 
 const apiVersion = "v1";
 
 export async function buildServer() {
   const app = Fastify({
-    logger: true,
+    ...httpLoggingOptions(),
     trustProxy: process.env["TRUST_PROXY"] === "true",
   });
+
+  registerHttpRequestLogging(app);
 
   // global error handler
   app.setErrorHandler(errorHandler);

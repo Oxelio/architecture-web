@@ -7,8 +7,6 @@ export function errorHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ) {
-  request.log.error(error);
-
   const statusCode =
     error.statusCode && error.statusCode >= 400 && error.statusCode < 500
       ? error.statusCode
@@ -18,6 +16,14 @@ export function errorHandler(
     error.validation || error.code === "FST_ERR_VALIDATION"
       ? "request.validation_failed"
       : "request.invalid";
+
+  request.log.error(
+    {
+      statusCode,
+      errorCategory: isServerError ? "internal.unexpected_error" : clientErrorCode,
+    },
+    "HTTP request failed",
+  );
 
   return reply.status(statusCode).send({
     error: {

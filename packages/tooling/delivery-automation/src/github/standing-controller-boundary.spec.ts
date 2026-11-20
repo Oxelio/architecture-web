@@ -28,15 +28,7 @@ const proof = {
   kind: "standing-work-controller-boundary",
   mode: "standing",
   ...scope,
-  validatedWriters: [
-    "project-state",
-    "tasks-dependencies",
-    "review-decision-records",
-    "pr-head-base",
-    "gate-issuer",
-    "journal-refs",
-    "delegation",
-  ],
+  freshnessPolicy: "final-observation",
   validationRef: "https://github.com/Oxelio/architecture-web/actions/runs/115",
   journalCreationRulesetId: 1,
   journalImmutabilityRulesetId: 2,
@@ -48,6 +40,35 @@ const proof = {
 describe("the deployed controller activation boundary", () => {
   it("matches the independently validated deployment and exact sources", () => {
     expect(matchesStandingControllerBoundary(proof, scope, use)).toBe(true);
+  });
+
+  it("does not use the native squash amendment to authorize coordinated Status writes", () => {
+    const status = { ...use, requireWriterExclusion: true } as const;
+    expect(matchesStandingControllerBoundary(proof, scope, status)).toBe(false);
+    expect(
+      matchesStandingControllerBoundary(
+        { ...proof, validatedWriters: ["project-state"] },
+        scope,
+        status,
+      ),
+    ).toBe(false);
+  });
+
+  it("requires the explicit accepted freshness policy on the wire", () => {
+    const { freshnessPolicy: _, ...withoutPolicy } = proof;
+    for (const record of [
+      withoutPolicy,
+      { ...proof, freshnessPolicy: "writer-exclusion" },
+    ]) {
+      // GitHub delivers unvalidated JSON, even when the reader is typed.
+      expect(
+        matchesStandingControllerBoundary(
+          record as Parameters<typeof matchesStandingControllerBoundary>[0],
+          scope,
+          use,
+        ),
+      ).toBe(false);
+    }
   });
 
   it("permits supervised operation for one exact candidate before the scheduled expiry", () => {
@@ -82,7 +103,6 @@ describe("the deployed controller activation boundary", () => {
     null,
     { ...proof, sources: { ...scope.sources, ".github": "d".repeat(40) } },
     { ...proof, checksInstallationId: 99 },
-    { ...proof, validatedWriters: ["gate-issuer"] },
     { ...proof, validationRef: "https://example.org/115" },
     { ...proof, mergeRulesetId: 2 },
   ])("fails closed on missing proof or drift (%s)", (record) => {
