@@ -21,7 +21,7 @@ function safeMethod(method: string | undefined): string {
 export function httpLoggingOptions(stream?: Writable) {
   return {
     disableRequestLogging: true,
-    requestIdHeader: false,
+    requestIdHeader: false as const,
     logger: {
       level: "info",
       ...(stream ? { stream } : {}),
