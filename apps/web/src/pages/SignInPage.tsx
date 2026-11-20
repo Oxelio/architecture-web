@@ -203,7 +203,7 @@ export function SignInPage() {
           to="/recovery"
           className="font-semibold text-white hover:text-sky-300"
         >
-          Mot de passe oublié
+          {t("auth.forgotPassword")}
         </Link>
       </div>
     </motion.div>

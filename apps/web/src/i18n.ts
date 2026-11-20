@@ -185,6 +185,7 @@ const resources = {
           "Impossible de vérifier le second facteur. Vérifiez votre code ou reconnectez-vous.",
         signInLinkText: "Pas encore de compte ?",
         signInLinkAction: "Crée-en un",
+        forgotPassword: "Mot de passe oublié",
         signUpTitle: "Crée ton compte",
         signUpDescription:
           "Enregistre-toi pour accéder à ton espace sécurisé et gérer ton profil.",
@@ -199,6 +200,26 @@ const resources = {
           "L’inscription publique est actuellement désactivée.",
         signUpError:
           "Impossible de créer ton compte pour le moment. Réessaie plus tard.",
+      },
+      recovery: {
+        eyebrow: "Récupération sécurisée",
+        requestTitle: "Retrouver votre compte",
+        resetTitle: "Choisir un nouveau mot de passe",
+        requestDescription:
+          "Si le compte est éligible, nous enverrons des instructions. La réponse reste identique pour toutes les adresses.",
+        resetDescription:
+          "Le lien est temporaire et ne pourra être utilisé qu’une fois.",
+        requestSuccess:
+          "Si le compte est éligible, les instructions ont été envoyées.",
+        resetSuccess:
+          "Mot de passe remplacé. Toutes les sessions ont été révoquées.",
+        backToSignIn: "Retour à la connexion",
+        newPassword: "Nouveau mot de passe",
+        confirmation: "Confirmation",
+        email: "Adresse e-mail",
+        pending: "Traitement…",
+        resetSubmit: "Réinitialiser",
+        requestSubmit: "Envoyer les instructions",
       },
       profile: {
         title: "Mon compte",
@@ -536,6 +557,7 @@ const resources = {
           "Unable to verify the second factor. Check your code or sign in again.",
         signInLinkText: "No account yet?",
         signInLinkAction: "Create one",
+        forgotPassword: "Forgot password?",
         signUpTitle: "Create your account",
         signUpDescription:
           "Register to access your secure space and manage your profile.",
@@ -549,6 +571,25 @@ const resources = {
         signUpUnavailable: "Public registration is currently disabled.",
         signUpError:
           "Unable to create your account right now. Please try again later.",
+      },
+      recovery: {
+        eyebrow: "Secure account recovery",
+        requestTitle: "Recover your account",
+        resetTitle: "Choose a new password",
+        requestDescription:
+          "If the account is eligible, we will send instructions. The response is the same for every address.",
+        resetDescription: "This link is temporary and can only be used once.",
+        requestSuccess:
+          "If the account is eligible, instructions have been sent.",
+        resetSuccess:
+          "Your password has been reset. All sessions have been revoked.",
+        backToSignIn: "Back to sign in",
+        newPassword: "New password",
+        confirmation: "Confirmation",
+        email: "Email address",
+        pending: "Processing…",
+        resetSubmit: "Reset password",
+        requestSubmit: "Send instructions",
       },
       profile: {
         title: "My account",
