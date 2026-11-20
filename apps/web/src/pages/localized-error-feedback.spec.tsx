@@ -479,6 +479,106 @@ describe("registration feedback", () => {
   });
 });
 
+it("localizes the sign-in recovery link without altering form values or making a request", async () => {
+  await render(<SignInPage />, "/signin");
+  const recoveryLink = element<HTMLAnchorElement>('a[href="/recovery"]');
+  expect(recoveryLink.textContent?.trim()).toBe("Forgot password?");
+  await enter('input[name="loginValue"]', "member@example.invalid");
+
+  await changeLocale("fr");
+  expect(recoveryLink.textContent?.trim()).toBe("Mot de passe oublié");
+  expect(element<HTMLInputElement>('input[name="loginValue"]').value).toBe(
+    "member@example.invalid",
+  );
+  expect(fetchApi).not.toHaveBeenCalled();
+
+  await changeLocale("en");
+  expect(recoveryLink.textContent?.trim()).toBe("Forgot password?");
+});
+
+it("localizes the recovery request, pending state, and generic success without retrying", async () => {
+  await render(<RecoveryPage />, "/recovery");
+  expect(element("h2").textContent).toBe("Recover your account");
+  expect(container.textContent).toContain(
+    "The response is the same for every address.",
+  );
+  const email = element<HTMLInputElement>('input[type="email"]');
+  expect(email.placeholder).toBe("Email address");
+  expect(email.getAttribute("aria-label")).toBe("Email address");
+  expect(element("button").textContent?.trim()).toBe("Send instructions");
+
+  await enter('input[type="email"]', "member@example.invalid");
+  let completeRequest: ((response: Response) => void) | undefined;
+  fetchApi.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        completeRequest = resolve;
+      }),
+  );
+  await click("button");
+  expect(element("button").textContent?.trim()).toBe("Processing…");
+  expect(element<HTMLButtonElement>("button").disabled).toBe(true);
+  await changeLocale("fr");
+  expect(element("h2").textContent).toBe("Retrouver votre compte");
+  expect(email.placeholder).toBe("Adresse e-mail");
+  expect(email.getAttribute("aria-label")).toBe("Adresse e-mail");
+  expect(email.value).toBe("member@example.invalid");
+  expect(element("button").textContent?.trim()).toBe("Traitement…");
+  expect(fetchApi).toHaveBeenCalledOnce();
+
+  await act(async () => {
+    completeRequest?.(new Response(null, { status: 204 }));
+  });
+  expect(container.textContent).toContain(
+    "Si le compte est éligible, les instructions ont été envoyées.",
+  );
+  expect(container.textContent).toContain("Retour à la connexion");
+  await changeLocale("en");
+  expect(container.textContent).toContain(
+    "If the account is eligible, instructions have been sent.",
+  );
+  expect(container.textContent).toContain("Back to sign in");
+  expect(fetchApi).toHaveBeenCalledOnce();
+});
+
+it("localizes the token reset view without changing entered passwords or token requests", async () => {
+  await render(<RecoveryPage />, "/recovery?token=private-token");
+  expect(element("h2").textContent).toBe("Choose a new password");
+  expect(container.textContent).toContain(
+    "This link is temporary and can only be used once.",
+  );
+  const password = element<HTMLInputElement>('input[type="password"]');
+  const confirmation = element<HTMLInputElement>(
+    'input[type="password"]:nth-of-type(2)',
+  );
+  expect(password.placeholder).toBe("New password");
+  expect(password.getAttribute("aria-label")).toBe("New password");
+  expect(confirmation.getAttribute("aria-label")).toBe("Confirmation");
+  expect(element("button").textContent?.trim()).toBe("Reset password");
+
+  await enter('input[type="password"]', newPassword);
+  await enter('input[type="password"]:nth-of-type(2)', newPassword);
+  await changeLocale("fr");
+  expect(element("h2").textContent).toBe("Choisir un nouveau mot de passe");
+  expect(password.placeholder).toBe("Nouveau mot de passe");
+  expect(password.value).toBe(newPassword);
+  expect(confirmation.value).toBe(newPassword);
+  expect(element("button").textContent?.trim()).toBe("Réinitialiser");
+  expect(fetchApi).not.toHaveBeenCalled();
+
+  fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
+  await click("button");
+  expect(container.textContent).toContain(
+    "Mot de passe remplacé. Toutes les sessions ont été révoquées.",
+  );
+  await changeLocale("en");
+  expect(container.textContent).toContain(
+    "Your password has been reset. All sessions have been revoked.",
+  );
+  expect(container.textContent).not.toContain("private-token");
+  expect(fetchApi).toHaveBeenCalledOnce();
+});
+
 it("keeps recovery request success indistinguishable and masks account-sensitive errors", async () => {
   await render(<RecoveryPage />);
   await enter('input[type="email"]', "member@example.invalid");
