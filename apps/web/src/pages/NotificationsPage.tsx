@@ -119,7 +119,11 @@ export function NotificationsPage() {
       return <p className="text-slate-400">{t("common.loading")}</p>;
     }
     if (notifications.isError) {
-      return <p className="text-rose-300">{t("notifications.error")}</p>;
+      return (
+        <p role="alert" className="text-rose-300">
+          {t("notifications.error")}
+        </p>
+      );
     }
     if (notifications.data?.length) {
       return (

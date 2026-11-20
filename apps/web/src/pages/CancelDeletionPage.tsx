@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { errorMessage } from "#app/lib/error-feedback";
 import { cancelAccountDeletion } from "#services/api";
 
 export function CancelDeletionPage() {
+  const { t } = useTranslation();
   const [parameters] = useSearchParams();
   const token = parameters.get("token") ?? "";
   const [password, setPassword] = useState("");
@@ -51,8 +54,8 @@ export function CancelDeletionPage() {
             className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
           />
           {status === "error" ? (
-            <p className="text-sm text-rose-300">
-              Ce lien n’est plus utilisable ou la vérification a échoué.
+            <p role="alert" className="text-sm text-rose-300">
+              {errorMessage(t, "errorFeedback.cancelDeletionFailed")}
             </p>
           ) : null}
           <button

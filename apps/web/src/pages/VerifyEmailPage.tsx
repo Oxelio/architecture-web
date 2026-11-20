@@ -1,39 +1,53 @@
 // @file apps/web/src/pages/VerifyEmailPage.tsx
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
+import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
 import { verifyEmail } from "#services/api";
 
 export function VerifyEmailPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
-  const hasToken = Boolean(token);
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
-    hasToken ? "loading" : "error",
+  const requests = useRef(new Map<string, Promise<string>>());
+  const [result, setResult] = useState<{ token: string; key: string } | null>(
+    null,
   );
-  const [message, setMessage] = useState<string>(
-    hasToken ? t("verify.loading") : t("verify.invalidLink"),
-  );
+  const key = token
+    ? result?.token === token
+      ? result.key
+      : "verify.loading"
+    : "verify.invalidLink";
+  const isLoading = key === "verify.loading";
+  const isSuccess = key === "verify.success";
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
-    verifyEmail(token)
-      .then(() => {
-        setStatus("success");
-        setMessage(t("verify.success"));
-      })
-      .catch(() => {
-        setStatus("error");
-        setMessage(t("verify.error"));
-      });
-  }, [t, token]);
+    // A single-use token shares its request across effect cleanup and setup.
+    let request = requests.current.get(token);
+    if (!request) {
+      request = verifyEmail(token).then(
+        () => "verify.success",
+        (error: unknown) => apiErrorKey(error, "verifyEmail"),
+      );
+      requests.current.set(token, request);
+    }
+    let active = true;
+    void request.then((key) => {
+      if (active) {
+        setResult({ token, key });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   return (
     <motion.div
@@ -49,17 +63,22 @@ export function VerifyEmailPage() {
         <h2 className="text-3xl font-semibold text-white">
           {t("verify.title")}
         </h2>
-        <p className="text-sm leading-7 text-slate-400">{message}</p>
+        {isLoading ? (
+          <p className="text-sm leading-7 text-slate-400">
+            {t("verify.loading")}
+          </p>
+        ) : null}
       </div>
 
       <div
+        role={isLoading || isSuccess ? "status" : "alert"}
         className={`mt-8 rounded-3xl border px-6 py-5 text-sm ${
-          status === "success"
+          isSuccess
             ? "border-emerald-500 bg-emerald-500/10 text-emerald-200"
             : "border-rose-500 bg-rose-500/10 text-rose-200"
         }`}
       >
-        {status === "loading" ? t("verify.waiting") : message}
+        {isLoading ? t("verify.waiting") : errorMessage(t, key)}
       </div>
     </motion.div>
   );

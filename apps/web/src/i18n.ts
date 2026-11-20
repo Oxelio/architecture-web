@@ -23,6 +23,17 @@ const resources = {
   fr: {
     translation: {
       securityConfig: {
+        error: "Impossible d’appliquer cette configuration. Réessayez.",
+        invalid: "Vérifiez les paramètres de la configuration.",
+        justificationRequired: "Saisissez un motif pour cette modification.",
+        confirmationRequired:
+          "Confirmez la modification critique pour continuer.",
+        versionConflict:
+          "La configuration a changé. Actualisez-la avant de réessayer.",
+        revisionMissing:
+          "Cette version n’est plus disponible. Actualisez l’historique.",
+        authenticationFailed:
+          "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez.",
         stepUp: "Modifications critiques et restauration",
         justification: "Motif",
         password: "Mot de passe actuel",
@@ -41,7 +52,9 @@ const resources = {
           "Ce mot de passe figure dans des données compromises. Choisissez-en un autre.",
         contextual:
           "Le mot de passe contient des informations liées au compte.",
-        too_weak: "Choisissez un mot de passe plus robuste.",
+        too_weak:
+          "Choisissez un mot de passe plus difficile à deviner, par exemple une phrase de passe plus longue et unique.",
+        currentInvalid: "Le mot de passe actuel est incorrect.",
         reused: "Le nouveau mot de passe doit être différent du précédent.",
         uppercase_required: "Une majuscule est requise.",
         lowercase_required: "Une minuscule est requise.",
@@ -49,6 +62,8 @@ const resources = {
         special_character_required: "Un caractère spécial est requis.",
         invalid: "Le mot de passe ne respecte pas la politique applicable.",
         recovery_invalid: "Ce lien de récupération est invalide ou a expiré.",
+        recovery_invalid_request:
+          "Saisissez le nouveau mot de passe et sa confirmation.",
         unavailable: "L’opération est momentanément indisponible. Réessayez.",
         privileged:
           "Des exigences supplémentaires peuvent s’appliquer aux comptes privilégiés.",
@@ -59,6 +74,27 @@ const resources = {
         password: "Mot de passe",
         passwordConfirmation: "Confirmation du mot de passe",
         unknownError: "Erreur inconnue",
+      },
+      errorFeedback: {
+        unexpected: "L’opération a échoué. Réessayez plus tard.",
+        invalidField: "Vérifiez la valeur de ce champ.",
+        emailChangeDisabled:
+          "La modification de l’adresse e-mail est actuellement désactivée.",
+        emailAlreadyUsed: "Cette adresse e-mail est déjà utilisée.",
+        verificationRate:
+          "Attendez avant de demander un nouvel e-mail de vérification.",
+        sessionManagementDisabled:
+          "La gestion des sessions est actuellement désactivée.",
+        sessionNotFound:
+          "Cette session n’est plus disponible. Actualisez la liste.",
+        adminUserNotFound:
+          "Ce compte n’est plus disponible. Actualisez la liste.",
+        adminSelfOperation:
+          "Vous ne pouvez pas effectuer cette action sur votre propre compte.",
+        lastAdministrator:
+          "Cette action doit laisser au moins un accès administrateur utilisable.",
+        cancelDeletionFailed:
+          "Ce lien n’est plus utilisable ou la vérification a échoué.",
       },
       language: {
         label: "Langue",
@@ -122,9 +158,18 @@ const resources = {
           "Utilise l’API GET /iam/me pour récupérer le profil utilisateur.",
       },
       auth: {
+        identifier: "Identifiant de connexion",
+        identifierType: "Type d’identifiant",
+        username: "Pseudonyme",
+        identifierRequired: "Saisissez votre identifiant de connexion.",
+        identifierNotAllowed: "Choisissez un type d’identifiant autorisé.",
         invalidEmail: "Email invalide",
+        invalidUsername:
+          "Le pseudonyme doit commencer par une lettre ou un chiffre et contenir de 3 à 32 caractères. Vous pouvez utiliser des lettres, des chiffres, des points, des tirets et des underscores.",
         passwordMin:
           "Le mot de passe doit contenir au moins {{count}} caractères",
+        passwordMax:
+          "Le mot de passe doit contenir au maximum {{count}} caractères",
         passwordConfirmationMismatch:
           "La confirmation ne correspond pas au mot de passe",
         passwordPolicyHint:
@@ -134,6 +179,10 @@ const resources = {
           "Utilise ton email et ton mot de passe pour te connecter au système.",
         signInSubmit: "Se connecter",
         signInPending: "Connexion...",
+        signInError:
+          "Impossible de vous connecter. Vérifiez votre identifiant et votre mot de passe, puis réessayez.",
+        mfaError:
+          "Impossible de vérifier le second facteur. Vérifiez votre code ou reconnectez-vous.",
         signInLinkText: "Pas encore de compte ?",
         signInLinkAction: "Crée-en un",
         signUpTitle: "Crée ton compte",
@@ -145,7 +194,9 @@ const resources = {
         signUpLinkAction: "Connecte-toi",
         signUpSuccess:
           "Inscription réussie. Vérifie ton email pour activer ton compte.",
-        accountAlreadyExists: "Un compte existe déjà avec cette adresse email.",
+        accountAlreadyExists: "Cet identifiant de connexion est déjà utilisé.",
+        signUpUnavailable:
+          "L’inscription publique est actuellement désactivée.",
         signUpError:
           "Impossible de créer ton compte pour le moment. Réessaie plus tard.",
       },
@@ -180,6 +231,7 @@ const resources = {
         updateEmailTitle: "Mettre à jour l'email",
         updateEmailDescription: "Modifiez votre adresse e-mail de connexion.",
         newEmail: "Nouvelle adresse email",
+        emailRequired: "Saisissez votre nouvelle adresse e-mail.",
         updateEmailSubmit: "Mettre à jour l'email",
         updateEmailPending: "Enregistrement...",
         updatePasswordTitle: "Modifier le mot de passe",
@@ -333,6 +385,16 @@ const resources = {
   en: {
     translation: {
       securityConfig: {
+        error: "Unable to apply this configuration. Please try again.",
+        invalid: "Check the configuration settings.",
+        justificationRequired: "Enter a reason for this change.",
+        confirmationRequired: "Confirm the critical change to continue.",
+        versionConflict:
+          "The configuration has changed. Refresh it before trying again.",
+        revisionMissing:
+          "This version is no longer available. Refresh the history.",
+        authenticationFailed:
+          "Could not verify your identity. Check your credentials and try again.",
         stepUp: "Critical changes and restoration",
         justification: "Reason",
         password: "Current password",
@@ -349,7 +411,9 @@ const resources = {
         compromised:
           "This password appears in compromised data. Choose another one.",
         contextual: "The password contains account-specific information.",
-        too_weak: "Choose a stronger password.",
+        too_weak:
+          "Choose a password that is harder to guess, such as a longer, unique passphrase.",
+        currentInvalid: "The current password is incorrect.",
         reused: "The new password must differ from the previous one.",
         uppercase_required: "An uppercase character is required.",
         lowercase_required: "A lowercase character is required.",
@@ -357,6 +421,7 @@ const resources = {
         special_character_required: "A special character is required.",
         invalid: "The password does not meet the applicable policy.",
         recovery_invalid: "This recovery link is invalid or has expired.",
+        recovery_invalid_request: "Enter and confirm your new password.",
         unavailable:
           "The operation is temporarily unavailable. Please try again.",
         privileged: "Additional requirements may apply to privileged accounts.",
@@ -367,6 +432,25 @@ const resources = {
         password: "Password",
         passwordConfirmation: "Password confirmation",
         unknownError: "Unknown error",
+      },
+      errorFeedback: {
+        unexpected: "The operation failed. Please try again later.",
+        invalidField: "Check the value in this field.",
+        emailChangeDisabled:
+          "Changing your email address is currently disabled.",
+        emailAlreadyUsed: "This email address is already in use.",
+        verificationRate: "Wait before requesting another verification email.",
+        sessionManagementDisabled: "Session management is currently disabled.",
+        sessionNotFound:
+          "This session is no longer available. Refresh the list.",
+        adminUserNotFound:
+          "This account is no longer available. Refresh the list.",
+        adminSelfOperation:
+          "You cannot perform this action on your own account.",
+        lastAdministrator:
+          "This action must leave at least one usable administrator access path.",
+        cancelDeletionFailed:
+          "This link is no longer usable or verification failed.",
       },
       language: {
         label: "Language",
@@ -428,8 +512,16 @@ const resources = {
         apiHelp: "Use the GET /iam/me API to retrieve the user profile.",
       },
       auth: {
+        identifier: "Sign-in identifier",
+        identifierType: "Identifier type",
+        username: "Username",
+        identifierRequired: "Enter your sign-in identifier.",
+        identifierNotAllowed: "Choose an allowed sign-in identifier type.",
         invalidEmail: "Invalid email",
+        invalidUsername:
+          "Use 3 to 32 characters and start with a letter or number. Usernames can contain letters, numbers, periods, hyphens and underscores.",
         passwordMin: "Password must be at least {{count}} characters long",
+        passwordMax: "Password must be at most {{count}} characters long",
         passwordConfirmationMismatch: "Password confirmation does not match",
         passwordPolicyHint:
           "{{min}} to {{max}} Unicode characters; spaces and passphrases are accepted",
@@ -438,6 +530,10 @@ const resources = {
           "Use your email and password to sign in to the platform.",
         signInSubmit: "Sign in",
         signInPending: "Signing in...",
+        signInError:
+          "Unable to sign in. Check your identifier and password, then try again.",
+        mfaError:
+          "Unable to verify the second factor. Check your code or sign in again.",
         signInLinkText: "No account yet?",
         signInLinkAction: "Create one",
         signUpTitle: "Create your account",
@@ -449,8 +545,8 @@ const resources = {
         signUpLinkAction: "Log in",
         signUpSuccess:
           "Registration successful. Check your email to activate your account.",
-        accountAlreadyExists:
-          "An account already exists with this email address.",
+        accountAlreadyExists: "This sign-in identifier is already in use.",
+        signUpUnavailable: "Public registration is currently disabled.",
         signUpError:
           "Unable to create your account right now. Please try again later.",
       },
@@ -484,6 +580,7 @@ const resources = {
         updateEmailTitle: "Update email",
         updateEmailDescription: "Change your sign-in email address.",
         newEmail: "New email address",
+        emailRequired: "Enter your new email address.",
         updateEmailSubmit: "Update email",
         updateEmailPending: "Saving...",
         updatePasswordTitle: "Change password",
