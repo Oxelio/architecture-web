@@ -14,6 +14,7 @@ import {
   errorMessage,
   fieldErrorMessage,
 } from "#app/lib/error-feedback";
+import { LoginIdentifierField } from "#components/LoginIdentifierField";
 import {
   getPasswordPolicy,
   getPublicCapabilities,
@@ -29,9 +30,6 @@ interface SignUpFormValues {
 
 export function SignUpPage() {
   const { t } = useTranslation();
-  const loginValueId = useId();
-  const loginKindId = useId();
-  const loginErrorId = useId();
   const passwordErrorId = useId();
   const confirmationErrorId = useId();
   const policyQuery = useQuery({
@@ -152,52 +150,12 @@ export function SignUpPage() {
           </p>
         ) : null}
         <div className="space-y-4">
-          <div className="text-sm font-medium text-slate-200">
-            <label htmlFor={loginValueId} className="block">
-              {t("auth.identifier")}
-            </label>
-            {(capabilitiesQuery.data?.allowedLoginIdentifiers.length ?? 0) >
-            1 ? (
-              <>
-                <label htmlFor={loginKindId} className="sr-only">
-                  {t("auth.identifierType")}
-                </label>
-                <select
-                  id={loginKindId}
-                  className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white"
-                  {...register("loginKind")}
-                >
-                  {capabilitiesQuery.data?.allowedLoginIdentifiers.map(
-                    (kind) => (
-                      <option key={kind} value={kind}>
-                        {kind === "email"
-                          ? t("common.email")
-                          : t("auth.username")}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </>
-            ) : null}
-            <input
-              id={loginValueId}
-              type="text"
-              autoComplete="username"
-              aria-invalid={Boolean(errors.loginValue)}
-              aria-describedby={errors.loginValue ? loginErrorId : undefined}
-              className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
-              {...register("loginValue")}
-            />
-            {errors.loginValue && (
-              <p
-                id={loginErrorId}
-                role="alert"
-                className="mt-2 text-sm text-rose-400"
-              >
-                {fieldErrorMessage(t, errors.loginValue.message)}
-              </p>
-            )}
-          </div>
+          <LoginIdentifierField
+            allowedKinds={capabilitiesQuery.data?.allowedLoginIdentifiers}
+            register={register}
+            error={errors.loginValue}
+            announceError
+          />
 
           <label className="block text-sm font-medium text-slate-200">
             {t("common.password")}
