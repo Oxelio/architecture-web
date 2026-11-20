@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Validate the actual built Web image and all configured Nginx HTTP log sinks.
-set -euo pipefail
+set -Eeuo pipefail
 
 image="$1"
 network="http-log-canary-network-$$"
@@ -14,16 +14,24 @@ cleanup() {
   rm -rf "$scratch"
 }
 trap cleanup EXIT
+diagnose_failure() {
+  local exit_code="$?"
+  printf 'Nginx smoke aborted at line %s, exit code %s\n' "${BASH_LINENO[0]}" "$exit_code" >&2
+  docker inspect --format '{{.Name}} running={{.State.Running}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' "$api" "$web" >&2 || true
+}
+trap diagnose_failure ERR
 
+echo "Nginx smoke: create isolated network and upstream"
 docker network create "$network" >/dev/null
 
 # Use the built image to host a deliberately minimal, non-logging mock upstream.
-docker run --detach --name "$api" --network "$network" --entrypoint sh "$image" \
+docker run --detach --name "$api" --network "$network" --network-alias api --entrypoint sh "$image" \
   -c 'printf "pid /tmp/mock-nginx.pid;\nerror_log /dev/null crit;\nevents {}\nhttp { access_log off; server { listen 3000; location = /api/health { return 204; } location /api/ { return 404; } } }\n" >/tmp/mock-nginx.conf; exec nginx -c /tmp/mock-nginx.conf -g "daemon off;"' \
   >/dev/null
 docker run --detach --name "$web" --network "$network" \
   --publish 127.0.0.1::8080 "$image" >/dev/null
 
+echo "Nginx smoke: validate config and output sinks"
 docker exec "$web" nginx -t >"$scratch/config-test.stdout" 2>"$scratch/config-test.stderr"
 docker exec "$web" sh -c \
   'test ! -e /tmp/nginx_access.log && test ! -e /tmp/nginx_error.log'
@@ -52,6 +60,7 @@ check() {
   fi
 }
 
+echo "Nginx smoke: exercise ordinary and upstream HTTP requests"
 check 200 "/verify?token=$canary"
 check 200 "/recovery?token=$canary"
 check 200 "/cancel-deletion?token=$canary"
@@ -61,6 +70,7 @@ check 404 "/api/missing/$canary?token=$canary"
 docker stop "$api" >/dev/null
 check 502 "/api/health?token=$canary"
 
+echo "Nginx smoke: exercise malformed early-parser requests"
 # Raw TCP deliberately reaches Nginx's early HTTP parser rather than curl's parser.
 python3 - "$port" "$canary" <<'PY'
 import socket
@@ -83,6 +93,7 @@ for request in requests:
             pass
 PY
 
+echo "Nginx smoke: inspect all Nginx log sinks"
 sleep 1
 docker logs "$web" >"$scratch/stdout" 2>"$scratch/stderr"
 for sink in "$scratch/stdout" "$scratch/stderr" \
@@ -98,7 +109,7 @@ import json
 import sys
 
 with open(sys.argv[1], encoding="utf8") as stream:
-    records = [json.loads(line) for line in stream if line.strip()]
+    records = [json.loads(line) for line in stream if line.lstrip().startswith("{")]
 required = {
     "time", "request_id", "group", "method", "status", "duration",
     "upstream_status", "upstream_connect_time", "upstream_response_time",
