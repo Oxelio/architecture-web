@@ -26,7 +26,7 @@ docker network create "$network" >/dev/null
 
 # Use the built image to host a deliberately minimal, non-logging mock upstream.
 docker run --detach --name "$api" --network "$network" --network-alias api --entrypoint sh "$image" \
-  -c 'printf "pid /tmp/mock-nginx.pid;\nerror_log /dev/null crit;\nevents {}\nhttp { access_log off; server { listen 3000; location = /api/health { return 204; } location /api/ { return 404; } } }\n" >/tmp/mock-nginx.conf; exec nginx -c /tmp/mock-nginx.conf -g "daemon off;"' \
+  -c 'printf "pid /tmp/mock-nginx.pid;\nerror_log /dev/null crit;\nevents {}\nhttp { access_log off; server { listen 3000; location = /api/health { return 204; } location /api/ { return 404; } } }\n" >/tmp/mock-nginx.conf; nginx -c /tmp/mock-nginx.conf; while :; do sleep 3600; done' \
   >/dev/null
 docker run --detach --name "$web" --network "$network" \
   --publish 127.0.0.1::8080 "$image" >/dev/null
@@ -73,7 +73,10 @@ check 200 "/cancel-deletion?token=$canary"
 check 200 "/unknown/$canary?token=$canary"
 check 204 "/api/health?token=$canary"
 check 404 "/api/missing/$canary?token=$canary"
-docker stop "$api" >/dev/null
+# Keep Docker DNS/IP live while terminating the upstream listener, to obtain
+# deterministic ECONNREFUSED instead of waiting for dropped SYN packets.
+docker exec "$api" sh -c 'kill -TERM "$(cat /tmp/mock-nginx.pid)"'
+sleep 0.2
 check 502 "/api/health?token=$canary"
 
 echo "Nginx smoke: exercise malformed early-parser requests"
