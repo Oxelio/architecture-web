@@ -59,6 +59,7 @@ const proofs = {
     "pnpm-lock.yaml": "d".repeat(40),
     "packages/tooling/delivery-automation": "e".repeat(40),
   },
+  freshnessPolicy: "final-observation",
   validatedWriters: [
     "project-state",
     "tasks-dependencies",
