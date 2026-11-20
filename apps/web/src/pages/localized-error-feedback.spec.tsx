@@ -117,11 +117,12 @@ function element<T extends HTMLElement>(selector: string): T {
 }
 
 async function enter(selector: string, value: string) {
-  const input = element<HTMLInputElement>(selector);
-  const setValue = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value",
-  )?.set;
+  const input = element<HTMLInputElement | HTMLTextAreaElement>(selector);
+  const prototype =
+    input instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const setValue = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
   await act(() => {
     setValue?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -484,7 +485,7 @@ it("masks the reason for a failed account-deletion cancellation in both locales"
   expect(fetchApi).toHaveBeenCalledOnce();
 });
 
-it("retranslates the existing profile feedback for an email update failure", async () => {
+it("localizes native email constraints and profile API feedback without retrying", async () => {
   for (const key of [
     "currentUserSessions",
     "account-exports",
@@ -494,9 +495,31 @@ it("retranslates the existing profile feedback for an email update failure", asy
   }
   client.setQueryData(["mfa"], { enabled: false, backupCodesRemaining: 0 });
   await render(<ProfilePage user={user} />);
+
+  const email = element<HTMLInputElement>('input[type="email"]');
+  await enter('input[type="email"]', "");
+  await click('form button[type="submit"]');
+  const validationAlert = element('[role="alert"]');
+  expect(validationAlert.textContent).toBe("Enter your new email address.");
+  expect(email.getAttribute("aria-invalid")).toBe("true");
+  expect(email.getAttribute("aria-describedby")).toBe(validationAlert.id);
+  expect(document.activeElement).toBe(email);
+  await changeLocale("fr");
+  expect(validationAlert.textContent).toBe(
+    "Saisissez votre nouvelle adresse e-mail.",
+  );
+
+  await enter('input[type="email"]', "invalid-email");
+  expect(email.hasAttribute("aria-describedby")).toBe(false);
+  await click('form button[type="submit"]');
+  expect(element('[role="alert"]').textContent).toBe("Email invalide");
+  await changeLocale("en");
+  expect(element('[role="alert"]').textContent).toBe("Invalid email");
+  expect(fetchApi).not.toHaveBeenCalled();
+
   await enter('input[type="email"]', "replacement@example.invalid");
   fetchApi.mockResolvedValueOnce(failure("email_change.disabled", 403));
-  await submit();
+  await click('form button[type="submit"]');
   await expectFeedback(
     '[role="status"]',
     "Changing your email address is currently disabled.",
@@ -578,4 +601,54 @@ it("renders a configuration restore conflict without the raw API error", async (
     /security_configuration\.version_conflict|internal traceback/u,
   );
   expect(fetchApi).toHaveBeenCalledOnce();
+});
+
+it("shows a failed configuration preview after an earlier publication failure", async () => {
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { version: 2 },
+    effective: { accounts: { publicRegistration: true } },
+    catalog: [
+      {
+        key: "accounts.publicRegistration",
+        category: "accounts",
+        control: "switch",
+        impact: "medium",
+        availability: { available: true, readOnly: false },
+      },
+    ],
+    revisions: [],
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+  await click('[role="switch"]');
+  await enter("textarea", "Validate the change");
+  fetchApi.mockResolvedValueOnce(
+    Response.json({
+      data: {
+        impact: "medium",
+        changedKeys: ["accounts.publicRegistration"],
+        changes: [],
+        warnings: [],
+      },
+    }),
+  );
+  await clickButton("Prévisualiser l’impact");
+  await expectFeedback("article", "option(s) modifiée(s)");
+
+  fetchApi.mockResolvedValueOnce(
+    failure("security_configuration.version_conflict", 409),
+  );
+  await clickButton("Publier sans redémarrage");
+  await expectFeedback('[role="alert"]', "The configuration has changed.");
+
+  fetchApi.mockResolvedValueOnce(
+    failure("security_configuration.invalid", 400),
+  );
+  await clickButton("Prévisualiser l’impact");
+  await expectFeedback('[role="alert"]', "Check the configuration settings.");
+  await changeLocale("fr");
+  expect(element('[role="alert"]').textContent).toBe(
+    "Vérifiez les paramètres de la configuration.",
+  );
+  expect(fetchApi).toHaveBeenCalledTimes(3);
 });

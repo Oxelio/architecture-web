@@ -389,7 +389,8 @@ function ConfigurationEditor({
           <p role="alert" className="mt-3 text-sm text-rose-300">
             {errorMessage(
               t,
-              apiErrorKey(publish.error ?? preview.error, "securityConfig"),
+              // Publication requires a successful preview, so a retained preview error is later.
+              apiErrorKey(preview.error ?? publish.error, "securityConfig"),
             )}
           </p>
         ) : null}

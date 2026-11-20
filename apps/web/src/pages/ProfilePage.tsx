@@ -20,7 +20,7 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
@@ -53,6 +53,10 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState(user.email ?? "");
+  const [emailError, setEmailError] = useState<
+    "profile.emailRequired" | "auth.invalidEmail" | null
+  >(null);
+  const emailErrorId = useId();
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -375,7 +379,21 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                     type="email"
                     required
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    aria-invalid={Boolean(emailError)}
+                    aria-describedby={emailError ? emailErrorId : undefined}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setEmailError(null);
+                    }}
+                    onInvalid={(event) => {
+                      event.preventDefault();
+                      setEmailError(
+                        event.currentTarget.validity.valueMissing
+                          ? "profile.emailRequired"
+                          : "auth.invalidEmail",
+                      );
+                      event.currentTarget.focus();
+                    }}
                     className={fieldClassName}
                   />
                 </label>
@@ -398,6 +416,15 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
                     : t("profile.updateEmailSubmit")}
                 </button>
               </div>
+              {emailError ? (
+                <p
+                  id={emailErrorId}
+                  role="alert"
+                  className="mt-2 text-sm text-rose-300"
+                >
+                  {errorMessage(t, emailError)}
+                </p>
+              ) : null}
             </form>
           </section>
 
