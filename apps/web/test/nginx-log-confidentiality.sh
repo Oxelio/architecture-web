@@ -40,20 +40,26 @@ port="$(docker port "$web" 8080/tcp | head -n1 | awk -F: '{print $NF}')"
 base="http://127.0.0.1:$port"
 canary="SYNTHETIC_NGINX_CANARY_145"
 for _ in $(seq 1 50); do
-  if curl --silent --output /dev/null "$base/"; then
+  if curl --silent --max-time 2 --connect-timeout 1 --output /dev/null "$base/"; then
     break
   fi
   sleep 0.2
 done
 
+probe_index=0
 check() {
+  probe_index=$((probe_index + 1))
+  printf 'Nginx smoke: probe %s\n' "$probe_index"
   local expected="$1"
   local path="$2"
   local status
-  status="$(curl --silent --show-error --path-as-is --output /dev/null \
-    --write-out '%{http_code}' \
+  if ! status="$(curl --silent --path-as-is --max-time 5 --connect-timeout 2 \
+    --output /dev/null --write-out '%{http_code}' \
     --header "Authorization: Bearer $canary" \
-    --header "Cookie: session=$canary" "$base$path")"
+    --header "Cookie: session=$canary" "$base$path" 2>"$scratch/curl.stderr")"; then
+    printf "Nginx smoke: probe %s connection failed or timed out\n" "$probe_index" >&2
+    return 1
+  fi
   if [[ "$status" != "$expected" ]]; then
     printf 'Unexpected HTTP status: expected %s, got %s\n' "$expected" "$status" >&2
     exit 1
