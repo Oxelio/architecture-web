@@ -24,6 +24,8 @@ const sessionErrors = {
   "session.not_found": "errorFeedback.sessionNotFound",
 };
 
+const incompleteRecoveryFormKey = "passwordFeedback.recovery_invalid_request";
+
 const apiFeedback: Record<
   | "signIn"
   | "mfa"
@@ -81,7 +83,7 @@ const apiFeedback: Record<
       ...passwordErrors,
       "password.reused": "passwordFeedback.reused",
       "password_recovery.invalid_token": "passwordFeedback.recovery_invalid",
-      "password_recovery.invalid_request": "errorFeedback.resetInvalidRequest",
+      "password_recovery.invalid_request": incompleteRecoveryFormKey,
     },
   },
   verifyEmail: {

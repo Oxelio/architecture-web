@@ -44,6 +44,12 @@ describe.each(["fr", "en"] as const)("error feedback in %s", (locale) => {
       "recovery link",
     ],
     ["resetPassword", "password.reused", "différent", "differ"],
+    [
+      "resetPassword",
+      "password_recovery.invalid_request",
+      "Saisissez le nouveau mot de passe et sa confirmation.",
+      "Enter and confirm your new password.",
+    ],
     ["changeEmail", "email_change.disabled", "désactivée", "disabled"],
     [
       "changePassword",

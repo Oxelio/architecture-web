@@ -62,6 +62,8 @@ const resources = {
         special_character_required: "Un caractère spécial est requis.",
         invalid: "Le mot de passe ne respecte pas la politique applicable.",
         recovery_invalid: "Ce lien de récupération est invalide ou a expiré.",
+        recovery_invalid_request:
+          "Saisissez le nouveau mot de passe et sa confirmation.",
         unavailable: "L’opération est momentanément indisponible. Réessayez.",
         privileged:
           "Des exigences supplémentaires peuvent s’appliquer aux comptes privilégiés.",
@@ -76,8 +78,6 @@ const resources = {
       errorFeedback: {
         unexpected: "L’opération a échoué. Réessayez plus tard.",
         invalidField: "Vérifiez la valeur de ce champ.",
-        resetInvalidRequest:
-          "Saisissez le nouveau mot de passe et sa confirmation.",
         emailChangeDisabled:
           "La modification de l’adresse e-mail est actuellement désactivée.",
         emailAlreadyUsed: "Cette adresse e-mail est déjà utilisée.",
@@ -417,6 +417,7 @@ const resources = {
         special_character_required: "A special character is required.",
         invalid: "The password does not meet the applicable policy.",
         recovery_invalid: "This recovery link is invalid or has expired.",
+        recovery_invalid_request: "Enter and confirm your new password.",
         unavailable:
           "The operation is temporarily unavailable. Please try again.",
         privileged: "Additional requirements may apply to privileged accounts.",
@@ -431,7 +432,6 @@ const resources = {
       errorFeedback: {
         unexpected: "The operation failed. Please try again later.",
         invalidField: "Check the value in this field.",
-        resetInvalidRequest: "Enter and confirm your new password.",
         emailChangeDisabled:
           "Changing your email address is currently disabled.",
         emailAlreadyUsed: "This email address is already in use.",
