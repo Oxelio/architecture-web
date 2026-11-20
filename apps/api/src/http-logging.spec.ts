@@ -29,8 +29,17 @@ describe("HTTP logging confidentiality", () => {
         throw new Error("audit writer failed with " + token);
       },
     });
-    app.get("/v1/iam/verify", async (_request, reply) =>
-      reply.code(204).send(),
+    app.get<{ Querystring: { invalid?: string } }>(
+      "/v1/iam/verify",
+      async (request, reply) =>
+        request.query.invalid
+          ? reply.code(400).send({ error: { code: "email_verification.invalid_token" } })
+          : reply.code(204).send(),
+    );
+    // The approved new POST-body transport is exercised without changing
+    // current production IAM routing (which belongs to Work #152).
+    app.post("/v1/iam/verify", async (_request, reply) =>
+      reply.code(400).send({ error: { code: "email_verification.invalid_token" } }),
     );
     app.get("/items/:itemId", async (request) => {
       request.log.info({ req: request }, "serialized request diagnostic");
@@ -68,6 +77,17 @@ describe("HTTP logging confidentiality", () => {
         }),
         app.inject({
           method: "GET",
+          url: "/v1/iam/verify?token=" + encodedToken + "&invalid=1",
+          headers,
+        }),
+        app.inject({
+          method: "POST",
+          url: "/v1/iam/verify",
+          headers: { ...headers, "content-type": "application/json" },
+          payload: JSON.stringify({ token }),
+        }),
+        app.inject({
+          method: "GET",
           url: "/items/" + encodedToken + "?token=" + encodedToken,
           headers,
         }),
@@ -94,7 +114,7 @@ describe("HTTP logging confidentiality", () => {
         }),
       ]);
       expect(outcomes.map((response) => response.statusCode)).toEqual([
-        204, 200, 400, 500, 404, 200,
+        204, 400, 400, 200, 400, 500, 404, 200,
       ]);
       app.log.error({ err: new Error(token) }, "technical error diagnostic");
       const output = chunks.join("");
@@ -110,13 +130,18 @@ describe("HTTP logging confidentiality", () => {
       const completed = records.filter(
         (record) => record["msg"] === "HTTP request completed",
       );
-      expect(completed).toHaveLength(6);
+      expect(completed).toHaveLength(8);
       expect(completed).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             method: "GET",
             route: "/v1/iam/verify",
             statusCode: 204,
+          }),
+          expect.objectContaining({
+            method: "POST",
+            route: "/v1/iam/verify",
+            statusCode: 400,
           }),
           expect.objectContaining({
             method: "GET",
