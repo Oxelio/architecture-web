@@ -17,7 +17,7 @@ function safeMethod(method: string | undefined): string {
   }
 }
 
-// Request URLs, credential-bearing fields and raw exceptions never reach Pino.
+// Default HTTP records and the req/err serializers omit raw request data and exception text.
 export function httpLoggingOptions(stream?: Writable) {
   return {
     disableRequestLogging: true,
