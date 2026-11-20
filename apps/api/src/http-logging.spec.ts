@@ -108,7 +108,7 @@ describe("HTTP logging confidentiality", () => {
         .filter(Boolean)
         .map((line) => JSON.parse(line) as Record<string, unknown>);
       const completed = records.filter(
-        (record) => record.msg === "HTTP request completed",
+        (record) => record["msg"] === "HTTP request completed",
       );
       expect(completed).toHaveLength(6);
       expect(completed).toEqual(
@@ -131,32 +131,32 @@ describe("HTTP logging confidentiality", () => {
         ]),
       );
       for (const record of completed) {
-        expect(typeof record.requestId).toBe("string");
-        expect(typeof record.durationMs).toBe("number");
+        expect(typeof record["requestId"]).toBe("string");
+        expect(typeof record["durationMs"]).toBe("number");
         expect(record).not.toHaveProperty("url");
         expect(record).not.toHaveProperty("headers");
         expect(record).not.toHaveProperty("body");
       }
       expect(
         records.some(
-          (record) => record.errorCategory === "request.validation_failed",
+          (record) => record["errorCategory"] === "request.validation_failed",
         ),
       ).toBe(true);
       expect(
         records.some(
-          (record) => record.errorCategory === "internal.unexpected_error",
+          (record) => record["errorCategory"] === "internal.unexpected_error",
         ),
       ).toBe(true);
       expect(
         records.some(
-          (record) => record.errorCategory === "audit_write_failed",
+          (record) => record["errorCategory"] === "audit_write_failed",
         ),
       ).toBe(true);
       expect(
         records.some(
           (record) =>
-            record.msg === "technical error diagnostic" &&
-            (record.err as { category: string }).category === "redacted_error",
+            record["msg"] === "technical error diagnostic" &&
+            (record["err"] as { category: string }).category === "redacted_error",
         ),
       ).toBe(true);
     } finally {
