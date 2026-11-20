@@ -32,7 +32,12 @@ export function httpLoggingOptions(stream?: Writable) {
         res: (reply: { statusCode?: number }) => ({
           statusCode: reply.statusCode,
         }),
-        err: () => ({ category: "redacted_error" }),
+        err: () => ({
+          type: "Error",
+          message: "[redacted]",
+          stack: "[redacted]",
+          category: "redacted_error",
+        }),
       },
     },
   };
