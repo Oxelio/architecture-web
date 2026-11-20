@@ -10,6 +10,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import {
+  apiErrorKey,
+  errorMessage,
+  fieldErrorMessage,
+} from "#app/lib/error-feedback";
+import {
   getPasswordPolicy,
   getPublicCapabilities,
   signUp,
@@ -22,11 +27,11 @@ interface SignUpFormValues {
   passwordConfirmation: string;
 }
 
-type SignUpError = "accountAlreadyExists" | "generic";
-
 export function SignUpPage() {
   const { t } = useTranslation();
   const loginErrorId = useId();
+  const passwordErrorId = useId();
+  const confirmationErrorId = useId();
   const policyQuery = useQuery({
     queryKey: ["password-policy"],
     queryFn: getPasswordPolicy,
@@ -46,24 +51,22 @@ export function SignUpPage() {
       z
         .object({
           loginKind: z.enum(["username", "email"]),
-          loginValue: z.string().min(1),
+          loginValue: z.string().min(1, "auth.identifierRequired"),
           password: z
             .string()
-            .min(minimumLength, {
-              message: t("auth.passwordMin", { count: minimumLength }),
-            })
-            .max(maximumLength),
+            .min(minimumLength, `auth.passwordMin:${minimumLength}`)
+            .max(maximumLength, `auth.passwordMax:${maximumLength}`),
           passwordConfirmation: z.string(),
         })
         .refine((values) => values.password === values.passwordConfirmation, {
           path: ["passwordConfirmation"],
-          message: t("auth.passwordConfirmationMismatch"),
+          message: "auth.passwordConfirmationMismatch",
         })
         .refine(
           (values) =>
             values.loginKind !== "email" ||
             z.email().safeParse(values.loginValue).success,
-          { path: ["loginValue"], message: t("auth.invalidEmail") },
+          { path: ["loginValue"], message: "auth.invalidEmail" },
         )
         .refine(
           (values) =>
@@ -71,13 +74,13 @@ export function SignUpPage() {
             /^[a-zA-Z0-9][a-zA-Z0-9._-]{2,31}$/.test(values.loginValue),
           {
             path: ["loginValue"],
-            message: "Le pseudonyme doit contenir entre 3 et 32 caractères.",
+            message: "auth.invalidUsername",
           },
         ),
-    [maximumLength, minimumLength, t],
+    [maximumLength, minimumLength],
   );
   const [isSuccessful, setIsSuccessful] = useState(false);
-  const [serverError, setServerError] = useState<SignUpError | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const {
@@ -112,11 +115,7 @@ export function SignUpPage() {
       setIsSuccessful(true);
       setTimeout(() => navigate("/signin", { replace: true }), 2500);
     } catch (error) {
-      setServerError(
-        error instanceof Error && error.message === "user.already_exists"
-          ? "accountAlreadyExists"
-          : "generic",
-      );
+      setServerError(apiErrorKey(error, "signUp"));
     } finally {
       setIsSubmitting(false);
     }
@@ -147,10 +146,7 @@ export function SignUpPage() {
             role="status"
             className="rounded-2xl bg-amber-500/10 p-4 text-sm text-amber-200"
           >
-            {t("auth.signUpUnavailable", {
-              defaultValue:
-                "L’inscription publique est actuellement désactivée.",
-            })}
+            {errorMessage(t, "auth.signUpUnavailable")}
           </p>
         ) : null}
         <div className="space-y-4">
@@ -183,7 +179,7 @@ export function SignUpPage() {
                 role="alert"
                 className="mt-2 text-sm text-rose-400"
               >
-                {errors.loginValue.message}
+                {fieldErrorMessage(t, errors.loginValue.message)}
               </p>
             )}
           </label>
@@ -193,12 +189,14 @@ export function SignUpPage() {
             <input
               type="password"
               autoComplete="new-password"
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={errors.password ? passwordErrorId : undefined}
               className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
               {...register("password")}
             />
             {errors.password && (
-              <p className="mt-2 text-sm text-rose-400">
-                {errors.password.message}
+              <p id={passwordErrorId} className="mt-2 text-sm text-rose-400">
+                {fieldErrorMessage(t, errors.password.message)}
               </p>
             )}
             <p className="mt-2 text-xs text-slate-500">
@@ -214,24 +212,27 @@ export function SignUpPage() {
             <input
               type="password"
               autoComplete="new-password"
+              aria-invalid={Boolean(errors.passwordConfirmation)}
+              aria-describedby={
+                errors.passwordConfirmation ? confirmationErrorId : undefined
+              }
               className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
               {...register("passwordConfirmation")}
             />
             {errors.passwordConfirmation && (
-              <p className="mt-2 text-sm text-rose-400">
-                {errors.passwordConfirmation.message}
+              <p
+                id={confirmationErrorId}
+                className="mt-2 text-sm text-rose-400"
+              >
+                {fieldErrorMessage(t, errors.passwordConfirmation.message)}
               </p>
             )}
           </label>
         </div>
 
         {serverError ? (
-          <p className="text-sm text-rose-400">
-            {t(
-              serverError === "accountAlreadyExists"
-                ? "auth.accountAlreadyExists"
-                : "auth.signUpError",
-            )}
+          <p role="alert" className="text-sm text-rose-400">
+            {errorMessage(t, serverError)}
           </p>
         ) : null}
         {isSuccessful ? (

@@ -23,6 +23,7 @@ import {
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
 import { SecurityCenter } from "#components/SecurityCenter";
 import { SessionSummary } from "#components/SessionSummary";
 import { accountDisplayIdentifier, type CurrentUser } from "#services/api";
@@ -42,7 +43,7 @@ interface ProfilePageProps {
 
 interface Feedback {
   tone: "success" | "error";
-  message: string;
+  key: string;
 }
 
 const fieldClassName =
@@ -80,16 +81,13 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   const emailMutation = useMutation({
     mutationFn: changeEmail,
     onSuccess: async () => {
-      setFeedback({ tone: "success", message: t("profile.successEmail") });
+      setFeedback({ tone: "success", key: "profile.successEmail" });
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
     },
     onError: (error: unknown) => {
       setFeedback({
         tone: "error",
-        message:
-          error instanceof Error
-            ? `${t("profile.emailUpdateError")}: ${error.message}`
-            : t("profile.emailUpdateError"),
+        key: apiErrorKey(error, "changeEmail"),
       });
     },
   });
@@ -97,7 +95,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   const passwordMutation = useMutation({
     mutationFn: changePassword,
     onSuccess: () => {
-      setFeedback({ tone: "success", message: t("profile.successPassword") });
+      setFeedback({ tone: "success", key: "profile.successPassword" });
       setCurrentPassword("");
       setPassword("");
       setPasswordConfirmation("");
@@ -105,10 +103,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     onError: (error: unknown) => {
       setFeedback({
         tone: "error",
-        message:
-          error instanceof Error
-            ? `${t("profile.passwordUpdateError")}: ${error.message}`
-            : t("profile.passwordUpdateError"),
+        key: apiErrorKey(error, "changePassword"),
       });
     },
   });
@@ -118,16 +113,13 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     onSuccess: () => {
       setFeedback({
         tone: "success",
-        message: t("profile.successVerificationEmail"),
+        key: "profile.successVerificationEmail",
       });
     },
     onError: (error: unknown) => {
       setFeedback({
         tone: "error",
-        message:
-          error instanceof Error
-            ? `${t("profile.verificationEmailError")}: ${error.message}`
-            : t("profile.verificationEmailError"),
+        key: apiErrorKey(error, "resendVerification"),
       });
     },
   });
@@ -146,15 +138,18 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
       }
       setFeedback({
         tone: "success",
-        message: t("profile.sessionRevoked"),
+        key: "profile.sessionRevoked",
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["currentUserSessions"] }),
         queryClient.invalidateQueries({ queryKey: ["currentUser"] }),
       ]);
     },
-    onError: () => {
-      setFeedback({ tone: "error", message: t("profile.sessionsError") });
+    onError: (error: unknown) => {
+      setFeedback({
+        tone: "error",
+        key: apiErrorKey(error, "profileSessions"),
+      });
     },
   });
 
@@ -165,7 +160,7 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
       window.location.assign("/signin");
     },
     onError: () => {
-      setFeedback({ tone: "error", message: t("profile.signOutError") });
+      setFeedback({ tone: "error", key: "profile.signOutError" });
     },
   });
 
@@ -182,9 +177,9 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
   const copyIdentifier = async () => {
     try {
       await navigator.clipboard.writeText(user.userId);
-      setFeedback({ tone: "success", message: t("profile.identifierCopied") });
+      setFeedback({ tone: "success", key: "profile.identifierCopied" });
     } catch {
-      setFeedback({ tone: "error", message: t("profile.copyError") });
+      setFeedback({ tone: "error", key: "profile.copyError" });
     }
   };
 
@@ -589,7 +584,10 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
     }
     if (sessionsQuery.isError) {
       return (
-        <div className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.06] p-5 text-sm text-rose-200">
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-400/20 bg-rose-400/[0.06] p-5 text-sm text-rose-200"
+        >
           {t("profile.sessionsError")}
         </div>
       );
@@ -715,7 +713,11 @@ export function ProfilePage({ user }: Readonly<ProfilePageProps>) {
         ) : (
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
         )}
-        <p className="text-sm leading-5">{feedback.message}</p>
+        <p className="text-sm leading-5">
+          {feedback.tone === "success"
+            ? t(feedback.key)
+            : errorMessage(t, feedback.key)}
+        </p>
         <button
           type="button"
           onClick={() => setFeedback(null)}

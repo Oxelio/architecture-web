@@ -3,35 +3,37 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import {
+  apiErrorKey,
+  errorMessage,
+  fieldErrorMessage,
+} from "#app/lib/error-feedback";
+import {
   getPublicCapabilities,
   signIn,
   verifyMfaChallenge,
 } from "#services/api";
 
-interface SignInFormValues {
-  loginKind: "username" | "email";
-  loginValue: string;
-  password: string;
-}
+const signInPasswordMinimum = 8;
+const signInSchema = z.object({
+  loginKind: z.enum(["username", "email"]),
+  loginValue: z.string().min(1, "auth.identifierRequired"),
+  password: z
+    .string()
+    .min(signInPasswordMinimum, `auth.passwordMin:${signInPasswordMinimum}`),
+});
+type SignInFormValues = z.infer<typeof signInSchema>;
 
 export function SignInPage() {
   const { t } = useTranslation();
-  const signInSchema = useMemo(
-    () =>
-      z.object({
-        loginKind: z.enum(["username", "email"]),
-        loginValue: z.string().min(1),
-        password: z.string().min(8, { message: t("auth.passwordMin") }),
-      }),
-    [t],
-  );
+  const loginErrorId = useId();
+  const passwordErrorId = useId();
   const [serverError, setServerError] = useState<string | null>(null);
   const capabilitiesQuery = useQuery({
     queryKey: ["public-capabilities"],
@@ -77,9 +79,7 @@ export function SignInPage() {
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       navigate("/profile", { replace: true });
     } catch (error) {
-      if (error instanceof Error) {
-        setServerError(error.message ?? t("common.unknownError"));
-      }
+      setServerError(apiErrorKey(error, "signIn"));
     } finally {
       setIsSubmitting(false);
     }
@@ -96,9 +96,7 @@ export function SignInPage() {
       await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       navigate("/profile", { replace: true });
     } catch (error) {
-      setServerError(
-        error instanceof Error ? error.message : t("common.unknownError"),
-      );
+      setServerError(apiErrorKey(error, "mfa"));
     } finally {
       setIsSubmitting(false);
     }
@@ -136,7 +134,9 @@ export function SignInPage() {
             />
           </label>
           {serverError ? (
-            <p className="text-sm text-rose-400">{serverError}</p>
+            <p role="alert" className="text-sm text-rose-400">
+              {errorMessage(t, serverError)}
+            </p>
           ) : null}
           <button
             type="button"
@@ -170,12 +170,14 @@ export function SignInPage() {
               <input
                 type="text"
                 autoComplete="username"
+                aria-invalid={Boolean(errors.loginValue)}
+                aria-describedby={errors.loginValue ? loginErrorId : undefined}
                 className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
                 {...register("loginValue")}
               />
               {errors.loginValue && (
-                <p className="mt-2 text-sm text-rose-400">
-                  {errors.loginValue.message}
+                <p id={loginErrorId} className="mt-2 text-sm text-rose-400">
+                  {fieldErrorMessage(t, errors.loginValue.message)}
                 </p>
               )}
             </label>
@@ -185,19 +187,23 @@ export function SignInPage() {
               <input
                 type="password"
                 autoComplete="current-password"
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={errors.password ? passwordErrorId : undefined}
                 className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-white outline-none transition focus:border-sky-400/80 focus:ring-2 focus:ring-sky-400/20"
                 {...register("password")}
               />
               {errors.password && (
-                <p className="mt-2 text-sm text-rose-400">
-                  {errors.password.message}
+                <p id={passwordErrorId} className="mt-2 text-sm text-rose-400">
+                  {fieldErrorMessage(t, errors.password.message)}
                 </p>
               )}
             </label>
           </div>
 
           {serverError ? (
-            <p className="text-sm text-rose-400">{serverError}</p>
+            <p role="alert" className="text-sm text-rose-400">
+              {errorMessage(t, serverError)}
+            </p>
           ) : null}
 
           <button

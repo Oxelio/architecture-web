@@ -63,6 +63,7 @@ Compatibility with Zod 4 and the resolver is addressed by **#142**, not an ad ho
 ### 3.4 Existing Web surfaces
 
 Perform a focused inventory of **currently rendered** error surfaces, then change only those surfaces:
+
 - `SignInPage`: `serverError` currently stores raw `error.message` for both password and MFA; store identity and use safe locale-aware resolver. Existing Zod errors for the login/password controls must localize.
 - `SignUpPage`: existing localized error key handling can be preserved; replace hardcoded username error and raw/default Zod messages, and make translated field errors update on locale change without changing identifier rules or submitting invalid forms.
 - `RecoveryPage`: existing `recoveryErrorMessage` translates in `catch` before saving a string; retain the known-code behavior but persist error identity, localize at render time and preserve masking.
@@ -90,6 +91,7 @@ Translation lookup should be O(1) over static local keys and avoid runtime netwo
 ## 6. Validation design and evidence
 
 Under [testing policy](../development/testing.md), use the smallest sufficient evidence:
+
 1. **Pure helper tests:** both `fr`/`en`; known code `authentication.invalid_credentials`, allowed contextual codes, username-vs-email conflicts, unknown/unexpected/transport/malformed responses; assert no raw error, sensitive detail or untranslated key in user copy.
 2. **Client-validation tests:** required/invalid email or username, password bounds, confirmation mismatch and field association in both locales. Preserve invalid-request rejection, success path, and baseline sign-in policy.
 3. **Interaction tests:** switch language while an error remains visible and assert updated copy **without another API invocation**; explicitly cover verification URL to prevent a second token-verification request due to `t` dependency. Cover MFA/security non-enumeration and form accessibility.

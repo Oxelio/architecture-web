@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
 import {
   getSecurityConfig,
   listAdminSecurityEvents,
@@ -146,7 +147,9 @@ export function AdminSecurityCenter() {
             </label>
           ) : null}
           {rollback.isError ? (
-            <p role="alert">{rollback.error.message}</p>
+            <p role="alert">
+              {errorMessage(t, apiErrorKey(rollback.error, "securityConfig"))}
+            </p>
           ) : null}
         </fieldset>
       ) : null}
@@ -384,10 +387,10 @@ function ConfigurationEditor({
         </button>
         {preview.isError || publish.isError ? (
           <p role="alert" className="mt-3 text-sm text-rose-300">
-            {t("securityConfig.error", {
-              defaultValue:
-                "La configuration est invalide, incomplète ou a été modifiée par un autre administrateur.",
-            })}
+            {errorMessage(
+              t,
+              apiErrorKey(publish.error ?? preview.error, "securityConfig"),
+            )}
           </p>
         ) : null}
       </article>

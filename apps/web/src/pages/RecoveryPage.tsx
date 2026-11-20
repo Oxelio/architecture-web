@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
 import {
   getPasswordPolicy,
   requestAccountRecovery,
@@ -25,11 +26,11 @@ export function RecoveryPage() {
   const [state, setState] = useState<"idle" | "pending" | "success" | "error">(
     "idle",
   );
-  const [error, setError] = useState("");
+  const [errorKey, setErrorKey] = useState<string | null>(null);
 
   const submit = async () => {
     setState("pending");
-    setError("");
+    setErrorKey(null);
     try {
       if (token) {
         await resetRecoveredPassword(token, password, confirmation);
@@ -38,7 +39,9 @@ export function RecoveryPage() {
       }
       setState("success");
     } catch (error) {
-      setError(recoveryErrorMessage(error, t));
+      setErrorKey(
+        apiErrorKey(error, token ? "resetPassword" : "requestRecovery"),
+      );
       setState("error");
     }
   };
@@ -100,8 +103,10 @@ export function RecoveryPage() {
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
             />
           )}
-          {state === "error" ? (
-            <p className="text-sm text-rose-300">{error}</p>
+          {state === "error" && errorKey ? (
+            <p role="alert" className="text-sm text-rose-300">
+              {errorMessage(t, errorKey)}
+            </p>
           ) : null}
           {token && policy.data ? (
             <p className="text-sm text-slate-400">
@@ -134,23 +139,4 @@ export function recoverySubmitLabel(pending: boolean, reset: boolean): string {
     return "Traitement…";
   }
   return reset ? "Réinitialiser" : "Envoyer les instructions";
-}
-
-export function recoveryErrorMessage(
-  error: unknown,
-  t: ReturnType<typeof useTranslation>["t"],
-): string {
-  const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
-  if (code.startsWith("password.")) {
-    return t(`passwordFeedback.${code.slice(9)}`, {
-      defaultValue: t("passwordFeedback.invalid"),
-    });
-  }
-  if (code === "password_recovery.invalid_token") {
-    return t("passwordFeedback.recovery_invalid");
-  }
-  if (code === "email.invalid_format") {
-    return t("auth.invalidEmail");
-  }
-  return t("passwordFeedback.unavailable");
 }

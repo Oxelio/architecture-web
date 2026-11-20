@@ -36,7 +36,7 @@ it("associates the identifier with its alert only when it has an error", () => {
   expect(initial).toContain('aria-invalid="false"');
   expect(initial).not.toContain("aria-describedby");
 
-  const message = "Email invalide";
+  const message = "auth.invalidEmail";
   formState.loginError = { message };
   const invalid = renderSignUpPage();
   const descriptionId = /aria-describedby="([^"]+)"/u.exec(invalid)?.[1];
