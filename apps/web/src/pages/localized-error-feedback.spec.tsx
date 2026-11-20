@@ -4,9 +4,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, type ReactElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
-import i18n, { type Language } from "#app/i18n";
+import i18n, { changeLanguage, type Language } from "#app/i18n";
 import { AdminSecurityCenter } from "#components/AdminSecurityCenter";
 import type { AdminUser } from "#services/api";
 
@@ -17,6 +25,14 @@ import { RecoveryPage } from "./RecoveryPage";
 import { SignInPage } from "./SignInPage";
 import { SignUpPage } from "./SignUpPage";
 import { VerifyEmailPage } from "./VerifyEmailPage";
+
+vi.hoisted(() => {
+  // Node's Web Storage global can shadow jsdom's storage during i18n initialization.
+  const { jsdom } = globalThis as typeof globalThis & {
+    jsdom: { window: Pick<Window, "localStorage"> };
+  };
+  vi.stubGlobal("localStorage", jsdom.window.localStorage);
+});
 
 const loginPassword = "12345678";
 const newPassword = "a unique registration passphrase";
@@ -65,6 +81,9 @@ afterEach(async () => {
   client.clear();
   container.remove();
   vi.useRealTimers();
+});
+
+afterAll(() => {
   vi.unstubAllGlobals();
 });
 
@@ -139,9 +158,7 @@ async function expectFeedback(selector: string, message: string) {
 }
 
 async function changeLocale(locale: Language) {
-  await act(async () => {
-    await i18n.changeLanguage(locale);
-  });
+  await act(() => changeLanguage(locale));
 }
 
 function fieldFeedback(name: string) {
