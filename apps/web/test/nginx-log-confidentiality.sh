@@ -71,7 +71,18 @@ check 200 "/verify?token=$canary"
 check 200 "/recovery?token=$canary"
 check 200 "/cancel-deletion?token=$canary"
 check 200 "/unknown/$canary?token=$canary"
+# An absent static asset must retain the configured SPA fallback without logging its URL.
+check 200 "/assets/missing-$canary.js?token=$canary"
 check 204 "/api/health?token=$canary"
+# POST payloads are visible to the proxy but must not enter its access/error logs.
+post_status="$(curl --silent --max-time 5 --connect-timeout 2 \
+  --output /dev/null --write-out '%{http_code}' \
+  --header "Content-Type: application/x-www-form-urlencoded" \
+  --data "password=$canary" "$base/api/health?token=$canary")"
+if [[ "$post_status" != "204" ]]; then
+  echo "Nginx smoke: POST body proxy probe did not return 204" >&2
+  exit 1
+fi
 check 404 "/api/missing/$canary?token=$canary"
 # Keep Docker DNS/IP live while terminating the upstream listener, to obtain
 # deterministic ECONNREFUSED instead of waiting for dropped SYN packets.
