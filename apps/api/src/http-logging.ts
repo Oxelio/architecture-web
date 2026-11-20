@@ -29,7 +29,7 @@ export function httpLoggingOptions(stream?: Writable) {
         req: (request: { method?: string }) => ({
           method: safeMethod(request.method),
         }),
-        res: (reply: { statusCode?: number }) => ({
+        res: (reply: { statusCode: number }) => ({
           statusCode: reply.statusCode,
         }),
         err: () => ({
