@@ -480,7 +480,7 @@ describe("registration feedback", () => {
 });
 
 it("localizes the sign-in recovery link without altering form values or making a request", async () => {
-  await render(<SignInPage />, "/signin");
+  await render(<SignInPage />);
   const recoveryLink = element<HTMLAnchorElement>('a[href="/recovery"]');
   expect(recoveryLink.textContent?.trim()).toBe("Forgot password?");
   await enter('input[name="loginValue"]', "member@example.invalid");
