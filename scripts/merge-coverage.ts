@@ -10,7 +10,7 @@ export const CI_SOURCES = [
   "scripts/quality-gate.mjs",
   "scripts/pr-validation-evidence.mjs",
   "scripts/run-integration-tests.ts",
-  "scripts/run-o2-mailpit-test.mjs",
+  "scripts/run-o2-mailpit-test.ts",
   "scripts/run-workspace-tests.ts",
 ];
 

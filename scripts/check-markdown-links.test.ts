@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { extractTargets, validateMarkdownLinks } from "./check-markdown-links.ts";
+import {
+  extractTargets,
+  validateMarkdownLinks,
+} from "./check-markdown-links.ts";
 
 test("inline parsing preserves the existing grammar on bounded malformed and ordinary inputs", () => {
   const legacy = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)/gu;

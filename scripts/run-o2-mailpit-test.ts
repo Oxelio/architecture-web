@@ -4,6 +4,36 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+interface DockerExecutionOptions {
+  cwd: string;
+  signal?: AbortSignal;
+  timeout?: number;
+  maxBuffer: number;
+}
+
+export type DockerExecutor = (
+  command: string,
+  args: string[],
+  options: DockerExecutionOptions,
+) => Promise<{ stdout: string }>;
+
+type DockerCommand = (
+  args: string[],
+  signal?: AbortSignal,
+) => Promise<string>;
+
+export interface MailpitFixtureOptions {
+  mode?: string | undefined;
+  project?: string;
+  execute?: DockerExecutor;
+  log?: (message: string) => void;
+  watchdogMs?: number | undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 const executeFile = promisify(execFile);
 const cwd = fileURLToPath(new URL("../", import.meta.url));
 const fixtureStorage = {
@@ -13,13 +43,20 @@ const fixtureStorage = {
   redis: "/data",
 };
 
-async function verifyIsolation(docker, compose, project, signal) {
+async function verifyIsolation(
+  docker: DockerCommand,
+  compose: string[],
+  project: string,
+  signal: AbortSignal,
+) {
   const networkName = `${project}_default`;
   const network = await docker(
     ["network", "inspect", "--format", "{{.Internal}}", networkName],
     signal,
   );
-  if (network !== "true") throw new Error("Fixture network must be internal");
+  if (network !== "true") {
+    throw new Error("Fixture network must be internal");
+  }
   const mailpitId = await docker([...compose, "ps", "-q", "mailpit"], signal);
   await Promise.all(
     Object.entries(fixtureStorage).map(async ([service, path]) => {
@@ -27,17 +64,36 @@ async function verifyIsolation(docker, compose, project, signal) {
         service === "mailpit"
           ? mailpitId
           : await docker([...compose, "ps", "-q", service], signal);
-      const [container] = JSON.parse(await docker(["inspect", id], signal));
-      const { HostConfig, Mounts, NetworkSettings } = container;
+      const containers: unknown = JSON.parse(
+        await docker(["inspect", id], signal),
+      );
+      const container: unknown = Array.isArray(containers)
+        ? containers[0]
+        : undefined;
+      if (!isRecord(container)) {
+        throw new Error(`Fixture isolation check failed for ${service}`);
+      }
+      const host = container["HostConfig"];
+      const mounts = container["Mounts"];
+      const settings = container["NetworkSettings"];
+      if (!isRecord(host) || !Array.isArray(mounts)) {
+        throw new Error(`Fixture isolation check failed for ${service}`);
+      }
+      const logConfig = host["LogConfig"];
+      const networks = isRecord(settings) ? settings["Networks"] : undefined;
       const connected =
         service === "api"
-          ? HostConfig.NetworkMode === `container:${mailpitId}`
-          : Object.keys(NetworkSettings.Networks).join() === networkName;
+          ? host["NetworkMode"] === `container:${mailpitId}`
+          : isRecord(networks) &&
+            Object.keys(networks).join() === networkName;
       if (
-        HostConfig.LogConfig.Type !== "none" ||
-        Object.keys(HostConfig.PortBindings ?? {}).length !== 0 ||
-        !Object.hasOwn(HostConfig.Tmpfs ?? {}, path) ||
-        Mounts.some((mount) => mount.Type !== "tmpfs") ||
+        !isRecord(logConfig) ||
+        logConfig["Type"] !== "none" ||
+        Object.keys(host["PortBindings"] ?? {}).length !== 0 ||
+        !Object.hasOwn(host["Tmpfs"] ?? {}, path) ||
+        mounts.some(
+          (mount: unknown) => !isRecord(mount) || mount["Type"] !== "tmpfs",
+        ) ||
         !connected
       ) {
         throw new Error(`Fixture isolation check failed for ${service}`);
@@ -46,7 +102,11 @@ async function verifyIsolation(docker, compose, project, signal) {
   );
 }
 
-async function cleanup(docker, compose, project) {
+async function cleanup(
+  docker: DockerCommand,
+  compose: string[],
+  project: string,
+) {
   await docker([
     ...compose,
     "down",
@@ -62,8 +122,9 @@ async function cleanup(docker, compose, project) {
     docker(["volume", "ls", "-q", ...filter]),
     docker(["network", "ls", "-q", ...filter]),
   ]);
-  if (remaining.some(Boolean))
+  if (remaining.some(Boolean)) {
     throw new Error("Fixture resources remain after teardown");
+  }
 }
 
 export async function runMailpitFixture({
@@ -72,10 +133,10 @@ export async function runMailpitFixture({
   execute = executeFile,
   log = console.log,
   watchdogMs = 30 * 60_000,
-} = {}) {
+}: MailpitFixtureOptions = {}) {
   if (mode !== undefined && !["--abort", "--timeout"].includes(mode)) {
     throw new Error(
-      "Use node scripts/run-o2-mailpit-test.mjs [--abort|--timeout]",
+      "Use node scripts/run-o2-mailpit-test.ts [--abort|--timeout]",
     );
   }
   const compose = [
@@ -94,12 +155,11 @@ export async function runMailpitFixture({
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
 
-  async function docker(args, activeSignal) {
+  async function docker(args: string[], activeSignal?: AbortSignal) {
     try {
       const { stdout } = await execute("docker", args, {
         cwd,
-        signal: activeSignal,
-        timeout: activeSignal ? undefined : 60_000,
+        ...(activeSignal ? { signal: activeSignal } : { timeout: 60_000 }),
         maxBuffer: 8 * 1024 * 1024,
       });
       return stdout.trim();
@@ -124,17 +184,23 @@ export async function runMailpitFixture({
         "api",
         "node",
         "--test",
-        "/app/scripts/o2-mailpit-smoke.test.mjs",
+        "/app/scripts/o2-mailpit-smoke.test.ts",
       ],
       signal,
     );
     smokePassed = true;
     log("Mailpit smoke passed for fictitious data");
-    if (mode === "--abort") stop();
-    if (mode === "--timeout") timeout();
+    if (mode === "--abort") {
+      stop();
+    }
+    if (mode === "--timeout") {
+      timeout();
+    }
     signal.throwIfAborted();
   } catch (error) {
-    if (!smokePassed || !mode || error !== signal.reason) throw error;
+    if (!smokePassed || !mode || error !== signal.reason) {
+      throw error;
+    }
     log(`Verified fixture ${mode.slice(2)} path`);
   } finally {
     clearTimeout(watchdog);
@@ -152,7 +218,7 @@ if (
   try {
     if (process.argv.length > 3) {
       throw new Error(
-        "Use node scripts/run-o2-mailpit-test.mjs [--abort|--timeout]",
+        "Use node scripts/run-o2-mailpit-test.ts [--abort|--timeout]",
       );
     }
     await runMailpitFixture({ mode: process.argv[2] });

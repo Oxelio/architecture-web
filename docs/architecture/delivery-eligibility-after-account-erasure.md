@@ -152,7 +152,7 @@ Redis evidence for the changed persistence boundaries and full workspace
 validation for public port changes. The existing `pnpm ci:test:integration`
 command uses `compose.iam-test.yml` in the repository validation workflow.
 The capture Task adds `compose.o2-mailpit-test.yml` and a one-shot
-`node scripts/run-o2-mailpit-test.mjs` entry point for the fictitious-data
+`node scripts/run-o2-mailpit-test.ts` entry point for the fictitious-data
 smoke and teardown checks on an authorized Docker runner. The entry point
 starts a uniquely named project, verifies API-to-Mailpit delivery, and
 tears down that project on completion or failure. Capture evidence records

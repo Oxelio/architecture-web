@@ -1,19 +1,46 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { runMailpitFixture } from "./run-o2-mailpit-test.mjs";
+import {
+  type DockerExecutor,
+  type MailpitFixtureOptions,
+  runMailpitFixture,
+} from "./run-o2-mailpit-test.ts";
 
-function fixture({ adjust, failure, internal = true, remains = false } = {}) {
+interface InspectFixture {
+  HostConfig: {
+    LogConfig: { Type: string };
+    Tmpfs?: Record<string, string>;
+    PortBindings: Record<string, unknown>;
+    NetworkMode: string;
+  };
+  Mounts: [{ Type: string }];
+  NetworkSettings: { Networks: Record<string, object> };
+}
+
+interface FixtureOptions {
+  adjust?: (container: InspectFixture) => void;
+  failure?: string;
+  internal?: boolean;
+  remains?: boolean;
+}
+
+function fixture({
+  adjust,
+  failure,
+  internal = true,
+  remains = false,
+}: FixtureOptions = {}) {
   const project = "aw-o2-fixture-test";
-  const calls = [];
-  const logs = [];
-  const storage = {
+  const calls: string[][] = [];
+  const logs: string[] = [];
+  const storage: Record<string, string> = {
     api: "/tmp",
     mailpit: "/tmp",
     postgres: "/var/lib/postgresql",
     redis: "/data",
   };
-  async function execute(command, args, { signal }) {
+  const execute: DockerExecutor = async (command, args, { signal }) => {
     assert.equal(command, "docker");
     calls.push(args);
     if (args[0] === "compose") {
@@ -23,19 +50,25 @@ function fixture({ adjust, failure, internal = true, remains = false } = {}) {
         "-f",
         "compose.o2-mailpit-test.yml",
       ]);
-      if (args[5] === failure) throw new Error("synthetic raw diagnostic");
-      if (args[5] === "ps") return { stdout: args[7] };
+      if (args[5] === failure) {
+        throw new Error("synthetic raw diagnostic");
+      }
+      if (args[5] === "ps") {
+        assert.ok(args[7]);
+        return { stdout: args[7] };
+      }
       if (args[5] === "exec") {
         assert.deepEqual(args.slice(6), [
           "-T",
           "api",
           "node",
           "--test",
-          "/app/scripts/o2-mailpit-smoke.test.mjs",
+          "/app/scripts/o2-mailpit-smoke.test.ts",
         ]);
       }
       if (args[5] === "up" && failure === "watchdog") {
-        return new Promise((resolve, reject) => {
+        assert.ok(signal);
+        return new Promise((_resolve, reject) => {
           signal.addEventListener("abort", () => reject(signal.reason), {
             once: true,
           });
@@ -48,26 +81,31 @@ function fixture({ adjust, failure, internal = true, remains = false } = {}) {
     }
     if (args[0] === "inspect") {
       const service = args[1];
-      const container = {
+      assert.ok(service);
+      const path = storage[service];
+      assert.ok(path);
+      const container: InspectFixture = {
         HostConfig: {
           LogConfig: { Type: "none" },
-          Tmpfs: { [storage[service]]: "" },
+          Tmpfs: { [path]: "" },
           PortBindings: {},
           NetworkMode: "container:mailpit",
         },
         Mounts: [{ Type: "tmpfs" }],
         NetworkSettings: { Networks: { [`${project}_default`]: {} } },
       };
-      if (service === "api") adjust?.(container);
+      if (service === "api") {
+        adjust?.(container);
+      }
       return { stdout: JSON.stringify([container]) };
     }
     assert.ok(args.includes(`label=com.docker.compose.project=${project}`));
     return { stdout: remains && args[0] === "ps" ? "remaining-container" : "" };
-  }
+  };
   return {
     calls,
     logs,
-    run: (options = {}) =>
+    run: (options: MailpitFixtureOptions = {}) =>
       runMailpitFixture({
         project,
         execute,
@@ -77,10 +115,10 @@ function fixture({ adjust, failure, internal = true, remains = false } = {}) {
   };
 }
 
-function assertTeardown(calls) {
+function assertTeardown(calls: string[][]) {
   const down = calls.findIndex((args) => args[5] === "down");
   assert.ok(down >= 0);
-  assert.deepEqual(calls[down].slice(6), [
+  assert.deepEqual(calls[down]?.slice(6), [
     "--volumes",
     "--rmi",
     "local",
@@ -96,8 +134,9 @@ for (const mode of [undefined, "--abort", "--timeout"]) {
     await run({ mode });
     assertTeardown(calls);
     assert.ok(logs.includes("Mailpit smoke passed for fictitious data"));
-    if (mode)
+    if (mode) {
       assert.ok(logs.includes(`Verified fixture ${mode.slice(2)} path`));
+    }
   });
 }
 
@@ -121,7 +160,7 @@ test("rejects a network without isolation and tears down", async () => {
 });
 
 test("rejects retained logs, published ports, persistent mounts and wrong network membership", async () => {
-  for (const adjust of [
+  const adjustments: ((container: InspectFixture) => void)[] = [
     (container) => {
       container.HostConfig.LogConfig.Type = "json-file";
     },
@@ -137,7 +176,8 @@ test("rejects retained logs, published ports, persistent mounts and wrong networ
     (container) => {
       container.HostConfig.NetworkMode = "bridge";
     },
-  ]) {
+  ];
+  for (const adjust of adjustments) {
     const { calls, run } = fixture({ adjust });
     await assert.rejects(run(), /isolation check failed for api/);
     assertTeardown(calls);
