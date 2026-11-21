@@ -19,211 +19,426 @@ const getInitialLanguage = (): Language => {
   return browserLanguage === "en" ? "en" : "fr";
 };
 
+// Each translation key has one entry so FR and EN remain structurally paired.
+// i18next receives the ordinary nested resource shape below.
+const localizedCopy = [
+  [
+    "document.description",
+    "Front React moderne relié à une API Fastify pour gérer l'identité et l'authentification.",
+    "Modern React frontend connected to a Fastify API for identity and authentication management.",
+  ],
+  ["cancelDeletion.eyebrow", "Suppression du compte", "Account deletion"],
+  ["cancelDeletion.title", "Annuler la suppression", "Cancel deletion"],
+  [
+    "cancelDeletion.success",
+    "Le compte est réactivé. Les anciennes sessions restent révoquées.",
+    "The account has been reactivated. Previous sessions remain revoked.",
+  ],
+  ["cancelDeletion.signIn", "Se connecter", "Sign in"],
+  ["cancelDeletion.password", "Mot de passe", "Password"],
+  ["cancelDeletion.mfaCode", "Code MFA si activé", "MFA code, if enabled"],
+  ["cancelDeletion.confirm", "Confirmer l’annulation", "Confirm cancellation"],
+  ["cancelDeletion.pending", "Annulation en cours…", "Cancelling…"],
+  [
+    "securityCenter.mfaTitle",
+    "Authentification multifacteur",
+    "Multifactor authentication",
+  ],
+  [
+    "securityCenter.mfaEnabled_one",
+    "Active · {{count}} code de secours restant",
+    "Enabled · {{count}} backup code remaining",
+  ],
+  [
+    "securityCenter.mfaEnabled_other",
+    "Active · {{count}} codes de secours restants",
+    "Enabled · {{count}} backup codes remaining",
+  ],
+  [
+    "securityCenter.mfaDisabled",
+    "Inactive · protégez chaque nouvelle connexion avec TOTP.",
+    "Disabled · protect each new sign-in with TOTP.",
+  ],
+  ["securityCenter.currentPassword", "Mot de passe actuel", "Current password"],
+  ["securityCenter.mfaCode", "Code TOTP ou de secours", "TOTP or backup code"],
+  [
+    "securityCenter.saveCodesTitle",
+    "Enregistrez ces codes maintenant",
+    "Save these codes now",
+  ],
+  [
+    "securityCenter.saveCodesConfirm",
+    "J’ai enregistré ces codes, activer le MFA",
+    "I saved these codes, enable MFA",
+  ],
+  ["securityCenter.dataTitle", "Données du compte", "Account data"],
+  [
+    "securityCenter.exportDescription",
+    "L’export ZIP est disponible 24 h et disparaît après son premier téléchargement.",
+    "The ZIP export is available for 24 hours and is removed after its first download.",
+  ],
+  ["securityCenter.prepareExport", "Préparer mon export", "Prepare my export"],
+  ["securityCenter.download", "Télécharger", "Download"],
+  [
+    "securityCenter.deleteRequest",
+    "Demander la suppression du compte",
+    "Request account deletion",
+  ],
+  [
+    "securityCenter.deleteConfirm",
+    "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
+    "Access will be revoked immediately. A notification authorized before final account erasure may still be sent or arrive afterward. Confirm the deletion request?",
+  ],
+  ["securityCenter.activityTitle", "Activité de sécurité", "Security activity"],
+  ["securityCenter.confirmEnrollment", "Valider l’enrôlement", "Confirm enrollment"],
+  ["securityCenter.disableMfa", "Désactiver le MFA", "Disable MFA"],
+  ["securityCenter.enableMfa", "Configurer le MFA", "Set up MFA"],
+  ["securityCenter.exportStatus.ready", "Prêt", "Ready"],
+  ["securityCenter.exportStatus.pending", "En attente", "Pending"],
+  ["securityCenter.exportStatus.generating", "En cours de préparation", "Preparing"],
+  ["securityCenter.exportStatus.downloaded", "Téléchargé", "Downloaded"],
+  ["securityCenter.exportStatus.expired", "Expiré", "Expired"],
+  ["securityCenter.exportStatus.failed", "Échec", "Failed"],
+  ["securityCenter.eventResult.success", "Succès", "Success"],
+  ["securityCenter.eventResult.failure", "Échec", "Failure"],
+  ["securityCenter.eventResult.rejected", "Refusé", "Rejected"],
+  [
+    "securityCenter.eventResult.technical_failure",
+    "Erreur technique",
+    "Technical failure",
+  ],
+  ["securityCenter.eventResult.error", "Erreur", "Error"],
+  ["securityConfig.navigation", "Navigation de la sécurité", "Security navigation"],
+  ["securityConfig.tabs.configuration", "Configuration", "Configuration"],
+  ["securityConfig.tabs.history", "Historique", "History"],
+  ["securityConfig.tabs.audit", "Journal d’audit", "Audit log"],
+  ["securityConfig.title", "Configuration de sécurité", "Security configuration"],
+  [
+    "securityConfig.description",
+    "Configurez les fonctionnalités par intention métier. Les changements sont prévisualisés puis publiés atomiquement.",
+    "Configure features by business intent. Changes are previewed and then published atomically.",
+  ],
+  ["securityConfig.reset", "Annuler les modifications", "Discard changes"],
+  ["securityConfig.preview", "Prévisualiser l’impact", "Preview impact"],
+  ["securityConfig.publish", "Publier sans redémarrage", "Publish without restart"],
+  [
+    "securityConfig.confirmCritical",
+    "Je confirme avoir examiné les conséquences de cette modification critique.",
+    "I confirm that I have reviewed the consequences of this critical change.",
+  ],
+  [
+    "securityConfig.previewSummary_one",
+    "{{count}} option modifiée · impact {{impact}}",
+    "{{count}} option changed · {{impact}} impact",
+  ],
+  [
+    "securityConfig.previewSummary_other",
+    "{{count}} options modifiées · impact {{impact}}",
+    "{{count}} options changed · {{impact}} impact",
+  ],
+  ["securityConfig.historyTitle", "Historique des révisions", "Revision history"],
+  ["securityConfig.revision", "Révision {{version}}", "Revision {{version}}"],
+  ["securityConfig.restore", "Restaurer", "Restore"],
+  ["securityConfig.auditTitle", "Journal de sécurité", "Security audit log"],
+  ["securityConfig.sliderLabel", "{{label}} — curseur", "{{label}} — slider"],
+  ["securityConfig.recommended", "Recommandé", "Recommended"],
+  [
+    "securityConfig.readOnly",
+    "Lecture seule : aucun consommateur exécutable n’applique actuellement cette option.",
+    "Read-only: no executable consumer currently applies this option.",
+  ],
+  [
+    "securityConfig.fieldDescription",
+    "{{label}}. Cette valeur est appliquée par le serveur après publication.",
+    "{{label}}. This value is applied by the server after publication.",
+  ],
+  [
+    "securityConfig.previewWarnings.mfaAvailability",
+    "Désactiver la disponibilité du MFA ne supprime pas les paramètres MFA chiffrés existants.",
+    "Disabling MFA availability does not erase existing encrypted MFA settings.",
+  ],
+  [
+    "securityConfig.previewWarnings.auditRetention",
+    "La prochaine maintenance peut supprimer des événements d’audit plus anciens.",
+    "The next maintenance run may purge older audit events.",
+  ],
+  ["securityConfig.impact.standard", "Standard", "Standard"],
+  ["securityConfig.impact.medium", "Moyen", "Medium"],
+  ["securityConfig.impact.high", "Élevé", "High"],
+  ["securityConfig.impact.critical", "Critique", "Critical"],
+  ["securityConfig.revisionStatus.published", "Publiée", "Published"],
+  ["securityConfig.revisionStatus.effective", "Effective", "Effective"],
+  ["securityConfig.revisionStatus.superseded", "Remplacée", "Superseded"],
+  ["securityConfig.revisionStatus.pending", "En attente", "Pending"],
+  ["securityConfig.revisionStatus.failed", "Échec", "Failed"],
+  ["securityConfig.revisionStatus.applied", "Appliquée", "Applied"],
+  ["securityConfig.revisionStatus.archived", "Archivée", "Archived"],
+  ["securityConfig.eventResult.success", "Succès", "Success"],
+  ["securityConfig.eventResult.rejected", "Refusé", "Rejected"],
+  ["securityConfig.eventResult.failure", "Échec", "Failure"],
+  [
+    "securityConfig.eventResult.technical_failure",
+    "Erreur technique",
+    "Technical failure",
+  ],
+  ["securityConfig.categories.accounts", "Comptes", "Accounts"],
+  ["securityConfig.categories.authentication", "Authentification", "Authentication"],
+  ["securityConfig.categories.passwords", "Mots de passe", "Passwords"],
+  ["securityConfig.categories.sessions", "Sessions", "Sessions"],
+  ["securityConfig.categories.recovery", "Récupération", "Recovery"],
+  ["securityConfig.categories.audit", "Audit", "Audit"],
+  [
+    "securityConfig.fields.accounts.publicRegistration",
+    "Inscription publique",
+    "Public sign-up",
+  ],
+  [
+    "securityConfig.fields.accounts.allowedLoginIdentifiers",
+    "Identifiants de connexion autorisés",
+    "Allowed login identifiers",
+  ],
+  [
+    "securityConfig.fields.accounts.emailVerification",
+    "Vérification de l’adresse email",
+    "Email verification",
+  ],
+  [
+    "securityConfig.fields.accounts.emailChange",
+    "Changement d’adresse email",
+    "Email change",
+  ],
+  ["securityConfig.fields.accounts.export", "Export du compte", "Account export"],
+  [
+    "securityConfig.fields.accounts.deletion",
+    "Suppression du compte",
+    "Account deletion",
+  ],
+  [
+    "securityConfig.fields.accounts.deletionGraceDays",
+    "Délai avant suppression",
+    "Deletion grace period",
+  ],
+  [
+    "securityConfig.fields.authentication.mfaAvailable",
+    "MFA disponible",
+    "MFA available",
+  ],
+  [
+    "securityConfig.fields.authentication.mfaRequiredRoles",
+    "Rôles soumis au MFA",
+    "MFA-required roles",
+  ],
+  [
+    "securityConfig.fields.authentication.mfaChallengeMinutes",
+    "Durée du challenge MFA",
+    "MFA challenge duration",
+  ],
+  [
+    "securityConfig.fields.authentication.mfaMaxAttempts",
+    "Tentatives MFA maximales",
+    "Maximum MFA attempts",
+  ],
+  [
+    "securityConfig.fields.authentication.recentAuthenticationMinutes",
+    "Authentification considérée récente",
+    "Recent authentication window",
+  ],
+  [
+    "securityConfig.fields.passwords.standardLevel",
+    "Niveau standard",
+    "Standard level",
+  ],
+  [
+    "securityConfig.fields.passwords.privilegedLevel",
+    "Niveau privilégié",
+    "Privileged level",
+  ],
+  [
+    "securityConfig.fields.passwords.standardMinLength",
+    "Longueur minimale standard",
+    "Standard minimum length",
+  ],
+  [
+    "securityConfig.fields.passwords.privilegedMinLength",
+    "Longueur minimale privilégiée",
+    "Privileged minimum length",
+  ],
+  ["securityConfig.fields.passwords.maxLength", "Longueur maximale", "Maximum length"],
+  [
+    "securityConfig.fields.passwords.standardMinimumStrength",
+    "Robustesse minimale standard",
+    "Standard minimum strength",
+  ],
+  [
+    "securityConfig.fields.passwords.privilegedMinimumStrength",
+    "Robustesse minimale privilégiée",
+    "Privileged minimum strength",
+  ],
+  [
+    "securityConfig.fields.passwords.checkCommonPasswords",
+    "Refuser les mots de passe courants",
+    "Reject common passwords",
+  ],
+  [
+    "securityConfig.fields.passwords.checkCompromisedPasswords",
+    "Refuser les mots de passe compromis",
+    "Reject compromised passwords",
+  ],
+  [
+    "securityConfig.fields.passwords.checkUserContext",
+    "Vérifier le contexte utilisateur",
+    "Check user context",
+  ],
+  [
+    "securityConfig.fields.passwords.rejectCurrentPassword",
+    "Refuser le mot de passe actuel",
+    "Reject current password",
+  ],
+  [
+    "securityConfig.fields.passwords.requireUppercase",
+    "Exiger une majuscule",
+    "Require uppercase",
+  ],
+  [
+    "securityConfig.fields.passwords.requireLowercase",
+    "Exiger une minuscule",
+    "Require lowercase",
+  ],
+  [
+    "securityConfig.fields.passwords.requireNumber",
+    "Exiger un nombre",
+    "Require a number",
+  ],
+  [
+    "securityConfig.fields.passwords.requireSpecialCharacter",
+    "Exiger un caractère spécial",
+    "Require a special character",
+  ],
+  [
+    "securityConfig.fields.sessions.userManagement",
+    "Gestion des sessions par l’utilisateur",
+    "User session management",
+  ],
+  [
+    "securityConfig.fields.sessions.durationMinutes",
+    "Durée d’une session",
+    "Session duration",
+  ],
+  [
+    "securityConfig.fields.recovery.enabled",
+    "Récupération de compte",
+    "Account recovery",
+  ],
+  [
+    "securityConfig.fields.recovery.tokenMinutes",
+    "Validité du lien de récupération",
+    "Recovery link validity",
+  ],
+  [
+    "securityConfig.fields.recovery.requestsPerHour",
+    "Demandes de récupération par heure",
+    "Recovery requests per hour",
+  ],
+  [
+    "securityConfig.fields.audit.consultation",
+    "Consultation de l’audit",
+    "Audit consultation",
+  ],
+  [
+    "securityConfig.fields.audit.retentionDays",
+    "Durée de conservation",
+    "Retention period",
+  ],
+  ["securityConfig.choices.username", "Pseudonyme", "Username"],
+  ["securityConfig.choices.email", "Adresse email", "Email address"],
+  ["securityConfig.choices.user", "Utilisateurs", "Users"],
+  ["securityConfig.choices.admin", "Administrateurs", "Administrators"],
+  ["securityConfig.choices.standard", "Standard", "Standard"],
+  ["securityConfig.choices.elevated", "Renforcé", "Elevated"],
+  ["securityConfig.choices.critical", "Critique", "Critical"],
+  ["securityConfig.choices.custom", "Personnalisé", "Custom"],
+  ["securityConfig.choices.too_weak", "Très faible", "Too weak"],
+  ["securityConfig.choices.weak", "Faible", "Weak"],
+  ["securityConfig.choices.acceptable", "Acceptable", "Acceptable"],
+  ["securityConfig.choices.strong", "Forte", "Strong"],
+  ["securityConfig.choices.very_strong", "Très forte", "Very strong"],
+  ["securityConfig.units.minutes", "minutes", "minutes"],
+  ["securityConfig.units.days", "jours", "days"],
+  ["securityConfig.units.characters", "caractères", "characters"],
+  ["securityConfig.units.attempts", "tentatives", "attempts"],
+  ["securityConfig.units.requests", "demandes", "requests"],
+  [
+    "securityConfig.error",
+    "Impossible d’appliquer cette configuration. Réessayez.",
+    "Unable to apply this configuration. Please try again.",
+  ],
+  [
+    "securityConfig.invalid",
+    "Vérifiez les paramètres de la configuration.",
+    "Check the configuration settings.",
+  ],
+  [
+    "securityConfig.justificationRequired",
+    "Saisissez un motif pour cette modification.",
+    "Enter a reason for this change.",
+  ],
+  [
+    "securityConfig.confirmationRequired",
+    "Confirmez la modification critique pour continuer.",
+    "Confirm the critical change to continue.",
+  ],
+  [
+    "securityConfig.versionConflict",
+    "La configuration a changé. Actualisez-la avant de réessayer.",
+    "The configuration has changed. Refresh it before trying again.",
+  ],
+  [
+    "securityConfig.revisionMissing",
+    "Cette version n’est plus disponible. Actualisez l’historique.",
+    "This version is no longer available. Refresh the history.",
+  ],
+  [
+    "securityConfig.authenticationFailed",
+    "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez.",
+    "Could not verify your identity. Check your credentials and try again.",
+  ],
+  [
+    "securityConfig.stepUp",
+    "Modifications critiques et restauration",
+    "Critical changes and restoration",
+  ],
+  ["securityConfig.justification", "Motif", "Reason"],
+  ["securityConfig.password", "Mot de passe actuel", "Current password"],
+  ["securityConfig.mfaCode", "Code MFA, si activé", "MFA code, when enabled"],
+  [
+    "securityConfig.confirm",
+    "Confirmer la modification critique",
+    "Confirm the critical change",
+  ],
+  ["securityConfig.notRecorded", "Non enregistré", "Not recorded"],
+] as const;
+
+function selectLocalizedCopy(language: Language): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [path, french, english] of localizedCopy) {
+    const segments = path.split(".");
+    let current = result;
+    for (const segment of segments.slice(0, -1)) {
+      if (!current[segment]) {
+        current[segment] = {};
+      }
+      current = current[segment] as Record<string, unknown>;
+    }
+    current[segments[segments.length - 1]] =
+      language === "fr" ? french : english;
+  }
+  return result;
+}
+
 const resources = {
   fr: {
     translation: {
-      document: {
-        description:
-          "Front React moderne relié à une API Fastify pour gérer l'identité et l'authentification.",
-      },
-      cancelDeletion: {
-        eyebrow: "Suppression du compte",
-        title: "Annuler la suppression",
-        success:
-          "Le compte est réactivé. Les anciennes sessions restent révoquées.",
-        signIn: "Se connecter",
-        password: "Mot de passe",
-        mfaCode: "Code MFA si activé",
-        confirm: "Confirmer l’annulation",
-        pending: "Annulation en cours…",
-      },
-      securityCenter: {
-        mfaTitle: "Authentification multifacteur",
-        mfaEnabled_one: "Active · {{count}} code de secours restant",
-        mfaEnabled_other: "Active · {{count}} codes de secours restants",
-        mfaDisabled: "Inactive · protégez chaque nouvelle connexion avec TOTP.",
-        currentPassword: "Mot de passe actuel",
-        mfaCode: "Code TOTP ou de secours",
-        saveCodesTitle: "Enregistrez ces codes maintenant",
-        saveCodesConfirm: "J’ai enregistré ces codes, activer le MFA",
-        dataTitle: "Données du compte",
-        exportDescription:
-          "L’export ZIP est disponible 24 h et disparaît après son premier téléchargement.",
-        prepareExport: "Préparer mon export",
-        download: "Télécharger",
-        deleteRequest: "Demander la suppression du compte",
-        deleteConfirm:
-          "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
-        activityTitle: "Activité de sécurité",
-        confirmEnrollment: "Valider l’enrôlement",
-        disableMfa: "Désactiver le MFA",
-        enableMfa: "Configurer le MFA",
-        exportStatus: {
-          ready: "Prêt",
-          pending: "En attente",
-          generating: "En cours de préparation",
-          downloaded: "Téléchargé",
-          expired: "Expiré",
-          failed: "Échec",
-        },
-        eventResult: {
-          success: "Succès",
-          failure: "Échec",
-          rejected: "Refusé",
-          technical_failure: "Erreur technique",
-          error: "Erreur",
-        },
-      },
-      securityConfig: {
-        navigation: "Navigation de la sécurité",
-        tabs: {
-          configuration: "Configuration",
-          history: "Historique",
-          audit: "Journal d’audit",
-        },
-        title: "Configuration de sécurité",
-        description:
-          "Configurez les fonctionnalités par intention métier. Les changements sont prévisualisés puis publiés atomiquement.",
-        reset: "Annuler les modifications",
-        preview: "Prévisualiser l’impact",
-        publish: "Publier sans redémarrage",
-        confirmCritical:
-          "Je confirme avoir examiné les conséquences de cette modification critique.",
-        previewSummary_one: "{{count}} option modifiée · impact {{impact}}",
-        previewSummary_other: "{{count}} options modifiées · impact {{impact}}",
-        historyTitle: "Historique des révisions",
-        revision: "Révision {{version}}",
-        restore: "Restaurer",
-        auditTitle: "Journal de sécurité",
-        sliderLabel: "{{label}} — curseur",
-        recommended: "Recommandé",
-        readOnly:
-          "Lecture seule : aucun consommateur exécutable n’applique actuellement cette option.",
-        fieldDescription:
-          "{{label}}. Cette valeur est appliquée par le serveur après publication.",
-        previewWarnings: {
-          mfaAvailability:
-            "Désactiver la disponibilité du MFA ne supprime pas les paramètres MFA chiffrés existants.",
-          auditRetention:
-            "La prochaine maintenance peut supprimer des événements d’audit plus anciens.",
-        },
-        impact: {
-          standard: "Standard",
-          medium: "Moyen",
-          high: "Élevé",
-          critical: "Critique",
-        },
-        revisionStatus: {
-          published: "Publiée",
-          effective: "Effective",
-          superseded: "Remplacée",
-          pending: "En attente",
-          failed: "Échec",
-          applied: "Appliquée",
-          archived: "Archivée",
-        },
-        eventResult: {
-          success: "Succès",
-          rejected: "Refusé",
-          failure: "Échec",
-          technical_failure: "Erreur technique",
-        },
-        categories: {
-          accounts: "Comptes",
-          authentication: "Authentification",
-          passwords: "Mots de passe",
-          sessions: "Sessions",
-          recovery: "Récupération",
-          audit: "Audit",
-        },
-        fields: {
-          accounts: {
-            publicRegistration: "Inscription publique",
-            allowedLoginIdentifiers: "Identifiants de connexion autorisés",
-            emailVerification: "Vérification de l’adresse email",
-            emailChange: "Changement d’adresse email",
-            export: "Export du compte",
-            deletion: "Suppression du compte",
-            deletionGraceDays: "Délai avant suppression",
-          },
-          authentication: {
-            mfaAvailable: "MFA disponible",
-            mfaRequiredRoles: "Rôles soumis au MFA",
-            mfaChallengeMinutes: "Durée du challenge MFA",
-            mfaMaxAttempts: "Tentatives MFA maximales",
-            recentAuthenticationMinutes: "Authentification considérée récente",
-          },
-          passwords: {
-            standardLevel: "Niveau standard",
-            privilegedLevel: "Niveau privilégié",
-            standardMinLength: "Longueur minimale standard",
-            privilegedMinLength: "Longueur minimale privilégiée",
-            maxLength: "Longueur maximale",
-            standardMinimumStrength: "Robustesse minimale standard",
-            privilegedMinimumStrength: "Robustesse minimale privilégiée",
-            checkCommonPasswords: "Refuser les mots de passe courants",
-            checkCompromisedPasswords: "Refuser les mots de passe compromis",
-            checkUserContext: "Vérifier le contexte utilisateur",
-            rejectCurrentPassword: "Refuser le mot de passe actuel",
-            requireUppercase: "Exiger une majuscule",
-            requireLowercase: "Exiger une minuscule",
-            requireNumber: "Exiger un nombre",
-            requireSpecialCharacter: "Exiger un caractère spécial",
-          },
-          sessions: {
-            userManagement: "Gestion des sessions par l’utilisateur",
-            durationMinutes: "Durée d’une session",
-          },
-          recovery: {
-            enabled: "Récupération de compte",
-            tokenMinutes: "Validité du lien de récupération",
-            requestsPerHour: "Demandes de récupération par heure",
-          },
-          audit: {
-            consultation: "Consultation de l’audit",
-            retentionDays: "Durée de conservation",
-          },
-        },
-        choices: {
-          username: "Pseudonyme",
-          email: "Adresse email",
-          user: "Utilisateurs",
-          admin: "Administrateurs",
-          standard: "Standard",
-          elevated: "Renforcé",
-          critical: "Critique",
-          custom: "Personnalisé",
-          too_weak: "Très faible",
-          weak: "Faible",
-          acceptable: "Acceptable",
-          strong: "Forte",
-          very_strong: "Très forte",
-        },
-        units: {
-          minutes: "minutes",
-          days: "jours",
-          characters: "caractères",
-          attempts: "tentatives",
-          requests: "demandes",
-        },
-        error: "Impossible d’appliquer cette configuration. Réessayez.",
-        invalid: "Vérifiez les paramètres de la configuration.",
-        justificationRequired: "Saisissez un motif pour cette modification.",
-        confirmationRequired:
-          "Confirmez la modification critique pour continuer.",
-        versionConflict:
-          "La configuration a changé. Actualisez-la avant de réessayer.",
-        revisionMissing:
-          "Cette version n’est plus disponible. Actualisez l’historique.",
-        authenticationFailed:
-          "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez.",
-        stepUp: "Modifications critiques et restauration",
-        justification: "Motif",
-        password: "Mot de passe actuel",
-        mfaCode: "Code MFA, si activé",
-        confirm: "Confirmer la modification critique",
-        notRecorded: "Non enregistré",
-      },
+      ...selectLocalizedCopy("fr"),
       passwordFeedback: {
         empty: "Saisissez un mot de passe.",
         confirmation_mismatch:
@@ -594,207 +809,7 @@ const resources = {
   },
   en: {
     translation: {
-      document: {
-        description:
-          "Modern React frontend connected to a Fastify API for identity and authentication management.",
-      },
-      cancelDeletion: {
-        eyebrow: "Account deletion",
-        title: "Cancel deletion",
-        success:
-          "The account has been reactivated. Previous sessions remain revoked.",
-        signIn: "Sign in",
-        password: "Password",
-        mfaCode: "MFA code, if enabled",
-        confirm: "Confirm cancellation",
-        pending: "Cancelling…",
-      },
-      securityCenter: {
-        mfaTitle: "Multifactor authentication",
-        mfaEnabled_one: "Enabled · {{count}} backup code remaining",
-        mfaEnabled_other: "Enabled · {{count}} backup codes remaining",
-        mfaDisabled: "Disabled · protect each new sign-in with TOTP.",
-        currentPassword: "Current password",
-        mfaCode: "TOTP or backup code",
-        saveCodesTitle: "Save these codes now",
-        saveCodesConfirm: "I saved these codes, enable MFA",
-        dataTitle: "Account data",
-        exportDescription:
-          "The ZIP export is available for 24 hours and is removed after its first download.",
-        prepareExport: "Prepare my export",
-        download: "Download",
-        deleteRequest: "Request account deletion",
-        deleteConfirm:
-          "Access will be revoked immediately. A notification authorized before final account erasure may still be sent or arrive afterward. Confirm the deletion request?",
-        activityTitle: "Security activity",
-        confirmEnrollment: "Confirm enrollment",
-        disableMfa: "Disable MFA",
-        enableMfa: "Set up MFA",
-        exportStatus: {
-          ready: "Ready",
-          pending: "Pending",
-          generating: "Preparing",
-          downloaded: "Downloaded",
-          expired: "Expired",
-          failed: "Failed",
-        },
-        eventResult: {
-          success: "Success",
-          failure: "Failure",
-          rejected: "Rejected",
-          technical_failure: "Technical failure",
-          error: "Error",
-        },
-      },
-      securityConfig: {
-        navigation: "Security navigation",
-        tabs: {
-          configuration: "Configuration",
-          history: "History",
-          audit: "Audit log",
-        },
-        title: "Security configuration",
-        description:
-          "Configure features by business intent. Changes are previewed and then published atomically.",
-        reset: "Discard changes",
-        preview: "Preview impact",
-        publish: "Publish without restart",
-        confirmCritical:
-          "I confirm that I have reviewed the consequences of this critical change.",
-        previewSummary_one: "{{count}} option changed · {{impact}} impact",
-        previewSummary_other: "{{count}} options changed · {{impact}} impact",
-        historyTitle: "Revision history",
-        revision: "Revision {{version}}",
-        restore: "Restore",
-        auditTitle: "Security audit log",
-        sliderLabel: "{{label}} — slider",
-        recommended: "Recommended",
-        readOnly:
-          "Read-only: no executable consumer currently applies this option.",
-        fieldDescription:
-          "{{label}}. This value is applied by the server after publication.",
-        previewWarnings: {
-          mfaAvailability:
-            "Disabling MFA availability does not erase existing encrypted MFA settings.",
-          auditRetention:
-            "The next maintenance run may purge older audit events.",
-        },
-        impact: {
-          standard: "Standard",
-          medium: "Medium",
-          high: "High",
-          critical: "Critical",
-        },
-        revisionStatus: {
-          published: "Published",
-          effective: "Effective",
-          superseded: "Superseded",
-          pending: "Pending",
-          failed: "Failed",
-          applied: "Applied",
-          archived: "Archived",
-        },
-        eventResult: {
-          success: "Success",
-          rejected: "Rejected",
-          failure: "Failure",
-          technical_failure: "Technical failure",
-        },
-        categories: {
-          accounts: "Accounts",
-          authentication: "Authentication",
-          passwords: "Passwords",
-          sessions: "Sessions",
-          recovery: "Recovery",
-          audit: "Audit",
-        },
-        fields: {
-          accounts: {
-            publicRegistration: "Public sign-up",
-            allowedLoginIdentifiers: "Allowed login identifiers",
-            emailVerification: "Email verification",
-            emailChange: "Email change",
-            export: "Account export",
-            deletion: "Account deletion",
-            deletionGraceDays: "Deletion grace period",
-          },
-          authentication: {
-            mfaAvailable: "MFA available",
-            mfaRequiredRoles: "MFA-required roles",
-            mfaChallengeMinutes: "MFA challenge duration",
-            mfaMaxAttempts: "Maximum MFA attempts",
-            recentAuthenticationMinutes: "Recent authentication window",
-          },
-          passwords: {
-            standardLevel: "Standard level",
-            privilegedLevel: "Privileged level",
-            standardMinLength: "Standard minimum length",
-            privilegedMinLength: "Privileged minimum length",
-            maxLength: "Maximum length",
-            standardMinimumStrength: "Standard minimum strength",
-            privilegedMinimumStrength: "Privileged minimum strength",
-            checkCommonPasswords: "Reject common passwords",
-            checkCompromisedPasswords: "Reject compromised passwords",
-            checkUserContext: "Check user context",
-            rejectCurrentPassword: "Reject current password",
-            requireUppercase: "Require uppercase",
-            requireLowercase: "Require lowercase",
-            requireNumber: "Require a number",
-            requireSpecialCharacter: "Require a special character",
-          },
-          sessions: {
-            userManagement: "User session management",
-            durationMinutes: "Session duration",
-          },
-          recovery: {
-            enabled: "Account recovery",
-            tokenMinutes: "Recovery link validity",
-            requestsPerHour: "Recovery requests per hour",
-          },
-          audit: {
-            consultation: "Audit consultation",
-            retentionDays: "Retention period",
-          },
-        },
-        choices: {
-          username: "Username",
-          email: "Email address",
-          user: "Users",
-          admin: "Administrators",
-          standard: "Standard",
-          elevated: "Elevated",
-          critical: "Critical",
-          custom: "Custom",
-          too_weak: "Too weak",
-          weak: "Weak",
-          acceptable: "Acceptable",
-          strong: "Strong",
-          very_strong: "Very strong",
-        },
-        units: {
-          minutes: "minutes",
-          days: "days",
-          characters: "characters",
-          attempts: "attempts",
-          requests: "requests",
-        },
-        error: "Unable to apply this configuration. Please try again.",
-        invalid: "Check the configuration settings.",
-        justificationRequired: "Enter a reason for this change.",
-        confirmationRequired: "Confirm the critical change to continue.",
-        versionConflict:
-          "The configuration has changed. Refresh it before trying again.",
-        revisionMissing:
-          "This version is no longer available. Refresh the history.",
-        authenticationFailed:
-          "Could not verify your identity. Check your credentials and try again.",
-        stepUp: "Critical changes and restoration",
-        justification: "Reason",
-        password: "Current password",
-        mfaCode: "MFA code, when enabled",
-        confirm: "Confirm the critical change",
-        notRecorded: "Not recorded",
-      },
+      ...selectLocalizedCopy("en"),
       passwordFeedback: {
         empty: "Enter a password.",
         confirmation_mismatch: "Password confirmation does not match.",
@@ -1155,7 +1170,7 @@ function synchronizeDocumentLocale(language: string): void {
   }
   const locale: Language = language.startsWith("en") ? "en" : "fr";
   document.documentElement.lang = locale;
-  const description = resources[locale].translation.document.description;
+  const description = i18n.getFixedT(locale)("document.description");
   document
     .querySelector('meta[name="description"]')
     ?.setAttribute("content", description);
