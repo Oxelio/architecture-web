@@ -345,11 +345,13 @@ function selectLocalizedCopy(
   source: Record<string, unknown>,
   language: Language,
 ): Record<string, unknown> {
+  const languageIndex = language === "fr" ? 0 : 1;
+
   return Object.fromEntries(
     Object.entries(source).map(([key, value]) => [
       key,
       Array.isArray(value)
-        ? value[language === "fr" ? 0 : 1]
+        ? value[languageIndex]
         : selectLocalizedCopy(value as Record<string, unknown>, language),
     ]),
   );
