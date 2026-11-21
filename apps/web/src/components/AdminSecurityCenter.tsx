@@ -406,12 +406,34 @@ function ConfigField({
   value: unknown;
   onChange: (value: unknown) => void;
 }>) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const id = `security-${entry.key.replaceAll(".", "-")}`;
   const disabled = !entry.availability.available || entry.availability.readOnly;
   const label = t(`securityConfig.fields.${entry.key}`, {
     defaultValue: entry.key,
   });
+
+  function formatRecommendedValue(recommended: unknown): string {
+    if (typeof recommended === "boolean") {
+      return t(
+        recommended
+          ? "securityConfig.booleanValue.enabled"
+          : "securityConfig.booleanValue.disabled",
+      );
+    }
+    if (typeof recommended === "string") {
+      return t(`securityConfig.choices.${recommended}`, {
+        defaultValue: recommended,
+      });
+    }
+    if (Array.isArray(recommended)) {
+      return recommended.map(formatRecommendedValue).join(", ") || "—";
+    }
+    if (typeof recommended === "number") {
+      return recommended.toLocaleString(i18n.language);
+    }
+    return formatValue(recommended);
+  }
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -525,7 +547,7 @@ function ConfigField({
 
       <p className="mt-2 text-xs text-slate-500">
         {t("securityConfig.recommended")} :{" "}
-        {formatValue(entry.recommendedValue)}
+        {formatRecommendedValue(entry.recommendedValue)}
       </p>
       {disabled ? (
         <p className="mt-2 text-xs text-amber-300">
@@ -579,10 +601,11 @@ function History({
                     defaultValue: "Not recorded",
                   })}{" "}
                 ·{" "}
-                {revision.origin ??
-                  t("securityConfig.notRecorded", {
-                    defaultValue: "Not recorded",
-                  })}
+                {revision.origin
+                  ? t(`securityConfig.revisionOrigin.${revision.origin}`, {
+                      defaultValue: revision.origin,
+                    })
+                  : t("securityConfig.notRecorded")}
               </p>
               {revision.changes?.map((change) => (
                 <p key={change.key}>
