@@ -288,9 +288,7 @@ function ConfigurationEditor({
           htmlFor="security-config-justification"
           className="text-sm font-semibold text-white"
         >
-          {t("securityConfig.justification", {
-            defaultValue: "Motif du changement",
-          })}
+          {t("securityConfig.justification")}
         </label>
         <textarea
           id="security-config-justification"

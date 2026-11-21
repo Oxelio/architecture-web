@@ -21,6 +21,7 @@ import {
 
 import i18n, { changeLanguage, type Language } from "#app/i18n";
 import { AdminSecurityCenter } from "#components/AdminSecurityCenter";
+import { SecurityCenter } from "#components/SecurityCenter";
 import type { AdminUser } from "#services/api";
 
 import { AdminPage } from "./AdminPage";
@@ -315,6 +316,8 @@ describe("sign-in feedback", () => {
     await enter('input[name="password"]', loginPassword);
     await submit();
     await enter('input[autocomplete="one-time-code"]', "123456");
+    expect(container.textContent).toContain("Authenticator app or backup code");
+    expect(container.textContent).toContain("Verify second factor");
 
     fetchApi.mockResolvedValueOnce(failure("mfa.invalid_code", 401));
     await click("button");
@@ -327,6 +330,8 @@ describe("sign-in feedback", () => {
     expect(element('[role="alert"]').textContent).toContain(
       "Impossible de vérifier le second facteur",
     );
+    expect(container.textContent).toContain("Code de l’application ou code de secours");
+    expect(container.textContent).toContain("Vérifier le second facteur");
     expect(container.textContent).not.toMatch(
       /private-challenge|mfa\.not_enabled|internal traceback/u,
     );
@@ -806,11 +811,11 @@ it("renders a configuration restore conflict without the raw API error", async (
   });
   client.setQueryData(["admin-security-events"], []);
   await render(<AdminSecurityCenter />);
-  await clickButton("Historique");
+  await clickButton("History");
   fetchApi.mockResolvedValueOnce(
     failure("security_configuration.version_conflict", 409),
   );
-  await clickButton("Restaurer");
+  await clickButton("Restore");
   await expectFeedback(
     '[role="alert"]',
     "The configuration has changed. Refresh it before trying again.",
@@ -854,23 +859,113 @@ it("shows a failed configuration preview after an earlier publication failure", 
       },
     }),
   );
-  await clickButton("Prévisualiser l’impact");
-  await expectFeedback("article", "option(s) modifiée(s)");
+  await clickButton("Preview impact");
+  await expectFeedback("article", "1 option changed · Medium impact");
 
   fetchApi.mockResolvedValueOnce(
     failure("security_configuration.version_conflict", 409),
   );
-  await clickButton("Publier sans redémarrage");
+  await clickButton("Publish without restart");
   await expectFeedback('[role="alert"]', "The configuration has changed.");
 
   fetchApi.mockResolvedValueOnce(
     failure("security_configuration.invalid", 400),
   );
-  await clickButton("Prévisualiser l’impact");
+  await clickButton("Preview impact");
   await expectFeedback('[role="alert"]', "Check the configuration settings.");
   await changeLocale("fr");
   expect(element('[role="alert"]').textContent).toBe(
     "Vérifiez les paramètres de la configuration.",
   );
   expect(fetchApi).toHaveBeenCalledTimes(3);
+});
+
+it("localizes account-deletion cancellation copy and retains credentials on locale changes", async () => {
+  await render(<CancelDeletionPage />, "/cancel-deletion?token=private-token");
+  expect(element("h2").textContent).toBe("Cancel deletion");
+  expect(element<HTMLInputElement>('input[type="password"]').placeholder).toBe("Password");
+  await enter('input[type="password"]', loginPassword);
+  await changeLocale("fr");
+  expect(element("h2").textContent).toBe("Annuler la suppression");
+  expect(element<HTMLInputElement>('input[type="password"]').value).toBe(loginPassword);
+  expect(fetchApi).not.toHaveBeenCalled();
+
+  fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
+  await clickButton("Confirmer l’annulation");
+  expect(container.textContent).toContain("Le compte est réactivé.");
+  await changeLocale("en");
+  expect(container.textContent).toContain("The account has been reactivated.");
+  expect(container.textContent).not.toContain("private-token");
+  expect(fetchApi).toHaveBeenCalledOnce();
+});
+
+it("localizes MFA and account-security copy without restarting operations", async () => {
+  client.setQueryData(["mfa"], { enabled: true, backupCodesRemaining: 1 });
+  client.setQueryData(["account-exports"], []);
+  client.setQueryData(["security-events"], []);
+  await render(<SecurityCenter />);
+  expect(container.textContent).toContain("Multifactor authentication");
+  expect(container.textContent).toContain("Enabled · 1 backup code remaining");
+  expect(container.textContent).toContain("Disable MFA");
+  expect(container.textContent).toContain("Request account deletion");
+
+  await changeLocale("fr");
+  expect(container.textContent).toContain("Authentification multifacteur");
+  expect(container.textContent).toContain("Active · 1 code de secours restant");
+  expect(container.textContent).toContain("Désactiver le MFA");
+  expect(container.textContent).toContain("Demander la suppression du compte");
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
+it("localizes administrator security configuration, history and audit without changing state", async () => {
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { id: "effective", version: 2 },
+    effective: { accounts: { publicRegistration: true } },
+    catalog: [{
+      key: "accounts.publicRegistration",
+      category: "accounts",
+      control: "switch",
+      impact: "medium",
+      recommendedValue: true,
+      availability: { available: true, readOnly: false },
+    }],
+    revisions: [{
+      id: "previous", version: 1, status: "superseded",
+      created_by: "operator", created_at: "2026-01-01T00:00:00Z",
+      published_at: "2026-01-01T00:00:00Z",
+    }],
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+  expect(element("h2").textContent).toBe("Security configuration");
+  expect(container.textContent).toContain("Public sign-up");
+  expect(element("nav").getAttribute("aria-label")).toBe("Security navigation");
+
+  await clickButton("History");
+  expect(container.textContent).toContain("Revision history");
+  expect(container.textContent).toContain("Superseded");
+  expect(container.textContent).toContain("Restore");
+  await changeLocale("fr");
+  expect(container.textContent).toContain("Historique des révisions");
+  expect(container.textContent).toContain("Remplacée");
+  await clickButton("Journal d’audit");
+  expect(container.textContent).toContain("Journal de sécurité");
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
+it("synchronizes the document language and existing metadata with the selected locale", async () => {
+  const meta = document.createElement("meta");
+  meta.name = "description";
+  document.head.append(meta);
+  try {
+    await changeLocale("en");
+    expect(document.documentElement.lang).toBe("en");
+    expect(meta.content).toContain("Modern React frontend");
+    await changeLocale("fr");
+    expect(document.documentElement.lang).toBe("fr");
+    expect(meta.content).toContain("Front React moderne");
+    expect(fetchApi).not.toHaveBeenCalled();
+  } finally {
+    meta.remove();
+  }
 });
