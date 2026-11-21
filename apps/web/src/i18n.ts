@@ -82,6 +82,10 @@ const localizedCopy = {
     ],
     activityTitle: ["Activité de sécurité", "Security activity"],
     confirmEnrollment: ["Valider l’enrôlement", "Confirm enrollment"],
+    enrollmentQrAlt: [
+      "Code QR de configuration TOTP",
+      "TOTP setup QR code",
+    ],
     disableMfa: ["Désactiver le MFA", "Disable MFA"],
     enableMfa: ["Configurer le MFA", "Set up MFA"],
     exportStatus: {
@@ -133,6 +137,16 @@ const localizedCopy = {
     auditTitle: ["Journal de sécurité", "Security audit log"],
     sliderLabel: ["{{label}} — curseur", "{{label}} — slider"],
     recommended: ["Recommandé", "Recommended"],
+    booleanValue: {
+      enabled: ["Activé", "Enabled"],
+      disabled: ["Désactivé", "Disabled"],
+    },
+    revisionOrigin: {
+      administration: ["Administration", "Administration"],
+      initialization: ["Initialisation", "Initialization"],
+      restoration: ["Restauration", "Restoration"],
+      operations: ["Opérations", "Operations"],
+    },
     readOnly: [
       "Lecture seule : aucun consommateur exécutable n’applique actuellement cette option.",
       "Read-only: no executable consumer currently applies this option.",
