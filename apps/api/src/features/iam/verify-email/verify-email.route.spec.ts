@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
 import { httpLoggingOptions, registerHttpRequestLogging } from "../../../http-logging.js";
+import { errorHandler } from "../../../types/error-handler.js";
 import type { IamControllers } from "../compose-controllers.js";
 import { registerPublicRoutes } from "../routes/public.routes.js";
 import { createVerifyEmailController } from "./verify-email.controller.js";
@@ -18,6 +19,7 @@ function createServer(execute: ReturnType<typeof vi.fn>, logs?: string[]) {
   });
   const app = Fastify(httpLoggingOptions(stream));
   registerHttpRequestLogging(app);
+  app.setErrorHandler(errorHandler);
   const noop = async () => undefined;
   const controllers = {
     verifyEmail: createVerifyEmailController({ execute } as VerifyEmail),
