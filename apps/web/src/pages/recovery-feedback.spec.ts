@@ -1,30 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { recoveryErrorMessage, recoverySubmitLabel } from "./RecoveryPage";
+import i18n from "#app/i18n";
+
+import { recoverySubmitKey } from "./RecoveryPage";
 
 describe("recovery form feedback", () => {
   it.each([
-    [new Error("password.too_short"), "passwordFeedback.too_short"],
+    [true, true, "recovery.pending", "Traitement…", "Processing…"],
+    [true, false, "recovery.pending", "Traitement…", "Processing…"],
+    [false, true, "recovery.resetSubmit", "Réinitialiser", "Reset password"],
     [
-      new Error("password_recovery.invalid_token"),
-      "passwordFeedback.recovery_invalid",
+      false,
+      false,
+      "recovery.requestSubmit",
+      "Envoyer les instructions",
+      "Send instructions",
     ],
-    [new Error("email.invalid_format"), "auth.invalidEmail"],
-    [new Error("transport.unavailable"), "passwordFeedback.unavailable"],
-    [null, "passwordFeedback.unavailable"],
-  ])("preserves feedback for %s", (error, expected) => {
-    const translate = (key: string) => key;
-    expect(recoveryErrorMessage(error, translate as never)).toBe(expected);
-  });
-  it.each([
-    [true, true, "Traitement…"],
-    [true, false, "Traitement…"],
-    [false, true, "Réinitialiser"],
-    [false, false, "Envoyer les instructions"],
   ])(
-    "preserves the pending=%s and reset=%s button label",
-    (pending, reset, expected) => {
-      expect(recoverySubmitLabel(pending, reset)).toBe(expected);
+    "localizes the pending=%s and reset=%s button label",
+    (pending, reset, expectedKey, french, english) => {
+      const key = recoverySubmitKey(pending, reset);
+      expect(key).toBe(expectedKey);
+      expect(i18n.getFixedT("fr")(key)).toBe(french);
+      expect(i18n.getFixedT("en")(key)).toBe(english);
     },
   );
 });

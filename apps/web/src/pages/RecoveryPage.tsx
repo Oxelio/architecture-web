@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
 import {
   getPasswordPolicy,
   requestAccountRecovery,
@@ -25,11 +26,11 @@ export function RecoveryPage() {
   const [state, setState] = useState<"idle" | "pending" | "success" | "error">(
     "idle",
   );
-  const [error, setError] = useState("");
+  const [errorKey, setErrorKey] = useState<string | null>(null);
 
   const submit = async () => {
     setState("pending");
-    setError("");
+    setErrorKey(null);
     try {
       if (token) {
         await resetRecoveredPassword(token, password, confirmation);
@@ -38,7 +39,9 @@ export function RecoveryPage() {
       }
       setState("success");
     } catch (error) {
-      setError(recoveryErrorMessage(error, t));
+      setErrorKey(
+        apiErrorKey(error, token ? "resetPassword" : "requestRecovery"),
+      );
       setState("error");
     }
   };
@@ -50,23 +53,19 @@ export function RecoveryPage() {
       className="mx-auto max-w-lg rounded-[2rem] border border-slate-800 bg-slate-900/80 p-8 shadow-glow"
     >
       <p className="text-sm uppercase tracking-[0.25em] text-sky-400">
-        Récupération sécurisée
+        {t("recovery.eyebrow")}
       </p>
       <h2 className="mt-3 text-3xl font-semibold text-white">
-        {token ? "Choisir un nouveau mot de passe" : "Retrouver votre compte"}
+        {t(token ? "recovery.resetTitle" : "recovery.requestTitle")}
       </h2>
       <p className="mt-3 text-sm leading-6 text-slate-400">
-        {token
-          ? "Le lien est temporaire et ne pourra être utilisé qu’une fois."
-          : "Si le compte est éligible, nous enverrons des instructions. La réponse reste identique pour toutes les adresses."}
+        {t(token ? "recovery.resetDescription" : "recovery.requestDescription")}
       </p>
       {state === "success" ? (
         <div className="mt-7 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-sm text-emerald-200">
-          {token
-            ? "Mot de passe remplacé. Toutes les sessions ont été révoquées."
-            : "Si le compte est éligible, les instructions ont été envoyées."}
+          {t(token ? "recovery.resetSuccess" : "recovery.requestSuccess")}
           <Link to="/signin" className="mt-4 block font-semibold text-white">
-            Retour à la connexion
+            {t("recovery.backToSignIn")}
           </Link>
         </div>
       ) : (
@@ -77,7 +76,8 @@ export function RecoveryPage() {
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="Nouveau mot de passe"
+                placeholder={t("recovery.newPassword")}
+                aria-label={t("recovery.newPassword")}
                 autoComplete="new-password"
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
               />
@@ -85,7 +85,8 @@ export function RecoveryPage() {
                 type="password"
                 value={confirmation}
                 onChange={(event) => setConfirmation(event.target.value)}
-                placeholder="Confirmation"
+                placeholder={t("recovery.confirmation")}
+                aria-label={t("recovery.confirmation")}
                 autoComplete="new-password"
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
               />
@@ -95,13 +96,16 @@ export function RecoveryPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="Adresse e-mail"
+              placeholder={t("recovery.email")}
+              aria-label={t("recovery.email")}
               autoComplete="email"
               className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white"
             />
           )}
-          {state === "error" ? (
-            <p className="text-sm text-rose-300">{error}</p>
+          {state === "error" && errorKey ? (
+            <p role="alert" className="text-sm text-rose-300">
+              {errorMessage(t, errorKey)}
+            </p>
           ) : null}
           {token && policy.data ? (
             <p className="text-sm text-slate-400">
@@ -121,7 +125,7 @@ export function RecoveryPage() {
             }
             className="w-full rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 font-semibold text-white disabled:opacity-50"
           >
-            {recoverySubmitLabel(state === "pending", Boolean(token))}
+            {t(recoverySubmitKey(state === "pending", Boolean(token)))}
           </button>
         </div>
       )}
@@ -129,28 +133,9 @@ export function RecoveryPage() {
   );
 }
 
-export function recoverySubmitLabel(pending: boolean, reset: boolean): string {
+export function recoverySubmitKey(pending: boolean, reset: boolean): string {
   if (pending) {
-    return "Traitement…";
+    return "recovery.pending";
   }
-  return reset ? "Réinitialiser" : "Envoyer les instructions";
-}
-
-export function recoveryErrorMessage(
-  error: unknown,
-  t: ReturnType<typeof useTranslation>["t"],
-): string {
-  const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
-  if (code.startsWith("password.")) {
-    return t(`passwordFeedback.${code.slice(9)}`, {
-      defaultValue: t("passwordFeedback.invalid"),
-    });
-  }
-  if (code === "password_recovery.invalid_token") {
-    return t("passwordFeedback.recovery_invalid");
-  }
-  if (code === "email.invalid_format") {
-    return t("auth.invalidEmail");
-  }
-  return t("passwordFeedback.unavailable");
+  return reset ? "recovery.resetSubmit" : "recovery.requestSubmit";
 }

@@ -188,11 +188,13 @@ interface ApiResponse<T, TMeta = never> {
   meta?: TMeta;
 }
 
-interface ApiError {
-  error: {
-    code: string;
-    message?: string;
-  };
+export class ApiRequestError extends Error {
+  readonly code: string;
+
+  constructor(code: string) {
+    super(code);
+    this.code = code;
+  }
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
@@ -229,13 +231,16 @@ async function requestEnvelope<T, TMeta = never>(
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json")
-    ? ((await response.json()) as ApiResponse<T, TMeta> | ApiError)
+  const body: unknown = contentType.includes("application/json")
+    ? await response.json()
     : null;
 
   if (!response.ok) {
-    const apiError = body as ApiError | null;
-    throw new Error(apiError?.error?.code ?? `HTTP_${response.status}`);
+    const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
+    if (typeof code === "string" && code.length > 0) {
+      throw new ApiRequestError(code);
+    }
+    throw new Error(`HTTP_${response.status}`);
   }
 
   return body as ApiResponse<T, TMeta>;

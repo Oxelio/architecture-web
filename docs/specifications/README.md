@@ -28,18 +28,19 @@ validation evidence are reviewed together.
 
 ## Catalog
 
-| Identifier                                            | Lifecycle      | Subject                                                      |
-| ----------------------------------------------------- | -------------- | ------------------------------------------------------------ |
-| [SF-ACCOUNT-DATA-001](SF-ACCOUNT-DATA-001.md)         | Approved       | Account data export and deletion                             |
-| [SF-ACCOUNT-RECOVERY-001](SF-ACCOUNT-RECOVERY-001.md) | Approved       | Account recovery and password reset                          |
-| [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md)           | Implementation | Search and pagination for user administration                |
-| [SF-EMAIL-VERIFICATION-001](SF-EMAIL-VERIFICATION-001.md) | Approved       | Explicit user confirmation for email verification           |
-| [SF-MFA-001](SF-MFA-001.md)                           | Approved       | Multifactor authentication with an authenticator application |
-| [SF-NOTIFICATIONS-001](SF-NOTIFICATIONS-001.md)       | Approved       | Notification center and multichannel delivery                |
-| [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)     | Approved       | Security event audit trail                                   |
-| [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)   | Approved       | Dynamic security feature and policy configuration            |
-| [SF-SESSION-001](SF-SESSION-001.md)                   | Implementation | Enrich active sessions with identification information       |
-| [SF-PASSWORD-001](SF-PASSWORD-001.md)                 | Implementation | Configurable secure password policy                          |
+| Identifier                                                | Lifecycle      | Subject                                                      |
+| --------------------------------------------------------- | -------------- | ------------------------------------------------------------ |
+| [SF-ACCOUNT-DATA-001](SF-ACCOUNT-DATA-001.md)             | Approved       | Account data export and deletion                             |
+| [SF-ACCOUNT-RECOVERY-001](SF-ACCOUNT-RECOVERY-001.md)     | Approved       | Account recovery and password reset                          |
+| [SF-ADMIN-USERS-001](SF-ADMIN-USERS-001.md)               | Implementation | Search and pagination for user administration                |
+| [SF-EMAIL-VERIFICATION-001](SF-EMAIL-VERIFICATION-001.md) | Approved       | Explicit user confirmation for email verification            |
+| [SF-MFA-001](SF-MFA-001.md)                               | Approved       | Multifactor authentication with an authenticator application |
+| [SF-NOTIFICATIONS-001](SF-NOTIFICATIONS-001.md)           | Approved       | Notification center and multichannel delivery                |
+| [SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md)         | Approved       | Security event audit trail                                   |
+| [SF-SECURITY-CONFIG-001](SF-SECURITY-CONFIG-001.md)       | Approved       | Dynamic security feature and policy configuration            |
+| [SF-SESSION-001](SF-SESSION-001.md)                       | Implementation | Enrich active sessions with identification information       |
+| [SF-WEB-ERROR-FEEDBACK-001](SF-WEB-ERROR-FEEDBACK-001.md) | Approved       | Localized validation and API error feedback in the Web UI    |
+| [SF-PASSWORD-001](SF-PASSWORD-001.md)                     | Implementation | Configurable secure password policy                          |
 
 ## Observed implementation coverage
 
