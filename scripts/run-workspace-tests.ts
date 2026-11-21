@@ -7,7 +7,7 @@ import {
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import platformPath, { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export interface CommandOptions {
@@ -140,7 +140,7 @@ function readExecutionReport(path: string, status: number): ExecutionReport {
 export function isCoverageWithinCheckout(
   root: string,
   coverage: string,
-  paths = { relative, isAbsolute, sep },
+  paths = platformPath,
 ) {
   const local = paths.relative(root, coverage);
   return (
