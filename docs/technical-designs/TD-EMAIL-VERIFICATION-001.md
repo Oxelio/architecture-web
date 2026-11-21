@@ -14,7 +14,7 @@
 
 - **Work:** [#152 — Explicit email verification confirmation](https://github.com/Oxelio/architecture-web/issues/152), Product Behavior Change / Complex; security-sensitive, cross-component and intentionally breaking the public GET verification contract.
 - **Approved Functional Specification:** [SF-EMAIL-VERIFICATION-001](../specifications/SF-EMAIL-VERIFICATION-001.md) — approved Option B only. The maintainer's recorded [explicit human approval](https://github.com/Oxelio/architecture-web/issues/145#issuecomment-6963487710) is an AI transcription of the user decision, not direct GitHub review.
-- **Related security correction:** [#145](https://github.com/Oxelio/architecture-web/issues/145), Defect Correction / Complex, independently owns safe Fastify and Nginx access/error logs; **NOT READY** at the last review because of native Nginx error logs.
+- **Related security correction:** [#145](https://github.com/Oxelio/architecture-web/issues/145), Defect Correction / Complex, independently owns safe Fastify and Nginx access/error logs; completed and merged into `main` with Fastify/Nginx safe-logging safeguards.
 - **Architecture:** [Project principles](../project/architecture-principles.md), [current overview](../architecture/overview.md), [dependency rules](../architecture/dependency-rules.md), [HTTP reference](../reference/http-api.md).
 - **Validation / delivery:** [Testing](../development/testing.md), [delivery](../project/delivery-pipeline.md).
 
@@ -74,7 +74,7 @@ The current verification sender constructs `/verify?token=...` and the HTTP API 
 4. Update the HTTP reference in the appropriate integration phase, after the new contract becomes effective, without preserving an obsolete public GET as a supported route.
 5. Validate both frontend/HTTP adapter changes together. Do not add cross-version deploy compatibility scaffolding for an environment that is not in production.
 
-**Interaction with #145:** New email-verification links and API requests no longer contain the token in the HTTP URL, reducing a specific ingestion risk. This **does not fix** other existing token-bearing query links (notably account recovery/deletion), arbitrary client-supplied URL credentials, Fastify exception/body logging, or native Nginx error messages. Work #145 remains the owner of general safe HTTP diagnostic logging. The clean replacement eliminates #152's former legacy-link compatibility dependency, not #145's independent security obligations.
+**Interaction with #145:** New email-verification links and API requests no longer contain the token in the HTTP URL, reducing a specific ingestion risk. This **does not fix** other existing token-bearing query links (notably account recovery/deletion), arbitrary client-supplied URL credentials, Fastify exception/body logging, or native Nginx error messages. Work #145 remains the owner of general safe HTTP diagnostic logging; its implementation has been merged into `main`. The clean replacement eliminates #152's former legacy-link compatibility dependency, not #145's independent security obligations.
 
 ## 5. Failure, concurrency and security
 

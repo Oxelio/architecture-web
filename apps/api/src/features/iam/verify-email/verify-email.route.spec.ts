@@ -4,10 +4,10 @@ import type { VerifyEmail } from "@architecture/iam/application";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
+import { httpLoggingOptions, registerHttpRequestLogging } from "../../../http-logging.js";
 import type { IamControllers } from "../compose-controllers.js";
 import { registerPublicRoutes } from "../routes/public.routes.js";
 import { createVerifyEmailController } from "./verify-email.controller.js";
-import { httpLoggingOptions, registerHttpRequestLogging } from "../../../http-logging.js";
 
 function createServer(execute: ReturnType<typeof vi.fn>, logs?: string[]) {
   const stream = new Writable({
@@ -36,9 +36,19 @@ describe("public verification POST contract", () => {
     const execute = vi.fn().mockResolvedValue({ success: true, value: undefined });
     const app = createServer(execute);
     try {
-      const missing = await app.inject({ method: "POST", url: "/v1/iam/verify", payload: {} });
-      const queryOnly = await app.inject({ method: "POST", url: "/v1/iam/verify?token=legacy" });
-      const legacy = await app.inject({ method: "GET", url: "/v1/iam/verify?token=legacy" });
+      const missing = await app.inject({
+        method: "POST",
+        url: "/v1/iam/verify",
+        payload: {},
+      });
+      const queryOnly = await app.inject({
+        method: "POST",
+        url: "/v1/iam/verify?token=legacy",
+      });
+      const legacy = await app.inject({
+        method: "GET",
+        url: "/v1/iam/verify?token=legacy",
+      });
       expect(missing.statusCode).toBe(400);
       expect(queryOnly.statusCode).toBe(400);
       expect(legacy.statusCode).toBe(404);
@@ -49,7 +59,9 @@ describe("public verification POST contract", () => {
         payload: { token: "synthetic-verification-token" },
       });
       expect(verified.statusCode).toBe(204);
-      expect(execute).toHaveBeenCalledExactlyOnceWith({ token: "synthetic-verification-token" });
+      expect(execute).toHaveBeenCalledExactlyOnceWith({
+        token: "synthetic-verification-token",
+      });
     } finally {
       await app.close();
     }

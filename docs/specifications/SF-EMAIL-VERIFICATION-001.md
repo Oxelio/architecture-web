@@ -20,7 +20,7 @@
 
 **Owning Work:** [#152 — Require explicit confirmation for secure email verification via POST](https://github.com/Oxelio/architecture-web/issues/152)
 
-**Originating security defect:** [#145 — Redact IAM verification tokens and sensitive credentials from HTTP logs](https://github.com/Oxelio/architecture-web/issues/145). Work #145 independently owns general server HTTP-log confidentiality and remains open.
+**Originating security defect:** [#145 — Redact IAM verification tokens and sensitive credentials from HTTP logs](https://github.com/Oxelio/architecture-web/issues/145). Work #145 independently owns general server HTTP-log confidentiality and has been completed and merged into `main`.
 
 **Existing functional dependencies:** [Security audit](SF-SECURITY-AUDIT-001.md) and [Account recovery](SF-ACCOUNT-RECOVERY-001.md) own adjacent security requirements; this specification does not replace or expand their functional scope.
 

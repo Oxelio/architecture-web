@@ -16,7 +16,7 @@ They declare TypeBox schemas for recovery, MFA, account-data and configuration r
 
 | Method | Path                        | Intent                                |
 | ------ | --------------------------- | ------------------------------------- |
-| `GET`  | `/verify?token=...`         | verify an email                       |
+| `POST` | `/verify`                   | verify an email with JSON body token  |
 | `POST` | `/signup`                   | create an account                     |
 | `GET`  | `/password-policy`          | read the public password policy       |
 | `POST` | `/password-policy/evaluate` | evaluate a password                   |

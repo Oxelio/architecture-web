@@ -326,7 +326,8 @@ const resources = {
         error:
           "La vérification a échoué. Vérifie le lien ou réessaie plus tard.",
         waiting: "Patiente pendant la validation...",
-        awaiting: "Confirmez votre adresse e-mail pour terminer la vérification.",
+        awaiting:
+          "Confirmez votre adresse e-mail pour terminer la vérification.",
         confirm: "Confirmer mon adresse e-mail",
         signIn: "Se connecter",
       },
