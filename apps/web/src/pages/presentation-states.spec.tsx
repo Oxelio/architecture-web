@@ -174,7 +174,7 @@ describe("profile presentation states", () => {
         client.setQueryData(["mfa"], { enabled, backupCodesRemaining: 3 }),
       );
       expect(html).toContain(
-        enabled ? "Désactiver le MFA" : "Configurer le MFA",
+        enabled ? "securityCenter.disableMfa" : "securityCenter.enableMfa",
       );
     },
   );
