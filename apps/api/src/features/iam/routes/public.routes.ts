@@ -9,12 +9,19 @@ import {
 import { signInRouteOptions } from "#iam/sign-in/sign-in.route-options";
 import { signOutRouteOptions } from "#iam/sign-out/sign-out.route-options";
 import { signUpRouteOptions } from "#iam/sign-up/sign-up.route-options";
-import { verifyEmailRouteOptions } from "#iam/verify-email/verify-email.route-options";
+import {
+  type VerifyEmailRoute,
+  verifyEmailRouteOptions,
+} from "#iam/verify-email/verify-email.route-options";
 
 export function registerPublicRoutes(controllers: IamControllers) {
   return (app: FastifyInstance) => {
     try {
-      app.get("/verify", verifyEmailRouteOptions, controllers.verifyEmail);
+      app.post<VerifyEmailRoute>(
+        "/verify",
+        verifyEmailRouteOptions,
+        controllers.verifyEmail,
+      );
       app.post("/signup", signUpRouteOptions, controllers.signUp);
       app.get(
         "/password-policy",

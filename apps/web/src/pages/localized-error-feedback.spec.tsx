@@ -607,9 +607,14 @@ it("keeps recovery request success indistinguishable and masks account-sensitive
   expect(container.textContent).toBe(knownAccount);
 });
 
-it("retranslates email verification failure with one request for the token", async () => {
+it("retranslates an expired token after manual confirmation", async () => {
+  window.history.replaceState(null, "", "/verify#token=private-token");
   fetchApi.mockResolvedValueOnce(failure("email_verification.expired_token"));
-  await render(<VerifyEmailPage />, "/verify?token=private-token");
+  await render(<VerifyEmailPage />, "/verify");
+  expect(window.location.hash).toBe("");
+  expect(fetchApi).not.toHaveBeenCalled();
+
+  await click("button");
   expect(element('[role="alert"]').textContent).toBe(
     "The verification link is invalid.",
   );
@@ -621,9 +626,70 @@ it("retranslates email verification failure with one request for the token", asy
     /private-token|expired_token|internal traceback/u,
   );
   expect(fetchApi).toHaveBeenCalledExactlyOnceWith(
-    expect.stringMatching(/\/iam\/verify\?token=private-token$/u),
-    expect.objectContaining({ method: "GET" }),
+    expect.stringMatching(/\/iam\/verify$/u),
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ token: "private-token" }),
+    }),
   );
+});
+
+it("never verifies on passive page renders or locale switches", async () => {
+  window.history.replaceState(null, "", "/verify#token=preview-token");
+  await render(<VerifyEmailPage />, "/verify");
+  expect(window.location.hash).toBe("");
+  expect(container.textContent).toContain("Confirm my email address");
+  expect(fetchApi).not.toHaveBeenCalled();
+  await changeLocale("fr");
+  expect(container.textContent).toContain("Confirmer mon adresse e-mail");
+  await render(<VerifyEmailPage />, "/verify");
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
+it("rejects legacy query-only links and missing tokens", async () => {
+  window.history.replaceState(null, "", "/verify?token=old-query-token");
+  await render(<VerifyEmailPage />, "/verify?token=old-query-token");
+  expect(element('[role="alert"]').textContent).toContain(
+    "The verification link is invalid.",
+  );
+  expect(fetchApi).not.toHaveBeenCalled();
+  expect(container.querySelector("button")).toBeNull();
+});
+
+it("sends one POST for double clicks and shows success", async () => {
+  window.history.replaceState(null, "", "/verify#token=single-use-token");
+  fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
+  await render(<VerifyEmailPage />, "/verify");
+  const button = element<HTMLButtonElement>("button");
+  await act(() => {
+    button.click();
+    button.click();
+  });
+  expect(fetchApi).toHaveBeenCalledOnce();
+  expect(fetchApi).toHaveBeenCalledWith(
+    expect.stringMatching(/\/iam\/verify$/u),
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(container.textContent).toContain(
+    "Your email address has been verified",
+  );
+  expect(container.querySelector("button")).toBeNull();
+});
+
+it("does not silently retry a failed network request", async () => {
+  window.history.replaceState(null, "", "/verify#token=network-token");
+  fetchApi.mockRejectedValueOnce(new TypeError("Network unavailable"));
+  await render(<VerifyEmailPage />, "/verify");
+  await click("button");
+  expect(element('[role="alert"]').textContent).toContain(
+    "Verification failed",
+  );
+  await changeLocale("fr");
+  expect(element('[role="alert"]').textContent).toContain(
+    "La vérification a échoué",
+  );
+  expect(fetchApi).toHaveBeenCalledOnce();
+  expect(container.textContent).not.toContain("network-token");
 });
 
 it("masks the reason for a failed account-deletion cancellation in both locales", async () => {

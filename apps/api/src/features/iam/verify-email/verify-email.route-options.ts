@@ -9,14 +9,15 @@ import { createHttpSuccessResponseSchemas } from "#helpers/create-success-respon
 import { VerifyEmailHttpContract } from "./verify-email.http.js";
 
 export interface VerifyEmailRoute {
-  Querystring: Static<typeof VerifyEmailQuerySchema>;
+  Body: Static<typeof VerifyEmailBodySchema>;
 }
 
-const VerifyEmailQuerySchema = Type.Object({
-  token: Type.String({
-    minLength: 1,
-  }),
-});
+const VerifyEmailBodySchema = Type.Object(
+  {
+    token: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
 
 export const verifyEmailRouteOptions = {
   schema: {
@@ -24,7 +25,7 @@ export const verifyEmailRouteOptions = {
 
     summary: "Verify email",
 
-    querystring: VerifyEmailQuerySchema,
+    body: VerifyEmailBodySchema,
 
     response: {
       ...createHttpSuccessResponseSchemas(VerifyEmailHttpContract.success),

@@ -29,7 +29,8 @@ describe("NodemailerEmailSenderAdapter", () => {
       expect.objectContaining({
         from: "noreply@example.com",
         to: "user@example.com",
-        text: "Open this link: https://app.example.com/verify?token=token-123",
+        text: "Open this link: https://app.example.com/verify#token=token-123",
+        html: '<p>Click <a href="https://app.example.com/verify#token=token-123">here</a> to verify your email.</p>',
       }),
     );
   });
@@ -56,7 +57,7 @@ describe("NodemailerEmailSenderAdapter", () => {
 
     expect(sendMail).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: "Open this link: https://app.example.com/account/verification?source=email&token=token+with+spaces",
+        text: "Open this link: https://app.example.com/account/verification?source=email#token=token+with+spaces",
       }),
     );
   });

@@ -326,6 +326,10 @@ const resources = {
         error:
           "La vérification a échoué. Vérifie le lien ou réessaie plus tard.",
         waiting: "Patiente pendant la validation...",
+        awaiting:
+          "Confirmez votre adresse e-mail pour terminer la vérification.",
+        confirm: "Confirmer mon adresse e-mail",
+        signIn: "Se connecter",
       },
       admin: {
         eyebrow: "Gestion administrative",
@@ -693,6 +697,9 @@ const resources = {
         success: "Your email address has been verified successfully.",
         error: "Verification failed. Check the link or try again later.",
         waiting: "Please wait while validation runs...",
+        awaiting: "Confirm your email address to complete verification.",
+        confirm: "Confirm my email address",
+        signIn: "Sign in",
       },
       admin: {
         eyebrow: "Administration",
