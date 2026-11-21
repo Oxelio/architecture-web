@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   accountExportDownloadUrl,
@@ -18,6 +19,7 @@ const inputClass =
   "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white";
 
 export function SecurityCenter() {
+  const { t, i18n } = useTranslation();
   const client = useQueryClient();
   const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
@@ -72,12 +74,14 @@ export function SecurityCenter() {
     <section className="mt-8 grid gap-5 lg:grid-cols-2">
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6">
         <h3 className="text-xl font-semibold text-white">
-          Authentification multifacteur
+          {t("securityCenter.mfaTitle")}
         </h3>
         <p className="mt-2 text-sm text-slate-400">
           {mfa.data?.enabled
-            ? `Active · ${mfa.data.backupCodesRemaining} codes de secours restants`
-            : "Inactive · protégez chaque nouvelle connexion avec TOTP."}
+            ? t("securityCenter.mfaEnabled", {
+                count: mfa.data.backupCodesRemaining,
+              })
+            : t("securityCenter.mfaDisabled")}
         </p>
         <div className="mt-4 space-y-3">
           <input
@@ -85,21 +89,21 @@ export function SecurityCenter() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Mot de passe actuel"
+            placeholder={t("securityCenter.currentPassword")}
           />
           {mfa.data?.enabled || enrollment ? (
             <input
               className={inputClass}
               value={mfaCode}
               onChange={(event) => setMfaCode(event.target.value)}
-              placeholder="Code TOTP ou de secours"
+              placeholder={t("securityCenter.mfaCode")}
             />
           ) : null}
           {renderMfaControl()}
           {backupCodes.length > 0 ? (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
               <strong className="text-amber-200">
-                Enregistrez ces codes maintenant
+                {t("securityCenter.saveCodesTitle")}
               </strong>
               <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
                 {backupCodes.map((code) => (
@@ -111,7 +115,7 @@ export function SecurityCenter() {
                 onClick={() => finalize.mutate()}
                 className="mt-4 w-full rounded-xl bg-amber-300 px-4 py-2 font-semibold text-slate-950"
               >
-                J’ai enregistré ces codes, activer le MFA
+                {t("securityCenter.saveCodesConfirm")}
               </button>
             </div>
           ) : null}
@@ -119,17 +123,18 @@ export function SecurityCenter() {
       </article>
 
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6">
-        <h3 className="text-xl font-semibold text-white">Données du compte</h3>
+        <h3 className="text-xl font-semibold text-white">
+          {t("securityCenter.dataTitle")}
+        </h3>
         <p className="mt-2 text-sm text-slate-400">
-          L’export ZIP est disponible 24 h et disparaît après son premier
-          téléchargement.
+          {t("securityCenter.exportDescription")}
         </p>
         <button
           type="button"
           onClick={() => createExport.mutate()}
           className="mt-4 rounded-xl bg-violet-500 px-4 py-2 font-semibold text-white"
         >
-          Préparer mon export
+          {t("securityCenter.prepareExport")}
         </button>
         <div className="mt-4 space-y-2 text-sm">
           {exportsQuery.data?.map((item) => (
@@ -137,13 +142,17 @@ export function SecurityCenter() {
               key={item.id}
               className="flex items-center justify-between rounded-xl border border-slate-800 p-3"
             >
-              <span>{item.status}</span>
+              <span>
+                {t(`securityCenter.exportStatus.${item.status}`, {
+                  defaultValue: item.status,
+                })}
+              </span>
               {item.status === "ready" ? (
                 <a
                   href={accountExportDownloadUrl(item.id)}
                   className="font-semibold text-sky-300"
                 >
-                  Télécharger
+                  {t("securityCenter.download")}
                 </a>
               ) : null}
             </div>
@@ -152,23 +161,19 @@ export function SecurityCenter() {
         <button
           type="button"
           onClick={() => {
-            if (
-              window.confirm(
-                "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
-              )
-            ) {
+            if (window.confirm(t("securityCenter.deleteConfirm"))) {
               deletion.mutate();
             }
           }}
           className="mt-5 rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300"
         >
-          Demander la suppression (14 jours)
+          {t("securityCenter.deleteRequest")}
         </button>
       </article>
 
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 lg:col-span-2">
         <h3 className="text-xl font-semibold text-white">
-          Activité de sécurité
+          {t("securityCenter.activityTitle")}
         </h3>
         <div className="mt-4 divide-y divide-slate-800">
           {events.data?.map((event) => (
@@ -178,7 +183,10 @@ export function SecurityCenter() {
             >
               <span className="font-mono text-slate-200">{event.type}</span>
               <span className="text-slate-400">
-                {event.result} · {new Date(event.occurred_at).toLocaleString()}
+                {t(`securityCenter.eventResult.${event.result}`, {
+                  defaultValue: event.result,
+                })}{" "}
+                · {new Date(event.occurred_at).toLocaleString(i18n.language)}
               </span>
             </div>
           ))}
@@ -193,7 +201,7 @@ export function SecurityCenter() {
         <div className="rounded-2xl bg-white p-4 text-slate-950">
           <img
             src={enrollment.qrCodeDataUrl}
-            alt="QR code TOTP"
+            alt={t("securityCenter.enrollmentQrAlt")}
             className="mx-auto h-48 w-48"
           />
           <p className="break-all text-center font-mono text-xs">
@@ -204,7 +212,7 @@ export function SecurityCenter() {
             onClick={() => confirm.mutate()}
             className="mt-3 w-full rounded-xl bg-slate-950 px-4 py-2 text-white"
           >
-            Valider l’enrôlement
+            {t("securityCenter.confirmEnrollment")}
           </button>
         </div>
       );
@@ -216,7 +224,7 @@ export function SecurityCenter() {
           onClick={() => disable.mutate()}
           className="rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300"
         >
-          Désactiver le MFA
+          {t("securityCenter.disableMfa")}
         </button>
       );
     }
@@ -226,7 +234,7 @@ export function SecurityCenter() {
         onClick={() => enroll.mutate()}
         className="rounded-xl bg-sky-500 px-4 py-2 font-semibold text-white"
       >
-        Configurer le MFA
+        {t("securityCenter.enableMfa")}
       </button>
     );
   }
