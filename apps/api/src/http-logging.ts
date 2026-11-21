@@ -1,6 +1,6 @@
 import type { Writable } from "node:stream";
 
-import type { FastifyInstance } from "fastify";
+import { type FastifyInstance, LogController } from "fastify";
 
 function safeMethod(method: string | undefined): string {
   switch (method) {
@@ -20,7 +20,9 @@ function safeMethod(method: string | undefined): string {
 // Default HTTP records and the req/err serializers omit raw request data and exception text.
 export function httpLoggingOptions(stream?: Writable) {
   return {
-    disableRequestLogging: true,
+    logController: new LogController({
+      disableRequestLogging: true,
+    }),
     requestIdHeader: false as const,
     logger: {
       level: "info",
