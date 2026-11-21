@@ -1,6 +1,6 @@
 # Technical Design — Native TypeScript for root CI tooling
 
-**Artifact status:** Proposed technical target (not implemented)
+**Artifact status:** Accepted technical target (not implemented)
 
 **Content status:** Proposed
 
@@ -24,7 +24,7 @@ owns CI and Work gates; [testing](testing.md) and
 [continuous integration](continuous-integration.md) own validation policy;
 the existing [PR validation design](pull-request-validation-design.md) owns
 identity, provenance, and metadata-evidence semantics. This document owns
-only the proposed technical implementation for Work #171.
+only the accepted technical implementation target for Work #171.
 
 Current code and tests remain effective until this target is implemented and
 validated. The [Work exploration](https://github.com/Oxelio/architecture-web/issues/171)
@@ -71,14 +71,19 @@ semantics, and Windows/Linux path handling.
 
 Node's runtime strips types; it **does not typecheck**. Add a dedicated root
 `tsconfig.scripts.json` and direct root development dependencies on
-`typescript` and `@types/node`. Use the minimum supported Node 24 surface
-when selecting Node types; do not accidentally require Node 26-only APIs.
-The configuration must enable:
+`typescript` (compatible with the repository's TypeScript 5.9 toolchain)
+and `@types/node` (Node 24 major). Resolve compatible versions using the
+existing pnpm lockfile and update the root importer through pnpm; do not
+hand-edit the dependency graph or change unrelated workspace dependencies.
+Use the minimum supported Node 24 surface; successful compilation does not
+prove that a later Node 24 patch API exists in 24.15.0. Verify both pinned
+runtimes. The configuration must enable:
 
 ```json
 {
   "compilerOptions": {
-    "target": "ESNext",
+    "target": "ES2024",
+    "lib": ["ES2024"],
     "module": "NodeNext",
     "strict": true,
     "noEmit": true,
@@ -99,14 +104,20 @@ The root script `typecheck:scripts` runs
 `tsc --noEmit -p tsconfig.scripts.json`. Include **source and test** files in
 this check. Extend root `typecheck` to execute that check in addition to the
 existing recursive workspace typechecks, so both CI compatibility jobs enforce
-it. Integrate `eslint scripts` into root `lint` using the existing ESLint
-configuration, without re-linting every workspace or modifying architecture
-rules. Existing root `format:check` continues to cover the scripts.
+it. Extend the root lint command to cover `scripts/` using the existing
+ESLint configuration and retain recursive workspace lint. Keep root `lint:fix`
+consistent with root `lint`. Existing root `format:check` continues to cover
+the scripts. Enable these root TypeScript checks in the same coherent change
+that introduces the migrated files, not against an empty TypeScript project.
 
 External GitHub API responses, event JSON, subprocess results, and Docker
 inspection data remain untrusted at runtime: static types must not replace
 existing explicit validation and fail-closed checks. Introduce the smallest
-necessary type guards and types, without a generic validation framework.
+necessary types and narrowing at the external boundary, preserving the
+existing acceptance/rejection contract. Do not suppress errors through a broad
+`any`, unchecked assertions, or weakened compiler options. If necessary
+runtime validation would intentionally change a contract, return to the
+appropriate owner rather than expanding scope.
 
 ## CI bootstrap and provenance
 
@@ -141,10 +152,20 @@ The route and quality jobs in
 Node before invoking the gate; update their CLI paths without changing their
 routing or required-check rules.
 
-If a candidate-bound CI proof demonstrates that the step reordering violates
-the existing provenance contract, retain a **minimal dependency-free JavaScript
-bootstrap entry point** and escalate that design adjustment. Do not duplicate
-identity decisions or weaken gate verification to remove the shim.
+The existing resolver verifies the successful identity record/upload steps and
+requires their order to precede `Install locked dependencies`. It does not
+require identity generation to precede runtime setup. Retain these exact
+step names, job identities, immutable candidate inputs, action pins, and
+read-only permissions; do not introduce a dependency install, package-manager
+cache restore or candidate build ahead of identity publication. The primary
+job continues to select the runtime from the candidate's `.nvmrc`, within
+the existing reviewed-workflow trust boundary; the compatibility job retains
+its explicit minimum-version pin.
+
+If a candidate-bound CI proof demonstrates that the selected step reordering
+cannot preserve provenance, stop and return to Technical Design. A minimal
+JavaScript bootstrap entry point is a fallback alternative, not permission to
+invent duplicate identity logic or weaken evidence verification.
 
 ## Tests, coverage, and external entry points
 
@@ -181,20 +202,29 @@ generated `apps/api/dist/main.mjs`, or unrelated application scripts.
 Implement on one temporary Work Integration branch/PR, keeping the PR in
 Draft while preparation and implementation are incomplete.
 
-1. Configure the root typecheck/lint contract and reorder pre-install Node
-   setup without changing the existing JavaScript quality-gate logic.
-2. Migrate the simpler CLI/source/test pairs, updating callers while keeping
-   current test and coverage contracts executable.
-3. Migrate the quality-gate and PR evidence resolver together; exercise
-   `route`, `identity`, metadata evidence reuse, candidate freshness,
-   error handling, and intentional failures.
-4. Migrate mailpit/Docker references, finalize native LCOV/CI/Sonar paths,
-   remove stale root `.mjs` callers, and synchronize current documentation
-   only after the new behavior is effective.
+The Work itself is one bounded execution unit for one Developer. Separate
+Task Sub-issues are not warranted: inter-module imports, native test
+selection, `CI_SOURCES`, callers and documentation are a coupled migration,
+and all changes must be validated together on one candidate. The following
+sequence guides local implementation; it is not separate Work or parallel
+Task ownership.
 
-A unit may be refined into GitHub Task sub-issues during Task Planning where
-sequencing or independently verifiable ownership justifies it. Tasks must
-reference this design, not duplicate it.
+1. Reorder pre-install Node setup while the JavaScript tooling is unchanged;
+   verify the existing contract and keep the existing checks executable.
+2. Convert the source/test groups together with their imports and callers.
+   Start with simpler tooling, then migrate the quality gate and evidence
+   resolver as one group and the Mailpit fixture including its container
+   invocation. Add the dedicated root typecheck and lint integration.
+3. Switch the native test selection, coverage paths and `CI_SOURCES` together.
+   If a mixed-extension intermediate commit is necessary, its explicit test
+   selection and source inventory must cover both formats. Never submit a
+   candidate with missing tests or silently omitted coverage sources. A
+   single coherent conversion commit is preferable to introducing transitional
+   machinery solely for intermediate commits.
+4. Audit all tracked root-script callers, run the targeted checks, then the
+   full candidate review/validation. Update current-state documentation in
+   the same candidate to describe the implemented result; it becomes current
+   only when the change is integrated and effective.
 
 ## Acceptance evidence and rollback
 
@@ -218,7 +248,12 @@ The change must demonstrate, on the actual candidate:
   survive the existing upload/download round trip.
 - Existing PR metadata/full routing, title verification, immutable candidate
   evidence, checked provider/job identities, and Work Merge Gate behavior
-  are unchanged.
+  are unchanged. Exercise the applicable real PR regression scenarios from
+  [the existing PR validation design](pull-request-validation-design.md#validation-and-acceptance)
+  on the migrated candidate, including title failure/correction, metadata
+  reuse and candidate freshness; unit mocks cannot prove GitHub's actual
+  required-check behavior. Record candidate/run/check identities and do not
+  weaken checks if the live evidence is unavailable.
 - The Mailpit container smoke scenario and fixture cleanup work on the
   migrated test path; no test receives new privileged access.
 - Review distinguishes code quality, CI/provenance architecture and
@@ -226,16 +261,19 @@ The change must demonstrate, on the actual candidate:
   exact PR candidate.
 
 No production database migration, release policy change, or runtime
-deployment cutover is required. Revert the candidate refactor and CI step
-changes together if these invariants cannot be met; preserve the original
-`.mjs` implementation until the complete change is validated.
+deployment cutover is required. Keep `main` unchanged until the complete
+candidate is accepted; restore the previous coherent code/workflow/coverage
+state through Git if necessary. Do not maintain duplicate old implementations
+as rollback artifacts.
 
 ## Readiness boundary
 
 The preferred technical target is native `.ts` execution with a dedicated
 typecheck and an explicitly pinned Node runtime ahead of pre-install identity
-generation. This document is a **proposed Technical Design**, not evidence
-that the migrated branch works. Before `Ready`, perform Task Planning as
-needed, review the CI trust boundary and validation plan, and record a
-Readiness Review with a justified `READY`, `READY WITH RISKS` or
-`NOT READY` result. Work State is owned by the GitHub Project, not this file.
+generation. This document records an **accepted local Technical Design
+within the authorized technical scope**, not a change to project governance
+or evidence that the migrated branch works. The Work's operational discussion
+records the focused context, Task Planning outcome, and Readiness Review.
+The implementing candidate must still satisfy the independent reviews and
+validation evidence above. Work State is owned by the GitHub Project, not
+this file.
