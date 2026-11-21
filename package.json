@@ -11,20 +11,21 @@
     "migrate:up": "pnpm --filter api migrate:up",
     "migrate:down": "pnpm --filter api migrate:down",
     "build": "pnpm -r --if-present run build",
-    "typecheck": "pnpm -r --if-present run typecheck",
+    "typecheck:scripts": "tsc --noEmit -p tsconfig.scripts.json",
+    "typecheck": "pnpm typecheck:scripts && pnpm -r --if-present run typecheck",
     "typecheck:test": "pnpm -r --if-present run typecheck:test",
-    "lint": "pnpm -r --if-present run lint",
-    "lint:fix": "pnpm -r --if-present run lint:fix",
+    "lint": "eslint \"scripts/**/*.ts\" && pnpm -r --if-present run lint",
+    "lint:fix": "eslint \"scripts/**/*.ts\" --fix && pnpm -r --if-present run lint:fix",
     "test": "pnpm -r --if-present run test",
     "test:coverage": "pnpm -r --if-present run test:coverage",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "docs:links": "node scripts/check-markdown-links.mjs",
-    "docs:links:test": "node --test scripts/check-markdown-links.test.mjs",
+    "docs:links": "node scripts/check-markdown-links.ts",
+    "docs:links:test": "node --test scripts/check-markdown-links.test.ts",
     "release:plan": "pnpm --filter @architecture/delivery-automation release:plan",
     "ci:test": "node scripts/run-workspace-tests.mjs",
     "ci:test:integration": "node scripts/run-integration-tests.mjs",
-    "ci:test:tooling": "node -e \"const fs=require('node:fs');fs.mkdirSync('coverage/scripts', { recursive: true });fs.rmSync('coverage/scripts/lcov.info', { force: true })\" && node --test --experimental-test-coverage --test-coverage-include=scripts/*.mjs --test-coverage-exclude=scripts/*.test.mjs --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/scripts/lcov.info scripts/run-workspace-tests.test.mjs scripts/merge-coverage.test.mjs scripts/check-markdown-links.test.mjs scripts/quality-gate.test.mjs scripts/run-o2-mailpit-test.test.mjs"
+    "ci:test:tooling": "node -e \"const fs=require('node:fs');fs.mkdirSync('coverage/scripts', { recursive: true });fs.rmSync('coverage/scripts/lcov.info', { force: true })\" && node --test --experimental-test-coverage --test-coverage-include=scripts/*.mjs --test-coverage-include=scripts/*.ts --test-coverage-exclude=scripts/*.test.mjs --test-coverage-exclude=scripts/*.test.ts --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/scripts/lcov.info scripts/run-workspace-tests.test.mjs scripts/merge-coverage.test.mjs scripts/check-markdown-links.test.ts scripts/quality-gate.test.mjs scripts/run-o2-mailpit-test.test.mjs"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,ts,tsx}": [

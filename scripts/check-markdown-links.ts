@@ -8,11 +8,36 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const DEFAULT_SOURCE_PATHS = ["README.md", "AGENTS.md", "docs"];
 
-function toPosix(value) {
+interface AngleLookahead {
+  end: number;
+  closing: number | undefined;
+}
+
+interface InlineTarget {
+  start: number;
+  end: number;
+  closing: number;
+}
+
+type NormalizedTarget =
+  | { ignored: true }
+  | { ignored: false; path: string; invalidEncoding?: true };
+
+interface MarkdownLinkOptions {
+  repoRoot?: string;
+  sourcePaths?: string[];
+}
+
+interface TargetValidation {
+  checked: boolean;
+  error?: string;
+}
+
+function toPosix(value: string) {
   return value.replaceAll("\\", "/");
 }
 
-function isWithin(root, candidate) {
+function isWithin(root: string, candidate: string) {
   const rel = relative(root, candidate);
   return (
     rel === "" ||
@@ -20,22 +45,31 @@ function isWithin(root, candidate) {
   );
 }
 
-async function pathStat(path) {
+async function pathStat(path: string) {
   try {
     return await stat(path);
   } catch (error) {
-    if (error?.code === "ENOENT") return null;
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return null;
+    }
     throw error;
   }
 }
 
 async function collectMarkdownFiles(
-  repoRoot,
+  repoRoot: string,
   sourcePaths = DEFAULT_SOURCE_PATHS,
-) {
-  async function visit(candidate) {
+): Promise<string[]> {
+  async function visit(candidate: string): Promise<string[]> {
     const info = await pathStat(candidate);
-    if (!info) return [];
+    if (!info) {
+      return [];
+    }
 
     if (info.isDirectory()) {
       const entries = await readdir(candidate, { withFileTypes: true });
@@ -57,48 +91,63 @@ async function collectMarkdownFiles(
   return collectedFiles(groups).sort((a, b) => Number(a > b) - Number(a < b));
 }
 
-function collectedFiles(results) {
+function collectedFiles(results: PromiseSettledResult<string[]>[]) {
   return results.flatMap((result) => {
-    if (result.status === "rejected") throw result.reason;
+    if (result.status === "rejected") {
+      throw result.reason;
+    }
     return result.value;
   });
 }
 
-function fenceMarker(line) {
+function fenceMarker(line: string): "`" | "~" | null {
   const trimmed = line.trimStart();
-  if (trimmed.startsWith("```")) return "`";
-  if (trimmed.startsWith("~~~")) return "~";
+  if (trimmed.startsWith("```")) {
+    return "`";
+  }
+  if (trimmed.startsWith("~~~")) {
+    return "~";
+  }
   return null;
 }
 
-export function extractTargets(markdown) {
-  const targets = [];
-  let fence = null;
+export function extractTargets(markdown: string): string[] {
+  const targets: string[] = [];
+  let fence: ReturnType<typeof fenceMarker> = null;
 
   for (const line of markdown.split(/\r?\n/u)) {
     const marker = fenceMarker(line);
     if (marker) {
-      if (fence === marker) fence = null;
-      else if (fence === null) fence = marker;
+      if (fence === marker) {
+        fence = null;
+      } else if (fence === null) {
+        fence = marker;
+      }
       continue;
     }
-    if (fence !== null) continue;
+    if (fence !== null) {
+      continue;
+    }
 
     const withoutInlineCode = line.replace(/`+[^`]*`+/gu, "");
-    for (const target of inlineTargets(withoutInlineCode)) targets.push(target);
+    for (const target of inlineTargets(withoutInlineCode)) {
+      targets.push(target);
+    }
 
     const reference = withoutInlineCode.match(
       /^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)/u,
     );
-    if (reference) targets.push(reference[1]);
+    if (reference?.[1] !== undefined) {
+      targets.push(reference[1]);
+    }
   }
 
   return targets;
 }
 
-function inlineTargets(line) {
-  const targets = [];
-  const angle = { end: -2, closing: undefined };
+function inlineTargets(line: string): string[] {
+  const targets: string[] = [];
+  const angle: AngleLookahead = { end: -2, closing: undefined };
   let labelOpen = false;
   let index = 0;
   while (index < line.length) {
@@ -107,11 +156,17 @@ function inlineTargets(line) {
       labelOpen = true;
       continue;
     }
-    if (line[position] !== "]" || !labelOpen) continue;
+    if (line[position] !== "]" || !labelOpen) {
+      continue;
+    }
     labelOpen = false;
-    if (line[position + 1] !== "(") continue;
+    if (line[position + 1] !== "(") {
+      continue;
+    }
     const closing = line.indexOf(")", position + 2);
-    if (closing === -1) break;
+    if (closing === -1) {
+      break;
+    }
     const target = inlineTarget(line, position + 2, closing, angle);
     if (target) {
       targets.push(line.slice(target.start, target.end));
@@ -121,33 +176,56 @@ function inlineTargets(line) {
   return targets;
 }
 
-function inlineTarget(line, start, closing, angle) {
-  while (/\s/u.test(line[start] ?? "")) start += 1;
-  if (start === closing) return null;
+function inlineTarget(
+  line: string,
+  start: number,
+  closing: number,
+  angle: AngleLookahead,
+): InlineTarget | null {
+  while (/\s/u.test(line[start] ?? "")) {
+    start += 1;
+  }
+  if (start === closing) {
+    return null;
+  }
   const bracketed = angleTarget(line, start, angle);
-  if (bracketed) return { start, ...bracketed };
+  if (bracketed) {
+    return { start, ...bracketed };
+  }
   let end = start;
-  while (end < closing && !/\s/u.test(line[end])) end += 1;
+  while (end < closing && !/\s/u.test(line[end] ?? "")) {
+    end += 1;
+  }
   return { start, end, closing };
 }
 
-function angleTarget(line, start, angle) {
-  if (line[start] !== "<") return null;
+function angleTarget(line: string, start: number, angle: AngleLookahead) {
+  if (line[start] !== "<") {
+    return null;
+  }
   // Reuse lookahead until the cursor passes it. Malformed links must not scan
   // the same remaining suffix for every opening bracket or angle bracket.
   if (angle.end < start && angle.end !== -1) {
     angle.end = line.indexOf(">", start + 1);
     angle.closing = undefined;
   }
-  if (angle.end <= start + 1) return null;
+  if (angle.end <= start + 1) {
+    return null;
+  }
   const end = angle.end + 1;
-  if (line[end] === ")") return { end, closing: end };
-  if (!/\s/u.test(line[end] ?? "")) return null;
-  if (angle.closing === undefined) angle.closing = line.indexOf(")", end);
+  if (line[end] === ")") {
+    return { end, closing: end };
+  }
+  if (!/\s/u.test(line[end] ?? "")) {
+    return null;
+  }
+  if (angle.closing === undefined) {
+    angle.closing = line.indexOf(")", end);
+  }
   return angle.closing === -1 ? null : { end, closing: angle.closing };
 }
 
-function normalizeTarget(rawTarget) {
+function normalizeTarget(rawTarget: string): NormalizedTarget {
   let target = rawTarget.trim();
   if (target.startsWith("<") && target.endsWith(">")) {
     target = target.slice(1, -1);
@@ -163,7 +241,9 @@ function normalizeTarget(rawTarget) {
   }
 
   const pathOnly = target.split(/[?#]/u, 1)[0];
-  if (!pathOnly) return { ignored: true };
+  if (!pathOnly) {
+    return { ignored: true };
+  }
 
   try {
     return { ignored: false, path: decodeURIComponent(pathOnly) };
@@ -175,10 +255,10 @@ function normalizeTarget(rawTarget) {
 export async function validateMarkdownLinks({
   repoRoot = DEFAULT_REPO_ROOT,
   sourcePaths = DEFAULT_SOURCE_PATHS,
-} = {}) {
+}: MarkdownLinkOptions = {}) {
   const root = resolve(repoRoot);
   const files = await collectMarkdownFiles(root, sourcePaths);
-  const errors = [];
+  const errors: string[] = [];
   let linksChecked = 0;
 
   const results = await Promise.allSettled(
@@ -192,20 +272,34 @@ export async function validateMarkdownLinks({
     }),
   );
   for (const result of results) {
-    if (result.status === "rejected") throw result.reason;
+    if (result.status === "rejected") {
+      throw result.reason;
+    }
     for (const target of result.value) {
-      if (target.status === "rejected") throw target.reason;
-      if (!target.value.checked) continue;
+      if (target.status === "rejected") {
+        throw target.reason;
+      }
+      if (!target.value.checked) {
+        continue;
+      }
       linksChecked += 1;
-      if (target.value.error) errors.push(target.value.error);
+      if (target.value.error) {
+        errors.push(target.value.error);
+      }
     }
   }
   return { errors, filesChecked: files.length, linksChecked };
 }
 
-async function validateTarget(root, source, rawTarget) {
+async function validateTarget(
+  root: string,
+  source: string,
+  rawTarget: string,
+): Promise<TargetValidation> {
   const normalized = normalizeTarget(rawTarget);
-  if (normalized.ignored) return { checked: false };
+  if (normalized.ignored) {
+    return { checked: false };
+  }
 
   const sourceLabel = toPosix(relative(root, source));
   if (normalized.invalidEncoding) {
@@ -246,12 +340,11 @@ async function validateTarget(root, source, rawTarget) {
           `${sourceLabel}: Method submodule target is unavailable: ${rawTarget} ` +
           "(initialize external/software-engineering-method before validation)",
       };
-    } else {
-      return {
-        checked: true,
-        error: `${sourceLabel}: missing repository-relative target: ${rawTarget}`,
-      };
     }
+    return {
+      checked: true,
+      error: `${sourceLabel}: missing repository-relative target: ${rawTarget}`,
+    };
   }
   return { checked: true };
 }
@@ -262,7 +355,9 @@ async function main() {
     console.error(
       `Markdown link validation failed (${result.errors.length} error(s)):`,
     );
-    for (const error of result.errors) console.error(`- ${error}`);
+    for (const error of result.errors) {
+      console.error(`- ${error}`);
+    }
     process.exitCode = 1;
     return;
   }
