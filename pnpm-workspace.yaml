@@ -9,3 +9,7 @@ allowBuilds:
   argon2: true
   bcrypt: true
   esbuild: true
+
+permissions:
+  dotenv:
+    skills: false

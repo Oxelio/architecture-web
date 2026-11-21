@@ -37,7 +37,7 @@
   "keywords": [],
   "author": "",
   "type": "module",
-  "packageManager": "pnpm@12.15.0",
+  "packageManager": "pnpm@12.21.0",
   "devDependencies": {
     "@architecture/eslint-config": "workspace:*",
     "@commitlint/cli": "^21.2.1",
