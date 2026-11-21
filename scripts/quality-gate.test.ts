@@ -7,13 +7,12 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { crc32 } from "node:zlib";
 
-import { qualityGate } from "./quality-gate.ts";
 import {
   candidateIdentity,
   createIdentity,
+  evaluatePr,
   EVIDENCE_DAYS,
   type EvidenceApi,
-  evaluatePr,
   githubClient,
   lintTitle,
   resolveEvidence,
@@ -21,6 +20,7 @@ import {
   validationRoute,
   verifyIdentity,
 } from "./pr-validation-evidence.ts";
+import { qualityGate } from "./quality-gate.ts";
 
 const sha = (letter: string) => letter.repeat(40);
 const repo = "Oxelio/architecture-web";
@@ -195,7 +195,10 @@ function fixture() {
     payload.pull_request,
   );
   const reads: string[] = [];
-  const mergeRef: { ref: string; object: { type: string; sha: string | null } } = {
+  const mergeRef: {
+    ref: string;
+    object: { type: string; sha: string | null };
+  } = {
     ref: "refs/pull/90/merge",
     object: { type: "commit", sha: sha("c") },
   };
@@ -477,7 +480,10 @@ test("retention is bounded by original evidence age and actual platform expirati
     (r, a) => {
       a.workflow_run.head_sha = sha("d");
     },
-  ] satisfies ((value: ReturnType<typeof record>, artifact: ReturnType<typeof fixture>["artifacts"][number]) => void)[]) {
+  ] satisfies ((
+    value: ReturnType<typeof record>,
+    artifact: ReturnType<typeof fixture>["artifacts"][number],
+  ) => void)[]) {
     const f = fixture(),
       r = record(),
       a = first(f.artifacts);
@@ -754,8 +760,10 @@ test("API pagination is complete and API failures are never clean evidence", asy
   );
   assert.equal(requests, 2);
   await assert.rejects(
-    githubClient(repo, "fixture", async () =>
-      new Response(null, { status: 403 }),
+    githubClient(
+      repo,
+      "fixture",
+      async () => new Response(null, { status: 403 }),
     ).request("/pulls/90"),
     /403/u,
   );
@@ -775,7 +783,10 @@ test("API pagination is complete and API failures are never clean evidence", asy
 });
 
 test("REST without merge_commit_sha uses the live merge ref and rejects stale or invalid refs", async () => {
-  const evaluate = (f: ReturnType<typeof fixture>, lint: (title: string) => boolean = () => true) =>
+  const evaluate = (
+    f: ReturnType<typeof fixture>,
+    lint: (title: string) => boolean = () => true,
+  ) =>
     evaluatePr({
       api: f.api,
       identity,
@@ -829,7 +840,9 @@ test("artifact downloads check digest and do not forward credentials to storage"
       return calls.length === 1
         ? new Response(null, {
             status: 302,
-            headers: { location: "https://fixture.blob.core.windows.net/signed" },
+            headers: {
+              location: "https://fixture.blob.core.windows.net/signed",
+            },
           })
         : new Response("not a zip");
     },
@@ -839,11 +852,14 @@ test("artifact downloads check digest and do not forward credentials to storage"
     /digest mismatch/u,
   );
   assert.equal(calls[1]?.options?.headers, undefined);
-  const invalid = githubClient(repo, "fixture", async () =>
-    new Response(null, {
-      status: 302,
-      headers: { location: "https://attacker.invalid" },
-    }),
+  const invalid = githubClient(
+    repo,
+    "fixture",
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://attacker.invalid" },
+      }),
   );
   await assert.rejects(
     invalid.artifact(

@@ -346,7 +346,13 @@ function fresh(timestamp: unknown, now: number) {
 }
 export function verifyIdentity(
   input: unknown,
-  { identity, source: sourceInput, job, artifact: artifactInput, now }: VerifyIdentityOptions,
+  {
+    identity,
+    source: sourceInput,
+    job,
+    artifact: artifactInput,
+    now,
+  }: VerifyIdentityOptions,
 ) {
   const record = object(input);
   const source = object(sourceInput);
@@ -389,15 +395,18 @@ export async function resolveEvidence({
     "workflow_runs",
   );
   const relevant = (items: unknown[]) => {
-    const matching = items.map(object).filter(
-      (run) =>
-        run.id !== runId &&
-        run.workflow_id === current.workflow_id &&
-        ["full", "metadata"].some(
-          (mode) =>
-            run.display_title === `Repository CI [${mode}] PR #${identity.pr}`,
-        ),
-    );
+    const matching = items
+      .map(object)
+      .filter(
+        (run) =>
+          run.id !== runId &&
+          run.workflow_id === current.workflow_id &&
+          ["full", "metadata"].some(
+            (mode) =>
+              run.display_title ===
+              `Repository CI [${mode}] PR #${identity.pr}`,
+          ),
+      );
     for (const run of matching) {
       check(
         positiveInteger(run.id) && positiveInteger(run.run_number),
@@ -422,14 +431,15 @@ export async function resolveEvidence({
       .filter((run) => Number(run.run_number) > Number(original.run_number))
       .map(async (run) => {
         check(
-          run.status === "completed" &&
-            positiveInteger(run.run_attempt),
+          run.status === "completed" && positiveInteger(run.run_attempt),
           "Newer validation route is pending or unavailable",
         );
-        const jobs = (await api.pages(
-          `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
-          "jobs",
-        )).map(object);
+        const jobs = (
+          await api.pages(
+            `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
+            "jobs",
+          )
+        ).map(object);
         const routes = jobs.filter(
           (job) => job.name === "Select validation route",
         );
@@ -475,14 +485,15 @@ export async function resolveEvidence({
       ),
     "Newest full validation is unsuccessful, pending, or bound to another candidate",
   );
-  const jobs = (await api.pages(
-    `/actions/runs/${source.id}/attempts/${source.run_attempt}/jobs`,
-    "jobs",
-  )).map(object);
-  const artifacts = (await api.pages(
-    `/actions/runs/${source.id}/artifacts`,
-    "artifacts",
-  )).map(object);
+  const jobs = (
+    await api.pages(
+      `/actions/runs/${source.id}/attempts/${source.run_attempt}/jobs`,
+      "jobs",
+    )
+  ).map(object);
+  const artifacts = (
+    await api.pages(`/actions/runs/${source.id}/artifacts`, "artifacts")
+  ).map(object);
   await Promise.all(
     [
       ...Object.values(validationJobs),
@@ -504,9 +515,11 @@ export async function resolveEvidence({
           /^\d+$/u.test(job.check_run_url.slice(prefix.length)),
         `Source job did not succeed: ${name}`,
       );
-      const result = object(await api.request(
-        `/check-runs/${job.check_run_url.slice(prefix.length)}`,
-      ));
+      const result = object(
+        await api.request(
+          `/check-runs/${job.check_run_url.slice(prefix.length)}`,
+        ),
+      );
       check(
         result.name === name &&
           optionalObject(result.app).id === 15368 &&
@@ -520,7 +533,9 @@ export async function resolveEvidence({
   );
   await Promise.all(
     Object.entries(validationJobs).map(async ([job, name]) => {
-      const steps = objects(jobs.find((item) => item.name === name)?.steps ?? []);
+      const steps = objects(
+        jobs.find((item) => item.name === name)?.steps ?? [],
+      );
       const recordStep = steps.findIndex(
         (step) =>
           step.name === "Record PR validation identity" &&
@@ -555,7 +570,8 @@ export async function resolveEvidence({
           artifact.expired === false,
         "Unavailable identity artifact",
       );
-      const digest = typeof artifact.digest === "string" ? artifact.digest : undefined;
+      const digest =
+        typeof artifact.digest === "string" ? artifact.digest : undefined;
       verifyIdentity(await api.artifact(artifact.id, digest), {
         identity,
         source,
