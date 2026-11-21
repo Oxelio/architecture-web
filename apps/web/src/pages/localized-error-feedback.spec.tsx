@@ -889,6 +889,56 @@ it("shows a failed configuration preview after an earlier publication failure", 
   expect(fetchApi).toHaveBeenCalledTimes(3);
 });
 
+it("preserves MFA backup-code acknowledgment and user-entered values during locale changes", async () => {
+  client.setQueryData(["mfa"], { enabled: false, backupCodesRemaining: 0 });
+  client.setQueryData(["account-exports"], []);
+  client.setQueryData(["security-events"], []);
+  await render(<SecurityCenter />);
+
+  await enter('input[type="password"]', loginPassword);
+  fetchApi.mockResolvedValueOnce(
+    Response.json({
+      data: {
+        secret: "SAMPLE-SECRET",
+        otpauthUri: "otpauth://totp/Sample",
+        qrCodeDataUrl: "data:image/png;base64,AAAA",
+        expiresAt: "2026-01-02T13:00:00Z",
+      },
+    }),
+  );
+  await clickButton("Set up MFA");
+  await expectFeedback("article", "Confirm enrollment");
+
+  await changeLocale("fr");
+  expect(container.textContent).toContain("Valider l’enrôlement");
+  expect(element<HTMLInputElement>('input[type="password"]').value).toBe(
+    loginPassword,
+  );
+  await enter('input[placeholder="Code TOTP ou de secours"]', "123456");
+
+  fetchApi.mockResolvedValueOnce(
+    Response.json({
+      data: {
+        backupCodes: ["SAMPLE-BACKUP-CODE"],
+        confirmationId: "sample-confirmation",
+      },
+    }),
+  );
+  await clickButton("Valider l’enrôlement");
+  await expectFeedback("article", "Enregistrez ces codes maintenant");
+  expect(container.textContent).toContain("SAMPLE-BACKUP-CODE");
+  expect(container.textContent).not.toContain("SAMPLE-SECRET");
+  expect(container.textContent).toContain(
+    "J’ai enregistré ces codes, activer le MFA",
+  );
+
+  await changeLocale("en");
+  expect(container.textContent).toContain("Save these codes now");
+  expect(container.textContent).toContain("I saved these codes, enable MFA");
+  expect(container.textContent).toContain("SAMPLE-BACKUP-CODE");
+  expect(fetchApi).toHaveBeenCalledTimes(2);
+});
+
 it("localizes account-deletion cancellation copy and retains credentials on locale changes", async () => {
   await render(<CancelDeletionPage />, "/cancel-deletion?token=private-token");
   expect(element("h2").textContent).toBe("Cancel deletion");
@@ -973,6 +1023,57 @@ it("localizes administrator security configuration, history and audit without ch
   expect(fetchApi).not.toHaveBeenCalled();
 });
 
+it("keeps an unpublished security configuration draft across locale and view changes", async () => {
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { id: "current", version: 2 },
+    effective: { accounts: { publicRegistration: true } },
+    catalog: [
+      {
+        key: "accounts.publicRegistration",
+        category: "accounts",
+        control: "switch",
+        impact: "medium",
+        recommendedValue: true,
+        availability: { available: true, readOnly: false },
+      },
+    ],
+    revisions: [
+      {
+        id: "current",
+        version: 2,
+        status: "effective",
+        created_by: "admin",
+        created_at: "2026-01-02T13:04:05Z",
+      },
+    ],
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+
+  await click('[role="switch"]');
+  await enter("textarea", "Keep this unpublished reason");
+  await changeLocale("fr");
+  expect(element<HTMLInputElement>('[role="switch"]').checked).toBe(false);
+  expect(element<HTMLTextAreaElement>("textarea").value).toBe(
+    "Keep this unpublished reason",
+  );
+
+  await clickButton("Historique");
+  expect(container.textContent).toContain("En vigueur");
+  expect(container.textContent).toContain(
+    new Date("2026-01-02T13:04:05Z").toLocaleString("fr"),
+  );
+  await clickButton("Configuration");
+  expect(element<HTMLInputElement>('[role="switch"]').checked).toBe(false);
+  expect(element<HTMLTextAreaElement>("textarea").value).toBe(
+    "Keep this unpublished reason",
+  );
+  await changeLocale("en");
+  expect(container.textContent).toContain("Public sign-up");
+  expect(element<HTMLInputElement>('[role="switch"]').checked).toBe(false);
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
 it("synchronizes the document language and existing metadata with the selected locale", async () => {
   const meta = document.createElement("meta");
   meta.name = "description";
@@ -980,9 +1081,11 @@ it("synchronizes the document language and existing metadata with the selected l
   try {
     await changeLocale("en");
     expect(document.documentElement.lang).toBe("en");
+    expect(window.localStorage.getItem("locale")).toBe("en");
     expect(meta.content).toContain("Modern React frontend");
     await changeLocale("fr");
     expect(document.documentElement.lang).toBe("fr");
+    expect(window.localStorage.getItem("locale")).toBe("fr");
     expect(meta.content).toContain("Front React moderne");
     expect(fetchApi).not.toHaveBeenCalled();
   } finally {
