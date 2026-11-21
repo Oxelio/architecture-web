@@ -1133,7 +1133,7 @@ it("preserves unknown security preview warnings without translating investigativ
     }),
   );
   await clickButton("Preview impact");
-  expect(container.textContent).toContain("Standard impact");
+  await expectFeedback("article", "1 option changed · Standard impact");
   expect(container.textContent).toContain("The next maintenance run may purge older audit events.");
   expect(container.textContent).toContain("Unrecognized operational warning.");
   await changeLocale("fr");
