@@ -980,15 +980,29 @@ it("localizes cancellation pending state without retrying or clearing credential
   await act(async () => {
     completeRequest?.(new Response(null, { status: 204 }));
   });
-  expect(container.textContent).toContain("La demande de suppression a été annulée.");
-  expect(container.textContent).toContain("Le compte retrouve son statut précédent.");
-  expect(container.textContent).toContain("Les sessions révoquées restent révoquées.");
+  expect(container.textContent).toContain(
+    "La demande de suppression a été annulée.",
+  );
+  expect(container.textContent).toContain(
+    "Le compte retrouve son statut précédent.",
+  );
+  expect(container.textContent).toContain(
+    "Les sessions révoquées restent révoquées.",
+  );
   expect(container.textContent).not.toContain("Le compte est réactivé");
   await changeLocale("en");
-  expect(container.textContent).toContain("The deletion request has been cancelled.");
-  expect(container.textContent).toContain("The account returns to its previous status.");
-  expect(container.textContent).toContain("Previously revoked sessions remain revoked.");
-  expect(container.textContent).not.toContain("The account has been reactivated");
+  expect(container.textContent).toContain(
+    "The deletion request has been cancelled.",
+  );
+  expect(container.textContent).toContain(
+    "The account returns to its previous status.",
+  );
+  expect(container.textContent).toContain(
+    "Previously revoked sessions remain revoked.",
+  );
+  expect(container.textContent).not.toContain(
+    "The account has been reactivated",
+  );
   expect(fetchApi).toHaveBeenCalledOnce();
 });
 
@@ -1008,15 +1022,29 @@ it("localizes account-deletion cancellation copy and retains credentials on loca
 
   fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
   await clickButton("Confirmer l’annulation");
-  expect(container.textContent).toContain("La demande de suppression a été annulée.");
-  expect(container.textContent).toContain("Le compte retrouve son statut précédent.");
-  expect(container.textContent).toContain("Les sessions révoquées restent révoquées.");
+  expect(container.textContent).toContain(
+    "La demande de suppression a été annulée.",
+  );
+  expect(container.textContent).toContain(
+    "Le compte retrouve son statut précédent.",
+  );
+  expect(container.textContent).toContain(
+    "Les sessions révoquées restent révoquées.",
+  );
   expect(container.textContent).not.toContain("Le compte est réactivé");
   await changeLocale("en");
-  expect(container.textContent).toContain("The deletion request has been cancelled.");
-  expect(container.textContent).toContain("The account returns to its previous status.");
-  expect(container.textContent).toContain("Previously revoked sessions remain revoked.");
-  expect(container.textContent).not.toContain("The account has been reactivated");
+  expect(container.textContent).toContain(
+    "The deletion request has been cancelled.",
+  );
+  expect(container.textContent).toContain(
+    "The account returns to its previous status.",
+  );
+  expect(container.textContent).toContain(
+    "Previously revoked sessions remain revoked.",
+  );
+  expect(container.textContent).not.toContain(
+    "The account has been reactivated",
+  );
   expect(container.textContent).not.toContain("private-token");
   expect(fetchApi).toHaveBeenCalledOnce();
 });
