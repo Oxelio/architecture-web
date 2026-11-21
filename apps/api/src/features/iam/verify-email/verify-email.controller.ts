@@ -16,7 +16,7 @@ type VerifyEmailHTTPRequest = FastifyRequest<VerifyEmailRoute>;
 export function createVerifyEmailController(useCase: VerifyEmail) {
   return async (request: VerifyEmailHTTPRequest, reply: FastifyReply) => {
     const command: VerifyEmailInput = {
-      token: request.query.token,
+      token: request.body.token,
     };
 
     const result = await useCase.execute(command);

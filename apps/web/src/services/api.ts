@@ -600,8 +600,9 @@ export async function changePassword(payload: ChangePasswordPayload) {
 }
 
 export async function verifyEmail(token: string) {
-  await requestVoid(`/iam/verify?token=${encodeURIComponent(token)}`, {
-    method: "GET",
+  await requestVoid("/iam/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
   });
 }
 
