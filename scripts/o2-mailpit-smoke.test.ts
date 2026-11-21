@@ -90,7 +90,7 @@ async function smoke(api: string, mailpit: string) {
     });
   }
 
-  async function tokenFrom(subject: string) {
+  async function tokenFrom(subject: string, linkPattern: RegExp) {
     const message = await captured(subject);
     const id = message["ID"];
     if (typeof id !== "string") {
@@ -106,9 +106,7 @@ async function smoke(api: string, mailpit: string) {
     if (!isRecord(content) || typeof content["Text"] !== "string") {
       throw new Error("Fixture could not read the captured message");
     }
-    const token = content["Text"].match(
-      /http:\/\/fixture\.invalid\/(?:verify|cancel-deletion)\?token=([A-Za-z0-9_-]+)/u,
-    )?.[1];
+    const token = linkPattern.exec(content["Text"])?.[1];
     if (!token) {
       throw new Error("Fixture did not find the expected token");
     }
@@ -124,13 +122,11 @@ async function smoke(api: string, mailpit: string) {
     { login, password, passwordConfirmation: password },
     201,
   );
-  const verification = await tokenFrom("Please verify your email");
-  const verified = await request(
-    `${iam}/verify?token=${encodeURIComponent(verification)}`,
+  const verification = await tokenFrom(
+    "Please verify your email",
+    /http:\/\/fixture\.invalid\/verify#token=([A-Za-z0-9_-]+)/u,
   );
-  if (verified.status !== 204) {
-    throw new Error("Fixture verification failed");
-  }
+  await post("/verify", { token: verification }, 204);
   const signedIn = await post("/signin", { login, password }, 204);
   const session = signedIn.headers.getSetCookie()[0]?.split(";", 1)[0];
   if (!session) {
@@ -143,7 +139,10 @@ async function smoke(api: string, mailpit: string) {
     202,
     session,
   );
-  const cancellation = await tokenFrom("Cancel account deletion");
+  const cancellation = await tokenFrom(
+    "Cancel account deletion",
+    /http:\/\/fixture\.invalid\/cancel-deletion\?token=([A-Za-z0-9_-]+)/u,
+  );
   await post("/deletion/cancel", { token: cancellation, password }, 204);
   await post("/signin", { login, password }, 204);
 }
