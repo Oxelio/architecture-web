@@ -101,7 +101,7 @@ function validateRecords(
     ) {
       throw new Error(`Invalid LCOV line counters: ${path}`);
     }
-    const declared = record.match(/^LF:(\d+)\r?$/m);
+    const declared = /^LF:(\d+)\r?$/m.exec(record);
     if (declared && Number(declared[1]) !== dataLines.length) {
       throw new Error(`Incomplete LCOV line counters: ${path}`);
     }

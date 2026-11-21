@@ -82,18 +82,59 @@ export function testWorkspaces(root: string) {
   if (!workspaces.length) {
     throw new Error("No test workspaces were discovered");
   }
-  for (const workspace of workspaces) {
-    if (!workspace.scripts["test:coverage"]) {
-      throw new Error(`Missing test:coverage script: ${workspace["name"]}`);
-    }
-  }
   return workspaces.map((workspace) => {
     const path = workspace["path"];
+    const name = workspace["name"];
     if (typeof path !== "string") {
       throw new TypeError("Invalid test workspace path");
     }
-    return { ...workspace, path, name: workspace["name"] };
+    if (typeof name !== "string") {
+      throw new TypeError(`Invalid test workspace name: ${path}`);
+    }
+    if (!workspace.scripts["test:coverage"]) {
+      throw new Error(`Missing test:coverage script: ${name}`);
+    }
+    return { ...workspace, path, name };
   });
+}
+
+interface ExecutionReport {
+  tests: number;
+  files: number;
+  passed: boolean;
+}
+
+function readExecutionReport(path: string, status: number): ExecutionReport {
+  try {
+    const data: unknown = JSON.parse(readFileSync(path, "utf8"));
+    if (!isRecord(data)) {
+      throw new Error("Invalid execution report");
+    }
+    const tests = data["numTotalTests"];
+    const testResults = data["testResults"];
+    if (
+      typeof tests !== "number" ||
+      !Number.isInteger(tests) ||
+      tests < 0 ||
+      !Array.isArray(testResults)
+    ) {
+      throw new Error("Invalid execution report");
+    }
+    const files = testResults.length;
+    const passedTests = data["numPassedTests"];
+    const passed =
+      status === 0 &&
+      data["success"] === true &&
+      tests > 0 &&
+      typeof passedTests === "number" &&
+      Number.isInteger(passedTests) &&
+      passedTests > 0 &&
+      data["numFailedTests"] === 0 &&
+      files > 0;
+    return { tests, files, passed };
+  } catch {
+    return { tests: 0, files: 0, passed: false };
+  }
 }
 
 export function runWorkspaceTests({
@@ -127,31 +168,7 @@ export function runWorkspaceTests({
         ],
         { cwd, env },
       );
-      let tests: unknown = 0;
-      let files: unknown = 0;
-      let passed = result === 0;
-      try {
-        const data: unknown = JSON.parse(readFileSync(report, "utf8"));
-        if (!isRecord(data)) {
-          throw new Error("Invalid execution report");
-        }
-        tests = data["numTotalTests"];
-        const testResults = data["testResults"];
-        if (!isRecord(testResults) && typeof testResults !== "string") {
-          throw new Error("Invalid execution report");
-        }
-        files = testResults["length"];
-        passed &&=
-          data["success"] === true &&
-          typeof tests === "number" &&
-          Number.isInteger(tests) &&
-          tests > 0 &&
-          Number(data["numPassedTests"]) > 0 &&
-          data["numFailedTests"] === 0 &&
-          Number(files) > 0;
-      } catch {
-        passed = false;
-      }
+      const { tests, files, passed } = readExecutionReport(report, result);
       if (!passed) {
         status = 1;
       }

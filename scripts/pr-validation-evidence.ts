@@ -407,16 +407,19 @@ export async function resolveEvidence({
               `Repository CI [${mode}] PR #${identity.pr}`,
           ),
       );
-    for (const run of matching) {
-      check(
-        positiveInteger(run.id) && positiveInteger(run.run_number),
-        "Invalid validation run identity",
-      );
-    }
-    return matching;
+    return matching.map(
+      (run): JsonRecord & { id: number; run_number: number } => {
+        const { id, run_number: runNumber } = run;
+        check(
+          positiveInteger(id) && positiveInteger(runNumber),
+          "Invalid validation run identity",
+        );
+        return { ...run, id, run_number: runNumber };
+      },
+    );
   };
   const sources = relevant(runs);
-  sources.sort((a, b) => Number(b.run_number) - Number(a.run_number));
+  sources.sort((a, b) => b.run_number - a.run_number);
   const original = sources.find(
     (run) => run.display_title === `Repository CI [full] PR #${identity.pr}`,
   );
@@ -428,7 +431,7 @@ export async function resolveEvidence({
   // but actually execute full validation. Never search past that newer run.
   const newer = await Promise.all(
     sources
-      .filter((run) => Number(run.run_number) > Number(original.run_number))
+      .filter((run) => run.run_number > original.run_number)
       .map(async (run) => {
         check(
           run.status === "completed" && positiveInteger(run.run_attempt),
@@ -485,9 +488,10 @@ export async function resolveEvidence({
       ),
     "Newest full validation is unsuccessful, pending, or bound to another candidate",
   );
+  const sourceAttempt = source.run_attempt;
   const jobs = (
     await api.pages(
-      `/actions/runs/${source.id}/attempts/${source.run_attempt}/jobs`,
+      `/actions/runs/${source.id}/attempts/${sourceAttempt}/jobs`,
       "jobs",
     )
   ).map(object);
@@ -555,7 +559,7 @@ export async function resolveEvidence({
       );
       const matches = artifacts.filter(
         (item) =>
-          item.name === `pr-validation-identity-${source.run_attempt}-${job}`,
+          item.name === `pr-validation-identity-${sourceAttempt}-${job}`,
       );
       check(
         matches.length === 1,
@@ -583,7 +587,7 @@ export async function resolveEvidence({
   );
   const latest = object(await api.request(`/actions/runs/${source.id}`));
   check(
-    latest.run_attempt === source.run_attempt &&
+    latest.run_attempt === sourceAttempt &&
       latest.status === "completed" &&
       latest.conclusion === "success",
     "Source attempt changed during evidence verification",
@@ -595,7 +599,7 @@ export async function resolveEvidence({
   check(
     !relevant(refreshed).some(
       (run) =>
-        Number(run.run_number) > Number(source.run_number) &&
+        run.run_number > source.run_number &&
         !sources.some(
           (previous) =>
             previous.id === run.id && previous.run_attempt === run.run_attempt,
@@ -607,7 +611,7 @@ export async function resolveEvidence({
   return {
     verified: true,
     runId: source.id,
-    attempt: source.run_attempt,
+    attempt: sourceAttempt,
     url: source.html_url,
   };
 }

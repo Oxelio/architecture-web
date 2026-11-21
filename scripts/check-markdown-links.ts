@@ -119,8 +119,8 @@ export function extractTargets(markdown: string): string[] {
     if (marker) {
       if (fence === marker) {
         fence = null;
-      } else if (fence === null) {
-        fence = marker;
+      } else {
+        fence ??= marker;
       }
       continue;
     }
@@ -133,8 +133,8 @@ export function extractTargets(markdown: string): string[] {
       targets.push(target);
     }
 
-    const reference = withoutInlineCode.match(
-      /^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)/u,
+    const reference = /^\s{0,3}\[[^\]]+\]:\s*(<[^>]+>|\S+)/u.exec(
+      withoutInlineCode,
     );
     if (reference?.[1] !== undefined) {
       targets.push(reference[1]);
@@ -218,9 +218,7 @@ function angleTarget(line: string, start: number, angle: AngleLookahead) {
   if (!/\s/u.test(line[end] ?? "")) {
     return null;
   }
-  if (angle.closing === undefined) {
-    angle.closing = line.indexOf(")", end);
-  }
+  angle.closing ??= line.indexOf(")", end);
   return angle.closing === -1 ? null : { end, closing: angle.closing };
 }
 

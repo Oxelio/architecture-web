@@ -64,6 +64,25 @@ test("rejects missing coverage commands and an empty test inventory before execu
   }
 });
 
+test("rejects an invalid workspace name before execution", (t) => {
+  const root = fixture(t);
+  writeFileSync(
+    resolve(root, "apps/app-0/package.json"),
+    JSON.stringify({
+      name: {},
+      scripts: { test: "vitest run", "test:coverage": "vitest run --coverage" },
+    }),
+  );
+  assert.throws(
+    () =>
+      runWorkspaceTests({
+        root,
+        run: () => assert.fail("must not execute"),
+      }),
+    /Invalid test workspace name/,
+  );
+});
+
 test("records every workspace, removes stale coverage and propagates a command failure", (t) => {
   const root = fixture(
     t,
@@ -110,6 +129,49 @@ test("rejects zero executed tests and missing or invalid execution reports", (t)
       testResults: [{}],
     },
     { success: false, numTotalTests: 2, testResults: [{}] },
+    [],
+    {
+      success: true,
+      numTotalTests: {},
+      numPassedTests: 2,
+      numFailedTests: 0,
+      testResults: [{}],
+    },
+    {
+      success: true,
+      numTotalTests: 2,
+      numPassedTests: 2,
+      numFailedTests: 0,
+      testResults: { length: 1 },
+    },
+    {
+      success: true,
+      numTotalTests: 2,
+      numPassedTests: "2",
+      numFailedTests: 0,
+      testResults: [{}],
+    },
+    {
+      success: true,
+      numTotalTests: 2,
+      numPassedTests: 1.5,
+      numFailedTests: 0,
+      testResults: [{}],
+    },
+    {
+      success: true,
+      numTotalTests: -1,
+      numPassedTests: 1,
+      numFailedTests: 0,
+      testResults: [{}],
+    },
+    {
+      success: true,
+      numTotalTests: 1.5,
+      numPassedTests: 1,
+      numFailedTests: 0,
+      testResults: [{}],
+    },
   ]) {
     assert.equal(
       runWorkspaceTests({
