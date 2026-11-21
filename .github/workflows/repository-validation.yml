@@ -86,6 +86,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify pinned Nginx HTTP log confidentiality
+        shell: bash
+        run: |
+          docker build --file apps/web/Dockerfile --tag architecture-web-web:log-canary .
+          bash apps/web/test/nginx-log-confidentiality.sh architecture-web-web:log-canary
+
       - name: Preview release version without publishing
         run: pnpm release:plan
 

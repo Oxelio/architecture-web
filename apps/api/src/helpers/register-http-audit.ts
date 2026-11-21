@@ -38,8 +38,11 @@ export function registerHttpAudit(
           statusCode: reply.statusCode,
         },
       );
-    } catch (error) {
-      request.log.error({ err: error }, "Security audit write failed");
+    } catch {
+      request.log.error(
+        { errorCategory: "audit_write_failed" },
+        "Security audit write failed",
+      );
     }
   });
 }
