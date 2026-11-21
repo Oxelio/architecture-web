@@ -26,6 +26,39 @@ function readFragmentToken(): string | null {
     : null;
 }
 
+function verificationMessageKey(
+  token: string | null,
+  state: VerificationState,
+): string {
+  if (!token) {
+    return "verify.invalidLink";
+  }
+
+  switch (state.status) {
+    case "awaiting":
+      return "verify.awaiting";
+    case "submitting":
+      return "verify.waiting";
+    case "success":
+      return "verify.success";
+    case "error":
+      return state.key;
+  }
+}
+
+function verificationFeedbackClass(
+  isSuccess: boolean,
+  isError: boolean,
+): string {
+  if (isSuccess) {
+    return "border-emerald-500 bg-emerald-500/10 text-emerald-200";
+  }
+  if (isError) {
+    return "border-rose-500 bg-rose-500/10 text-rose-200";
+  }
+  return "border-sky-500 bg-sky-500/10 text-sky-100";
+}
+
 export function VerifyEmailPage() {
   const { t } = useTranslation();
   // Read once, without a render-time side effect. StrictMode may render twice.
@@ -64,15 +97,8 @@ export function VerifyEmailPage() {
   const isSubmitting = state.status === "submitting";
   const isSuccess = state.status === "success";
   const isError = !token || state.status === "error";
-  const message = !token
-    ? "verify.invalidLink"
-    : state.status === "error"
-      ? state.key
-      : isSuccess
-        ? "verify.success"
-        : isSubmitting
-          ? "verify.waiting"
-          : "verify.awaiting";
+  const message = verificationMessageKey(token, state);
+  const feedbackClassName = verificationFeedbackClass(isSuccess, isError);
 
   return (
     <motion.div
@@ -92,13 +118,7 @@ export function VerifyEmailPage() {
 
       <div
         role={isError ? "alert" : "status"}
-        className={`mt-8 rounded-3xl border px-6 py-5 text-sm ${
-          isSuccess
-            ? "border-emerald-500 bg-emerald-500/10 text-emerald-200"
-            : isError
-              ? "border-rose-500 bg-rose-500/10 text-rose-200"
-              : "border-sky-500 bg-sky-500/10 text-sky-100"
-        }`}
+        className={`mt-8 rounded-3xl border px-6 py-5 text-sm ${feedbackClassName}`}
       >
         {errorMessage(t, message)}
       </div>
