@@ -25,7 +25,7 @@
     "release:plan": "pnpm --filter @architecture/delivery-automation release:plan",
     "ci:test": "node scripts/run-workspace-tests.ts",
     "ci:test:integration": "node scripts/run-integration-tests.ts",
-    "ci:test:tooling": "node -e \"const fs=require('node:fs');fs.mkdirSync('coverage/scripts', { recursive: true });fs.rmSync('coverage/scripts/lcov.info', { force: true })\" && node --test --experimental-test-coverage --test-coverage-include=scripts/*.mjs --test-coverage-include=scripts/*.ts --test-coverage-exclude=scripts/*.test.mjs --test-coverage-exclude=scripts/*.test.ts --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/scripts/lcov.info scripts/run-workspace-tests.test.ts scripts/merge-coverage.test.ts scripts/check-markdown-links.test.ts scripts/quality-gate.test.mjs scripts/run-o2-mailpit-test.test.ts"
+    "ci:test:tooling": "node -e \"const fs=require('node:fs');fs.mkdirSync('coverage/scripts', { recursive: true });fs.rmSync('coverage/scripts/lcov.info', { force: true })\" && node --test --experimental-test-coverage --test-coverage-include=scripts/*.ts --test-coverage-exclude=scripts/*.test.ts --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/scripts/lcov.info scripts/run-workspace-tests.test.ts scripts/merge-coverage.test.ts scripts/check-markdown-links.test.ts scripts/quality-gate.test.ts scripts/run-o2-mailpit-test.test.ts"
   },
   "lint-staged": {
     "**/*.{js,mjs,cjs,ts,tsx}": [

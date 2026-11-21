@@ -273,13 +273,13 @@ describe("CI trust and failure boundaries", () => {
     );
     expect(command).toContain("scripts/run-workspace-tests.test.ts");
     expect(command).toContain("scripts/merge-coverage.test.ts");
-    expect(command).toContain("scripts/quality-gate.test.mjs");
+    expect(command).toContain("scripts/quality-gate.test.ts");
   });
 
   it("runs metadata routing without expensive validation and isolates cancellation groups", () => {
     expect(
       ci.jobs["route"]?.steps?.find((step) => step.id === "route")?.run,
-    ).toBe("node scripts/quality-gate.mjs route");
+    ).toBe("node scripts/quality-gate.ts route");
     expect(ci.jobs["route"]?.steps?.at(-1)?.name).toBe(
       "Selected validation route (${{ steps.route.outputs.mode }})",
     );
@@ -303,7 +303,7 @@ describe("CI trust and failure boundaries", () => {
       ),
     ).toBe(true);
     const gate = quality.at(-1);
-    expect(gate?.run).toBe("node scripts/quality-gate.mjs");
+    expect(gate?.run).toBe("node scripts/quality-gate.ts");
     expect(gate?.env?.["GITHUB_TOKEN"]).toBe("${{ github.token }}");
     expect(gate?.env?.["VALIDATION_MODE"]).toBe(
       "${{ needs.route.outputs.mode }}",
@@ -323,7 +323,7 @@ describe("CI trust and failure boundaries", () => {
         step.uses?.startsWith("actions/setup-node@"),
       );
       const identity = steps.findIndex(
-        (step) => step.run === "node scripts/quality-gate.mjs identity",
+        (step) => step.run === "node scripts/quality-gate.ts identity",
       );
       expect(setup).toBeGreaterThanOrEqual(0);
       expect(identity).toBeGreaterThan(setup);

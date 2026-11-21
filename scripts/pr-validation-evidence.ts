@@ -12,6 +12,99 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+type JsonRecord = Record<string, unknown>;
+
+export interface QualityInputs {
+  event: string | undefined;
+  validation: string | undefined;
+  dependencyReview: string | undefined;
+  commitlint: string | undefined;
+  mode?: string | undefined;
+  evidence?: { verified: boolean } | undefined;
+}
+
+type AcceptQuality = (inputs: QualityInputs) => boolean;
+type ValidationResults = Pick<QualityInputs, "validation" | "dependencyReview">;
+type Route = "full" | "metadata";
+
+export interface EvidenceApi {
+  request(path: string): Promise<unknown>;
+  pages(path: string, key: string): Promise<unknown[]>;
+  artifact(id: number, digest: string | undefined): Promise<unknown>;
+}
+
+interface CandidateIdentity {
+  repositoryId: number;
+  repository: string;
+  pr: number;
+  headRepositoryId: number;
+  headRepository: string;
+  head: string;
+  baseRef: "main";
+  base: string;
+  candidate: string;
+}
+
+interface IdentityOptions {
+  env: NodeJS.ProcessEnv;
+  payload: unknown;
+  checkout: string;
+  parents: string[];
+  now?: number;
+}
+
+interface ResolveEvidenceOptions {
+  api: EvidenceApi;
+  identity: CandidateIdentity;
+  runId: number;
+  now?: number;
+}
+
+interface VerifyIdentityOptions {
+  identity: CandidateIdentity;
+  source: unknown;
+  job: string;
+  artifact: unknown;
+  now: number;
+}
+
+interface EvaluatePrOptions {
+  api: EvidenceApi;
+  identity: CandidateIdentity;
+  mode: string;
+  results: ValidationResults;
+  lint: (title: string) => boolean;
+  runId: number;
+  accept: AcceptQuality;
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function object(value: unknown): JsonRecord {
+  check(isRecord(value), "Invalid GitHub evidence object");
+  return value;
+}
+
+function optionalObject(value: unknown): JsonRecord {
+  return value === null || value === undefined ? {} : object(value);
+}
+
+function objects(value: unknown): JsonRecord[] {
+  check(Array.isArray(value), "Invalid GitHub evidence inventory");
+  const items: unknown[] = value;
+  return items.map(object);
+}
+
+function positiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+function isSha(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
+}
+
 export const EVIDENCE_DAYS = 7;
 const lifetime = EVIDENCE_DAYS * 86400000;
 const caller = ".github/workflows/delivery-automation-validation.yml";
@@ -32,11 +125,17 @@ const validationJobs = {
   primary: "validate / Validate repository and delivery tooling",
   node24: "validate / Node 24 compatibility",
 };
-function check(condition, message) {
-  if (!condition) throw new Error(message);
+function check(condition: unknown, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message);
+  }
 }
 
-export function validationRoute(event, payload) {
+export function validationRoute(
+  event: string | undefined,
+  input: unknown,
+): Route {
+  const payload = object(input);
   const changes = Object.keys(payload.changes ?? {});
   return event === "pull_request" &&
     payload.action === "edited" &&
@@ -46,32 +145,39 @@ export function validationRoute(event, payload) {
     : "full";
 }
 
-export function candidateIdentity(payload, candidate) {
-  const pr = payload.pull_request;
-  const identity = {
-    repositoryId: payload.repository?.id,
-    repository: payload.repository?.full_name,
-    pr: pr?.number,
-    headRepositoryId: pr?.head?.repo?.id,
-    headRepository: pr?.head?.repo?.full_name,
-    head: pr?.head?.sha,
-    baseRef: pr?.base?.ref,
-    base: pr?.base?.sha,
-    candidate,
-  };
+export function candidateIdentity(
+  input: unknown,
+  candidate: unknown,
+): CandidateIdentity {
+  const payload = object(input);
+  const repository = optionalObject(payload.repository);
+  const pr = optionalObject(payload.pull_request);
+  const head = optionalObject(pr.head);
+  const headRepository = optionalObject(head.repo);
+  const base = optionalObject(pr.base);
   check(
-    [identity.head, identity.base, candidate].every((sha) =>
-      /^[a-f0-9]{40}$/u.test(sha ?? ""),
-    ) &&
-      [identity.repositoryId, identity.headRepositoryId, identity.pr].every(
-        (id) => Number.isSafeInteger(id) && id > 0,
-      ) &&
-      typeof identity.repository === "string" &&
-      typeof identity.headRepository === "string" &&
-      identity.baseRef === "main",
+    isSha(head.sha) &&
+      isSha(base.sha) &&
+      isSha(candidate) &&
+      positiveInteger(repository.id) &&
+      positiveInteger(headRepository.id) &&
+      positiveInteger(pr.number) &&
+      typeof repository.full_name === "string" &&
+      typeof headRepository.full_name === "string" &&
+      base.ref === "main",
     "Incomplete PR candidate identity",
   );
-  return identity;
+  return {
+    repositoryId: repository.id,
+    repository: repository.full_name,
+    pr: pr.number,
+    headRepositoryId: headRepository.id,
+    headRepository: headRepository.full_name,
+    head: head.sha,
+    baseRef: base.ref,
+    base: base.sha,
+    candidate,
+  };
 }
 
 export function createIdentity({
@@ -80,7 +186,7 @@ export function createIdentity({
   checkout,
   parents,
   now = Date.now(),
-}) {
+}: IdentityOptions) {
   const identity = candidateIdentity(payload, env.CANDIDATE_SHA);
   check(
     checkout === identity.candidate &&
@@ -89,15 +195,17 @@ export function createIdentity({
       env.GITHUB_WORKFLOW_SHA === identity.candidate &&
       env.GITHUB_WORKFLOW_REF ===
         `${identity.repository}/${caller}@refs/pull/${identity.pr}/merge` &&
+      typeof env.VALIDATION_JOB === "string" &&
       Object.hasOwn(validationJobs, env.VALIDATION_JOB),
     "Actual inputs/checkout do not match the PR candidate",
   );
-  if (env.VALIDATION_JOB === "primary")
+  if (env.VALIDATION_JOB === "primary") {
     check(
       JSON.stringify(parents) ===
         JSON.stringify([identity.base, identity.head]),
       "Merge candidate parents do not match base and head",
     );
+  }
   const runId = Number(env.GITHUB_RUN_ID),
     attempt = Number(env.GITHUB_RUN_ATTEMPT);
   check(
@@ -119,9 +227,15 @@ export function createIdentity({
   };
 }
 
-export function githubClient(repository, token, fetchImpl = fetch) {
+export function githubClient(
+  repository: string | undefined,
+  token: string | undefined,
+  fetchImpl: typeof fetch = fetch,
+): EvidenceApi {
   check(
-    /^[\w.-]+\/[\w.-]+$/u.test(repository) && Boolean(token),
+    typeof repository === "string" &&
+      /^[\w.-]+\/[\w.-]+$/u.test(repository) &&
+      Boolean(token),
     "Read-only GitHub access is unavailable",
   );
   const root = `https://api.github.com/repos/${repository}`;
@@ -130,7 +244,7 @@ export function githubClient(repository, token, fetchImpl = fetch) {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2026-03-10",
   };
-  async function request(path) {
+  async function request(path: string): Promise<unknown> {
     check(path.startsWith("/") && !path.includes(".."), "Invalid API path");
     const response = await fetchImpl(`${root}${path}`, {
       headers,
@@ -140,15 +254,18 @@ export function githubClient(repository, token, fetchImpl = fetch) {
     check(response.ok, `GitHub evidence read failed: HTTP ${response.status}`);
     return response.json();
   }
-  async function pages(path, key) {
-    const items = [];
+  async function pages(path: string, key: string): Promise<unknown[]> {
+    const items: unknown[] = [];
     for (let page = 1; page <= 10; page += 1) {
-      const response = await request(
-        `${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`,
+      const response = object(
+        await request(
+          `${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`,
+        ),
       );
-      check(Array.isArray(response[key]), "Incomplete paginated evidence");
-      items.push(...response[key]);
-      if (response[key].length < 100) {
+      const pageItems = response[key];
+      check(Array.isArray(pageItems), "Incomplete paginated evidence");
+      items.push(...pageItems);
+      if (pageItems.length < 100) {
         check(
           Number.isSafeInteger(response.total_count) &&
             response.total_count === items.length,
@@ -159,7 +276,10 @@ export function githubClient(repository, token, fetchImpl = fetch) {
     }
     throw new Error("Evidence pagination limit exceeded");
   }
-  async function artifact(id, digest) {
+  async function artifact(
+    id: number,
+    digest: string | undefined,
+  ): Promise<unknown> {
     check(
       /^sha256:[a-f0-9]{64}$/u.test(digest ?? ""),
       "Missing artifact digest",
@@ -217,14 +337,21 @@ export function githubClient(repository, token, fetchImpl = fetch) {
   return { request, pages, artifact };
 }
 
-function fresh(timestamp, now) {
+function fresh(timestamp: unknown, now: number) {
+  if (typeof timestamp !== "string") {
+    return false;
+  }
   const age = now - Date.parse(timestamp);
   return Number.isFinite(age) && age >= 0 && age <= lifetime;
 }
 export function verifyIdentity(
-  record,
-  { identity, source, job, artifact, now },
+  input: unknown,
+  { identity, source: sourceInput, job, artifact: artifactInput, now }: VerifyIdentityOptions,
 ) {
+  const record = object(input);
+  const source = object(sourceInput);
+  const artifact = object(artifactInput);
+  const workflowRun = optionalObject(artifact.workflow_run);
   check(
     record.version === 1 &&
       JSON.stringify(record.identity) === JSON.stringify(identity) &&
@@ -240,11 +367,12 @@ export function verifyIdentity(
       fresh(record.createdAt, now) &&
       artifact.expired === false &&
       fresh(artifact.created_at, now) &&
+      typeof artifact.expires_at === "string" &&
       Date.parse(artifact.expires_at) > now &&
-      artifact.workflow_run?.id === source.id &&
-      artifact.workflow_run?.repository_id === identity.repositoryId &&
-      artifact.workflow_run?.head_repository_id === identity.headRepositoryId &&
-      artifact.workflow_run?.head_sha === identity.head,
+      workflowRun.id === source.id &&
+      workflowRun.repository_id === identity.repositoryId &&
+      workflowRun.head_repository_id === identity.headRepositoryId &&
+      workflowRun.head_sha === identity.head,
     "Identity artifact does not prove this candidate/run/attempt or has expired",
   );
 }
@@ -254,14 +382,14 @@ export async function resolveEvidence({
   identity,
   runId,
   now = Date.now(),
-}) {
-  const current = await api.request(`/actions/runs/${runId}`);
+}: ResolveEvidenceOptions) {
+  const current = object(await api.request(`/actions/runs/${runId}`));
   const runs = await api.pages(
     `/actions/runs?event=pull_request&head_sha=${identity.head}`,
     "workflow_runs",
   );
-  const relevant = (items) =>
-    items.filter(
+  const relevant = (items: unknown[]) =>
+    items.map(object).filter(
       (run) =>
         run.id !== runId &&
         run.workflow_id === current.workflow_id &&
@@ -271,36 +399,39 @@ export async function resolveEvidence({
         ),
     );
   const sources = relevant(runs);
-  sources.sort((a, b) => b.run_number - a.run_number);
-  let source = sources.find(
+  for (const run of sources) {
+    check(positiveInteger(run.run_number), "Invalid validation run number");
+  }
+  sources.sort((a, b) => Number(b.run_number) - Number(a.run_number));
+  const original = sources.find(
     (run) => run.display_title === `Repository CI [full] PR #${identity.pr}`,
   );
   check(
-    source,
+    original,
     "No original full PR validation evidence; run full PR validation",
   );
   // A title/body edit plus an unknown field may have a metadata discovery name
   // but actually execute full validation. Never search past that newer run.
   const newer = await Promise.all(
     sources
-      .filter((run) => run.run_number > source.run_number)
+      .filter((run) => Number(run.run_number) > Number(original.run_number))
       .map(async (run) => {
         check(
           run.status === "completed" &&
-            Number.isSafeInteger(run.run_attempt) &&
-            run.run_attempt > 0,
+            positiveInteger(run.run_attempt),
           "Newer validation route is pending or unavailable",
         );
-        const jobs = await api.pages(
+        const jobs = (await api.pages(
           `/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
           "jobs",
-        );
+        )).map(object);
         const routes = jobs.filter(
           (job) => job.name === "Select validation route",
         );
         const route = routes[0];
         check(
           routes.length === 1 &&
+            route !== undefined &&
             route.run_id === run.id &&
             route.head_sha === identity.head &&
             route.status === "completed" &&
@@ -308,7 +439,7 @@ export async function resolveEvidence({
           "Newer validation route is unverified",
         );
         const modes = ["full", "metadata"].filter((mode) =>
-          route.steps?.some(
+          objects(route.steps ?? []).some(
             (step) =>
               step.name === `Selected validation route (${mode})` &&
               step.conclusion === "success",
@@ -318,19 +449,19 @@ export async function resolveEvidence({
         return { run, mode: modes[0] };
       }),
   );
-  source = newer.find((item) => item.mode === "full")?.run ?? source;
+  const source = newer.find((item) => item.mode === "full")?.run ?? original;
   check(
     source.event === "pull_request" &&
       source.path === caller &&
-      source.repository?.id === identity.repositoryId &&
-      source.repository?.full_name === identity.repository &&
-      source.head_repository?.id === identity.headRepositoryId &&
+      optionalObject(source.repository).id === identity.repositoryId &&
+      optionalObject(source.repository).full_name === identity.repository &&
+      optionalObject(source.head_repository).id === identity.headRepositoryId &&
       source.head_sha === identity.head &&
       source.status === "completed" &&
       source.conclusion === "success" &&
-      Number.isSafeInteger(source.run_attempt) &&
-      source.run_attempt > 0 &&
-      source.referenced_workflows?.some(
+      positiveInteger(source.id) &&
+      positiveInteger(source.run_attempt) &&
+      objects(source.referenced_workflows ?? []).some(
         (workflow) =>
           workflow.path ===
             `${identity.repository}/${reusable}@${identity.candidate}` &&
@@ -339,14 +470,14 @@ export async function resolveEvidence({
       ),
     "Newest full validation is unsuccessful, pending, or bound to another candidate",
   );
-  const jobs = await api.pages(
+  const jobs = (await api.pages(
     `/actions/runs/${source.id}/attempts/${source.run_attempt}/jobs`,
     "jobs",
-  );
-  const artifacts = await api.pages(
+  )).map(object);
+  const artifacts = (await api.pages(
     `/actions/runs/${source.id}/artifacts`,
     "artifacts",
-  );
+  )).map(object);
   await Promise.all(
     [
       ...Object.values(validationJobs),
@@ -358,21 +489,23 @@ export async function resolveEvidence({
       const job = matches[0];
       const prefix = `https://api.github.com/repos/${identity.repository}/check-runs/`;
       check(
-        job.run_id === source.id &&
+        job !== undefined &&
+          job.run_id === source.id &&
           job.head_sha === identity.head &&
           job.status === "completed" &&
           job.conclusion === "success" &&
-          job.check_run_url?.startsWith(prefix) &&
+          typeof job.check_run_url === "string" &&
+          job.check_run_url.startsWith(prefix) &&
           /^\d+$/u.test(job.check_run_url.slice(prefix.length)),
         `Source job did not succeed: ${name}`,
       );
-      const result = await api.request(
+      const result = object(await api.request(
         `/check-runs/${job.check_run_url.slice(prefix.length)}`,
-      );
+      ));
       check(
         result.name === name &&
-          result.app?.id === 15368 &&
-          result.check_suite?.id === source.check_suite_id &&
+          optionalObject(result.app).id === 15368 &&
+          optionalObject(result.check_suite).id === source.check_suite_id &&
           result.head_sha === identity.head &&
           result.status === "completed" &&
           result.conclusion === "success",
@@ -382,7 +515,7 @@ export async function resolveEvidence({
   );
   await Promise.all(
     Object.entries(validationJobs).map(async ([job, name]) => {
-      const steps = jobs.find((item) => item.name === name).steps ?? [];
+      const steps = objects(jobs.find((item) => item.name === name)?.steps ?? []);
       const recordStep = steps.findIndex(
         (step) =>
           step.name === "Record PR validation identity" &&
@@ -410,13 +543,15 @@ export async function resolveEvidence({
       );
       const artifact = matches[0];
       check(
-        Number.isSafeInteger(artifact.id) &&
-          artifact.id > 0 &&
+        artifact !== undefined &&
+          positiveInteger(artifact.id) &&
+          typeof artifact.size_in_bytes === "number" &&
           artifact.size_in_bytes <= 65536 &&
           artifact.expired === false,
         "Unavailable identity artifact",
       );
-      verifyIdentity(await api.artifact(artifact.id, artifact.digest), {
+      const digest = typeof artifact.digest === "string" ? artifact.digest : undefined;
+      verifyIdentity(await api.artifact(artifact.id, digest), {
         identity,
         source,
         job,
@@ -425,7 +560,7 @@ export async function resolveEvidence({
       });
     }),
   );
-  const latest = await api.request(`/actions/runs/${source.id}`);
+  const latest = object(await api.request(`/actions/runs/${source.id}`));
   check(
     latest.run_attempt === source.run_attempt &&
       latest.status === "completed" &&
@@ -439,7 +574,7 @@ export async function resolveEvidence({
   check(
     !relevant(refreshed).some(
       (run) =>
-        run.run_number > source.run_number &&
+        Number(run.run_number) > Number(source.run_number) &&
         !sources.some(
           (previous) =>
             previous.id === run.id && previous.run_attempt === run.run_attempt,
@@ -447,6 +582,7 @@ export async function resolveEvidence({
     ),
     "Newer full validation or metadata verification started during evidence verification",
   );
+  check(typeof source.html_url === "string", "Missing source validation URL");
   return {
     verified: true,
     runId: source.id,
@@ -455,7 +591,12 @@ export async function resolveEvidence({
   };
 }
 
-export function assertLiveCandidate(pr, identity, candidate) {
+export function assertLiveCandidate(
+  input: unknown,
+  identity: CandidateIdentity,
+  candidate: unknown,
+) {
+  const pr = object(input);
   const actual = candidateIdentity(
     {
       repository: { id: identity.repositoryId, full_name: identity.repository },
@@ -469,17 +610,18 @@ export function assertLiveCandidate(pr, identity, candidate) {
   );
 }
 
-async function readLivePr(api, identity) {
-  const pr = await api.request(`/pulls/${identity.pr}`);
+async function readLivePr(api: EvidenceApi, identity: CandidateIdentity) {
+  const pr = object(await api.request(`/pulls/${identity.pr}`));
   // REST 2026-03-10 removes merge_commit_sha from PR responses. Read the
   // actual synthetic merge ref instead of inferring a candidate from the head.
-  const merge = await api.request(`/git/ref/pull/${identity.pr}/merge`);
+  const merge = object(await api.request(`/git/ref/pull/${identity.pr}/merge`));
+  const mergeObject = optionalObject(merge.object);
   check(
     merge.ref === `refs/pull/${identity.pr}/merge` &&
-      merge.object?.type === "commit",
+      mergeObject.type === "commit",
     "Live PR merge reference is unavailable or invalid",
   );
-  assertLiveCandidate(pr, identity, merge.object.sha);
+  assertLiveCandidate(pr, identity, mergeObject.sha);
   return pr;
 }
 
@@ -491,7 +633,7 @@ export async function evaluatePr({
   lint,
   runId,
   accept,
-}) {
+}: EvaluatePrOptions) {
   const before = await readLivePr(api, identity);
   check(
     typeof before.title === "string" && lint(before.title),
@@ -519,7 +661,7 @@ export async function evaluatePr({
   return { identity, mode, evidence };
 }
 
-export function lintTitle(title) {
+export function lintTitle(title: string) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
       ([name]) => !["GITHUB_TOKEN", "GH_TOKEN", "SONAR_TOKEN"].includes(name),
@@ -535,14 +677,15 @@ export function lintTitle(title) {
 }
 
 export async function runQualityCli(
-  accept,
-  env = process.env,
+  accept: AcceptQuality,
+  env: NodeJS.ProcessEnv = process.env,
   command = process.argv[2],
 ) {
-  const payload = env.GITHUB_EVENT_PATH
+  const payload: unknown = env.GITHUB_EVENT_PATH
     ? JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"))
     : {};
   if (command === "route") {
+    check(env.GITHUB_OUTPUT, "Missing route output path");
     appendFileSync(
       env.GITHUB_OUTPUT,
       `mode=${validationRoute(env.GITHUB_EVENT_NAME, payload)}\n`,
@@ -562,6 +705,7 @@ export async function runQualityCli(
         .trim()
         .split(" "),
     });
+    check(env.IDENTITY_PATH, "Missing identity output path");
     mkdirSync(dirname(env.IDENTITY_PATH), { recursive: true });
     writeFileSync(env.IDENTITY_PATH, `${JSON.stringify(record)}\n`);
     return;
@@ -596,9 +740,10 @@ export async function runQualityCli(
     accept,
   });
   console.log("Current PR title and candidate validation verified.");
-  if (env.GITHUB_STEP_SUMMARY)
+  if (env.GITHUB_STEP_SUMMARY) {
     appendFileSync(
       env.GITHUB_STEP_SUMMARY,
       `## Quality checks\n\nCandidate: ${report.identity.candidate}\n\nRoute: ${report.mode}\n\nEvidence: ${report.evidence?.url ?? "this run"}\n\nCurrent PR title passed commitlint and remained unchanged at final verification.\n`,
     );
+  }
 }

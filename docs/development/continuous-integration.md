@@ -173,7 +173,7 @@ node scripts/merge-coverage.ts
 
 Required native sources are declared by `CI_SOURCES` in
 `scripts/merge-coverage.ts`, including the metadata evidence resolver.
-`scripts/quality-gate.test.mjs` is explicitly included in `ci:test:tooling`,
+`scripts/quality-gate.test.ts` is explicitly included in `ci:test:tooling`,
 executed in both primary and Node 24 validation.
 Local V8 percentages describe the executed test suite; Sonar's new-code coverage
 is a separate server-side measure over the PR diff and its coverable conditions.

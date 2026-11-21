@@ -7,8 +7,8 @@ import { testWorkspaces } from "./run-workspace-tests.ts";
 export const CI_SOURCES = [
   "scripts/check-markdown-links.ts",
   "scripts/merge-coverage.ts",
-  "scripts/quality-gate.mjs",
-  "scripts/pr-validation-evidence.mjs",
+  "scripts/quality-gate.ts",
+  "scripts/pr-validation-evidence.ts",
   "scripts/run-integration-tests.ts",
   "scripts/run-o2-mailpit-test.ts",
   "scripts/run-workspace-tests.ts",
