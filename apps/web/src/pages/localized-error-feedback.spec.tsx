@@ -908,8 +908,12 @@ it("preserves MFA backup-code acknowledgment and user-entered values during loca
   );
   await clickButton("Set up MFA");
   await expectFeedback("article", "Confirm enrollment");
+  expect(element<HTMLImageElement>("img").alt).toBe("TOTP setup QR code");
 
   await changeLocale("fr");
+  expect(element<HTMLImageElement>("img").alt).toBe(
+    "Code QR de configuration TOTP",
+  );
   expect(container.textContent).toContain("Valider l’enrôlement");
   expect(element<HTMLInputElement>('input[type="password"]').value).toBe(
     loginPassword,
@@ -1148,17 +1152,37 @@ it("localizes security-configuration select, multi-select, slider, units and rea
     effective: {
       passwords: { standardLevel: "standard" },
       authentication: { mfaRequiredRoles: ["admin"] },
-      accounts: { deletionGraceDays: 14 },
+      accounts: {
+        deletionGraceDays: 14,
+        publicRegistration: true,
+        emailVerification: false,
+      },
       audit: { retentionDays: 90 },
     },
     catalog: [
+      {
+        key: "accounts.publicRegistration",
+        category: "accounts",
+        control: "switch",
+        impact: "medium",
+        recommendedValue: true,
+        availability: { available: true, readOnly: false },
+      },
+      {
+        key: "accounts.emailVerification",
+        category: "accounts",
+        control: "switch",
+        impact: "medium",
+        recommendedValue: false,
+        availability: { available: true, readOnly: false },
+      },
       {
         key: "passwords.standardLevel",
         category: "passwords",
         control: "select",
         constraints: { choices: ["standard", "elevated", "critical"] },
         impact: "medium",
-        recommendedValue: "standard",
+        recommendedValue: "elevated",
         availability: { available: true, readOnly: false },
       },
       {
@@ -1167,7 +1191,7 @@ it("localizes security-configuration select, multi-select, slider, units and rea
         control: "multi-select",
         constraints: { choices: ["user", "admin"] },
         impact: "high",
-        recommendedValue: ["admin"],
+        recommendedValue: ["admin", "user"],
         availability: { available: true, readOnly: false },
       },
       {
@@ -1198,6 +1222,12 @@ it("localizes security-configuration select, multi-select, slider, units and rea
   expect(container.textContent).toContain("Administrators");
   expect(container.textContent).toContain("Deletion grace period");
   expect(container.textContent).toContain("Read-only: no executable consumer");
+  expect(container.textContent).toContain("Recommended : Enabled");
+  expect(container.textContent).toContain("Recommended : Disabled");
+  expect(container.textContent).toContain("Recommended : Elevated");
+  expect(container.textContent).toContain(
+    "Recommended : Administrators, Users",
+  );
   expect(
     element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"),
   ).toContain("slider");
@@ -1207,9 +1237,64 @@ it("localizes security-configuration select, multi-select, slider, units and rea
   expect(container.textContent).toContain("Administrateurs");
   expect(container.textContent).toContain("Délai avant suppression");
   expect(container.textContent).toContain("Lecture seule");
+  expect(container.textContent).toContain("Recommandé : Activé");
+  expect(container.textContent).toContain("Recommandé : Désactivé");
+  expect(container.textContent).toContain("Recommandé : Renforcé");
+  expect(container.textContent).toContain(
+    "Recommandé : Administrateurs, Utilisateurs",
+  );
   expect(
     element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"),
   ).toContain("curseur");
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
+it("localizes known revision origins while preserving unknown audit history values", async () => {
+  const origins = [
+    "administration",
+    "initialization",
+    "restoration",
+    "operations",
+    "external_provider",
+  ];
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { id: "current", version: 6 },
+    effective: {},
+    catalog: [],
+    revisions: origins.map((origin, index) => ({
+      id: `revision-${index}`,
+      version: index + 1,
+      status: "superseded",
+      created_by: "operator",
+      created_at: "2026-01-02T13:04:05Z",
+      origin,
+      justification: "Preserve original reason",
+    })),
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+  await clickButton("History");
+
+  for (const label of [
+    "Administration",
+    "Initialization",
+    "Restoration",
+    "Operations",
+    "external_provider",
+  ]) {
+    expect(container.textContent).toContain(label);
+  }
+  await changeLocale("fr");
+  for (const label of [
+    "Administration",
+    "Initialisation",
+    "Restauration",
+    "Opérations",
+    "external_provider",
+  ]) {
+    expect(container.textContent).toContain(label);
+  }
+  expect(container.textContent).toContain("Preserve original reason");
   expect(fetchApi).not.toHaveBeenCalled();
 });
 
