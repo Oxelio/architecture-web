@@ -267,7 +267,9 @@ function ConfigurationEditor({
             className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6"
           >
             <legend className="px-2 text-lg font-semibold text-white">
-              {t(`securityConfig.categories.${category}`, { defaultValue: category })}
+              {t(`securityConfig.categories.${category}`, {
+                defaultValue: category,
+              })}
             </legend>
             <div className="mt-2 grid gap-4 lg:grid-cols-2">
               {entries.map((entry) => (
@@ -329,7 +331,9 @@ function ConfigurationEditor({
             <ul className="mt-2 space-y-1">
               {preview.data.changes.map((change) => (
                 <li key={change.key}>
-                  {t(`securityConfig.fields.${change.key}`, { defaultValue: change.key })} :{" "}
+                  {t(`securityConfig.fields.${change.key}`, {
+                    defaultValue: change.key,
+                  })} :{" "}
                   <code>{formatValue(change.before)}</code> →{" "}
                   <code>{formatValue(change.after)}</code>
                 </li>
@@ -396,7 +400,9 @@ function ConfigField({
   const { t } = useTranslation();
   const id = `security-${entry.key.replaceAll(".", "-")}`;
   const disabled = !entry.availability.available || entry.availability.readOnly;
-  const label = t(`securityConfig.fields.${entry.key}`, { defaultValue: entry.key });
+  const label = t(`securityConfig.fields.${entry.key}`, {
+    defaultValue: entry.key,
+  });
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -410,7 +416,9 @@ function ConfigField({
           </p>
         </div>
         <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase text-slate-400">
-          {t(`securityConfig.impact.${entry.impact}`, { defaultValue: entry.impact })}
+          {t(`securityConfig.impact.${entry.impact}`, {
+            defaultValue: entry.impact,
+          })}
         </span>
       </div>
 
@@ -436,7 +444,9 @@ function ConfigField({
           >
             {entry.constraints?.choices?.map((choice) => (
               <option key={choice} value={choice}>
-                {t(`securityConfig.choices.${choice}`, { defaultValue: choice })}
+                {t(`securityConfig.choices.${choice}`, {
+                  defaultValue: choice,
+                })}
               </option>
             ))}
           </select>
@@ -459,7 +469,9 @@ function ConfigField({
                       )
                     }
                   />
-                  {t(`securityConfig.choices.${choice}`, { defaultValue: choice })}
+                  {t(`securityConfig.choices.${choice}`, {
+                    defaultValue: choice,
+                  })}
                 </label>
               );
             })}
@@ -540,7 +552,9 @@ function History({
           >
             <div>
               <p className="font-semibold text-slate-200">
-                {t("securityConfig.revision", { version: revision.version })} ·{" "}
+                {t("securityConfig.revision", {
+                  version: revision.version,
+                })} ·{" "}
                 {t(`securityConfig.revisionStatus.${revision.status}`, {
                   defaultValue: revision.status,
                 })}
@@ -595,7 +609,9 @@ function Audit({
   const { t, i18n } = useTranslation();
   return (
     <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
-      <h2 className="text-xl font-semibold text-white">{t("securityConfig.auditTitle")}</h2>
+      <h2 className="text-xl font-semibold text-white">
+        {t("securityConfig.auditTitle")}
+      </h2>
       <div className="mt-4 max-h-[38rem] divide-y divide-slate-800 overflow-auto">
         {events.map((event) => (
           <div key={event.id} className="py-3 text-sm">
@@ -608,7 +624,9 @@ function Audit({
                     : "text-rose-300"
                 }
               >
-                {t(`securityConfig.eventResult.${event.result}`, { defaultValue: event.result })}
+                {t(`securityConfig.eventResult.${event.result}`, {
+                  defaultValue: event.result,
+                })}
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-500">

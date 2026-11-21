@@ -78,7 +78,9 @@ export function SecurityCenter() {
         </h3>
         <p className="mt-2 text-sm text-slate-400">
           {mfa.data?.enabled
-            ? t("securityCenter.mfaEnabled", { count: mfa.data.backupCodesRemaining })
+            ? t("securityCenter.mfaEnabled", {
+                count: mfa.data.backupCodesRemaining,
+              })
             : t("securityCenter.mfaDisabled")}
         </p>
         <div className="mt-4 space-y-3">
@@ -121,7 +123,9 @@ export function SecurityCenter() {
       </article>
 
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6">
-        <h3 className="text-xl font-semibold text-white">{t("securityCenter.dataTitle")}</h3>
+        <h3 className="text-xl font-semibold text-white">
+          {t("securityCenter.dataTitle")}
+        </h3>
         <p className="mt-2 text-sm text-slate-400">
           {t("securityCenter.exportDescription")}
         </p>
@@ -138,7 +142,11 @@ export function SecurityCenter() {
               key={item.id}
               className="flex items-center justify-between rounded-xl border border-slate-800 p-3"
             >
-              <span>{t(`securityCenter.exportStatus.${item.status}`, { defaultValue: item.status })}</span>
+              <span>
+              {t(`securityCenter.exportStatus.${item.status}`, {
+                defaultValue: item.status,
+              })}
+            </span>
               {item.status === "ready" ? (
                 <a
                   href={accountExportDownloadUrl(item.id)}
@@ -177,7 +185,9 @@ export function SecurityCenter() {
             >
               <span className="font-mono text-slate-200">{event.type}</span>
               <span className="text-slate-400">
-                {t(`securityCenter.eventResult.${event.result}`, { defaultValue: event.result })} ·{" "}
+                {t(`securityCenter.eventResult.${event.result}`, {
+                  defaultValue: event.result,
+                })} ·{" "}
                 {new Date(event.occurred_at).toLocaleString(i18n.language)}
               </span>
             </div>

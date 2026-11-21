@@ -330,7 +330,9 @@ describe("sign-in feedback", () => {
     expect(element('[role="alert"]').textContent).toContain(
       "Impossible de vérifier le second facteur",
     );
-    expect(container.textContent).toContain("Code de l’application ou code de secours");
+    expect(container.textContent).toContain(
+      "Code de l’application ou code de secours",
+    );
     expect(container.textContent).toContain("Vérifier le second facteur");
     expect(container.textContent).not.toMatch(
       /private-challenge|mfa\.not_enabled|internal traceback/u,
@@ -883,11 +885,15 @@ it("shows a failed configuration preview after an earlier publication failure", 
 it("localizes account-deletion cancellation copy and retains credentials on locale changes", async () => {
   await render(<CancelDeletionPage />, "/cancel-deletion?token=private-token");
   expect(element("h2").textContent).toBe("Cancel deletion");
-  expect(element<HTMLInputElement>('input[type="password"]').placeholder).toBe("Password");
+  expect(element<HTMLInputElement>('input[type="password"]').placeholder).toBe(
+    "Password",
+  );
   await enter('input[type="password"]', loginPassword);
   await changeLocale("fr");
   expect(element("h2").textContent).toBe("Annuler la suppression");
-  expect(element<HTMLInputElement>('input[type="password"]').value).toBe(loginPassword);
+  expect(element<HTMLInputElement>('input[type="password"]').value).toBe(
+    loginPassword,
+  );
   expect(fetchApi).not.toHaveBeenCalled();
 
   fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -921,19 +927,26 @@ it("localizes administrator security configuration, history and audit without ch
   client.setQueryData(["admin-security-config"], {
     effectiveRevision: { id: "effective", version: 2 },
     effective: { accounts: { publicRegistration: true } },
-    catalog: [{
-      key: "accounts.publicRegistration",
-      category: "accounts",
-      control: "switch",
-      impact: "medium",
-      recommendedValue: true,
-      availability: { available: true, readOnly: false },
-    }],
-    revisions: [{
-      id: "previous", version: 1, status: "superseded",
-      created_by: "operator", created_at: "2026-01-01T00:00:00Z",
-      published_at: "2026-01-01T00:00:00Z",
-    }],
+    catalog: [
+      {
+        key: "accounts.publicRegistration",
+        category: "accounts",
+        control: "switch",
+        impact: "medium",
+        recommendedValue: true,
+        availability: { available: true, readOnly: false },
+      },
+    ],
+    revisions: [
+      {
+        id: "previous",
+        version: 1,
+        status: "superseded",
+        created_by: "operator",
+        created_at: "2026-01-01T00:00:00Z",
+        published_at: "2026-01-01T00:00:00Z",
+      },
+    ],
   });
   client.setQueryData(["admin-security-events"], []);
   await render(<AdminSecurityCenter />);

@@ -64,7 +64,9 @@ export function CancelDeletionPage() {
             disabled={!token || !password || status === "pending"}
             className="w-full rounded-full bg-amber-400 px-5 py-3 font-semibold text-slate-950 disabled:opacity-50"
           >
-            {status === "pending" ? t("cancelDeletion.pending") : t("cancelDeletion.confirm")}
+            {status === "pending"
+              ? t("cancelDeletion.pending")
+              : t("cancelDeletion.confirm")}
           </button>
         </div>
       )}
