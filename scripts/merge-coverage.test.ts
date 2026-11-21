@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
-  mkdtempSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { basename, resolve } from "node:path";
 import { after, test } from "node:test";
 
-import { CI_SOURCES, mergeCoverage } from "./merge-coverage.mjs";
+import { CI_SOURCES, mergeCoverage } from "./merge-coverage.ts";
 
 const root = mkdtempSync(resolve(tmpdir(), "architecture-lcov-"));
 const outside = resolve(root, "..", `${basename(root)}-outside.ts`);
@@ -35,7 +35,7 @@ test("distinguishes identical relative sources in different workspaces", () => {
   );
   assert.match(output, /SF:apps\/api\/src\/index.ts/);
   assert.match(output, /SF:packages\/contexts\/iam\/src\/index.ts/);
-  assert.equal(output.match(/DA:1,2/g).length, 2);
+  assert.equal((output.match(/DA:1,2/g) ?? []).length, 2);
 });
 
 test("supports absolute sources from the same checkout", () => {
@@ -109,7 +109,7 @@ test("CLI rejects a missing report for a declared test workspace", () => {
   );
   const result = spawnSync(
     process.execPath,
-    [resolve(import.meta.dirname, "merge-coverage.mjs")],
+    [resolve(import.meta.dirname, "merge-coverage.ts")],
     { cwd: root, encoding: "utf8" },
   );
   assert.notEqual(result.status, 0);
@@ -187,7 +187,7 @@ test("CLI requires native coverage and preserves workspace counters in its final
   const run = () =>
     spawnSync(
       process.execPath,
-      [resolve(import.meta.dirname, "merge-coverage.mjs")],
+      [resolve(import.meta.dirname, "merge-coverage.ts")],
       { cwd: checkout, encoding: "utf8" },
     );
   const missing = run();
@@ -195,8 +195,9 @@ test("CLI requires native coverage and preserves workspace counters in its final
   assert.match(missing.stderr, /ENOENT.*lcov.info/);
   mkdirSync(resolve(checkout, "coverage/scripts"), { recursive: true });
   mkdirSync(resolve(checkout, "scripts"), { recursive: true });
-  for (const source of CI_SOURCES)
+  for (const source of CI_SOURCES) {
     writeFileSync(resolve(checkout, source), "export {};\n");
+  }
   const reports = CI_SOURCES.map(
     (source) => `SF:${source}\nDA:1,2\nend_of_record\n`,
   );
@@ -213,8 +214,9 @@ test("CLI requires native coverage and preserves workspace counters in its final
   assert.equal(complete.status, 0, complete.stderr);
   const merged = readFileSync(resolve(checkout, "coverage/lcov.info"), "utf8");
   assert.match(merged, /SF:apps\/app\/src\/index.ts\nDA:1,9/);
-  for (const source of CI_SOURCES)
+  for (const source of CI_SOURCES) {
     assert.ok(merged.includes(`SF:${source}\nDA:1,2`));
+  }
   assert.equal((merged.match(/^SF:/gm) ?? []).length, CI_SOURCES.length + 1);
 });
 

@@ -1,26 +1,28 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { crc32 } from "node:zlib";
 
-import { qualityGate } from "./quality-gate.mjs";
 import {
   candidateIdentity,
   createIdentity,
-  EVIDENCE_DAYS,
   evaluatePr,
+  EVIDENCE_DAYS,
+  type EvidenceApi,
   githubClient,
   lintTitle,
   resolveEvidence,
   runQualityCli,
   validationRoute,
   verifyIdentity,
-} from "./pr-validation-evidence.mjs";
+} from "./pr-validation-evidence.ts";
+import { qualityGate } from "./quality-gate.ts";
 
-const sha = (letter) => letter.repeat(40);
+const sha = (letter: string) => letter.repeat(40);
 const repo = "Oxelio/architecture-web";
 const now = Date.now();
 const timestamp = new Date(now - 60000).toISOString();
@@ -39,7 +41,7 @@ const payload = {
 const identity = candidateIdentity(payload, sha("c"));
 
 // A stored ZIP fixture avoids a platform-specific archive creation dependency.
-function identityZip(content) {
+function identityZip(content: string) {
   const name = Buffer.from("identity.json"),
     data = Buffer.from(content);
   const local = Buffer.alloc(30),
@@ -84,8 +86,43 @@ function record(job = "primary") {
     now: now - 60000,
   });
 }
+interface SourceFixture {
+  id: number;
+  run_number: number;
+  run_attempt: number;
+  workflow_id: number;
+  check_suite_id: number;
+  event: string;
+  path: string;
+  display_title: string;
+  repository: { id: number; full_name: string };
+  head_repository: { id: number; full_name?: string };
+  head_sha: string;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+  referenced_workflows: { path: string; sha: string; ref: string }[];
+}
+
+interface JobFixture {
+  id?: number;
+  name: string;
+  run_id: number;
+  head_sha: string;
+  status: string;
+  conclusion: string | undefined;
+  check_run_url?: string;
+  steps: { name: string; conclusion: string }[];
+}
+
+function first<T>(items: T[]): T {
+  const value = items[0];
+  assert.ok(value !== undefined);
+  return value;
+}
+
 function fixture() {
-  const source = {
+  const source: SourceFixture = {
     id: 10,
     run_number: 10,
     run_attempt: 2,
@@ -114,7 +151,7 @@ function fixture() {
     "Dependency review",
     "Quality checks",
   ];
-  const jobs = names.map((name, index) => ({
+  const jobs: JobFixture[] = names.map((name, index) => ({
     id: 100 + index,
     name,
     run_id: 10,
@@ -153,6 +190,18 @@ function fixture() {
     status: "completed",
     conclusion: "success",
   }));
+  // Match the actual REST wire response, which omits merge_commit_sha.
+  const { merge_commit_sha: _mergeSha, ...live } = structuredClone(
+    payload.pull_request,
+  );
+  const reads: string[] = [];
+  const mergeRef: {
+    ref: string;
+    object: { type: string; sha: string | null };
+  } = {
+    ref: "refs/pull/90/merge",
+    object: { type: "commit", sha: sha("c") },
+  };
   const state = {
     source,
     jobs,
@@ -160,41 +209,52 @@ function fixture() {
     records,
     runs,
     checks,
-    live: structuredClone(payload.pull_request),
-    mergeRef: {
-      ref: "refs/pull/90/merge",
-      object: { type: "commit", sha: sha("c") },
-    },
-    reads: [],
+    live,
+    mergeRef,
+    reads,
   };
-  // Match the actual REST 2026-03-10 wire response, which omits this field.
-  delete state.live.merge_commit_sha;
-  state.api = {
+  const api: EvidenceApi = {
     async request(path) {
       state.reads.push(path);
-      if (path === "/actions/runs/99") return { workflow_id: 5 };
-      if (path === "/actions/runs/10") return state.source;
-      if (path.startsWith("/check-runs/"))
+      if (path === "/actions/runs/99") {
+        return { workflow_id: 5 };
+      }
+      if (path === "/actions/runs/10") {
+        return state.source;
+      }
+      if (path.startsWith("/check-runs/")) {
         return state.checks[Number(path.split("/").at(-1)) - 100];
-      if (path === "/pulls/90") return structuredClone(state.live);
-      if (path === "/git/ref/pull/90/merge")
+      }
+      if (path === "/pulls/90") {
+        return structuredClone(state.live);
+      }
+      if (path === "/git/ref/pull/90/merge") {
         return structuredClone(state.mergeRef);
+      }
       throw new Error(`Unexpected request: ${path}`);
     },
     async pages(path, key) {
       state.reads.push(path);
-      if (key === "workflow_runs") return state.runs;
-      if (path === "/actions/runs/10/attempts/2/jobs") return state.jobs;
-      if (path === "/actions/runs/10/artifacts") return state.artifacts;
+      if (key === "workflow_runs") {
+        return state.runs;
+      }
+      if (path === "/actions/runs/10/attempts/2/jobs") {
+        return state.jobs;
+      }
+      if (path === "/actions/runs/10/artifacts") {
+        return state.artifacts;
+      }
       throw new Error(`Unexpected pages: ${path}`);
     },
     async artifact(id) {
       return state.records[id - 20];
     },
   };
-  state.resolve = () =>
-    resolveEvidence({ api: state.api, identity, runId: 99, now });
-  return state;
+  return {
+    ...state,
+    api,
+    resolve: () => resolveEvidence({ api, identity, runId: 99, now }),
+  };
 }
 
 test("only explicit title/body edits use metadata validation", () => {
@@ -217,11 +277,12 @@ test("only explicit title/body edits use metadata validation", () => {
     "reopened",
     "synchronize",
     "ready_for_review",
-  ])
+  ]) {
     assert.equal(
       validationRoute("pull_request", { ...payload, action }),
       "full",
     );
+  }
   for (const changes of [
     undefined,
     {},
@@ -239,8 +300,9 @@ test("only explicit title/body edits use metadata validation", () => {
       "full",
     );
   }
-  for (const event of ["push", "workflow_dispatch"])
+  for (const event of ["push", "workflow_dispatch"]) {
     assert.equal(validationRoute(event, payload), "full");
+  }
 });
 
 test("identity records actual inputs, checkout and merge parents rather than inferred run inputs", () => {
@@ -284,8 +346,9 @@ test("metadata skips alone never count as validation evidence", () => {
     { dependencyReview: "cancelled" },
     { event: "push" },
     { mode: "unknown" },
-  ])
+  ]) {
     assert.equal(qualityGate({ ...good, ...replacement }), false);
+  }
 });
 
 test("successful original run, provider, jobs, attempt and immutable identities are all required", async () => {
@@ -336,48 +399,48 @@ test("run markers, successful head checks and older green runs cannot substitute
       f.source.event = "workflow_dispatch";
     },
     (f) => {
-      f.source.referenced_workflows[0].sha = sha("d");
+      first(f.source.referenced_workflows).sha = sha("d");
     },
     (f) => {
-      f.source.referenced_workflows[0].ref = "refs/pull/91/merge";
+      first(f.source.referenced_workflows).ref = "refs/pull/91/merge";
     },
     (f) => {
       f.jobs.pop();
     },
     (f) => {
-      f.jobs.push(f.jobs[0]);
+      f.jobs.push(first(f.jobs));
     },
     (f) => {
-      f.checks[0].app.id = 12526;
+      first(f.checks).app.id = 12526;
     },
     (f) => {
-      f.checks[0].check_suite.id = 8;
+      first(f.checks).check_suite.id = 8;
     },
     (f) => {
-      f.jobs[0].check_run_url = "https://attacker.invalid/100";
+      first(f.jobs).check_run_url = "https://attacker.invalid/100";
     },
     (f) => {
-      f.jobs[0].steps.reverse();
+      first(f.jobs).steps.reverse();
     },
     (f) => {
       f.artifacts.pop();
     },
     (f) => {
-      f.artifacts.push(f.artifacts[0]);
+      f.artifacts.push(first(f.artifacts));
     },
     (f) => {
-      f.records[0].attempt = 1;
+      first(f.records).attempt = 1;
     },
     (f) => {
-      f.records[0].identity.base = sha("d");
+      first(f.records).identity.base = sha("d");
     },
     (f) => {
-      f.records[0].workflowSha = sha("d");
+      first(f.records).workflowSha = sha("d");
     },
     (f) => {
-      f.records[0].runId = 9;
+      first(f.records).runId = 9;
     },
-  ]) {
+  ] satisfies ((value: ReturnType<typeof fixture>) => void)[]) {
     const f = fixture();
     mutate(f);
     await assert.rejects(f.resolve());
@@ -390,7 +453,7 @@ test("run markers, successful head checks and older green runs cannot substitute
     undefined,
   ]) {
     const f = fixture();
-    f.jobs[0].conclusion = name;
+    first(f.jobs).conclusion = name;
     await assert.rejects(f.resolve(), /Source job/u);
   }
 });
@@ -417,10 +480,13 @@ test("retention is bounded by original evidence age and actual platform expirati
     (r, a) => {
       a.workflow_run.head_sha = sha("d");
     },
-  ]) {
+  ] satisfies ((
+    value: ReturnType<typeof record>,
+    artifact: ReturnType<typeof fixture>["artifacts"][number],
+  ) => void)[]) {
     const f = fixture(),
       r = record(),
-      a = f.artifacts[0];
+      a = first(f.artifacts);
     change(r, a);
     assert.throws(() =>
       verifyIdentity(r, {
@@ -495,12 +561,12 @@ test("only a verified newer metadata route permits reuse of an original full run
       route.steps = [];
     },
     (_, route) => {
-      route.steps[0].conclusion = "skipped";
+      first(route.steps).conclusion = "skipped";
     },
     (_, route) => {
       route.run_id = 12;
     },
-  ]) {
+  ] satisfies ((run: SourceFixture, route: JobFixture) => unknown)[]) {
     const f = fixture();
     const run = {
       ...f.source,
@@ -529,9 +595,11 @@ test("only a verified newer metadata route permits reuse of an original full run
       route.conclusion === "success" &&
       route.steps[0]?.conclusion === "success" &&
       route.run_id === 11
-    )
+    ) {
       assert.equal((await f.resolve()).runId, 10);
-    else await assert.rejects(f.resolve(), /Newer validation route/u);
+    } else {
+      await assert.rejects(f.resolve(), /Newer validation route/u);
+    }
   }
 });
 
@@ -570,6 +638,82 @@ test("a newer full or metadata-named run starting during resolution cannot be ig
   }
 });
 
+test("missing or invalid workflow identities cannot authorize evidence reuse", async () => {
+  for (const id of [
+    undefined,
+    null,
+    0,
+    -1,
+    1.5,
+    "5",
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    const f = fixture();
+    const request = f.api.request;
+    const pages = f.api.pages;
+    f.api.request = async (path) =>
+      path === "/actions/runs/99" ? { workflow_id: id } : request(path);
+    f.api.pages = async (path, key) =>
+      key === "workflow_runs"
+        ? [{ ...f.source, workflow_id: id }]
+        : pages(path, key);
+    await assert.rejects(f.resolve(), /Invalid current workflow identity/u);
+  }
+});
+
+test("a newer run with a malformed workflow identity cannot hide behind older evidence", async () => {
+  for (const id of [undefined, null, 0, "5"]) {
+    const f = fixture();
+    const pages = f.api.pages;
+    f.api.pages = async (path, key) =>
+      key === "workflow_runs"
+        ? [...f.runs, { ...f.source, id: 11, run_number: 11, workflow_id: id }]
+        : pages(path, key);
+    await assert.rejects(f.resolve(), /Invalid validation workflow identity/u);
+  }
+});
+
+test("missing or invalid check suite identities cannot authorize evidence reuse", async () => {
+  for (const id of [
+    undefined,
+    null,
+    0,
+    -1,
+    1.5,
+    "7",
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    const f = fixture();
+    const request = f.api.request;
+    const pages = f.api.pages;
+    f.api.pages = async (path, key) =>
+      key === "workflow_runs"
+        ? [{ ...f.source, check_suite_id: id }]
+        : pages(path, key);
+    f.api.request = async (path) => {
+      if (path.startsWith("/check-runs/")) {
+        const check = f.checks[Number(path.split("/").at(-1)) - 100];
+        return { ...check, check_suite: { id } };
+      }
+      return request(path);
+    };
+    await assert.rejects(f.resolve(), /Invalid source check suite identity/u);
+  }
+});
+
+test("malformed GitHub run identity cannot authorize evidence reuse", async () => {
+  const f = fixture();
+  const pages = f.api.pages;
+  let lists = 0;
+  f.api.pages = async (path, key) => {
+    if (key === "workflow_runs" && ++lists === 2) {
+      return [...f.runs, { ...f.source, id: 11, run_number: null }];
+    }
+    return pages(path, key);
+  };
+  await assert.rejects(f.resolve(), /Invalid validation run identity/u);
+});
+
 test("valid metadata edits reuse the original complete evidence", async () => {
   const f = fixture();
   const result = await evaluatePr({
@@ -581,7 +725,7 @@ test("valid metadata edits reuse the original complete evidence", async () => {
     runId: 99,
     accept: qualityGate,
   });
-  assert.equal(result.evidence.runId, 10);
+  assert.equal(result.evidence?.runId, 10);
 });
 
 test("full validation finishing after a lightweight failure validates the live invalid title", async () => {
@@ -606,7 +750,7 @@ test("full validation finishing after a lightweight failure validates the live i
 test("title correction passes with complete evidence; shell text is passed as title data", async () => {
   const f = fixture();
   f.live.title = "ci: handle $(literal) `text` safely";
-  let seen;
+  let seen = "";
   const result = await evaluatePr({
     api: f.api,
     identity,
@@ -646,7 +790,7 @@ test("a title or candidate change during final verification fails closed", async
     (pr) => {
       pr.state = "closed";
     },
-  ]) {
+  ] satisfies ((pr: ReturnType<typeof fixture>["live"]) => void)[]) {
     const f = fixture();
     await assert.rejects(
       evaluatePr({
@@ -667,44 +811,45 @@ test("a title or candidate change during final verification fails closed", async
 
 test("API pagination is complete and API failures are never clean evidence", async () => {
   let requests = 0;
-  const client = githubClient(repo, "fixture", async () => ({
-    ok: true,
-    json: async () => ({
+  const client = githubClient(repo, "fixture", async () =>
+    Response.json({
       total_count: 101,
       jobs: ++requests === 1 ? Array(100).fill({}) : [{}],
     }),
-  }));
+  );
   assert.equal(
     (await client.pages("/actions/runs/10/jobs", "jobs")).length,
     101,
   );
   assert.equal(requests, 2);
   await assert.rejects(
-    githubClient(repo, "fixture", async () => ({
-      ok: false,
-      status: 403,
-    })).request("/pulls/90"),
+    githubClient(
+      repo,
+      "fixture",
+      async () => new Response(null, { status: 403 }),
+    ).request("/pulls/90"),
     /403/u,
   );
   await assert.rejects(
-    githubClient(repo, "fixture", async () => ({
-      ok: true,
-      json: async () => ({ total_count: 2, jobs: [{}] }),
-    })).pages("/jobs", "jobs"),
+    githubClient(repo, "fixture", async () =>
+      Response.json({ total_count: 2, jobs: [{}] }),
+    ).pages("/jobs", "jobs"),
     /Truncated/u,
   );
   await assert.rejects(
-    githubClient(repo, "fixture", async () => ({
-      ok: true,
-      json: async () => ({ jobs: Array(100).fill({}) }),
-    })).pages("/jobs", "jobs"),
+    githubClient(repo, "fixture", async () =>
+      Response.json({ jobs: Array(100).fill({}) }),
+    ).pages("/jobs", "jobs"),
     /limit/u,
   );
   assert.throws(() => githubClient(repo, ""), /unavailable/u);
 });
 
 test("REST without merge_commit_sha uses the live merge ref and rejects stale or invalid refs", async () => {
-  const evaluate = (f, lint = () => true) =>
+  const evaluate = (
+    f: ReturnType<typeof fixture>,
+    lint: (title: string) => boolean = () => true,
+  ) =>
     evaluatePr({
       api: f.api,
       identity,
@@ -734,7 +879,7 @@ test("REST without merge_commit_sha uses the live merge ref and rejects stale or
     (f) => {
       f.mergeRef.object.sha = null;
     },
-  ]) {
+  ] satisfies ((value: ReturnType<typeof fixture>) => void)[]) {
     const f = fixture();
     mutate(f);
     await assert.rejects(evaluate(f));
@@ -749,31 +894,36 @@ test("REST without merge_commit_sha uses the live merge ref and rejects stale or
 });
 
 test("artifact downloads check digest and do not forward credentials to storage", async () => {
-  const calls = [];
+  const calls: { url: string; options: RequestInit | undefined }[] = [];
   const client = githubClient(
     repo,
     "fixture-credential",
     async (url, options) => {
       calls.push({ url: String(url), options });
       return calls.length === 1
-        ? {
+        ? new Response(null, {
             status: 302,
-            headers: new Headers({
+            headers: {
               location: "https://fixture.blob.core.windows.net/signed",
-            }),
-          }
-        : { ok: true, arrayBuffer: async () => Buffer.from("not a zip") };
+            },
+          })
+        : new Response("not a zip");
     },
   );
   await assert.rejects(
     client.artifact(20, `sha256:${"0".repeat(64)}`),
     /digest mismatch/u,
   );
-  assert.equal(calls[1].options.headers, undefined);
-  const invalid = githubClient(repo, "fixture", async () => ({
-    status: 302,
-    headers: new Headers({ location: "https://attacker.invalid" }),
-  }));
+  assert.equal(calls[1]?.options?.headers, undefined);
+  const invalid = githubClient(
+    repo,
+    "fixture",
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://attacker.invalid" },
+      }),
+  );
   await assert.rejects(
     invalid.artifact(
       20,
@@ -788,13 +938,11 @@ test("a real ZIP identity artifact is verified and parsed without executing cont
   let requests = 0;
   const client = githubClient(repo, "fixture", async () =>
     ++requests === 1
-      ? {
+      ? new Response(null, {
           status: 302,
-          headers: new Headers({
-            location: "https://fixture.blob.core.windows.net/signed",
-          }),
-        }
-      : { ok: true, arrayBuffer: async () => bytes },
+          headers: { location: "https://fixture.blob.core.windows.net/signed" },
+        })
+      : new Response(new Uint8Array(bytes)),
   );
   const decoded = await client.artifact(
     20,
@@ -845,4 +993,47 @@ test("CLI routing is explicit and a failed route cannot publish a green aggregat
     },
     "gate",
   );
+});
+
+test("quality gate rejects failed, cancelled, missing and unexpectedly skipped required checks", () => {
+  const good = {
+    event: "pull_request",
+    validation: "success",
+    dependencyReview: "success",
+    commitlint: "success",
+  };
+  assert.equal(qualityGate(good), true);
+  for (const key of ["validation", "dependencyReview", "commitlint"] as const) {
+    for (const result of ["failure", "cancelled", "skipped", undefined]) {
+      assert.equal(qualityGate({ ...good, [key]: result }), false);
+    }
+  }
+  for (const event of ["push", "workflow_dispatch"]) {
+    assert.equal(
+      qualityGate({
+        event,
+        validation: "success",
+        dependencyReview: "skipped",
+        commitlint: "skipped",
+      }),
+      true,
+    );
+  }
+  // Sonar is not an input to required-check acceptance.
+  const withSonar = { ...good, sonar: "failure" };
+  assert.equal(qualityGate(withSonar), true);
+  const child = spawnSync(
+    process.execPath,
+    [resolve(import.meta.dirname, "quality-gate.ts")],
+    {
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: "pull_request",
+        VALIDATION_RESULT: "success",
+        DEPENDENCY_REVIEW_RESULT: "failure",
+        COMMITLINT_RESULT: "success",
+      },
+    },
+  );
+  assert.equal(child.status, 1);
 });

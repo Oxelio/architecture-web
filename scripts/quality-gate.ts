@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { runQualityCli } from "./pr-validation-evidence.mjs";
+import { type QualityInputs, runQualityCli } from "./pr-validation-evidence.ts";
 
 export function qualityGate({
   event,
@@ -10,7 +10,7 @@ export function qualityGate({
   commitlint,
   mode = "full",
   evidence,
-}) {
+}: QualityInputs) {
   const pr = event === "pull_request";
   if (mode === "metadata") {
     return (
@@ -23,6 +23,7 @@ export function qualityGate({
   }
   return (
     mode === "full" &&
+    event !== undefined &&
     ["pull_request", "push", "workflow_dispatch"].includes(event) &&
     validation === "success" &&
     dependencyReview === (pr ? "success" : "skipped") &&
@@ -37,7 +38,7 @@ if (
   try {
     await runQualityCli(qualityGate);
   } catch (error) {
-    console.error(error.message);
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   }
 }

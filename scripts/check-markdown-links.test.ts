@@ -7,7 +7,7 @@ import test from "node:test";
 import {
   extractTargets,
   validateMarkdownLinks,
-} from "./check-markdown-links.mjs";
+} from "./check-markdown-links.ts";
 
 test("inline parsing preserves the existing grammar on bounded malformed and ordinary inputs", () => {
   const legacy = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)/gu;
@@ -24,7 +24,7 @@ test("inline parsing preserves the existing grammar on bounded malformed and ord
     let input = "";
     for (let index = 0; index < 64; index += 1) {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      input += alphabet[seed % alphabet.length];
+      input += alphabet[seed % alphabet.length] ?? "";
     }
     inputs.push(input);
   }
@@ -45,7 +45,7 @@ test("inline parsing handles long unmatched labels and repeated failed angle alt
   assert.ok(targets.every((target) => target === "<x"));
 });
 
-async function withRepo(run) {
+async function withRepo(run: (root: string) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), "markdown-links-"));
   try {
     await run(root);
@@ -165,7 +165,7 @@ test("missing repository-relative targets fail closed", async () => {
       sourcePaths: ["README.md"],
     });
     assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0], /missing repository-relative target/u);
+    assert.match(result.errors[0] ?? "", /missing repository-relative target/u);
   });
 });
 
@@ -183,7 +183,10 @@ test("removed docs/method paths fail even if a target exists", async () => {
       sourcePaths: ["README.md"],
     });
     assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0], /removed legacy Method path is forbidden/u);
+    assert.match(
+      result.errors[0] ?? "",
+      /removed legacy Method path is forbidden/u,
+    );
   });
 });
 
@@ -200,6 +203,9 @@ test("missing Method submodule targets report the checkout requirement", async (
       sourcePaths: ["docs/project/profile.md"],
     });
     assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0], /Method submodule target is unavailable/u);
+    assert.match(
+      result.errors[0] ?? "",
+      /Method submodule target is unavailable/u,
+    );
   });
 });

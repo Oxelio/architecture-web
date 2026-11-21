@@ -2,7 +2,8 @@
 
 ## Strategy
 
-Tests are colocated with code and run with Vitest.
+Workspace tests are colocated with code and run with Vitest. Root repository
+script tests use native Node `node:test` and do not require a transpiler.
 
 - Foundation tests domain primitives.
 - IAM core tests entities, value objects, use cases, and its factory.
@@ -18,6 +19,8 @@ non-trivial HTTP mapping or authorization change **SHOULD** have an API test.
 Package production builds exclude colocated tests from their JavaScript and
 declaration output. A package's `tsconfig.test.json` includes those tests
 without emitting files. `pnpm typecheck:test` runs these package checks.
+Root tooling sources and tests are checked together by `pnpm typecheck:scripts`,
+which is included in `pnpm typecheck`.
 
 For paginated reads, distribute evidence by responsibility: core tests defaults,
 bounds, authorization, and metadata; the adapter tests filters, count, order,
@@ -182,7 +185,7 @@ same runner with the disposable PostgreSQL/Redis environment, including cleanup
 on failure. Run these commands through pnpm so child commands use its exact CLI.
 
 Run `pnpm ci:test:tooling` after workspace coverage and before
-`node scripts/merge-coverage.mjs`. The native Node test runner collects V8
+`node scripts/merge-coverage.ts`. The native Node test runner collects V8
 coverage and emits `coverage/scripts/lcov.info`, including tested CLI child
 processes. Both supported Node lines exercise this collection. The merger
 combines that repository-relative report with all workspace reports to prepare

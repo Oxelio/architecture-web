@@ -4,7 +4,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 const testSignal = AbortSignal.timeout(120_000);
 
-async function request(url, options = {}) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+async function request(url: string, options: RequestInit = {}) {
   return fetch(url, {
     ...options,
     redirect: "error",
@@ -12,12 +16,17 @@ async function request(url, options = {}) {
   });
 }
 
-async function waitFor(description, probe) {
+async function waitFor<T>(
+  description: string,
+  probe: () => Promise<T>,
+): Promise<NonNullable<T>> {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     testSignal.throwIfAborted();
     try {
       const result = await probe();
-      if (result) return result;
+      if (result) {
+        return result;
+      }
     } catch {
       testSignal.throwIfAborted();
     }
@@ -26,13 +35,18 @@ async function waitFor(description, probe) {
   throw new Error(`Fixture did not observe ${description}`);
 }
 
-async function smoke(api, mailpit) {
+async function smoke(api: string, mailpit: string) {
   const address = "o2-smoke@example.test";
   const login = { kind: "email", value: address };
   const password = `O2!a${randomUUID()}9Z!`;
   const iam = `${api}/v1/iam`;
 
-  async function post(route, body, status, cookie) {
+  async function post(
+    route: string,
+    body: object,
+    status: number,
+    cookie?: string,
+  ) {
     const response = await request(`${iam}${route}`, {
       method: "POST",
       headers: {
@@ -49,31 +63,53 @@ async function smoke(api, mailpit) {
     return response;
   }
 
-  async function captured(subject) {
+  async function captured(subject: string) {
     return waitFor(subject, async () => {
       const response = await request(`${mailpit}/api/v1/messages`);
-      if (!response.ok) return null;
-      const { messages } = await response.json();
-      return messages.find(
-        (message) =>
-          message.Subject === subject &&
-          message.To.some((to) => to.Address === address),
-      );
+      if (!response.ok) {
+        return null;
+      }
+      const data: unknown = await response.json();
+      if (!isRecord(data) || !Array.isArray(data["messages"])) {
+        throw new Error("Fixture could not read the captured messages");
+      }
+      const messages: unknown[] = data["messages"];
+      for (const message of messages) {
+        if (
+          isRecord(message) &&
+          message["Subject"] === subject &&
+          Array.isArray(message["To"]) &&
+          message["To"].some(
+            (to: unknown) => isRecord(to) && to["Address"] === address,
+          )
+        ) {
+          return message;
+        }
+      }
+      return null;
     });
   }
 
-  async function tokenFrom(subject) {
+  async function tokenFrom(subject: string, linkPattern: RegExp) {
     const message = await captured(subject);
-    const response = await request(
-      `${mailpit}/api/v1/message/${encodeURIComponent(message.ID)}`,
-    );
-    if (!response.ok)
+    const id = message["ID"];
+    if (typeof id !== "string") {
       throw new Error("Fixture could not read the captured message");
-    const { Text } = await response.json();
-    const token = Text.match(
-      /http:\/\/fixture\.invalid\/(?:verify|cancel-deletion)\?token=([A-Za-z0-9_-]+)/u,
-    )?.[1];
-    if (!token) throw new Error("Fixture did not find the expected token");
+    }
+    const response = await request(
+      `${mailpit}/api/v1/message/${encodeURIComponent(id)}`,
+    );
+    if (!response.ok) {
+      throw new Error("Fixture could not read the captured message");
+    }
+    const content: unknown = await response.json();
+    if (!isRecord(content) || typeof content["Text"] !== "string") {
+      throw new Error("Fixture could not read the captured message");
+    }
+    const token = linkPattern.exec(content["Text"])?.[1];
+    if (!token) {
+      throw new Error("Fixture did not find the expected token");
+    }
     return token;
   }
 
@@ -86,14 +122,16 @@ async function smoke(api, mailpit) {
     { login, password, passwordConfirmation: password },
     201,
   );
-  const verification = await tokenFrom("Please verify your email");
-  const verified = await request(
-    `${iam}/verify?token=${encodeURIComponent(verification)}`,
+  const verification = await tokenFrom(
+    "Please verify your email",
+    /http:\/\/fixture\.invalid\/verify#token=([A-Za-z0-9_-]+)/u,
   );
-  if (verified.status !== 204) throw new Error("Fixture verification failed");
+  await post("/verify", { token: verification }, 204);
   const signedIn = await post("/signin", { login, password }, 204);
   const session = signedIn.headers.getSetCookie()[0]?.split(";", 1)[0];
-  if (!session) throw new Error("Fixture sign-in returned no session");
+  if (!session) {
+    throw new Error("Fixture sign-in returned no session");
+  }
   await captured("New session");
   await post(
     "/me/deletion",
@@ -101,7 +139,10 @@ async function smoke(api, mailpit) {
     202,
     session,
   );
-  const cancellation = await tokenFrom("Cancel account deletion");
+  const cancellation = await tokenFrom(
+    "Cancel account deletion",
+    /http:\/\/fixture\.invalid\/cancel-deletion\?token=([A-Za-z0-9_-]+)/u,
+  );
   await post("/deletion/cancel", { token: cancellation, password }, 204);
   await post("/signin", { login, password }, 204);
 }

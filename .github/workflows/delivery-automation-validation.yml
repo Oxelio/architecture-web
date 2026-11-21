@@ -37,7 +37,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - id: route
-        run: node scripts/quality-gate.mjs route
+        run: node scripts/quality-gate.ts route
       - name: Selected validation route (${{ steps.route.outputs.mode }})
         run: ":"
 
@@ -98,7 +98,7 @@ jobs:
           VALIDATION_MODE: ${{ needs.route.outputs.mode }}
           VALIDATION_RESULT: ${{ needs.validate.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
-        run: node scripts/quality-gate.mjs
+        run: node scripts/quality-gate.ts
 
   sonar:
     name: SonarQube Cloud analysis

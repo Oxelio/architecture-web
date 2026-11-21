@@ -52,6 +52,12 @@ jobs:
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
       - name: Record PR validation identity
         if: github.event_name == 'pull_request'
         env:
@@ -59,7 +65,7 @@ jobs:
           COMPARISON_BASE: ${{ inputs.comparison_base }}
           VALIDATION_JOB: primary
           IDENTITY_PATH: ${{ runner.temp }}/pr-validation-identity/identity.json
-        run: node scripts/quality-gate.mjs identity
+        run: node scripts/quality-gate.ts identity
 
       - name: Publish PR validation identity
         if: github.event_name == 'pull_request'
@@ -69,11 +75,6 @@ jobs:
           path: ${{ runner.temp }}/pr-validation-identity/identity.json
           retention-days: 7
           if-no-files-found: error
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
 
       - name: Set up pnpm
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
@@ -111,7 +112,7 @@ jobs:
         run: pnpm ci:test:tooling
 
       - name: Prepare repository-relative LCOV
-        run: node scripts/merge-coverage.mjs
+        run: node scripts/merge-coverage.ts
 
       - name: Export coverage from this run
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -170,6 +171,10 @@ jobs:
         with:
           ref: ${{ inputs.candidate_sha }}
           persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.15.0"
+          package-manager-cache: false
       - name: Record PR validation identity
         if: github.event_name == 'pull_request'
         env:
@@ -177,7 +182,7 @@ jobs:
           COMPARISON_BASE: ${{ inputs.comparison_base }}
           VALIDATION_JOB: node24
           IDENTITY_PATH: ${{ runner.temp }}/pr-validation-identity/identity.json
-        run: node scripts/quality-gate.mjs identity
+        run: node scripts/quality-gate.ts identity
       - name: Publish PR validation identity
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -186,9 +191,6 @@ jobs:
           path: ${{ runner.temp }}/pr-validation-identity/identity.json
           retention-days: 7
           if-no-files-found: error
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24.15.0"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with:
           install: false

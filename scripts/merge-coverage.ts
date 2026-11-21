@@ -2,35 +2,44 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { testWorkspaces } from "./run-workspace-tests.mjs";
+import { testWorkspaces } from "./run-workspace-tests.ts";
 
 export const CI_SOURCES = [
-  "scripts/check-markdown-links.mjs",
-  "scripts/merge-coverage.mjs",
-  "scripts/quality-gate.mjs",
-  "scripts/pr-validation-evidence.mjs",
-  "scripts/run-integration-tests.mjs",
-  "scripts/run-o2-mailpit-test.mjs",
-  "scripts/run-workspace-tests.mjs",
+  "scripts/check-markdown-links.ts",
+  "scripts/merge-coverage.ts",
+  "scripts/quality-gate.ts",
+  "scripts/pr-validation-evidence.ts",
+  "scripts/run-integration-tests.ts",
+  "scripts/run-o2-mailpit-test.ts",
+  "scripts/run-workspace-tests.ts",
 ];
 
+interface CoverageReport {
+  path: string;
+  content: string;
+  sourceRoot?: string;
+  expectedSources?: readonly string[];
+}
+
 // Vitest sources are workspace-relative; Node's LCOV sources are repository-relative.
-export function mergeCoverage(reports, root) {
-  if (reports.length === 0) throw new Error("No workspace LCOV reports found");
+export function mergeCoverage(reports: CoverageReport[], root: string) {
+  if (reports.length === 0) {
+    throw new Error("No workspace LCOV reports found");
+  }
   return reports.map((report) => normalizeReport(report, root)).join("\n");
 }
 
 function normalizeReport(
-  { path, content, sourceRoot, expectedSources = [] },
-  root,
+  { path, content, sourceRoot, expectedSources = [] }: CoverageReport,
+  root: string,
 ) {
   const workspace =
     sourceRoot === undefined
       ? dirname(dirname(resolve(root, path)))
       : resolve(root, sourceRoot);
-  const sources = new Set();
+  const sources = new Set<string>();
   let sourceCount = 0;
-  const normalized = content.replace(/^SF:(.+)\r?$/gm, (_, source) => {
+  const normalized = content.replace(/^SF:(.+)\r?$/gm, (_, source: string) => {
     const absolute = resolve(workspace, source.trim().replaceAll("\\", "/"));
     const local = relative(root, absolute);
     if (
@@ -43,25 +52,32 @@ function normalizeReport(
     }
     sourceCount += 1;
     const normalizedSource = local.split(sep).join("/");
-    if (sources.has(normalizedSource))
+    if (sources.has(normalizedSource)) {
       throw new Error(`Duplicate LCOV source: ${normalizedSource}`);
+    }
     sources.add(normalizedSource);
     return `SF:${normalizedSource}`;
   });
-  if (sourceCount === 0)
+  if (sourceCount === 0) {
     throw new Error(`LCOV report contains no sources: ${path}`);
+  }
   validateRecords(normalized, sourceCount, path);
   for (const source of expectedSources) {
-    if (!sources.has(source))
+    if (!sources.has(source)) {
       throw new Error(`Missing expected LCOV source in ${path}: ${source}`);
+    }
   }
   return normalized;
 }
 
-function validateRecords(normalized, sourceCount, path) {
+function validateRecords(
+  normalized: string,
+  sourceCount: number,
+  path: string,
+) {
   const records = normalized.trim().split(/end_of_record(?:\r?\n|$)/u);
   if (
-    records.pop().trim() ||
+    records.pop()?.trim() ||
     records.length !== sourceCount ||
     records.some(
       (record) =>
@@ -85,7 +101,7 @@ function validateRecords(normalized, sourceCount, path) {
     ) {
       throw new Error(`Invalid LCOV line counters: ${path}`);
     }
-    const declared = record.match(/^LF:(\d+)\r?$/m);
+    const declared = /^LF:(\d+)\r?$/m.exec(record);
     if (declared && Number(declared[1]) !== dataLines.length) {
       throw new Error(`Incomplete LCOV line counters: ${path}`);
     }
@@ -97,7 +113,7 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const root = process.cwd();
-  const reports = testWorkspaces(root).map((workspace) => {
+  const reports: CoverageReport[] = testWorkspaces(root).map((workspace) => {
     const path = `${workspace.path}/coverage/lcov.info`;
     return { path, content: readFileSync(resolve(root, path), "utf8") };
   });

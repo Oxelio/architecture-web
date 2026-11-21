@@ -244,7 +244,7 @@ describe("CI trust and failure boundaries", () => {
       (step) => step.run === "pnpm ci:test:tooling",
     );
     const merge = steps.findIndex(
-      (step) => step.run === "node scripts/merge-coverage.mjs",
+      (step) => step.run === "node scripts/merge-coverage.ts",
     );
     const upload = steps.findIndex(
       (step) => step.with?.["name"] === "sonar-coverage",
@@ -267,19 +267,25 @@ describe("CI trust and failure boundaries", () => {
     ) as { scripts: Record<string, string> };
     const command = root.scripts["ci:test:tooling"];
     expect(command).toContain("--experimental-test-coverage");
+    expect(command).toContain("--test-coverage-include=scripts/*.ts");
+    expect(command).toContain("--test-coverage-exclude=scripts/*.test.ts");
+    expect(command).not.toContain(".mjs");
     expect(command).toContain("--test-reporter=lcov");
     expect(command).toContain(
       "--test-reporter-destination=coverage/scripts/lcov.info",
     );
-    expect(command).toContain("scripts/run-workspace-tests.test.mjs");
-    expect(command).toContain("scripts/merge-coverage.test.mjs");
-    expect(command).toContain("scripts/quality-gate.test.mjs");
+    expect(command).toContain("scripts/run-workspace-tests.test.ts");
+    expect(command).toContain("scripts/merge-coverage.test.ts");
+    expect(command).toContain("scripts/quality-gate.test.ts");
+    expect(command).toContain("scripts/check-markdown-links.test.ts");
+    expect(command).toContain("scripts/run-o2-mailpit-test.test.ts");
+    expect(root.scripts["typecheck"]).toContain("pnpm typecheck:scripts");
   });
 
   it("runs metadata routing without expensive validation and isolates cancellation groups", () => {
     expect(
       ci.jobs["route"]?.steps?.find((step) => step.id === "route")?.run,
-    ).toBe("node scripts/quality-gate.mjs route");
+    ).toBe("node scripts/quality-gate.ts route");
     expect(ci.jobs["route"]?.steps?.at(-1)?.name).toBe(
       "Selected validation route (${{ steps.route.outputs.mode }})",
     );
@@ -303,7 +309,7 @@ describe("CI trust and failure boundaries", () => {
       ),
     ).toBe(true);
     const gate = quality.at(-1);
-    expect(gate?.run).toBe("node scripts/quality-gate.mjs");
+    expect(gate?.run).toBe("node scripts/quality-gate.ts");
     expect(gate?.env?.["GITHUB_TOKEN"]).toBe("${{ github.token }}");
     expect(gate?.env?.["VALIDATION_MODE"]).toBe(
       "${{ needs.route.outputs.mode }}",
@@ -319,9 +325,15 @@ describe("CI trust and failure boundaries", () => {
       ["node-compatibility", "node24"],
     ] as const) {
       const steps = shared.jobs[name]?.steps ?? [];
-      const identity = steps.findIndex(
-        (step) => step.run === "node scripts/quality-gate.mjs identity",
+      const setup = steps.findIndex((step) =>
+        step.uses?.startsWith("actions/setup-node@"),
       );
+      const identity = steps.findIndex(
+        (step) => step.run === "node scripts/quality-gate.ts identity",
+      );
+      expect(setup).toBeGreaterThanOrEqual(0);
+      expect(identity).toBeGreaterThan(setup);
+      expect(steps[setup]?.with?.["package-manager-cache"]).toBe(false);
       const upload = steps.findIndex(
         (step) =>
           step.with?.["name"] ===
