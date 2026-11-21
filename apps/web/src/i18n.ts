@@ -159,7 +159,7 @@ const localizedCopy = {
     },
     revisionStatus: {
       published: ["Publiée", "Published"],
-      effective: ["Effective", "Effective"],
+      effective: ["En vigueur", "Effective"],
       superseded: ["Remplacée", "Superseded"],
       pending: ["En attente", "Pending"],
       failed: ["Échec", "Failed"],
