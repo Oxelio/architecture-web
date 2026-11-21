@@ -4,7 +4,10 @@ import type { VerifyEmail } from "@architecture/iam/application";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
-import { httpLoggingOptions, registerHttpRequestLogging } from "../../../http-logging.js";
+import {
+  httpLoggingOptions,
+  registerHttpRequestLogging,
+} from "../../../http-logging.js";
 import { errorHandler } from "../../../types/error-handler.js";
 import type { IamControllers } from "../compose-controllers.js";
 import { registerPublicRoutes } from "../routes/public.routes.js";
@@ -35,7 +38,9 @@ function createServer(execute: ReturnType<typeof vi.fn>, logs?: string[]) {
 
 describe("public verification POST contract", () => {
   it("requires an explicit JSON body and does not register the legacy GET endpoint", async () => {
-    const execute = vi.fn().mockResolvedValue({ success: true, value: undefined });
+    const execute = vi
+      .fn()
+      .mockResolvedValue({ success: true, value: undefined });
     const app = createServer(execute);
     try {
       const missing = await app.inject({

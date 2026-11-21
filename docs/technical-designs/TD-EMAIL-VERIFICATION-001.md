@@ -68,6 +68,7 @@ The HTTP route changes to POST with a strict `Body` TypeBox schema for a nonempt
 The current verification sender constructs `/verify?token=...` and the HTTP API exposes `GET /v1/iam/verify?token=...`. The maintainer has **explicitly approved breaking this contract without compatibility or transition** ([decision record](https://github.com/Oxelio/architecture-web/issues/152#issuecomment-6963876703)); there is no production deployment to protect.
 
 **Selected target and rollout:**
+
 1. **Remove** the GET verification route; register only `POST /v1/iam/verify` with a strict JSON body. Do **not** retain a hidden GET alias or dual-API compatibility endpoint.
 2. Generate email links using the `#token=...` fragment only. The Web reads the fragment only, **not** legacy `?token=...` query tokens; no backwards-compatibility parsing, 24-hour grace window or migration fallback.
 3. Treat old query-only email links as intentionally unsupported after the cutover; they must not automatically verify accounts. This clean break is a recorded human decision, not an accidental regression.

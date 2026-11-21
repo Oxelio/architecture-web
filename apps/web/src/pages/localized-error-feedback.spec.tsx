@@ -670,7 +670,9 @@ it("sends one POST for double clicks and shows success", async () => {
     expect.stringMatching(/\/iam\/verify$/u),
     expect.objectContaining({ method: "POST" }),
   );
-  expect(container.textContent).toContain("Your email address has been verified");
+  expect(container.textContent).toContain(
+    "Your email address has been verified",
+  );
   expect(container.querySelector("button")).toBeNull();
 });
 
@@ -679,9 +681,13 @@ it("does not silently retry a failed network request", async () => {
   fetchApi.mockRejectedValueOnce(new TypeError("Network unavailable"));
   await render(<VerifyEmailPage />, "/verify");
   await click("button");
-  expect(element('[role="alert"]').textContent).toContain("Verification failed");
+  expect(element('[role="alert"]').textContent).toContain(
+    "Verification failed",
+  );
   await changeLocale("fr");
-  expect(element('[role="alert"]').textContent).toContain("La vérification a échoué");
+  expect(element('[role="alert"]').textContent).toContain(
+    "La vérification a échoué",
+  );
   expect(fetchApi).toHaveBeenCalledOnce();
   expect(container.textContent).not.toContain("network-token");
 });

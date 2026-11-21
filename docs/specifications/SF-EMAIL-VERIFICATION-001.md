@@ -49,6 +49,7 @@ This feature does not make possession of a link equivalent to an authenticated s
 **Approved scope:** The new verification email link, React verification-page interaction, the Web-to-API verification request and associated safe feedback.
 
 **Non-goals:**
+
 - Change verification-token generation, hashing, expiry rules, single-use semantics, or identity ownership.
 - Change sign-up policy, resend eligibility or rate limits, session authentication or other IAM application/domain rules.
 - Add a generalized email-link, recovery or deletion workflow.

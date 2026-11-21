@@ -17,7 +17,11 @@ import {
 export function registerPublicRoutes(controllers: IamControllers) {
   return (app: FastifyInstance) => {
     try {
-      app.post<VerifyEmailRoute>("/verify", verifyEmailRouteOptions, controllers.verifyEmail);
+      app.post<VerifyEmailRoute>(
+        "/verify",
+        verifyEmailRouteOptions,
+        controllers.verifyEmail,
+      );
       app.post("/signup", signUpRouteOptions, controllers.signUp);
       app.get(
         "/password-policy",

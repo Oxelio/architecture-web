@@ -32,7 +32,6 @@ describe("PostmarkEmailSenderAdapter", () => {
     );
   });
 
-
   it("preserves configured parameters but removes legacy token query and encodes fragment", async () => {
     const sendEmail = vi.fn().mockResolvedValue({});
     vi.spyOn(ServerClient.prototype, "sendEmail").mockImplementation(sendEmail);
