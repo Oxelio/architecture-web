@@ -156,9 +156,7 @@ export function AdminSecurityCenter() {
 
       <nav
         className="flex flex-wrap gap-2"
-        aria-label={t("securityConfig.navigation", {
-          defaultValue: "Navigation de la sécurité",
-        })}
+        aria-label={t("securityConfig.navigation")}
       >
         {(["configuration", "history", "audit"] as const).map((item) => (
           <button
@@ -172,9 +170,7 @@ export function AdminSecurityCenter() {
                 : "border border-slate-700 text-slate-300"
             }`}
           >
-            {t(`securityConfig.tabs.${item}`, {
-              defaultValue: securityTabLabel(item),
-            })}
+            {t(`securityConfig.tabs.${item}`)}
           </button>
         ))}
       </nav>
@@ -249,22 +245,17 @@ function ConfigurationEditor({
   >;
   publish: ReturnType<typeof useMutation<unknown, Error, void>>;
 }>) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const critical = preview.data?.impact === "critical";
 
   return (
     <div className="space-y-5">
       <header className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
         <h2 className="text-xl font-semibold text-white">
-          {t("securityConfig.title", {
-            defaultValue: "Configuration de sécurité",
-          })}
+          {t("securityConfig.title")}
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          {t("securityConfig.description", {
-            defaultValue:
-              "Configurez les fonctionnalités par intention métier. Les changements sont prévisualisés puis publiés atomiquement.",
-          })}
+          {t("securityConfig.description")}
         </p>
       </header>
 
@@ -276,7 +267,7 @@ function ConfigurationEditor({
             className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6"
           >
             <legend className="px-2 text-lg font-semibold text-white">
-              {categoryLabel(category, i18n.language)}
+              {t(`securityConfig.categories.${category}`, { defaultValue: category })}
             </legend>
             <div className="mt-2 grid gap-4 lg:grid-cols-2">
               {entries.map((entry) => (
@@ -285,7 +276,6 @@ function ConfigurationEditor({
                   entry={entry}
                   value={getValue(draft, entry.key)}
                   onChange={(value) => onChange(entry.key, value)}
-                  language={i18n.language}
                 />
               ))}
             </div>
@@ -316,9 +306,7 @@ function ConfigurationEditor({
             disabled={!changed}
             className="rounded-xl border border-slate-700 px-4 py-2 font-semibold text-slate-200 disabled:opacity-50"
           >
-            {t("securityConfig.reset", {
-              defaultValue: "Annuler les modifications",
-            })}
+            {t("securityConfig.reset")}
           </button>
           <button
             type="button"
@@ -326,22 +314,24 @@ function ConfigurationEditor({
             disabled={!changed || preview.isPending}
             className="rounded-xl border border-sky-500/50 px-4 py-2 font-semibold text-sky-200 disabled:opacity-50"
           >
-            {t("securityConfig.preview", {
-              defaultValue: "Prévisualiser l’impact",
-            })}
+            {t("securityConfig.preview")}
           </button>
         </div>
 
         {preview.data ? (
           <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
             <p className="font-semibold">
-              {preview.data.changedKeys.length} option(s) modifiée(s) · impact{" "}
-              {preview.data.impact}
+              {t("securityConfig.previewSummary", {
+                count: preview.data.changedKeys.length,
+                impact: t(`securityConfig.impact.${preview.data.impact}`, {
+                  defaultValue: preview.data.impact,
+                }),
+              })}
             </p>
             <ul className="mt-2 space-y-1">
               {preview.data.changes.map((change) => (
                 <li key={change.key}>
-                  {fieldLabel(change.key, i18n.language)} :{" "}
+                  {t(`securityConfig.fields.${change.key}`, { defaultValue: change.key })} :{" "}
                   <code>{formatValue(change.before)}</code> →{" "}
                   <code>{formatValue(change.after)}</code>
                 </li>
@@ -365,8 +355,7 @@ function ConfigurationEditor({
               }
               className="mt-1"
             />{" "}
-            Je confirme avoir examiné les conséquences de cette modification
-            critique.
+            {t("securityConfig.confirmCritical")}
           </label>
         ) : null}
 
@@ -381,9 +370,7 @@ function ConfigurationEditor({
           }
           className="mt-4 rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-white disabled:opacity-50"
         >
-          {t("securityConfig.publish", {
-            defaultValue: "Publier sans redémarrage",
-          })}
+          {t("securityConfig.publish")}
         </button>
         {preview.isError || publish.isError ? (
           <p role="alert" className="mt-3 text-sm text-rose-300">
@@ -403,16 +390,15 @@ function ConfigField({
   entry,
   value,
   onChange,
-  language,
 }: Readonly<{
   entry: CatalogEntry;
   value: unknown;
   onChange: (value: unknown) => void;
-  language: string;
 }>) {
+  const { t } = useTranslation();
   const id = `security-${entry.key.replaceAll(".", "-")}`;
   const disabled = !entry.availability.available || entry.availability.readOnly;
-  const label = fieldLabel(entry.key, language);
+  const label = t(`securityConfig.fields.${entry.key}`, { defaultValue: entry.key });
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
@@ -422,11 +408,11 @@ function ConfigField({
             {label}
           </label>
           <p className="mt-1 text-xs text-slate-400">
-            {fieldDescription(entry.key, language)}
+            {t("securityConfig.fieldDescription", { label })}
           </p>
         </div>
         <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase text-slate-400">
-          {entry.impact}
+          {t(`securityConfig.impact.${entry.impact}`, { defaultValue: entry.impact })}
         </span>
       </div>
 
@@ -452,7 +438,7 @@ function ConfigField({
           >
             {entry.constraints?.choices?.map((choice) => (
               <option key={choice} value={choice}>
-                {choiceLabel(choice, language)}
+                {t(`securityConfig.choices.${choice}`, { defaultValue: choice })}
               </option>
             ))}
           </select>
@@ -475,7 +461,7 @@ function ConfigField({
                       )
                     }
                   />
-                  {choiceLabel(choice, language)}
+                  {t(`securityConfig.choices.${choice}`, { defaultValue: choice })}
                 </label>
               );
             })}
@@ -485,7 +471,7 @@ function ConfigField({
           <div className="flex items-center gap-3">
             {entry.control === "slider-number" ? (
               <input
-                aria-label={`${label} — curseur`}
+                aria-label={t("securityConfig.sliderLabel", { label })}
                 type="range"
                 min={entry.constraints?.min}
                 max={entry.constraints?.max}
@@ -508,21 +494,23 @@ function ConfigField({
               className="w-28 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white"
             />
             <span className="text-xs text-slate-400">
-              {unitLabel(entry.constraints?.unit, language)}
+              {entry.constraints?.unit
+                  ? t(`securityConfig.units.${entry.constraints.unit}`, {
+                      defaultValue: entry.constraints.unit,
+                    })
+                  : null}
             </span>
           </div>
         ) : null}
       </div>
 
       <p className="mt-2 text-xs text-slate-500">
-        {language.startsWith("en") ? "Recommended" : "Recommandé"} :{" "}
+        {t("securityConfig.recommended")} :{" "}
         {formatValue(entry.recommendedValue)}
       </p>
       {disabled ? (
         <p className="mt-2 text-xs text-amber-300">
-          {language.startsWith("en")
-            ? "Read-only: no executable consumer currently applies this option."
-            : "Lecture seule : aucun consommateur exécutable n’applique actuellement cette option."}
+          {t("securityConfig.readOnly")}
         </p>
       ) : null}
     </div>
@@ -540,11 +528,11 @@ function History({
   pending: boolean;
   onRollback: (id: string) => void;
 }>) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
       <h2 className="text-xl font-semibold text-white">
-        Historique des révisions
+        {t("securityConfig.historyTitle")}
       </h2>
       <div className="mt-4 divide-y divide-slate-800">
         {revisions.map((revision) => (
@@ -554,11 +542,14 @@ function History({
           >
             <div>
               <p className="font-semibold text-slate-200">
-                Révision {revision.version} · {revision.status}
+                {t("securityConfig.revision", { version: revision.version })} ·{" "}
+                {t(`securityConfig.revisionStatus.${revision.status}`, {
+                  defaultValue: revision.status,
+                })}
               </p>
               <p className="text-xs text-slate-500">
                 {revision.created_by} ·{" "}
-                {new Date(revision.created_at).toLocaleString()}
+                {new Date(revision.created_at).toLocaleString(i18n.language)}
               </p>
               <p>
                 {revision.justification ??
@@ -573,7 +564,7 @@ function History({
               </p>
               {revision.changes?.map((change) => (
                 <p key={change.key}>
-                  {t(`securityConfig.fields.${change.key}.label`, {
+                  {t(`securityConfig.fields.${change.key}`, {
                     defaultValue: change.key,
                   })}
                   : {JSON.stringify(change.before)} →{" "}
@@ -588,7 +579,7 @@ function History({
                 onClick={() => onRollback(revision.id)}
                 className="rounded-xl border border-slate-700 px-3 py-2 text-slate-200 disabled:opacity-50"
               >
-                Restaurer
+                {t("securityConfig.restore")}
               </button>
             ) : null}
           </div>
@@ -603,9 +594,10 @@ function Audit({
 }: Readonly<{
   events: Awaited<ReturnType<typeof listAdminSecurityEvents>>;
 }>) {
+  const { t, i18n } = useTranslation();
   return (
     <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
-      <h2 className="text-xl font-semibold text-white">Journal de sécurité</h2>
+      <h2 className="text-xl font-semibold text-white">{t("securityConfig.auditTitle")}</h2>
       <div className="mt-4 max-h-[38rem] divide-y divide-slate-800 overflow-auto">
         {events.map((event) => (
           <div key={event.id} className="py-3 text-sm">
@@ -618,12 +610,12 @@ function Audit({
                     : "text-rose-300"
                 }
               >
-                {event.result}
+                {t(`securityConfig.eventResult.${event.result}`, { defaultValue: event.result })}
               </span>
             </div>
             <p className="mt-1 text-xs text-slate-500">
               {event.actor_type} ·{" "}
-              {new Date(event.occurred_at).toLocaleString()}
+              {new Date(event.occurred_at).toLocaleString(i18n.language)}
             </p>
           </div>
         ))}
@@ -734,158 +726,3 @@ export function formatValue(value: unknown): string {
   return "—";
 }
 
-function securityTabLabel(tab: string): string {
-  if (tab === "configuration") {
-    return "Configuration";
-  }
-  return tab === "history" ? "Historique" : "Journal d’audit";
-}
-
-function categoryLabel(category: string, language: string): string {
-  const labels: Record<string, [string, string]> = {
-    accounts: ["Comptes", "Accounts"],
-    authentication: ["Authentification", "Authentication"],
-    passwords: ["Mots de passe", "Passwords"],
-    sessions: ["Sessions", "Sessions"],
-    recovery: ["Récupération", "Recovery"],
-    audit: ["Audit", "Audit"],
-  };
-  return labels[category]?.[language.startsWith("en") ? 1 : 0] ?? category;
-}
-
-function fieldLabel(key: string, language: string): string {
-  const labels: Record<string, [string, string]> = {
-    "accounts.publicRegistration": ["Inscription publique", "Public sign-up"],
-    "accounts.allowedLoginIdentifiers": [
-      "Identifiants de connexion autorisés",
-      "Allowed login identifiers",
-    ],
-    "accounts.emailVerification": [
-      "Vérification de l’adresse email",
-      "Email verification",
-    ],
-    "accounts.emailChange": ["Changement d’adresse email", "Email change"],
-    "accounts.export": ["Export du compte", "Account export"],
-    "accounts.deletion": ["Suppression du compte", "Account deletion"],
-    "accounts.deletionGraceDays": [
-      "Délai avant suppression",
-      "Deletion grace period",
-    ],
-    "authentication.mfaAvailable": ["MFA disponible", "MFA available"],
-    "authentication.mfaRequiredRoles": [
-      "Rôles soumis au MFA",
-      "MFA-required roles",
-    ],
-    "authentication.mfaChallengeMinutes": [
-      "Durée du challenge MFA",
-      "MFA challenge duration",
-    ],
-    "authentication.mfaMaxAttempts": [
-      "Tentatives MFA maximales",
-      "Maximum MFA attempts",
-    ],
-    "authentication.recentAuthenticationMinutes": [
-      "Authentification considérée récente",
-      "Recent authentication window",
-    ],
-    "passwords.standardLevel": ["Niveau standard", "Standard level"],
-    "passwords.privilegedLevel": ["Niveau privilégié", "Privileged level"],
-    "passwords.standardMinLength": [
-      "Longueur minimale standard",
-      "Standard minimum length",
-    ],
-    "passwords.privilegedMinLength": [
-      "Longueur minimale privilégiée",
-      "Privileged minimum length",
-    ],
-    "passwords.maxLength": ["Longueur maximale", "Maximum length"],
-    "passwords.standardMinimumStrength": [
-      "Robustesse minimale standard",
-      "Standard minimum strength",
-    ],
-    "passwords.privilegedMinimumStrength": [
-      "Robustesse minimale privilégiée",
-      "Privileged minimum strength",
-    ],
-    "passwords.checkCommonPasswords": [
-      "Refuser les mots de passe courants",
-      "Reject common passwords",
-    ],
-    "passwords.checkCompromisedPasswords": [
-      "Refuser les mots de passe compromis",
-      "Reject compromised passwords",
-    ],
-    "passwords.checkUserContext": [
-      "Vérifier le contexte utilisateur",
-      "Check user context",
-    ],
-    "passwords.rejectCurrentPassword": [
-      "Refuser le mot de passe actuel",
-      "Reject current password",
-    ],
-    "passwords.requireUppercase": ["Exiger une majuscule", "Require uppercase"],
-    "passwords.requireLowercase": ["Exiger une minuscule", "Require lowercase"],
-    "passwords.requireNumber": ["Exiger un nombre", "Require a number"],
-    "passwords.requireSpecialCharacter": [
-      "Exiger un caractère spécial",
-      "Require a special character",
-    ],
-    "sessions.userManagement": [
-      "Gestion des sessions par l’utilisateur",
-      "User session management",
-    ],
-    "sessions.durationMinutes": ["Durée d’une session", "Session duration"],
-    "recovery.enabled": ["Récupération de compte", "Account recovery"],
-    "recovery.tokenMinutes": [
-      "Validité du lien de récupération",
-      "Recovery link validity",
-    ],
-    "recovery.requestsPerHour": [
-      "Demandes de récupération par heure",
-      "Recovery requests per hour",
-    ],
-    "audit.consultation": ["Consultation de l’audit", "Audit consultation"],
-    "audit.retentionDays": ["Durée de conservation", "Retention period"],
-  };
-  return labels[key]?.[language.startsWith("en") ? 1 : 0] ?? key;
-}
-
-function fieldDescription(key: string, language: string): string {
-  const suffix = language.startsWith("en")
-    ? "This value is applied by the server after publication."
-    : "Cette valeur est appliquée par le serveur après publication.";
-  return `${fieldLabel(key, language)}. ${suffix}`;
-}
-
-function choiceLabel(choice: string, language: string): string {
-  const values: Record<string, [string, string]> = {
-    username: ["Pseudonyme", "Username"],
-    email: ["Adresse email", "Email address"],
-    user: ["Utilisateurs", "Users"],
-    admin: ["Administrateurs", "Administrators"],
-    standard: ["Standard", "Standard"],
-    elevated: ["Renforcé", "Elevated"],
-    critical: ["Critique", "Critical"],
-    custom: ["Personnalisé", "Custom"],
-    too_weak: ["Très faible", "Too weak"],
-    weak: ["Faible", "Weak"],
-    acceptable: ["Acceptable", "Acceptable"],
-    strong: ["Forte", "Strong"],
-    very_strong: ["Très forte", "Very strong"],
-  };
-  return values[choice]?.[language.startsWith("en") ? 1 : 0] ?? choice;
-}
-
-function unitLabel(unit: string | undefined, language: string): string {
-  if (!unit) {
-    return "";
-  }
-  const units: Record<string, [string, string]> = {
-    minutes: ["minutes", "minutes"],
-    days: ["jours", "days"],
-    characters: ["caractères", "characters"],
-    attempts: ["tentatives", "attempts"],
-    requests: ["demandes", "requests"],
-  };
-  return units[unit]?.[language.startsWith("en") ? 1 : 0] ?? unit;
-}

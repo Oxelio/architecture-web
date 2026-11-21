@@ -71,6 +71,126 @@ const resources = {
         }
       },
       securityConfig: {
+        navigation: "Navigation de la sécurité",
+        tabs: {
+          configuration: "Configuration",
+          history: "Historique",
+          audit: "Journal d’audit"
+        },
+        title: "Configuration de sécurité",
+        description: "Configurez les fonctionnalités par intention métier. Les changements sont prévisualisés puis publiés atomiquement.",
+        reset: "Annuler les modifications",
+        preview: "Prévisualiser l’impact",
+        publish: "Publier sans redémarrage",
+        confirmCritical: "Je confirme avoir examiné les conséquences de cette modification critique.",
+        previewSummary_one: "{{count}} option modifiée · impact {{impact}}",
+        previewSummary_other: "{{count}} options modifiées · impact {{impact}}",
+        historyTitle: "Historique des révisions",
+        revision: "Révision {{version}}",
+        restore: "Restaurer",
+        auditTitle: "Journal de sécurité",
+        sliderLabel: "{{label}} — curseur",
+        recommended: "Recommandé",
+        readOnly: "Lecture seule : aucun consommateur exécutable n’applique actuellement cette option.",
+        fieldDescription: "{{label}}. Cette valeur est appliquée par le serveur après publication.",
+        impact: {
+          medium: "Moyen",
+          high: "Élevé",
+          critical: "Critique"
+        },
+        revisionStatus: {
+          published: "Publiée",
+          effective: "Effective",
+          superseded: "Remplacée",
+          pending: "En attente",
+          failed: "Échec",
+          applied: "Appliquée",
+          archived: "Archivée"
+        },
+        eventResult: {
+          success: "Succès",
+          rejected: "Refusé",
+          failure: "Échec",
+          technical_failure: "Erreur technique"
+        },
+        categories: {
+          accounts: "Comptes",
+          authentication: "Authentification",
+          passwords: "Mots de passe",
+          sessions: "Sessions",
+          recovery: "Récupération",
+          audit: "Audit"
+        },
+        fields: {
+          accounts: {
+            publicRegistration: "Inscription publique",
+            allowedLoginIdentifiers: "Identifiants de connexion autorisés",
+            emailVerification: "Vérification de l’adresse email",
+            emailChange: "Changement d’adresse email",
+            export: "Export du compte",
+            deletion: "Suppression du compte",
+            deletionGraceDays: "Délai avant suppression"
+          },
+          authentication: {
+            mfaAvailable: "MFA disponible",
+            mfaRequiredRoles: "Rôles soumis au MFA",
+            mfaChallengeMinutes: "Durée du challenge MFA",
+            mfaMaxAttempts: "Tentatives MFA maximales",
+            recentAuthenticationMinutes: "Authentification considérée récente"
+          },
+          passwords: {
+            standardLevel: "Niveau standard",
+            privilegedLevel: "Niveau privilégié",
+            standardMinLength: "Longueur minimale standard",
+            privilegedMinLength: "Longueur minimale privilégiée",
+            maxLength: "Longueur maximale",
+            standardMinimumStrength: "Robustesse minimale standard",
+            privilegedMinimumStrength: "Robustesse minimale privilégiée",
+            checkCommonPasswords: "Refuser les mots de passe courants",
+            checkCompromisedPasswords: "Refuser les mots de passe compromis",
+            checkUserContext: "Vérifier le contexte utilisateur",
+            rejectCurrentPassword: "Refuser le mot de passe actuel",
+            requireUppercase: "Exiger une majuscule",
+            requireLowercase: "Exiger une minuscule",
+            requireNumber: "Exiger un nombre",
+            requireSpecialCharacter: "Exiger un caractère spécial"
+          },
+          sessions: {
+            userManagement: "Gestion des sessions par l’utilisateur",
+            durationMinutes: "Durée d’une session"
+          },
+          recovery: {
+            enabled: "Récupération de compte",
+            tokenMinutes: "Validité du lien de récupération",
+            requestsPerHour: "Demandes de récupération par heure"
+          },
+          audit: {
+            consultation: "Consultation de l’audit",
+            retentionDays: "Durée de conservation"
+          }
+        },
+        choices: {
+          username: "Pseudonyme",
+          email: "Adresse email",
+          user: "Utilisateurs",
+          admin: "Administrateurs",
+          standard: "Standard",
+          elevated: "Renforcé",
+          critical: "Critique",
+          custom: "Personnalisé",
+          too_weak: "Très faible",
+          weak: "Faible",
+          acceptable: "Acceptable",
+          strong: "Forte",
+          very_strong: "Très forte"
+        },
+        units: {
+          minutes: "minutes",
+          days: "jours",
+          characters: "caractères",
+          attempts: "tentatives",
+          requests: "demandes"
+        },
         error: "Impossible d’appliquer cette configuration. Réessayez.",
         invalid: "Vérifiez les paramètres de la configuration.",
         justificationRequired: "Saisissez un motif pour cette modification.",
@@ -508,6 +628,126 @@ const resources = {
         }
       },
       securityConfig: {
+        navigation: "Security navigation",
+        tabs: {
+          configuration: "Configuration",
+          history: "History",
+          audit: "Audit log"
+        },
+        title: "Security configuration",
+        description: "Configure features by business intent. Changes are previewed and then published atomically.",
+        reset: "Discard changes",
+        preview: "Preview impact",
+        publish: "Publish without restart",
+        confirmCritical: "I confirm that I have reviewed the consequences of this critical change.",
+        previewSummary_one: "{{count}} option changed · {{impact}} impact",
+        previewSummary_other: "{{count}} options changed · {{impact}} impact",
+        historyTitle: "Revision history",
+        revision: "Revision {{version}}",
+        restore: "Restore",
+        auditTitle: "Security audit log",
+        sliderLabel: "{{label}} — slider",
+        recommended: "Recommended",
+        readOnly: "Read-only: no executable consumer currently applies this option.",
+        fieldDescription: "{{label}}. This value is applied by the server after publication.",
+        impact: {
+          medium: "Medium",
+          high: "High",
+          critical: "Critical"
+        },
+        revisionStatus: {
+          published: "Published",
+          effective: "Effective",
+          superseded: "Superseded",
+          pending: "Pending",
+          failed: "Failed",
+          applied: "Applied",
+          archived: "Archived"
+        },
+        eventResult: {
+          success: "Success",
+          rejected: "Rejected",
+          failure: "Failure",
+          technical_failure: "Technical failure"
+        },
+        categories: {
+          accounts: "Accounts",
+          authentication: "Authentication",
+          passwords: "Passwords",
+          sessions: "Sessions",
+          recovery: "Recovery",
+          audit: "Audit"
+        },
+        fields: {
+          accounts: {
+            publicRegistration: "Public sign-up",
+            allowedLoginIdentifiers: "Allowed login identifiers",
+            emailVerification: "Email verification",
+            emailChange: "Email change",
+            export: "Account export",
+            deletion: "Account deletion",
+            deletionGraceDays: "Deletion grace period"
+          },
+          authentication: {
+            mfaAvailable: "MFA available",
+            mfaRequiredRoles: "MFA-required roles",
+            mfaChallengeMinutes: "MFA challenge duration",
+            mfaMaxAttempts: "Maximum MFA attempts",
+            recentAuthenticationMinutes: "Recent authentication window"
+          },
+          passwords: {
+            standardLevel: "Standard level",
+            privilegedLevel: "Privileged level",
+            standardMinLength: "Standard minimum length",
+            privilegedMinLength: "Privileged minimum length",
+            maxLength: "Maximum length",
+            standardMinimumStrength: "Standard minimum strength",
+            privilegedMinimumStrength: "Privileged minimum strength",
+            checkCommonPasswords: "Reject common passwords",
+            checkCompromisedPasswords: "Reject compromised passwords",
+            checkUserContext: "Check user context",
+            rejectCurrentPassword: "Reject current password",
+            requireUppercase: "Require uppercase",
+            requireLowercase: "Require lowercase",
+            requireNumber: "Require a number",
+            requireSpecialCharacter: "Require a special character"
+          },
+          sessions: {
+            userManagement: "User session management",
+            durationMinutes: "Session duration"
+          },
+          recovery: {
+            enabled: "Account recovery",
+            tokenMinutes: "Recovery link validity",
+            requestsPerHour: "Recovery requests per hour"
+          },
+          audit: {
+            consultation: "Audit consultation",
+            retentionDays: "Retention period"
+          }
+        },
+        choices: {
+          username: "Username",
+          email: "Email address",
+          user: "Users",
+          admin: "Administrators",
+          standard: "Standard",
+          elevated: "Elevated",
+          critical: "Critical",
+          custom: "Custom",
+          too_weak: "Too weak",
+          weak: "Weak",
+          acceptable: "Acceptable",
+          strong: "Strong",
+          very_strong: "Very strong"
+        },
+        units: {
+          minutes: "minutes",
+          days: "days",
+          characters: "characters",
+          attempts: "attempts",
+          requests: "requests"
+        },
         error: "Unable to apply this configuration. Please try again.",
         invalid: "Check the configuration settings.",
         justificationRequired: "Enter a reason for this change.",
