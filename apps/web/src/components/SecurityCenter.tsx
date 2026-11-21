@@ -201,7 +201,7 @@ export function SecurityCenter() {
         <div className="rounded-2xl bg-white p-4 text-slate-950">
           <img
             src={enrollment.qrCodeDataUrl}
-            alt="QR code TOTP"
+            alt={t("securityCenter.enrollmentQrAlt")}
             className="mx-auto h-48 w-48"
           />
           <p className="break-all text-center font-mono text-xs">
