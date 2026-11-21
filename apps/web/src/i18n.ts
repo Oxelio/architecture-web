@@ -22,6 +22,54 @@ const getInitialLanguage = (): Language => {
 const resources = {
   fr: {
     translation: {
+      document: {
+        description: "Front React moderne relié à une API Fastify pour gérer l'identité et l'authentification."
+      },
+      cancelDeletion: {
+        eyebrow: "Suppression du compte",
+        title: "Annuler la suppression",
+        success: "Le compte est réactivé. Les anciennes sessions restent révoquées.",
+        signIn: "Se connecter",
+        password: "Mot de passe",
+        mfaCode: "Code MFA si activé",
+        confirm: "Confirmer l’annulation",
+        pending: "Annulation en cours…"
+      },
+      securityCenter: {
+        mfaTitle: "Authentification multifacteur",
+        mfaEnabled_one: "Active · {{count}} code de secours restant",
+        mfaEnabled_other: "Active · {{count}} codes de secours restants",
+        mfaDisabled: "Inactive · protégez chaque nouvelle connexion avec TOTP.",
+        currentPassword: "Mot de passe actuel",
+        mfaCode: "Code TOTP ou de secours",
+        saveCodesTitle: "Enregistrez ces codes maintenant",
+        saveCodesConfirm: "J’ai enregistré ces codes, activer le MFA",
+        dataTitle: "Données du compte",
+        exportDescription: "L’export ZIP est disponible 24 h et disparaît après son premier téléchargement.",
+        prepareExport: "Préparer mon export",
+        download: "Télécharger",
+        deleteRequest: "Demander la suppression du compte",
+        deleteConfirm: "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
+        activityTitle: "Activité de sécurité",
+        confirmEnrollment: "Valider l’enrôlement",
+        disableMfa: "Désactiver le MFA",
+        enableMfa: "Configurer le MFA",
+        exportStatus: {
+          ready: "Prêt",
+          pending: "En attente",
+          generating: "En cours de préparation",
+          downloaded: "Téléchargé",
+          expired: "Expiré",
+          failed: "Échec"
+        },
+        eventResult: {
+          success: "Succès",
+          failure: "Échec",
+          rejected: "Refusé",
+          technical_failure: "Erreur technique",
+          error: "Erreur"
+        }
+      },
       securityConfig: {
         error: "Impossible d’appliquer cette configuration. Réessayez.",
         invalid: "Vérifiez les paramètres de la configuration.",
@@ -181,6 +229,8 @@ const resources = {
         signInPending: "Connexion...",
         signInError:
           "Impossible de vous connecter. Vérifiez votre identifiant et votre mot de passe, puis réessayez.",
+        secondFactorCode: "Code de l’application ou code de secours",
+        verifySecondFactor: "Vérifier le second facteur",
         mfaError:
           "Impossible de vérifier le second facteur. Vérifiez votre code ou reconnectez-vous.",
         signInLinkText: "Pas encore de compte ?",
@@ -409,6 +459,54 @@ const resources = {
   },
   en: {
     translation: {
+      document: {
+        description: "Modern React frontend connected to a Fastify API for identity and authentication management."
+      },
+      cancelDeletion: {
+        eyebrow: "Account deletion",
+        title: "Cancel deletion",
+        success: "The account has been reactivated. Previous sessions remain revoked.",
+        signIn: "Sign in",
+        password: "Password",
+        mfaCode: "MFA code, if enabled",
+        confirm: "Confirm cancellation",
+        pending: "Cancelling…"
+      },
+      securityCenter: {
+        mfaTitle: "Multifactor authentication",
+        mfaEnabled_one: "Enabled · {{count}} backup code remaining",
+        mfaEnabled_other: "Enabled · {{count}} backup codes remaining",
+        mfaDisabled: "Disabled · protect each new sign-in with TOTP.",
+        currentPassword: "Current password",
+        mfaCode: "TOTP or backup code",
+        saveCodesTitle: "Save these codes now",
+        saveCodesConfirm: "I saved these codes, enable MFA",
+        dataTitle: "Account data",
+        exportDescription: "The ZIP export is available for 24 hours and is removed after its first download.",
+        prepareExport: "Prepare my export",
+        download: "Download",
+        deleteRequest: "Request account deletion",
+        deleteConfirm: "Access will be revoked immediately. A notification authorized before final account erasure may still be sent or arrive afterward. Confirm the deletion request?",
+        activityTitle: "Security activity",
+        confirmEnrollment: "Confirm enrollment",
+        disableMfa: "Disable MFA",
+        enableMfa: "Set up MFA",
+        exportStatus: {
+          ready: "Ready",
+          pending: "Pending",
+          generating: "Preparing",
+          downloaded: "Downloaded",
+          expired: "Expired",
+          failed: "Failed"
+        },
+        eventResult: {
+          success: "Success",
+          failure: "Failure",
+          rejected: "Rejected",
+          technical_failure: "Technical failure",
+          error: "Error"
+        }
+      },
       securityConfig: {
         error: "Unable to apply this configuration. Please try again.",
         invalid: "Check the configuration settings.",
@@ -557,6 +655,8 @@ const resources = {
         signInPending: "Signing in...",
         signInError:
           "Unable to sign in. Check your identifier and password, then try again.",
+        secondFactorCode: "Authenticator app or backup code",
+        verifySecondFactor: "Verify second factor",
         mfaError:
           "Unable to verify the second factor. Check your code or sign in again.",
         signInLinkText: "No account yet?",
@@ -779,6 +879,19 @@ const resources = {
   },
 };
 
+function synchronizeDocumentLocale(language: string): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const locale: Language = language.startsWith("en") ? "en" : "fr";
+  document.documentElement.lang = locale;
+  document
+    .querySelector('meta[name="description"]')
+    ?.setAttribute("content", resources[locale].translation.document.description);
+}
+
+i18n.on("languageChanged", synchronizeDocumentLocale);
+
 void i18n.use(initReactI18next).init({
   resources,
   lng: getInitialLanguage(),
@@ -787,6 +900,8 @@ void i18n.use(initReactI18next).init({
     escapeValue: false,
   },
 });
+
+synchronizeDocumentLocale(i18n.language || getInitialLanguage());
 
 export const changeLanguage = (language: Language) => {
   void i18n.changeLanguage(language);

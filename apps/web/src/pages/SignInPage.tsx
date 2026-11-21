@@ -124,7 +124,7 @@ export function SignInPage() {
       {challengeId ? (
         <div className="mt-8 space-y-5">
           <label className="block text-sm font-medium text-slate-200">
-            Code de l’application ou code de secours{" "}
+            {t("auth.secondFactorCode")}{" "}
             <input
               value={mfaCode}
               onChange={(event) => setMfaCode(event.target.value)}
@@ -144,7 +144,7 @@ export function SignInPage() {
             onClick={() => void submitSecondFactor()}
             className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-sky-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            Vérifier le second facteur
+            {t("auth.verifySecondFactor")}
           </button>
         </div>
       ) : (
