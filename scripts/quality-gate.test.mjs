@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { crc32 } from "node:zlib";
 
@@ -845,4 +846,46 @@ test("CLI routing is explicit and a failed route cannot publish a green aggregat
     },
     "gate",
   );
+});
+
+test("quality gate rejects failed, cancelled, missing and unexpectedly skipped required checks", () => {
+  const good = {
+    event: "pull_request",
+    validation: "success",
+    dependencyReview: "success",
+    commitlint: "success",
+  };
+  assert.equal(qualityGate(good), true);
+  for (const key of ["validation", "dependencyReview", "commitlint"]) {
+    for (const result of ["failure", "cancelled", "skipped", undefined]) {
+      assert.equal(qualityGate({ ...good, [key]: result }), false);
+    }
+  }
+  for (const event of ["push", "workflow_dispatch"]) {
+    assert.equal(
+      qualityGate({
+        event,
+        validation: "success",
+        dependencyReview: "skipped",
+        commitlint: "skipped",
+      }),
+      true,
+    );
+  }
+  // Sonar is not an input to required-check acceptance.
+  assert.equal(qualityGate({ ...good, sonar: "failure" }), true);
+  const child = spawnSync(
+    process.execPath,
+    [resolve(import.meta.dirname, "quality-gate.mjs")],
+    {
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: "pull_request",
+        VALIDATION_RESULT: "success",
+        DEPENDENCY_REVIEW_RESULT: "failure",
+        COMMITLINT_RESULT: "success",
+      },
+    },
+  );
+  assert.equal(child.status, 1);
 });

@@ -1,14 +1,25 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { execute, runWorkspaceTests } from "./run-workspace-tests.mjs";
+import {
+  type CommandRunner,
+  execute,
+  runWorkspaceTests,
+} from "./run-workspace-tests.ts";
+
+interface IntegrationTestOptions {
+  root?: string;
+  env?: NodeJS.ProcessEnv;
+  run?: CommandRunner;
+  test?: (options: { root: string; env: NodeJS.ProcessEnv }) => number;
+}
 
 export function runIntegrationTests({
   root = process.cwd(),
   env = process.env,
   run = execute,
   test = runWorkspaceTests,
-} = {}) {
+}: IntegrationTestOptions = {}) {
   const compose = ["compose", "-p", "ci-iam", "-f", "compose.iam-test.yml"];
   let status = 1;
   try {
@@ -34,7 +45,9 @@ export function runIntegrationTests({
       cwd: root,
       env,
     });
-    if (status === 0 && cleanup !== 0) status = cleanup;
+    if (status === 0 && cleanup !== 0) {
+      status = cleanup;
+    }
   }
   return status;
 }
@@ -46,7 +59,7 @@ if (
   try {
     process.exitCode = runIntegrationTests();
   } catch (error) {
-    console.error(error.message);
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   }
 }

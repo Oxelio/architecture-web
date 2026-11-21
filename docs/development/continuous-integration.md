@@ -168,11 +168,11 @@ Use this order for local coverage validation:
 pnpm build
 pnpm ci:test:integration
 pnpm ci:test:tooling
-node scripts/merge-coverage.mjs
+node scripts/merge-coverage.ts
 ```
 
 Required native sources are declared by `CI_SOURCES` in
-`scripts/merge-coverage.mjs`, including the metadata evidence resolver.
+`scripts/merge-coverage.ts`, including the metadata evidence resolver.
 `scripts/quality-gate.test.mjs` is explicitly included in `ci:test:tooling`,
 executed in both primary and Node 24 validation.
 Local V8 percentages describe the executed test suite; Sonar's new-code coverage

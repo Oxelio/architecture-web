@@ -10,11 +10,37 @@ import { tmpdir } from "node:os";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export function execute(command, args, options) {
+export interface CommandOptions {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+export type CommandRunner = (
+  command: string,
+  args: string[],
+  options: CommandOptions,
+) => number;
+
+export interface WorkspaceTestOptions {
+  root?: string;
+  env?: NodeJS.ProcessEnv;
+  run?: CommandRunner;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function execute(
+  command: string,
+  args: string[],
+  options: CommandOptions,
+) {
   // npm_execpath is supplied by pnpm, including on Windows: no shell is needed.
   if (command === "pnpm") {
-    if (!options.env.npm_execpath)
+    if (!options.env.npm_execpath) {
       throw new Error("Run this command through pnpm");
+    }
     if (/\.[cm]?js$/u.test(options.env.npm_execpath)) {
       args = [options.env.npm_execpath, ...args];
       command = process.execPath;
@@ -23,11 +49,13 @@ export function execute(command, args, options) {
     }
   }
   const result = spawnSync(command, args, { ...options, stdio: "inherit" });
-  if (result.error) console.error(result.error.message);
+  if (result.error) {
+    console.error(result.error.message);
+  }
   return result.status ?? 1;
 }
 
-export function testWorkspaces(root) {
+export function testWorkspaces(root: string) {
   const manifests = globSync(
     ["apps/**/package.json", "packages/**/package.json"],
     {
@@ -35,29 +63,47 @@ export function testWorkspaces(root) {
       exclude: ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
     },
   ).sort((a, b) => Number(a > b) - Number(a < b));
-  const workspaces = manifests
-    .map((path) => ({
+  const workspaces = manifests.flatMap<
+    Record<string, unknown> & { scripts: Record<string, unknown> }
+  >((path) => {
+    const manifest: unknown = JSON.parse(
+      readFileSync(resolve(root, path), "utf8"),
+    );
+    const workspace: Record<string, unknown> = {
       path: dirname(path),
-      ...JSON.parse(readFileSync(resolve(root, path), "utf8")),
-    }))
-    .filter((workspace) => workspace.scripts?.test);
-  if (!workspaces.length) throw new Error("No test workspaces were discovered");
+      ...(isRecord(manifest) ? manifest : {}),
+    };
+    const scripts = workspace["scripts"];
+    if (!isRecord(scripts) || !scripts["test"]) {
+      return [];
+    }
+    return [{ ...workspace, scripts }];
+  });
+  if (!workspaces.length) {
+    throw new Error("No test workspaces were discovered");
+  }
   for (const workspace of workspaces) {
     if (!workspace.scripts["test:coverage"]) {
-      throw new Error(`Missing test:coverage script: ${workspace.name}`);
+      throw new Error(`Missing test:coverage script: ${workspace["name"]}`);
     }
   }
-  return workspaces;
+  return workspaces.map((workspace) => {
+    const path = workspace["path"];
+    if (typeof path !== "string") {
+      throw new TypeError("Invalid test workspace path");
+    }
+    return { ...workspace, path, name: workspace["name"] };
+  });
 }
 
 export function runWorkspaceTests({
   root = process.cwd(),
   env = process.env,
   run = execute,
-} = {}) {
+}: WorkspaceTestOptions = {}) {
   const workspaces = testWorkspaces(root);
   const temporary = mkdtempSync(resolve(tmpdir(), "architecture-ci-tests-"));
-  const rows = [];
+  const rows: string[] = [];
   let status = 0;
   try {
     for (const [index, workspace] of workspaces.entries()) {
@@ -81,24 +127,34 @@ export function runWorkspaceTests({
         ],
         { cwd, env },
       );
-      let tests = 0;
-      let files = 0;
+      let tests: unknown = 0;
+      let files: unknown = 0;
       let passed = result === 0;
       try {
-        const data = JSON.parse(readFileSync(report, "utf8"));
-        tests = data.numTotalTests;
-        files = data.testResults.length;
+        const data: unknown = JSON.parse(readFileSync(report, "utf8"));
+        if (!isRecord(data)) {
+          throw new Error("Invalid execution report");
+        }
+        tests = data["numTotalTests"];
+        const testResults = data["testResults"];
+        if (!isRecord(testResults) && typeof testResults !== "string") {
+          throw new Error("Invalid execution report");
+        }
+        files = testResults["length"];
         passed &&=
-          data.success === true &&
+          data["success"] === true &&
+          typeof tests === "number" &&
           Number.isInteger(tests) &&
           tests > 0 &&
-          data.numPassedTests > 0 &&
-          data.numFailedTests === 0 &&
-          files > 0;
+          Number(data["numPassedTests"]) > 0 &&
+          data["numFailedTests"] === 0 &&
+          Number(files) > 0;
       } catch {
         passed = false;
       }
-      if (!passed) status = 1;
+      if (!passed) {
+        status = 1;
+      }
       rows.push(
         `| \`${workspace.name}\` | \`${workspace.path}\` | ${files} | ${tests} | ${passed ? "PASS" : "FAIL"} |`,
       );
@@ -114,8 +170,9 @@ export function runWorkspaceTests({
       "",
     ].join("\n");
     console.log(summary);
-    if (env.GITHUB_STEP_SUMMARY)
+    if (env.GITHUB_STEP_SUMMARY) {
       appendFileSync(env.GITHUB_STEP_SUMMARY, summary);
+    }
     return status;
   } finally {
     rmSync(temporary, { recursive: true, force: true });
@@ -129,7 +186,7 @@ if (
   try {
     process.exitCode = runWorkspaceTests();
   } catch (error) {
-    console.error(error.message);
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   }
 }

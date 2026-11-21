@@ -4,10 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import {
-  extractTargets,
-  validateMarkdownLinks,
-} from "./check-markdown-links.ts";
+import { extractTargets, validateMarkdownLinks } from "./check-markdown-links.ts";
 
 test("inline parsing preserves the existing grammar on bounded malformed and ordinary inputs", () => {
   const legacy = /!?\[[^\]]*\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+[^)]*)?\)/gu;
@@ -183,7 +180,10 @@ test("removed docs/method paths fail even if a target exists", async () => {
       sourcePaths: ["README.md"],
     });
     assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0] ?? "", /removed legacy Method path is forbidden/u);
+    assert.match(
+      result.errors[0] ?? "",
+      /removed legacy Method path is forbidden/u,
+    );
   });
 });
 
@@ -200,6 +200,9 @@ test("missing Method submodule targets report the checkout requirement", async (
       sourcePaths: ["docs/project/profile.md"],
     });
     assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0] ?? "", /Method submodule target is unavailable/u);
+    assert.match(
+      result.errors[0] ?? "",
+      /Method submodule target is unavailable/u,
+    );
   });
 });

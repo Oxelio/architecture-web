@@ -244,7 +244,7 @@ describe("CI trust and failure boundaries", () => {
       (step) => step.run === "pnpm ci:test:tooling",
     );
     const merge = steps.findIndex(
-      (step) => step.run === "node scripts/merge-coverage.mjs",
+      (step) => step.run === "node scripts/merge-coverage.ts",
     );
     const upload = steps.findIndex(
       (step) => step.with?.["name"] === "sonar-coverage",
@@ -271,8 +271,8 @@ describe("CI trust and failure boundaries", () => {
     expect(command).toContain(
       "--test-reporter-destination=coverage/scripts/lcov.info",
     );
-    expect(command).toContain("scripts/run-workspace-tests.test.mjs");
-    expect(command).toContain("scripts/merge-coverage.test.mjs");
+    expect(command).toContain("scripts/run-workspace-tests.test.ts");
+    expect(command).toContain("scripts/merge-coverage.test.ts");
     expect(command).toContain("scripts/quality-gate.test.mjs");
   });
 
@@ -319,9 +319,15 @@ describe("CI trust and failure boundaries", () => {
       ["node-compatibility", "node24"],
     ] as const) {
       const steps = shared.jobs[name]?.steps ?? [];
+      const setup = steps.findIndex((step) =>
+        step.uses?.startsWith("actions/setup-node@"),
+      );
       const identity = steps.findIndex(
         (step) => step.run === "node scripts/quality-gate.mjs identity",
       );
+      expect(setup).toBeGreaterThanOrEqual(0);
+      expect(identity).toBeGreaterThan(setup);
+      expect(steps[setup]?.with?.["package-manager-cache"]).toBe(false);
       const upload = steps.findIndex(
         (step) =>
           step.with?.["name"] ===

@@ -9,16 +9,17 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { qualityGate } from "./quality-gate.mjs";
-import { runIntegrationTests } from "./run-integration-tests.mjs";
-import { execute, runWorkspaceTests } from "./run-workspace-tests.mjs";
+import { runIntegrationTests } from "./run-integration-tests.ts";
+import { execute, runWorkspaceTests } from "./run-workspace-tests.ts";
 
 function fixture(
-  t,
-  scripts = [{ test: "vitest run", "test:coverage": "vitest run --coverage" }],
+  t: TestContext,
+  scripts: Record<string, string>[] = [
+    { test: "vitest run", "test:coverage": "vitest run --coverage" },
+  ],
 ) {
   const root = mkdtempSync(resolve(tmpdir(), "architecture-ci-fixture-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -34,8 +35,8 @@ function fixture(
 }
 
 function report(
-  args,
-  data = {
+  args: string[],
+  data: object = {
     success: true,
     numTotalTests: 2,
     numPassedTests: 2,
@@ -46,6 +47,7 @@ function report(
   const path = args
     .find((arg) => arg.startsWith("--outputFile.json="))
     ?.slice("--outputFile.json=".length);
+  assert.ok(path);
   writeFileSync(path, JSON.stringify(data));
 }
 
@@ -65,10 +67,10 @@ test("rejects missing coverage commands and an empty test inventory before execu
 test("records every workspace, removes stale coverage and propagates a command failure", (t) => {
   const root = fixture(
     t,
-    Array(2).fill({
+    Array.from({ length: 2 }, () => ({
       test: "vitest run",
       "test:coverage": "vitest run --coverage",
-    }),
+    })),
   );
   const stale = resolve(root, "apps/app-0/coverage");
   mkdirSync(stale);
@@ -114,7 +116,9 @@ test("rejects zero executed tests and missing or invalid execution reports", (t)
         root: fixture(t),
         env: {},
         run: (_command, args) => {
-          if (data) report(args, data);
+          if (data) {
+            report(args, data);
+          }
           return 0;
         },
       }),
@@ -138,7 +142,7 @@ test("accepts a successful workspace run", (t) => {
 });
 
 test("service startup failure skips tests, returns failure and still cleans up", () => {
-  const calls = [];
+  const calls: string[][] = [];
   const status = runIntegrationTests({
     run: (_command, args) => {
       calls.push(args);
@@ -147,8 +151,8 @@ test("service startup failure skips tests, returns failure and still cleans up",
     test: () => assert.fail("tests must not run after startup failure"),
   });
   assert.equal(status, 4);
-  assert.ok(calls[0].includes("--wait"));
-  assert.deepEqual(calls[1].slice(-2), ["down", "--volumes"]);
+  assert.ok(calls[0]?.includes("--wait"));
+  assert.deepEqual(calls[1]?.slice(-2), ["down", "--volumes"]);
 });
 
 test("uses disposable endpoints and propagates test and cleanup failures", () => {
@@ -156,7 +160,7 @@ test("uses disposable endpoints and propagates test and cleanup failures", () =>
     [5, 0, 5],
     [0, 6, 6],
     [0, 0, 0],
-  ]) {
+  ] as const) {
     let calls = 0;
     assert.equal(
       runIntegrationTests({
@@ -165,7 +169,7 @@ test("uses disposable endpoints and propagates test and cleanup failures", () =>
         test: ({ env }) => {
           assert.equal(env.TZ, "UTC");
           assert.match(
-            env.IAM_INTEGRATION_DATABASE_URL,
+            env.IAM_INTEGRATION_DATABASE_URL ?? "",
             /127\.0\.0\.1:55432\/iam_refactor_test$/,
           );
           assert.equal(
@@ -197,48 +201,6 @@ test("cleans up when the test runner throws", () => {
     /test failure/,
   );
   assert.equal(calls, 2);
-});
-
-test("quality gate rejects failed, cancelled, missing and unexpectedly skipped required checks", () => {
-  const good = {
-    event: "pull_request",
-    validation: "success",
-    dependencyReview: "success",
-    commitlint: "success",
-  };
-  assert.equal(qualityGate(good), true);
-  for (const key of ["validation", "dependencyReview", "commitlint"]) {
-    for (const result of ["failure", "cancelled", "skipped", undefined]) {
-      assert.equal(qualityGate({ ...good, [key]: result }), false);
-    }
-  }
-  for (const event of ["push", "workflow_dispatch"]) {
-    assert.equal(
-      qualityGate({
-        event,
-        validation: "success",
-        dependencyReview: "skipped",
-        commitlint: "skipped",
-      }),
-      true,
-    );
-  }
-  // Sonar is not an input to required-check acceptance.
-  assert.equal(qualityGate({ ...good, sonar: "failure" }), true);
-  const child = spawnSync(
-    process.execPath,
-    [resolve(import.meta.dirname, "quality-gate.mjs")],
-    {
-      env: {
-        ...process.env,
-        GITHUB_EVENT_NAME: "pull_request",
-        VALIDATION_RESULT: "success",
-        DEPENDENCY_REVIEW_RESULT: "failure",
-        COMMITLINT_RESULT: "success",
-      },
-    },
-  );
-  assert.equal(child.status, 1);
 });
 
 test("command execution preserves exit status and reports launch failures", (t) => {
@@ -293,7 +255,8 @@ test("malformed execution JSON fails the workspace and summary write errors prop
       run: (_command, args) => {
         const path = args
           .find((arg) => arg.startsWith("--outputFile.json="))
-          .slice("--outputFile.json=".length);
+          ?.slice("--outputFile.json=".length);
+        assert.ok(path);
         writeFileSync(path, "invalid JSON");
         return 0;
       },
@@ -318,7 +281,7 @@ test("workspace CLI fails explicitly when its checkout has no test workspaces", 
   const root = fixture(t, []);
   const result = spawnSync(
     process.execPath,
-    [resolve(import.meta.dirname, "run-workspace-tests.mjs")],
+    [resolve(import.meta.dirname, "run-workspace-tests.ts")],
     { cwd: root, env: process.env, encoding: "utf8" },
   );
   assert.equal(result.status, 1);
@@ -349,7 +312,7 @@ test("integration CLI propagates a Docker launch failure", (t) => {
   const root = fixture(t, []);
   const result = spawnSync(
     process.execPath,
-    [resolve(import.meta.dirname, "run-integration-tests.mjs")],
+    [resolve(import.meta.dirname, "run-integration-tests.ts")],
     { cwd: root, env: { ...process.env, PATH: "" }, encoding: "utf8" },
   );
   assert.equal(result.status, 1);
@@ -378,7 +341,7 @@ syncBuiltinESMExports();`,
     [
       "--import",
       pathToFileURL(preload).href,
-      resolve(import.meta.dirname, "run-integration-tests.mjs"),
+      resolve(import.meta.dirname, "run-integration-tests.ts"),
     ],
     { cwd: root, env: process.env, encoding: "utf8" },
   );
@@ -387,7 +350,8 @@ syncBuiltinESMExports();`,
   const commands = readFileSync(calls, "utf8")
     .trim()
     .split("\n")
-    .map((line) => JSON.parse(line));
-  assert.ok(commands[0].includes("up"));
+    .map((line): unknown => JSON.parse(line));
+  assert.ok(Array.isArray(commands[0]) && commands[0].includes("up"));
+  assert.ok(Array.isArray(commands[1]));
   assert.deepEqual(commands[1].slice(-2), ["down", "--volumes"]);
 });

@@ -182,7 +182,7 @@ same runner with the disposable PostgreSQL/Redis environment, including cleanup
 on failure. Run these commands through pnpm so child commands use its exact CLI.
 
 Run `pnpm ci:test:tooling` after workspace coverage and before
-`node scripts/merge-coverage.mjs`. The native Node test runner collects V8
+`node scripts/merge-coverage.ts`. The native Node test runner collects V8
 coverage and emits `coverage/scripts/lcov.info`, including tested CLI child
 processes. Both supported Node lines exercise this collection. The merger
 combines that repository-relative report with all workspace reports to prepare
