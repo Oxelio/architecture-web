@@ -992,25 +992,31 @@ it("synchronizes the document language and existing metadata with the selected l
 
 it("renders translated export and security-event statuses with localized counts and dates", async () => {
   client.setQueryData(["mfa"], { enabled: true, backupCodesRemaining: 2 });
-  client.setQueryData(["account-exports"], [
-    { id: "export-ready", status: "ready" },
-    { id: "export-expired", status: "expired" },
-    { id: "export-unknown", status: "unknown_status" },
-  ]);
-  client.setQueryData(["security-events"], [
-    {
-      id: "security-one",
-      type: "mfa.enabled",
-      result: "success",
-      occurred_at: "2026-01-02T13:04:05Z",
-    },
-    {
-      id: "security-other",
-      type: "security.unknown",
-      result: "unknown_result",
-      occurred_at: "2026-01-02T13:04:05Z",
-    },
-  ]);
+  client.setQueryData(
+    ["account-exports"],
+    [
+      { id: "export-ready", status: "ready" },
+      { id: "export-expired", status: "expired" },
+      { id: "export-unknown", status: "unknown_status" },
+    ],
+  );
+  client.setQueryData(
+    ["security-events"],
+    [
+      {
+        id: "security-one",
+        type: "mfa.enabled",
+        result: "success",
+        occurred_at: "2026-01-02T13:04:05Z",
+      },
+      {
+        id: "security-other",
+        type: "security.unknown",
+        result: "unknown_result",
+        occurred_at: "2026-01-02T13:04:05Z",
+      },
+    ],
+  );
   await render(<SecurityCenter />);
   expect(container.textContent).toContain("2 backup codes remaining");
   expect(container.textContent).toContain("Ready");
@@ -1089,16 +1095,18 @@ it("localizes security-configuration select, multi-select, slider, units and rea
   expect(container.textContent).toContain("Administrators");
   expect(container.textContent).toContain("Deletion grace period");
   expect(container.textContent).toContain("Read-only: no executable consumer");
-  expect(element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"))
-    .toContain("slider");
+  expect(
+    element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"),
+  ).toContain("slider");
   await changeLocale("fr");
   expect(container.textContent).toContain("Niveau standard");
   expect(container.textContent).toContain("Renforcé");
   expect(container.textContent).toContain("Administrateurs");
   expect(container.textContent).toContain("Délai avant suppression");
   expect(container.textContent).toContain("Lecture seule");
-  expect(element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"))
-    .toContain("curseur");
+  expect(
+    element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"),
+  ).toContain("curseur");
   expect(fetchApi).not.toHaveBeenCalled();
 });
 
@@ -1106,14 +1114,16 @@ it("preserves unknown security preview warnings without translating investigativ
   client.setQueryData(["admin-security-config"], {
     effectiveRevision: { id: "effective", version: 2 },
     effective: { accounts: { publicRegistration: true } },
-    catalog: [{
-      key: "accounts.publicRegistration",
-      category: "accounts",
-      control: "switch",
-      impact: "medium",
-      recommendedValue: true,
-      availability: { available: true, readOnly: false },
-    }],
+    catalog: [
+      {
+        key: "accounts.publicRegistration",
+        category: "accounts",
+        control: "switch",
+        impact: "medium",
+        recommendedValue: true,
+        availability: { available: true, readOnly: false },
+      },
+    ],
     revisions: [],
   });
   client.setQueryData(["admin-security-events"], []);
@@ -1134,7 +1144,9 @@ it("preserves unknown security preview warnings without translating investigativ
   );
   await clickButton("Preview impact");
   await expectFeedback("article", "1 option changed · Standard impact");
-  expect(container.textContent).toContain("The next maintenance run may purge older audit events.");
+  expect(container.textContent).toContain(
+    "The next maintenance run may purge older audit events.",
+  );
   expect(container.textContent).toContain("Unrecognized operational warning.");
   await changeLocale("fr");
   expect(container.textContent).toContain("La prochaine maintenance");

@@ -57,7 +57,10 @@ const localizedCopy = {
     ],
     currentPassword: ["Mot de passe actuel", "Current password"],
     mfaCode: ["Code TOTP ou de secours", "TOTP or backup code"],
-    saveCodesTitle: ["Enregistrez ces codes maintenant", "Save these codes now"],
+    saveCodesTitle: [
+      "Enregistrez ces codes maintenant",
+      "Save these codes now",
+    ],
     saveCodesConfirm: [
       "J’ai enregistré ces codes, activer le MFA",
       "I saved these codes, enable MFA",
@@ -69,7 +72,10 @@ const localizedCopy = {
     ],
     prepareExport: ["Préparer mon export", "Prepare my export"],
     download: ["Télécharger", "Download"],
-    deleteRequest: ["Demander la suppression du compte", "Request account deletion"],
+    deleteRequest: [
+      "Demander la suppression du compte",
+      "Request account deletion",
+    ],
     deleteConfirm: [
       "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
       "Access will be revoked immediately. A notification authorized before final account erasure may still be sent or arrive afterward. Confirm the deletion request?",
@@ -181,7 +187,10 @@ const localizedCopy = {
           "Identifiants de connexion autorisés",
           "Allowed login identifiers",
         ],
-        emailVerification: ["Vérification de l’adresse email", "Email verification"],
+        emailVerification: [
+          "Vérification de l’adresse email",
+          "Email verification",
+        ],
         emailChange: ["Changement d’adresse email", "Email change"],
         export: ["Export du compte", "Account export"],
         deletion: ["Suppression du compte", "Account deletion"],
@@ -190,7 +199,10 @@ const localizedCopy = {
       authentication: {
         mfaAvailable: ["MFA disponible", "MFA available"],
         mfaRequiredRoles: ["Rôles soumis au MFA", "MFA-required roles"],
-        mfaChallengeMinutes: ["Durée du challenge MFA", "MFA challenge duration"],
+        mfaChallengeMinutes: [
+          "Durée du challenge MFA",
+          "MFA challenge duration",
+        ],
         mfaMaxAttempts: ["Tentatives MFA maximales", "Maximum MFA attempts"],
         recentAuthenticationMinutes: [
           "Authentification considérée récente",
@@ -200,7 +212,10 @@ const localizedCopy = {
       passwords: {
         standardLevel: ["Niveau standard", "Standard level"],
         privilegedLevel: ["Niveau privilégié", "Privileged level"],
-        standardMinLength: ["Longueur minimale standard", "Standard minimum length"],
+        standardMinLength: [
+          "Longueur minimale standard",
+          "Standard minimum length",
+        ],
         privilegedMinLength: [
           "Longueur minimale privilégiée",
           "Privileged minimum length",
@@ -222,7 +237,10 @@ const localizedCopy = {
           "Refuser les mots de passe compromis",
           "Reject compromised passwords",
         ],
-        checkUserContext: ["Vérifier le contexte utilisateur", "Check user context"],
+        checkUserContext: [
+          "Vérifier le contexte utilisateur",
+          "Check user context",
+        ],
         rejectCurrentPassword: [
           "Refuser le mot de passe actuel",
           "Reject current password",
@@ -244,7 +262,10 @@ const localizedCopy = {
       },
       recovery: {
         enabled: ["Récupération de compte", "Account recovery"],
-        tokenMinutes: ["Validité du lien de récupération", "Recovery link validity"],
+        tokenMinutes: [
+          "Validité du lien de récupération",
+          "Recovery link validity",
+        ],
         requestsPerHour: [
           "Demandes de récupération par heure",
           "Recovery requests per hour",
@@ -312,7 +333,10 @@ const localizedCopy = {
     justification: ["Motif", "Reason"],
     password: ["Mot de passe actuel", "Current password"],
     mfaCode: ["Code MFA, si activé", "MFA code, when enabled"],
-    confirm: ["Confirmer la modification critique", "Confirm the critical change"],
+    confirm: [
+      "Confirmer la modification critique",
+      "Confirm the critical change",
+    ],
     notRecorded: ["Non enregistré", "Not recorded"],
   },
 } as const;
