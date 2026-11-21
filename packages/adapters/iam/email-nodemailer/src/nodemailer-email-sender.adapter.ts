@@ -36,6 +36,7 @@ export class NodemailerEmailSenderAdapter implements VerificationEmailSender {
     token: string,
   ): Promise<void> {
     const verifyUrl = new URL(this.verificationUrl);
+    verifyUrl.searchParams.delete("token");
     verifyUrl.hash = new URLSearchParams({ token }).toString();
 
     await this.send(

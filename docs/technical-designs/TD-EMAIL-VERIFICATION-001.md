@@ -27,7 +27,7 @@ This target does **not** establish a general token transport, email authenticati
 ## 2. Boundary ownership
 
 - **IAM domain/application:** Existing `VerifyEmailUseCase`, token value object, hashing port and persistence adapters remain unchanged; no new domain ports or application services.
-- **Email adapter:** `packages/adapters/iam/email-nodemailer/src/nodemailer-email-sender.adapter.ts` owns construction of new external Web links.
+- **Email adapters:** `packages/adapters/iam/email-nodemailer/src/nodemailer-email-sender.adapter.ts` and `packages/adapters/iam/email-postmark/src/postmark-email.adapter.ts` both own construction of new external Web links.
 - **API HTTP adapter:** `apps/api/src/features/iam/routes/public.routes.ts`, `verify-email.route-options.ts`, `verify-email.controller.ts` own HTTP method and body schema. Existing `verify-email.http.ts` presenter/business error mapping remains authoritative.
 - **Web UI:** `apps/web/src/pages/VerifyEmailPage.tsx` owns the landing, explicit confirmation and presentational states. `apps/web/src/services/api.ts` owns POST transport. `apps/web/src/main.tsx` enables `StrictMode`; i18next translations already exist for the verification page.
 - **HTTP logging:** Work #145 owns generic Fastify/Pino, Web Nginx and diagnostic sink corrections. Work #152 may add focused no-secret assertions for the new POST without redefining #145's technical plan.
@@ -97,7 +97,7 @@ No new **durable structural architecture** rule or meaningful structural alterna
 
 ## 7. Validation plan
 
-1. **Email adapter tests:** assert new message HTML and text contain encoded `#token=...`, never `?token=...`; preserve configured path/other non-secret URL information where applicable.
+1. **Email adapter tests:** verify both Nodemailer and Postmark: new message HTML and text contain encoded `#token=...`, never `?token=...`; preserve configured path/other non-secret URL information where applicable.
 2. **API route and controller tests:** `POST /v1/iam/verify` body schema; successful `204`; invalid/expired/consumed token mappings; no accidental authentication change; no bare token in URL, logs or errors. Assert the old GET verification route is no longer registered and no compatibility alias exists.
 3. **React verification flow tests:** no call on page navigation, rerender, `StrictMode` or locale switch; token scrubbing; explicit button sends only POST once; pending/button disabled, success/error/missing/expired states; no token in browser storage or console diagnostics.
 4. **Link scanning test:** fetch/load the Web verification page with the fragment (including JS execution where test harness permits) **without clicking the action**; assert zero verification requests and no token consumption.

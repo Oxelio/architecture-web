@@ -25,7 +25,31 @@ describe("PostmarkEmailSenderAdapter", () => {
         From: "noreply@example.com",
         To: "user@example.com",
         TextBody:
-          "Open this link to verify your email: https://app.example.com/verify?token=token-123",
+          "Open this link to verify your email: https://app.example.com/verify#token=token-123",
+        HtmlBody:
+          '<p>Click <a href="https://app.example.com/verify#token=token-123">here</a> to verify your email.</p>',
+      }),
+    );
+  });
+
+
+  it("preserves configured parameters but removes legacy token query and encodes fragment", async () => {
+    const sendEmail = vi.fn().mockResolvedValue({});
+    vi.spyOn(ServerClient.prototype, "sendEmail").mockImplementation(sendEmail);
+    const email = EmailValueObject.create("user@example.com");
+    if (!email.success) {
+      throw new Error("Expected a valid email");
+    }
+    const adapter = new PostmarkEmailSenderAdapter(
+      "token",
+      "noreply@example.com",
+      "https://app.example.com/verify?source=email&token=stale",
+    );
+    await adapter.sendVerificationEmail(email.value, "token with spaces");
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        TextBody:
+          "Open this link to verify your email: https://app.example.com/verify?source=email#token=token+with+spaces",
       }),
     );
   });

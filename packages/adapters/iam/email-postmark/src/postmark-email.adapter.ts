@@ -20,7 +20,8 @@ export class PostmarkEmailSenderAdapter implements VerificationEmailSender {
     token: string,
   ): Promise<void> {
     const verifyUrl = new URL(this.verificationUrl);
-    verifyUrl.searchParams.set("token", token);
+    verifyUrl.searchParams.delete("token");
+    verifyUrl.hash = new URLSearchParams({ token }).toString();
 
     const subject = "Please verify your email";
     const html = `<p>Click <a href="${verifyUrl.href}">here</a> to verify your email.</p>`;
