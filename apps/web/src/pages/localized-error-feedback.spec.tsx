@@ -943,6 +943,49 @@ it("preserves MFA backup-code acknowledgment and user-entered values during loca
   expect(fetchApi).toHaveBeenCalledTimes(2);
 });
 
+it("localizes cancellation pending state without retrying or clearing credentials", async () => {
+  await render(<CancelDeletionPage />, "/cancel-deletion?token=private-token");
+  await enter('input[type="password"]', loginPassword);
+  await enter('input[placeholder="MFA code, if enabled"]', "123456");
+
+  let completeRequest: ((response: Response) => void) | undefined;
+  fetchApi.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        completeRequest = resolve;
+      }),
+  );
+  await clickButton("Confirm cancellation");
+
+  const button = element<HTMLButtonElement>("button");
+  expect(button.textContent?.trim()).toBe("Cancelling…");
+  expect(button.disabled).toBe(true);
+  expect(fetchApi).toHaveBeenCalledOnce();
+  expect(fetchApi.mock.calls[0]?.[1]?.method).toBe("POST");
+  expect(fetchApi.mock.calls[0]?.[0]).toContain("/iam/deletion/cancel");
+
+  await changeLocale("fr");
+  expect(button.textContent?.trim()).toBe("Annulation en cours…");
+  expect(button.disabled).toBe(true);
+  expect(element<HTMLInputElement>('input[type="password"]').value).toBe(
+    loginPassword,
+  );
+  expect(element<HTMLInputElement>('input[placeholder="Code MFA si activé"]').value).toBe(
+    "123456",
+  );
+  button.click();
+  expect(fetchApi).toHaveBeenCalledOnce();
+  expect(container.textContent).not.toContain("private-token");
+
+  await act(async () => {
+    completeRequest?.(new Response(null, { status: 204 }));
+  });
+  expect(container.textContent).toContain("Le compte est réactivé.");
+  await changeLocale("en");
+  expect(container.textContent).toContain("The account has been reactivated.");
+  expect(fetchApi).toHaveBeenCalledOnce();
+});
+
 it("localizes account-deletion cancellation copy and retains credentials on locale changes", async () => {
   await render(<CancelDeletionPage />, "/cancel-deletion?token=private-token");
   expect(element("h2").textContent).toBe("Cancel deletion");
