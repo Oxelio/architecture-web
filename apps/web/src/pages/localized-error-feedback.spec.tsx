@@ -1139,6 +1139,6 @@ it("preserves unknown security preview warnings without translating investigativ
   await changeLocale("fr");
   expect(container.textContent).toContain("La prochaine maintenance");
   expect(container.textContent).toContain("Unrecognized operational warning.");
-  expect(container.textContent).toContain("Impact");
+  expect(container.textContent).toContain("impact Standard");
   expect(fetchApi).toHaveBeenCalledOnce();
 });
