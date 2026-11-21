@@ -82,10 +82,7 @@ const localizedCopy = {
     ],
     activityTitle: ["Activité de sécurité", "Security activity"],
     confirmEnrollment: ["Valider l’enrôlement", "Confirm enrollment"],
-    enrollmentQrAlt: [
-      "Code QR de configuration TOTP",
-      "TOTP setup QR code",
-    ],
+    enrollmentQrAlt: ["Code QR de configuration TOTP", "TOTP setup QR code"],
     disableMfa: ["Désactiver le MFA", "Disable MFA"],
     enableMfa: ["Configurer le MFA", "Set up MFA"],
     exportStatus: {
