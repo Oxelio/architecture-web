@@ -20,8 +20,7 @@ interface InlineTarget {
 }
 
 type NormalizedTarget =
-  | { ignored: true }
-  | { ignored: false; path: string; invalidEncoding?: true };
+  { ignored: true } | { ignored: false; path: string; invalidEncoding?: true };
 
 interface MarkdownLinkOptions {
   repoRoot?: string;
@@ -367,6 +366,9 @@ async function main() {
   );
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   await main();
 }

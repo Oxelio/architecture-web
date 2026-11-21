@@ -17,10 +17,7 @@ export type DockerExecutor = (
   options: DockerExecutionOptions,
 ) => Promise<{ stdout: string }>;
 
-type DockerCommand = (
-  args: string[],
-  signal?: AbortSignal,
-) => Promise<string>;
+type DockerCommand = (args: string[], signal?: AbortSignal) => Promise<string>;
 
 export interface MailpitFixtureOptions {
   mode?: string | undefined;
@@ -84,8 +81,7 @@ async function verifyIsolation(
       const connected =
         service === "api"
           ? host["NetworkMode"] === `container:${mailpitId}`
-          : isRecord(networks) &&
-            Object.keys(networks).join() === networkName;
+          : isRecord(networks) && Object.keys(networks).join() === networkName;
       if (
         !isRecord(logConfig) ||
         logConfig["Type"] !== "none" ||
