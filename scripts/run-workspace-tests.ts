@@ -7,7 +7,7 @@ import {
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export interface CommandOptions {
@@ -137,6 +137,20 @@ function readExecutionReport(path: string, status: number): ExecutionReport {
   }
 }
 
+export function isCoverageWithinCheckout(
+  root: string,
+  coverage: string,
+  paths = { relative, isAbsolute, sep },
+) {
+  const local = paths.relative(root, coverage);
+  return (
+    local !== "" &&
+    !paths.isAbsolute(local) &&
+    local !== ".." &&
+    !local.startsWith(`..${paths.sep}`)
+  );
+}
+
 export function runWorkspaceTests({
   root = process.cwd(),
   env = process.env,
@@ -150,8 +164,7 @@ export function runWorkspaceTests({
     for (const [index, workspace] of workspaces.entries()) {
       const cwd = resolve(root, workspace.path);
       const coverage = resolve(cwd, "coverage");
-      const local = relative(root, coverage);
-      if (!local || local === ".." || local.startsWith(`..${sep}`)) {
+      if (!isCoverageWithinCheckout(root, coverage)) {
         throw new Error("Coverage directory escapes repository");
       }
       rmSync(coverage, { recursive: true, force: true });

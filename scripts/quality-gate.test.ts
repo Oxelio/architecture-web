@@ -638,6 +638,69 @@ test("a newer full or metadata-named run starting during resolution cannot be ig
   }
 });
 
+test("missing or invalid workflow identities cannot authorize evidence reuse", async () => {
+  for (const id of [
+    undefined,
+    null,
+    0,
+    -1,
+    1.5,
+    "5",
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    const f = fixture();
+    const request = f.api.request;
+    const pages = f.api.pages;
+    f.api.request = async (path) =>
+      path === "/actions/runs/99" ? { workflow_id: id } : request(path);
+    f.api.pages = async (path, key) =>
+      key === "workflow_runs"
+        ? [{ ...f.source, workflow_id: id }]
+        : pages(path, key);
+    await assert.rejects(f.resolve(), /Invalid current workflow identity/u);
+  }
+});
+
+test("a newer run with a malformed workflow identity cannot hide behind older evidence", async () => {
+  for (const id of [undefined, null, 0, "5"]) {
+    const f = fixture();
+    const pages = f.api.pages;
+    f.api.pages = async (path, key) =>
+      key === "workflow_runs"
+        ? [...f.runs, { ...f.source, id: 11, run_number: 11, workflow_id: id }]
+        : pages(path, key);
+    await assert.rejects(f.resolve(), /Invalid validation workflow identity/u);
+  }
+});
+
+test("missing or invalid check suite identities cannot authorize evidence reuse", async () => {
+  for (const id of [
+    undefined,
+    null,
+    0,
+    -1,
+    1.5,
+    "7",
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    const f = fixture();
+    const request = f.api.request;
+    const pages = f.api.pages;
+    f.api.pages = async (path, key) =>
+      key === "workflow_runs"
+        ? [{ ...f.source, check_suite_id: id }]
+        : pages(path, key);
+    f.api.request = async (path) => {
+      if (path.startsWith("/check-runs/")) {
+        const check = f.checks[Number(path.split("/").at(-1)) - 100];
+        return { ...check, check_suite: { id } };
+      }
+      return request(path);
+    };
+    await assert.rejects(f.resolve(), /Invalid source check suite identity/u);
+  }
+});
+
 test("malformed GitHub run identity cannot authorize evidence reuse", async () => {
   const f = fixture();
   const pages = f.api.pages;

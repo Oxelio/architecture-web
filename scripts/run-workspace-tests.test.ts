@@ -8,12 +8,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { posix, resolve, win32 } from "node:path";
 import { test, type TestContext } from "node:test";
 import { pathToFileURL } from "node:url";
 
 import { runIntegrationTests } from "./run-integration-tests.ts";
-import { execute, runWorkspaceTests } from "./run-workspace-tests.ts";
+import {
+  execute,
+  isCoverageWithinCheckout,
+  runWorkspaceTests,
+} from "./run-workspace-tests.ts";
 
 function fixture(
   t: TestContext,
@@ -348,6 +352,31 @@ test("workspace CLI fails explicitly when its checkout has no test workspaces", 
   );
   assert.equal(result.status, 1);
   assert.match(result.stderr, /No test workspaces/);
+});
+
+test("coverage containment rejects absolute relative paths on Windows without touching the filesystem", () => {
+  const root = "C:\\checkout";
+  assert.equal(
+    isCoverageWithinCheckout(root, "D:\\outside\\coverage", win32),
+    false,
+  );
+  assert.equal(
+    isCoverageWithinCheckout(root, "C:\\outside\\coverage", win32),
+    false,
+  );
+  assert.equal(isCoverageWithinCheckout(root, root, win32), false);
+  assert.equal(
+    isCoverageWithinCheckout(root, "C:\\checkout\\apps\\api\\coverage", win32),
+    true,
+  );
+  assert.equal(
+    isCoverageWithinCheckout("/checkout", "/outside/coverage", posix),
+    false,
+  );
+  assert.equal(
+    isCoverageWithinCheckout("/checkout", "/checkout/apps/api/coverage", posix),
+    true,
+  );
 });
 
 test("refuses a workspace path that would delete coverage outside the checkout", (t) => {

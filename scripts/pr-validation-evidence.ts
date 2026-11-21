@@ -390,6 +390,8 @@ export async function resolveEvidence({
   now = Date.now(),
 }: ResolveEvidenceOptions) {
   const current = object(await api.request(`/actions/runs/${runId}`));
+  const workflowId = current.workflow_id;
+  check(positiveInteger(workflowId), "Invalid current workflow identity");
   const runs = await api.pages(
     `/actions/runs?event=pull_request&head_sha=${identity.head}`,
     "workflow_runs",
@@ -400,13 +402,19 @@ export async function resolveEvidence({
       .filter(
         (run) =>
           run.id !== runId &&
-          run.workflow_id === current.workflow_id &&
           ["full", "metadata"].some(
             (mode) =>
               run.display_title ===
               `Repository CI [${mode}] PR #${identity.pr}`,
           ),
-      );
+      )
+      .filter((run) => {
+        check(
+          positiveInteger(run.workflow_id),
+          "Invalid validation workflow identity",
+        );
+        return run.workflow_id === workflowId;
+      });
     return matching.map(
       (run): JsonRecord & { id: number; run_number: number } => {
         const { id, run_number: runNumber } = run;
@@ -488,6 +496,8 @@ export async function resolveEvidence({
     "Newest full validation is unsuccessful, pending, or bound to another candidate",
   );
   const sourceAttempt = source.run_attempt;
+  const sourceSuiteId = source.check_suite_id;
+  check(positiveInteger(sourceSuiteId), "Invalid source check suite identity");
   const jobs = (
     await api.pages(
       `/actions/runs/${source.id}/attempts/${sourceAttempt}/jobs`,
@@ -525,7 +535,7 @@ export async function resolveEvidence({
       check(
         result.name === name &&
           optionalObject(result.app).id === 15368 &&
-          optionalObject(result.check_suite).id === source.check_suite_id &&
+          optionalObject(result.check_suite).id === sourceSuiteId &&
           result.head_sha === identity.head &&
           result.status === "completed" &&
           result.conclusion === "success",
