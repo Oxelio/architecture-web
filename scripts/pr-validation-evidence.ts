@@ -388,8 +388,8 @@ export async function resolveEvidence({
     `/actions/runs?event=pull_request&head_sha=${identity.head}`,
     "workflow_runs",
   );
-  const relevant = (items: unknown[]) =>
-    items.map(object).filter(
+  const relevant = (items: unknown[]) => {
+    const matching = items.map(object).filter(
       (run) =>
         run.id !== runId &&
         run.workflow_id === current.workflow_id &&
@@ -398,10 +398,15 @@ export async function resolveEvidence({
             run.display_title === `Repository CI [${mode}] PR #${identity.pr}`,
         ),
     );
+    for (const run of matching) {
+      check(
+        positiveInteger(run.id) && positiveInteger(run.run_number),
+        "Invalid validation run identity",
+      );
+    }
+    return matching;
+  };
   const sources = relevant(runs);
-  for (const run of sources) {
-    check(positiveInteger(run.run_number), "Invalid validation run number");
-  }
   sources.sort((a, b) => Number(b.run_number) - Number(a.run_number));
   const original = sources.find(
     (run) => run.display_title === `Repository CI [full] PR #${identity.pr}`,

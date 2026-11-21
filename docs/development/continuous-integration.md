@@ -48,10 +48,10 @@ explicit range, rather than over an already-clean working tree.
 
 The primary job uses `.nvmrc` (Node 26) and the exact pnpm `packageManager` version.
 It installs the frozen lockfile, builds, previews release planning, checks
-application/test types, runs ESLint, tests with coverage and real disposable
+application/test and root tooling types, runs ESLint, tests with coverage and real disposable
 PostgreSQL/Redis, checks formatting and documentation, and verifies coverage
 transfer within the same run. All these checks fail on errors. A second job
-builds, checks both sets of types and runs unit tests on the minimum supported
+builds, checks application/test and root tooling types and runs unit tests on the minimum supported
 Node 24 version. Its opt-in integration scenarios remain skipped.
 
 `Quality checks` validates the live PR title using locked commitlint and stdin,
@@ -87,6 +87,10 @@ are not assumed to reveal effective workflow_call inputs. Before candidate
 installation, each reusable PR job records actual inputs, verified checkout,
 PR/repository/head/base/candidate, workflow ref/SHA and run/attempt/job in a small
 immutable identity artifact. The primary job verifies merge base/head parents.
+Both reusable jobs configure the pinned Node runtime with automatic package-manager
+caching disabled before recording and publishing identity. Native TypeScript
+identity generation requires no installed packages; pnpm setup and candidate
+dependency installation follow identity publication.
 
 The resolver requires the newest full PR run's latest attempt to succeed, with
 the expected immutable workflow/reusable revision, both validation jobs,
@@ -144,7 +148,13 @@ The child test environment uses `TZ=UTC`, matching the hosted Linux runner.
 Only disposable localhost endpoints are supplied. No application volume or
 production credential is used.
 
-`pnpm ci:test:tooling` keeps the native Node tests and enables Node's built-in
+Root executable tooling and its tests are TypeScript under `scripts/`, executed
+by native Node type stripping without a runtime transpiler. The root
+`pnpm typecheck:scripts` checks both using `tsconfig.scripts.json` and is included
+in `pnpm typecheck`. ESLint and Prettier also cover these files. Configuration
+and generated application JavaScript files are outside this migration.
+
+`pnpm ci:test:tooling` runs the native Node tests and enables Node's built-in
 V8 coverage with spec and LCOV reporters. It writes `coverage/scripts/lcov.info`
 with repository-relative source paths. Tests of spawned CLI processes remain
 instrumented. The primary job runs this collection before LCOV merging; the Node
@@ -153,8 +163,8 @@ coverage artifact. No coverage-conversion dependency or separate analysis
 pipeline is introduced.
 
 The LCOV merger requires a nonempty valid report from every expected test
-workspace and the native report containing all declared CI scripts, converts source paths to repository-relative paths and rejects missing
-or escaping sources. The resulting artifact is uploaded, downloaded and compared
+workspace and the native report containing all declared CI scripts, converts
+source paths to repository-relative paths and rejects missing or escaping sources. The resulting artifact is uploaded, downloaded and compared
 in the same run even when Sonar is unavailable. The tests cover the
 runner, real command exit/launch failures, service lifecycle, CLI cleanup,
 required-check acceptance, missing native/workspace reports and invalid LCOV

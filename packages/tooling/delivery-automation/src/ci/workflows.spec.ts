@@ -267,6 +267,9 @@ describe("CI trust and failure boundaries", () => {
     ) as { scripts: Record<string, string> };
     const command = root.scripts["ci:test:tooling"];
     expect(command).toContain("--experimental-test-coverage");
+    expect(command).toContain("--test-coverage-include=scripts/*.ts");
+    expect(command).toContain("--test-coverage-exclude=scripts/*.test.ts");
+    expect(command).not.toContain(".mjs");
     expect(command).toContain("--test-reporter=lcov");
     expect(command).toContain(
       "--test-reporter-destination=coverage/scripts/lcov.info",
@@ -274,6 +277,9 @@ describe("CI trust and failure boundaries", () => {
     expect(command).toContain("scripts/run-workspace-tests.test.ts");
     expect(command).toContain("scripts/merge-coverage.test.ts");
     expect(command).toContain("scripts/quality-gate.test.ts");
+    expect(command).toContain("scripts/check-markdown-links.test.ts");
+    expect(command).toContain("scripts/run-o2-mailpit-test.test.ts");
+    expect(root.scripts["typecheck"]).toContain("pnpm typecheck:scripts");
   });
 
   it("runs metadata routing without expensive validation and isolates cancellation groups", () => {

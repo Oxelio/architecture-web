@@ -2,7 +2,8 @@
 
 ## Strategy
 
-Tests are colocated with code and run with Vitest.
+Workspace tests are colocated with code and run with Vitest. Root repository
+script tests use native Node `node:test` and do not require a transpiler.
 
 - Foundation tests domain primitives.
 - IAM core tests entities, value objects, use cases, and its factory.
@@ -18,6 +19,8 @@ non-trivial HTTP mapping or authorization change **SHOULD** have an API test.
 Package production builds exclude colocated tests from their JavaScript and
 declaration output. A package's `tsconfig.test.json` includes those tests
 without emitting files. `pnpm typecheck:test` runs these package checks.
+Root tooling sources and tests are checked together by `pnpm typecheck:scripts`,
+which is included in `pnpm typecheck`.
 
 For paginated reads, distribute evidence by responsibility: core tests defaults,
 bounds, authorization, and metadata; the adapter tests filters, count, order,

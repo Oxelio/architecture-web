@@ -632,6 +632,19 @@ test("a newer full or metadata-named run starting during resolution cannot be ig
   }
 });
 
+test("malformed GitHub run identity cannot authorize evidence reuse", async () => {
+  const f = fixture();
+  const pages = f.api.pages;
+  let lists = 0;
+  f.api.pages = async (path, key) => {
+    if (key === "workflow_runs" && ++lists === 2) {
+      return [...f.runs, { ...f.source, id: 11, run_number: null }];
+    }
+    return pages(path, key);
+  };
+  await assert.rejects(f.resolve(), /Invalid validation run identity/u);
+});
+
 test("valid metadata edits reuse the original complete evidence", async () => {
   const f = fixture();
   const result = await evaluatePr({
