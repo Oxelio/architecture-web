@@ -24,6 +24,13 @@ const CATEGORY_ORDER = [
   "audit",
 ] as const;
 
+const PREVIEW_WARNING_KEYS: Record<string, string> = {
+  "Disabling MFA availability does not erase existing encrypted MFA settings.":
+    "securityConfig.previewWarnings.mfaAvailability",
+  "The next maintenance run may purge older audit events.":
+    "securityConfig.previewWarnings.auditRetention",
+};
+
 export function AdminSecurityCenter() {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -341,7 +348,9 @@ function ConfigurationEditor({
             </ul>
             {preview.data.warnings.map((warning) => (
               <p key={warning} className="mt-2">
-                {warning}
+                {PREVIEW_WARNING_KEYS[warning]
+                  ? t(PREVIEW_WARNING_KEYS[warning])
+                  : warning}
               </p>
             ))}
           </div>

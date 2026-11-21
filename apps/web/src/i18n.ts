@@ -101,7 +101,14 @@ const resources = {
           "Lecture seule : aucun consommateur exécutable n’applique actuellement cette option.",
         fieldDescription:
           "{{label}}. Cette valeur est appliquée par le serveur après publication.",
+        previewWarnings: {
+          mfaAvailability:
+            "Désactiver la disponibilité du MFA ne supprime pas les paramètres MFA chiffrés existants.",
+          auditRetention:
+            "La prochaine maintenance peut supprimer des événements d’audit plus anciens.",
+        },
         impact: {
+          standard: "Standard",
           medium: "Moyen",
           high: "Élevé",
           critical: "Critique",
@@ -666,7 +673,14 @@ const resources = {
           "Read-only: no executable consumer currently applies this option.",
         fieldDescription:
           "{{label}}. This value is applied by the server after publication.",
+        previewWarnings: {
+          mfaAvailability:
+            "Disabling MFA availability does not erase existing encrypted MFA settings.",
+          auditRetention:
+            "The next maintenance run may purge older audit events.",
+        },
         impact: {
+          standard: "Standard",
           medium: "Medium",
           high: "High",
           critical: "Critical",

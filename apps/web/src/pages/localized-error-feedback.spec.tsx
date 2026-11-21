@@ -857,12 +857,19 @@ it("shows a failed configuration preview after an earlier publication failure", 
         impact: "medium",
         changedKeys: ["accounts.publicRegistration"],
         changes: [],
-        warnings: [],
+        warnings: [
+          "Disabling MFA availability does not erase existing encrypted MFA settings.",
+        ],
       },
     }),
   );
   await clickButton("Preview impact");
   await expectFeedback("article", "1 option changed · Medium impact");
+  await changeLocale("fr");
+  expect(container.textContent).toContain(
+    "Désactiver la disponibilité du MFA ne supprime pas les paramètres MFA",
+  );
+  await changeLocale("en");
 
   fetchApi.mockResolvedValueOnce(
     failure("security_configuration.version_conflict", 409),
