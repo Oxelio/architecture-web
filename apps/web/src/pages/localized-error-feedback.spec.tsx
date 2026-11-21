@@ -989,3 +989,156 @@ it("synchronizes the document language and existing metadata with the selected l
     meta.remove();
   }
 });
+
+it("renders translated export and security-event statuses with localized counts and dates", async () => {
+  client.setQueryData(["mfa"], { enabled: true, backupCodesRemaining: 2 });
+  client.setQueryData(["account-exports"], [
+    { id: "export-ready", status: "ready" },
+    { id: "export-expired", status: "expired" },
+    { id: "export-unknown", status: "unknown_status" },
+  ]);
+  client.setQueryData(["security-events"], [
+    {
+      id: "security-one",
+      type: "mfa.enabled",
+      result: "success",
+      occurred_at: "2026-01-02T13:04:05Z",
+    },
+    {
+      id: "security-other",
+      type: "security.unknown",
+      result: "unknown_result",
+      occurred_at: "2026-01-02T13:04:05Z",
+    },
+  ]);
+  await render(<SecurityCenter />);
+  expect(container.textContent).toContain("2 backup codes remaining");
+  expect(container.textContent).toContain("Ready");
+  expect(container.textContent).toContain("Expired");
+  expect(container.textContent).toContain("Download");
+  expect(container.textContent).toContain("Success");
+  expect(container.textContent).toContain("unknown_result");
+
+  await changeLocale("fr");
+  expect(container.textContent).toContain("2 codes de secours restants");
+  expect(container.textContent).toContain("Prêt");
+  expect(container.textContent).toContain("Expiré");
+  expect(container.textContent).toContain("Télécharger");
+  expect(container.textContent).toContain("Succès");
+  expect(container.textContent).toContain("unknown_status");
+  expect(container.textContent).toContain("unknown_result");
+  expect(container.textContent).toContain(
+    new Date("2026-01-02T13:04:05Z").toLocaleString("fr"),
+  );
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
+it("localizes security-configuration select, multi-select, slider, units and read-only help", async () => {
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { id: "effective", version: 1 },
+    effective: {
+      passwords: { standardLevel: "standard" },
+      authentication: { mfaRequiredRoles: ["admin"] },
+      accounts: { deletionGraceDays: 14 },
+      audit: { retentionDays: 90 },
+    },
+    catalog: [
+      {
+        key: "passwords.standardLevel",
+        category: "passwords",
+        control: "select",
+        constraints: { choices: ["standard", "elevated", "critical"] },
+        impact: "medium",
+        recommendedValue: "standard",
+        availability: { available: true, readOnly: false },
+      },
+      {
+        key: "authentication.mfaRequiredRoles",
+        category: "authentication",
+        control: "multi-select",
+        constraints: { choices: ["user", "admin"] },
+        impact: "high",
+        recommendedValue: ["admin"],
+        availability: { available: true, readOnly: false },
+      },
+      {
+        key: "accounts.deletionGraceDays",
+        category: "accounts",
+        control: "slider-number",
+        constraints: { min: 1, max: 30, unit: "days" },
+        impact: "critical",
+        recommendedValue: 14,
+        availability: { available: true, readOnly: false },
+      },
+      {
+        key: "audit.retentionDays",
+        category: "audit",
+        control: "number",
+        constraints: { min: 30, max: 365, unit: "days" },
+        impact: "high",
+        recommendedValue: 90,
+        availability: { available: false, readOnly: true },
+      },
+    ],
+    revisions: [],
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+  expect(container.textContent).toContain("Standard level");
+  expect(container.textContent).toContain("Elevated");
+  expect(container.textContent).toContain("Administrators");
+  expect(container.textContent).toContain("Deletion grace period");
+  expect(container.textContent).toContain("Read-only: no executable consumer");
+  expect(element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"))
+    .toContain("slider");
+  await changeLocale("fr");
+  expect(container.textContent).toContain("Niveau standard");
+  expect(container.textContent).toContain("Renforcé");
+  expect(container.textContent).toContain("Administrateurs");
+  expect(container.textContent).toContain("Délai avant suppression");
+  expect(container.textContent).toContain("Lecture seule");
+  expect(element<HTMLInputElement>('input[type="range"]').getAttribute("aria-label"))
+    .toContain("curseur");
+  expect(fetchApi).not.toHaveBeenCalled();
+});
+
+it("preserves unknown security preview warnings without translating investigative values", async () => {
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { id: "effective", version: 2 },
+    effective: { accounts: { publicRegistration: true } },
+    catalog: [{
+      key: "accounts.publicRegistration",
+      category: "accounts",
+      control: "switch",
+      impact: "medium",
+      recommendedValue: true,
+      availability: { available: true, readOnly: false },
+    }],
+    revisions: [],
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+  await click('[role="switch"]');
+  fetchApi.mockResolvedValueOnce(
+    Response.json({
+      data: {
+        impact: "standard",
+        changedKeys: ["accounts.publicRegistration"],
+        changes: [],
+        warnings: [
+          "The next maintenance run may purge older audit events.",
+          "Unrecognized operational warning.",
+        ],
+      },
+    }),
+  );
+  await clickButton("Preview impact");
+  expect(container.textContent).toContain("Standard impact");
+  expect(container.textContent).toContain("The next maintenance run may purge older audit events.");
+  expect(container.textContent).toContain("Unrecognized operational warning.");
+  await changeLocale("fr");
+  expect(container.textContent).toContain("La prochaine maintenance");
+  expect(container.textContent).toContain("Unrecognized operational warning.");
+  expect(container.textContent).toContain("Impact");
+  expect(fetchApi).toHaveBeenCalledOnce();
+});
