@@ -449,8 +449,7 @@ export async function resolveEvidence({
         const route = routes[0];
         check(
           routes.length === 1 &&
-            route !== undefined &&
-            route.run_id === run.id &&
+            route?.run_id === run.id &&
             route.head_sha === identity.head &&
             route.status === "completed" &&
             route.conclusion === "success",
@@ -509,8 +508,7 @@ export async function resolveEvidence({
       const job = matches[0];
       const prefix = `https://api.github.com/repos/${identity.repository}/check-runs/`;
       check(
-        job !== undefined &&
-          job.run_id === source.id &&
+        job?.run_id === source.id &&
           job.head_sha === identity.head &&
           job.status === "completed" &&
           job.conclusion === "success" &&
