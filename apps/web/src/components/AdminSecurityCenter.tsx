@@ -340,8 +340,8 @@ function ConfigurationEditor({
                 <li key={change.key}>
                   {t(`securityConfig.fields.${change.key}`, {
                     defaultValue: change.key,
-                  })} :{" "}
-                  <code>{formatValue(change.before)}</code> →{" "}
+                  })}{" "}
+                  : <code>{formatValue(change.before)}</code> →{" "}
                   <code>{formatValue(change.after)}</code>
                 </li>
               ))}
@@ -514,10 +514,10 @@ function ConfigField({
             />
             <span className="text-xs text-slate-400">
               {entry.constraints?.unit
-                  ? t(`securityConfig.units.${entry.constraints.unit}`, {
-                      defaultValue: entry.constraints.unit,
-                    })
-                  : null}
+                ? t(`securityConfig.units.${entry.constraints.unit}`, {
+                    defaultValue: entry.constraints.unit,
+                  })
+                : null}
             </span>
           </div>
         ) : null}
@@ -563,7 +563,8 @@ function History({
               <p className="font-semibold text-slate-200">
                 {t("securityConfig.revision", {
                   version: revision.version,
-                })} ·{" "}
+                })}{" "}
+                ·{" "}
                 {t(`securityConfig.revisionStatus.${revision.status}`, {
                   defaultValue: revision.status,
                 })}
@@ -750,4 +751,3 @@ export function formatValue(value: unknown): string {
   }
   return "—";
 }
-

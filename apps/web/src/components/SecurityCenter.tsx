@@ -143,10 +143,10 @@ export function SecurityCenter() {
               className="flex items-center justify-between rounded-xl border border-slate-800 p-3"
             >
               <span>
-              {t(`securityCenter.exportStatus.${item.status}`, {
-                defaultValue: item.status,
-              })}
-            </span>
+                {t(`securityCenter.exportStatus.${item.status}`, {
+                  defaultValue: item.status,
+                })}
+              </span>
               {item.status === "ready" ? (
                 <a
                   href={accountExportDownloadUrl(item.id)}
@@ -161,9 +161,7 @@ export function SecurityCenter() {
         <button
           type="button"
           onClick={() => {
-            if (
-              window.confirm(t("securityCenter.deleteConfirm"))
-            ) {
+            if (window.confirm(t("securityCenter.deleteConfirm"))) {
               deletion.mutate();
             }
           }}
@@ -187,8 +185,8 @@ export function SecurityCenter() {
               <span className="text-slate-400">
                 {t(`securityCenter.eventResult.${event.result}`, {
                   defaultValue: event.result,
-                })} ·{" "}
-                {new Date(event.occurred_at).toLocaleString(i18n.language)}
+                })}{" "}
+                · {new Date(event.occurred_at).toLocaleString(i18n.language)}
               </span>
             </div>
           ))}
