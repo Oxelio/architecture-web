@@ -62,7 +62,7 @@ Use native TypeScript type stripping in the supported Node versions
 `.mts`. Relative runtime imports use explicit `.ts` extensions and type-only
 imports use `import type`.
 
-Code executed by Node must use *erasable* TypeScript syntax. Do not introduce
+Code executed by Node must use _erasable_ TypeScript syntax. Do not introduce
 runtime enums, parameter properties, namespaces requiring runtime transforms,
 TypeScript path aliases, decorators requiring transforms, or a runtime
 transpiler. Keep native Node built-in imports, supported ESM behavior,
