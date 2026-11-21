@@ -32,8 +32,8 @@ const localizedCopy = {
     eyebrow: ["Suppression du compte", "Account deletion"],
     title: ["Annuler la suppression", "Cancel deletion"],
     success: [
-      "Le compte est réactivé. Les anciennes sessions restent révoquées.",
-      "The account has been reactivated. Previous sessions remain revoked.",
+      "La demande de suppression a été annulée. Le compte retrouve son statut précédent. Les sessions révoquées restent révoquées.",
+      "The deletion request has been cancelled. The account returns to its previous status. Previously revoked sessions remain revoked.",
     ],
     signIn: ["Se connecter", "Sign in"],
     password: ["Mot de passe", "Password"],
