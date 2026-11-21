@@ -970,9 +970,9 @@ it("localizes cancellation pending state without retrying or clearing credential
   expect(element<HTMLInputElement>('input[type="password"]').value).toBe(
     loginPassword,
   );
-  expect(element<HTMLInputElement>('input[placeholder="Code MFA si activé"]').value).toBe(
-    "123456",
-  );
+  expect(
+    element<HTMLInputElement>('input[placeholder="Code MFA si activé"]').value,
+  ).toBe("123456");
   button.click();
   expect(fetchApi).toHaveBeenCalledOnce();
   expect(container.textContent).not.toContain("private-token");
