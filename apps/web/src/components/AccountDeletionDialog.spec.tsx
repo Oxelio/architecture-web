@@ -85,20 +85,19 @@ async function openDialog(mfaEnabled = false) {
     }
     open.click();
   });
-  await act(async () => {
-    await vi.waitFor(() => {
-      expect(["success", "error"]).toContain(
-        queryClient
-          .getQueryCache()
-          .findAll({ queryKey: ["account-deletion-disclosure"] })
-          .at(-1)?.state.status,
-      );
-    });
-  });
   const dialog = container.querySelector("dialog");
   if (!dialog) {
     throw new Error("Missing confirmation dialog");
   }
+  await vi.waitFor(() => {
+    expect(getAccountDeletionDisclosure).toHaveBeenCalledOnce();
+    expect(dialog.textContent).not.toContain(
+      "Chargement de la politique de suppression",
+    );
+    expect(dialog.textContent).not.toContain(
+      "Loading the effective deletion policy",
+    );
+  });
   return dialog;
 }
 
@@ -184,18 +183,10 @@ describe("account deletion confirmation dialog", () => {
     await act(async () => {
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
-        expect(
-          queryClient
-            .getQueryCache()
-            .findAll({ queryKey: ["account-deletion-disclosure"] })
-            .at(-1)?.state.data,
-        ).toEqual({ enabled: true, gracePeriodDays: 14 });
-      });
+    await vi.waitFor(() => {
+      expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
+      expect(dialog.textContent).toContain("14 jours");
     });
-    expect(dialog.textContent).toContain("14 jours");
     expect(requestAccountDeletion).toHaveBeenCalledExactlyOnceWith(
       "deletion-proof",
       30,
