@@ -55,7 +55,10 @@ export interface AccountDeletionStore {
     tokenHash: string;
     now: Date;
     scheduledFor: Date;
-  }): Promise<"saved" | "last_administrator" | "conflict">;
+    confirmedGracePeriodDays: number;
+  }): Promise<
+    "saved" | "last_administrator" | "conflict" | "disabled" | "grace_period_changed"
+  >;
   find(tokenHash: string): Promise<DeletionRequest | null>;
   cancel(input: {
     user: UserEntity;
