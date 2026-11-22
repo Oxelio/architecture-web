@@ -76,9 +76,76 @@ const localizedCopy = {
       "Demander la suppression du compte",
       "Request account deletion",
     ],
-    deleteConfirm: [
-      "L’accès sera immédiatement révoqué. Une notification dont l’envoi a été autorisé avant l’effacement définitif du compte peut encore être envoyée ou arriver après cet effacement. Confirmer la demande de suppression ?",
-      "Access will be revoked immediately. A notification authorized before final account erasure may still be sent or arrive afterward. Confirm the deletion request?",
+    deletionTitle: ["Confirmer la suppression du compte", "Confirm account deletion"],
+    deletionDescription: [
+      "Cette demande désactivera immédiatement votre accès. Examinez les conséquences avant de confirmer.",
+      "This request will immediately disable your access. Review the consequences before confirming.",
+    ],
+    deletionGracePeriod_one: [
+      "Votre compte sera définitivement supprimé après {{count}} jour de délai de grâce.",
+      "Your account will be permanently deleted after a {{count}}-day grace period.",
+    ],
+    deletionGracePeriod_other: [
+      "Votre compte sera définitivement supprimé après {{count}} jours de délai de grâce.",
+      "Your account will be permanently deleted after a {{count}}-day grace period.",
+    ],
+    deletionAccess: [
+      "Toutes les sessions et les jetons actifs seront révoqués immédiatement. Vous ne pourrez plus vous connecter ni demander d’export.",
+      "All sessions and active tokens will be revoked immediately. You will no longer be able to sign in or request an export.",
+    ],
+    deletionData: [
+      "À l’expiration du délai, les identifiants du compte, le mot de passe, les sessions, les jetons de récupération et de vérification, les secrets et codes MFA, les archives d’export et les données techniques sans obligation de conservation seront supprimés.",
+      "After the grace period, account identifiers, the password, sessions, recovery and verification tokens, MFA secrets and codes, export archives, and technical data without a retention duty will be deleted.",
+    ],
+    deletionRetention: [
+      "Certaines données peuvent être conservées temporairement en raison d’une obligation légale ; les journaux d’audit soumis à conservation sont limités dans le temps et leurs références directes au compte sont supprimées ou pseudonymisées. La suppression ne garantit pas l’effacement immédiat de sauvegardes ou de ressources externes.",
+      "Some data may be retained temporarily due to legal obligations; audit records subject to retention are time-limited and direct account references are removed or pseudonymized. Deletion does not guarantee immediate removal from backups or external resources.",
+    ],
+    deletionAdministrator: [
+      "Un compte administrateur perdra ses accès d’administration. Le dernier administrateur actif ne peut pas demander la suppression de son propre compte.",
+      "An administrator account will lose administrative access. The last active administrator cannot request deletion of their own account.",
+    ],
+    deletionNotification: [
+      "Une notification dont l’envoi a été autorisé avant l’effacement définitif peut encore être envoyée ou arriver après cet effacement.",
+      "A notification authorized before final account erasure may still be sent or arrive afterward.",
+    ],
+    deletionAcknowledgement_one: [
+      "Je comprends ces conséquences et confirme le délai effectif de {{count}} jour.",
+      "I understand these consequences and confirm the effective grace period of {{count}} day.",
+    ],
+    deletionAcknowledgement_other: [
+      "Je comprends ces conséquences et confirme le délai effectif de {{count}} jours.",
+      "I understand these consequences and confirm the effective grace period of {{count}} days.",
+    ],
+    deletionLoading: [
+      "Chargement de la politique de suppression effective…",
+      "Loading the effective deletion policy…",
+    ],
+    deletionUnavailable: [
+      "Impossible de connaître le délai effectif. La suppression est bloquée ; réessayez.",
+      "The effective grace period is unavailable. Deletion is blocked; please retry.",
+    ],
+    deletionDisabled: [
+      "La suppression des comptes est actuellement désactivée.",
+      "Account deletion is currently disabled.",
+    ],
+    deletionRetry: ["Réessayer", "Retry"],
+    deletionChanged: [
+      "Le délai de grâce a changé. Lisez les nouvelles informations et confirmez de nouveau.",
+      "The grace period changed. Review the updated disclosure and confirm again.",
+    ],
+    deletionError: [
+      "La demande de suppression n’a pas été acceptée. Vérifiez vos informations et réessayez.",
+      "The deletion request was not accepted. Check your credentials and retry.",
+    ],
+    deletionCancel: ["Annuler", "Cancel"],
+    deletionConfirmAction: [
+      "Confirmer la demande de suppression",
+      "Confirm deletion request",
+    ],
+    deletionPending: [
+      "Demande de suppression en cours…",
+      "Submitting deletion request…",
     ],
     activityTitle: ["Activité de sécurité", "Security activity"],
     confirmEnrollment: ["Valider l’enrôlement", "Confirm enrollment"],
