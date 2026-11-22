@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
+
 import {
   accountExportDownloadUrl,
   beginMfaEnrollment,
@@ -11,7 +13,6 @@ import {
   getMfaStatus,
   listAccountExports,
   listSecurityEvents,
-  requestAccountDeletion,
   requestAccountExport,
 } from "#services/api";
 
@@ -63,11 +64,6 @@ export function SecurityCenter() {
     mutationFn: () => requestAccountExport(password, mfaCode || undefined),
     onSuccess: () =>
       client.invalidateQueries({ queryKey: ["account-exports"] }),
-  });
-  const deletion = useMutation({
-    mutationFn: () =>
-      requestAccountDeletion(password, "DELETE", mfaCode || undefined),
-    onSuccess: () => window.location.assign("/"),
   });
 
   return (
@@ -158,17 +154,10 @@ export function SecurityCenter() {
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm(t("securityCenter.deleteConfirm"))) {
-              deletion.mutate();
-            }
-          }}
-          className="mt-5 rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300"
-        >
-          {t("securityCenter.deleteRequest")}
-        </button>
+        <AccountDeletionDialog
+          mfaEnabled={mfa.data?.enabled ?? false}
+          mfaLoaded={mfa.isSuccess}
+        />
       </article>
 
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 lg:col-span-2">
