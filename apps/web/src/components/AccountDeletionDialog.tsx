@@ -95,7 +95,8 @@ export function AccountDeletionDialog({
       : null;
   const available = current?.enabled === true;
   const canConfirm =
-    available &&
+    current !== null &&
+    current.enabled &&
     mfaLoaded &&
     password.length > 0 &&
     (!mfaEnabled || mfaCode.trim().length > 0) &&
