@@ -228,10 +228,12 @@ requires delegation, sequencing, or independently verifiable units. Use the
 
 ### GitHub Project #3 Task visibility — proposed Governance Target (Work #181)
 
-> This amendment is a **Proposed Target** until explicit human Governance
-> Acceptance for Work #181, merge into the canonical project policy, and verified
-> activation of the backing GitHub Project fields/views. An open PR or an item
-> added to the Project does not establish this proposal as effective.
+> **Approved Governance Target (Work #181):** the human maintainer
+> explicitly accepted these field semantics on 2026-11-22, as recorded in
+> [Work #181](https://github.com/Oxelio/architecture-web/issues/181#issuecomment-7084996634).
+> This policy becomes effective only after merger into the canonical project
+> policy and verified activation of the backing Project field/views.
+> Acceptance alone does not mean the GitHub Project mapping is active.
 
 For visibility, **Task Sub-issues MAY share GitHub Project #3 with their owning
 Works after this mapping is activated**, but MUST NOT be treated as additional
