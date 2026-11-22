@@ -1674,6 +1674,7 @@ describe.skipIf(!databaseUrl || !redisUrl)(
           tokenHash: randomUUID(),
           now,
           scheduledFor: new Date(now.getTime() - 1000),
+          confirmedGracePeriodDays: 14,
         });
         const erase = async () => {
           expect(await store.eraseIfDue(requestId, new Date())).not.toBeNull();
