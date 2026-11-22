@@ -180,7 +180,7 @@ A local API/application consistency change using existing architecture does not 
 
 1. **Functional authority:** review the exact proposed amendment to `SF-ACCOUNT-DATA-001` and record any required Human Functional Approval for the revised canonical behavior. D1–D5 were accepted in the Work conversation; a proposed document/PR itself is not an approval.
 2. **HTTP compatibility owner:** inventory supported `POST /iam/me/deletion` clients and accept a concrete breaking-change / versioning / migration route before making the confirmation datum required.
-3. **Concurrency feasibility:** confirm the shared advisory-lock ordering and transaction-visible effective-policy read in the existing persistence architecture. Validate with real PostgreSQL before declaring readiness on this security-sensitive boundary.
+3. **Concurrency feasibility:** confirm the shared advisory-lock ordering and transaction-visible effective-policy read against the existing persistence architecture, and define the required real-PostgreSQL acceptance scenario before Readiness. Execute that scenario against the implemented candidate during validation; do not misrepresent a pre-implementation test plan as executed evidence.
 4. **UI design detail:** settle whether strengthened-proof inputs reside inside the modal, retaining existing MFA and password proof semantics. This is a local UX design choice, not a new account-deletion policy.
 
 **Readiness assessment at authoring:** NOT READY — the above decisions/evidence are not complete. Do not start implementation solely because this design exists.
