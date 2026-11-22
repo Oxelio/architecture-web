@@ -85,11 +85,26 @@ not disclose internal generation details.
 
 Before confirmation, the interface explains:
 
-- the grace-period duration;
+- the **effective configured grace-period duration** applicable to the request;
 - immediate loss of access;
 - data intended for deletion;
 - data that may be retained and why;
-- consequences for an administrator account.
+- consequences for an administrator account, including the inability of the
+  last active administrator to delete their own account.
+
+The explanation is presented before any deletion request is submitted, in the
+user's selected supported language. The displayed duration is obtained from the
+effective configuration, not from its default value. The user explicitly
+confirms that duration together with the other disclosures.
+
+If the effective duration cannot be obtained, the user cannot confirm deletion
+and can retry obtaining the information. No default duration is substituted.
+When account deletion is disabled, the user cannot submit a deletion request.
+
+If the effective grace-period duration changes after disclosure but before the
+request is accepted, the previous confirmation does not authorize deletion
+under the changed duration. The request is not accepted, and the user must see
+and explicitly confirm the current duration before trying again.
 
 ### Disclosure for previously authorized deliveries
 
@@ -102,8 +117,10 @@ confirmation message. Delivery eligibility is owned by
 
 ### Deletion request confirmation
 
-After strengthened verification, the user explicitly confirms deletion. The
-account then remains pending deletion for 14 days:
+After strengthened verification and explicit confirmation of the effective
+grace-period duration, the account remains pending deletion for that configured
+duration. The initial default is 14 days; it is not necessarily the effective
+duration of any given request. Once the request is accepted:
 
 - every session is revoked;
 - normal sign-in is denied;
@@ -111,7 +128,10 @@ account then remains pending deletion for 14 days:
 - no new export can be requested;
 - a confirmation and cancellation message is sent to the verified address.
 
-The grace period is configurable. Final deletion occurs only after it expires.
+The accepted request's scheduled deletion date reflects the effective duration
+confirmed for that request. Subsequent configuration changes do not silently
+reschedule an already accepted request. Final deletion occurs only after the
+grace period applicable to that request expires.
 
 ## Cancellation
 
@@ -170,14 +190,29 @@ Tests cover at least:
 11. rejection for the last active administrator;
 12. idempotence of scheduled processing;
 13. notifications and audit events;
-14. explicit behavior under a retention obligation.
+14. explicit behavior under a retention obligation;
+15. all required deletion disclosures before confirmation, including data
+    intended for deletion, possible retention and reasons, administrator-account
+    consequences, and the previously authorized delivery warning;
+16. the effective configured duration, including a non-default duration and
+    the supported minimum and maximum, displayed correctly in FR/EN;
+17. unavailable effective-duration information and disabled deletion preventing
+    confirmation or mutation, without substitution of a default;
+18. a duration change between disclosure and acceptance requiring fresh
+    disclosure and explicit confirmation, without accepting the stale request;
+19. language changes, failed reads, and repeated confirmation attempts not
+    triggering an unintended or duplicate deletion request.
 
 ## Acceptance criteria
 
 The feature is complete when a user can obtain a portable archive containing no
 secret, downloads are temporary and protected, deletion immediately revokes
-access, cancellation works during the grace period, final erasure handles every
-declared category, and any remaining retention is bounded and explained.
+access, and all approved deletion consequences and the effective grace-period
+duration are explained before explicit confirmation. Missing duration
+information prevents confirmation; a changed duration requires renewed
+confirmation before acceptance. Cancellation works during the grace period,
+final erasure handles every declared category, and any remaining retention is
+bounded and explained.
 
 ## Out of scope
 
