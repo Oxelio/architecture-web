@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { GetAccountDeletionDisclosureUseCase } from "./get-account-deletion-disclosure.use-case.js";
-
 import { DEFAULT_SECURITY_POLICY } from "#domain/security-policy";
+
+import { GetAccountDeletionDisclosureUseCase } from "./get-account-deletion-disclosure.use-case.js";
 
 describe("account deletion disclosure", () => {
   it.each([1, 14, 30, 90])(
