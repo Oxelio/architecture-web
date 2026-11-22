@@ -16,13 +16,13 @@
 
 - **Work Type:** Defect Correction.
 - **Change Characteristics:** Security-sensitive; API/application/Web contract compatibility; concurrent configuration publication.
-- **Workflow Depth:** Standard, subject to reassessment if compatibility requires a wider migration.
+- **Workflow Depth:** Complex (reclassified from Standard for security-sensitive deletion, concurrency and a breaking HTTP contract); no production rollout or data migration is required for this Work.
 - **Functional owner:** [SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md), especially deletion request, cancellation and final deletion; notification delivery remains owned by [SF-NOTIFICATIONS-001](../specifications/SF-NOTIFICATIONS-001.md).
 - **Architecture owners:** [Architecture principles](../project/architecture-principles.md), [dependency rules](../architecture/dependency-rules.md), [IAM security](../architecture/iam-security.md), [packages and public APIs](../architecture/packages.md).
 - **Method:** [Project Method Profile](../project/project-method-profile.md) and the adopted Software Engineering Method submodule.
 - **Human functional decisions:** The requester accepted D1 (complete disclosure), D2 (block when effective duration is unavailable), D3 (fresh confirmation if duration changes), D4 (preserve existing deletion/security behavior), and D5 (dedicated confirmation modal), including dialog-local password and MFA proof inputs.
 - **Functional Approval:** On 2026-11-22, the human maintainer explicitly approved the exact proposed [SF-ACCOUNT-DATA-001 amendment](../specifications/SF-ACCOUNT-DATA-001.md) for Work #174; see the [issue approval record](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138). This establishes an **Approved Target**, not currently implemented behavior.
-- **Technical authority:** The HTTP/API confirmation contract, rollout strategy and this Technical Design remain Proposed. Neither the human functional approval nor the draft PR grants acceptance of a breaking HTTP contract.
+- **Technical authority:** The human maintainer accepted replacing the existing HTTP v1 POST request contract without legacy support or production rollout, recorded in [Work #174](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084906647). The focused [pre-implementation architecture review](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084943575) found the transaction/ports approach suitable for Readiness, subject to real PostgreSQL evidence during validation. These decisions do not imply implementation or merge approval.
 
 This design is a **proposed target**, not a description of implemented behavior. Do not synchronize current-architecture documentation until the implementation becomes effective.
 
@@ -94,7 +94,7 @@ The confirmed number is **not an instruction to schedule deletion** and cannot o
 - Continue to distinguish existing expected outcomes (`account_deletion.disabled`, `administrator.last_active_access`, reauthentication failures and account concurrency conflict) from unexpected infrastructure failures.
 - Preserve existing behavior of `202` on success, session-cookie clearing, invalidation, auditing and notification side effects.
 
-A required `confirmedGracePeriodDays` would **break** clients using the previous POST contract. See section 8: selecting a compatibility route is a Readiness blocker, not a reason to allow an unconfirmed legacy bypass.
+The maintainer **accepted** making `confirmedGracePeriodDays` required on the existing HTTP v1 POST without legacy compatibility. See section 8. An omitted confirmation is rejected rather than silently accepted under an old request shape.
 
 ## 5. Effective-policy consistency at the transaction boundary
 
@@ -198,25 +198,25 @@ Run the affected unit/HTTP/Web suites, TypeScript, lint, format and Markdown lin
 | Dedicated authenticated `accounts` disclosure read        | Preferred: small projection with clear least-privilege ownership                                         |
 | Compare only in the Web / before the POST                 | Rejected: races with configuration publication                                                           |
 | Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests        |
-| Versioned/managed legacy client migration                 | To be decided before Readiness; no unconfirmed legacy deletion bypass                                    |
+| Versioned/managed legacy client migration                 | Rejected for the declared no-production Work scope; breaking HTTP v1 replacement explicitly accepted |
 
 A local API/application consistency change using existing architecture does not currently warrant an ADR. Re-evaluate if the final solution introduces a durable cross-cutting transaction or versioning rule.
 
-## 11. Open decisions and Readiness blockers
+## 11. Resolved decisions and validation risks
 
 1. **Resolved — Functional authority:** the human maintainer explicitly approved the exact SF amendment for Work #174 on 2026-11-22; see the [approval record](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138). This authorizes the functional **Approved Target** only. Current implementation and HTTP contract are unchanged.
 2. **Resolved — HTTP contract authority:** the maintainer explicitly accepted a breaking HTTP v1 replacement with no legacy client path, no production rollout and disposable development data. See section 8 and the Work #174 decision record. Update the first-party Web and API together; do not add compatibility adapters.
-3. **Open — Concurrency design review:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. The proposed additional configuration lock fits this observed order. Final Technical Design review must still check participating operations and transaction visibility; define real-PostgreSQL race/deadlock tests before Readiness and execute them on the implementation candidate during validation.
+3. **Resolved at design level — Concurrency feasibility:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. Acquiring the configuration lock after the administrative lock and before the deletion account row, with a fresh published-policy read in the same READ COMMITTED transaction, is an acceptable design; see the [focused review](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084943575). **Evidence still required:** actual PostgreSQL publication/deletion race, deadlock, disabled-policy, no-side-effects and preservation tests against the implemented candidate.
 
-**Readiness assessment:** Functional Approval and the Work-scoped breaking HTTP v1 contract decision are complete. Remaining preparation consists of verifying the focused architecture/concurrency design and completing a candidate-bound Readiness Review; acceptance of this document does not itself prove implementation or validation.
+**Readiness assessment:** all target-level functional, breaking HTTP v1 and architectural design decisions for this Work are resolved. A separate Readiness Review records whether the Work may enter implementation, and carries the required security, concurrency and accessibility validation risks forward. Design acceptance does not count as completed code, tests or downstream reviews.
 
 ## 12. Task-planning inputs
 
-Task Planning is triggered: IAM application, transactional persistence, HTTP contract/migration and Web accessibility are independently verifiable execution units that require sequencing. The native GitHub Task Sub-issues under [Work #174](https://github.com/Oxelio/architecture-web/issues/174) are the operational owners:
+Task Planning is triggered: IAM application, transactional persistence, breaking HTTP contract and Web accessibility are independently verifiable execution units that require sequencing. The native GitHub Task Sub-issues under [Work #174](https://github.com/Oxelio/architecture-web/issues/174) are the operational owners:
 
 - [Task #177](https://github.com/Oxelio/architecture-web/issues/177) — effective-policy disclosure in the IAM accounts application.
 - [Task #178](https://github.com/Oxelio/architecture-web/issues/178) — confirmed duration, persistence publication fence and real PostgreSQL concurrency evidence.
-- [Task #179](https://github.com/Oxelio/architecture-web/issues/179) — authenticated HTTP GET / confirmed POST with compatibility handling.
+- [Task #179](https://github.com/Oxelio/architecture-web/issues/179) — authenticated HTTP GET / confirmed breaking v1 POST without legacy handling.
 - [Task #180](https://github.com/Oxelio/architecture-web/issues/180) — accessible FR/EN dialog and modal-local password/MFA proof inputs.
 
 The implementation sequence is: finalize the focused transaction/port design; establish IAM application contracts; update persistence and HTTP to the **accepted breaking v1 contract**; integrate the Web dialog; collect boundary/regression evidence and separate reviews at Work level. Parallelize only where contracts are stable. No compatibility migration or production rollout Task is required for the current declared environment.
