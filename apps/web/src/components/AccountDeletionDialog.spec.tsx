@@ -5,12 +5,12 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import i18n from "../i18n.js";
 import {
   getAccountDeletionDisclosure,
   requestAccountDeletion,
 } from "#services/api";
 
+import i18n from "../i18n.js";
 import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
 
 vi.mock("#services/api", () => ({
@@ -85,7 +85,11 @@ async function openDialog(mfaEnabled = false) {
     open.click();
   });
   await act(async () => {
-    await Promise.resolve();
+    await vi.waitFor(() => {
+      expect(["success", "error"]).toContain(
+        queryClient.getQueryState(["account-deletion-disclosure"])?.status,
+      );
+    });
   });
   const dialog = container.querySelector("dialog");
   if (!dialog) {
