@@ -15,8 +15,11 @@ import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
 
 vi.mock("#services/api", () => ({
   ApiRequestError: class ApiRequestError extends Error {
-    constructor(readonly code: string) {
+    readonly code: string;
+
+    constructor(code: string) {
       super(code);
+      this.code = code;
     }
   },
   getAccountDeletionDisclosure: vi.fn(),
