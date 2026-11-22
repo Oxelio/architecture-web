@@ -372,8 +372,8 @@ export { PublishSecurityConfigurationUseCase } from "./access-administration/pub
 export { RestoreSecurityConfigurationUseCase } from "./access-administration/restore-security-configuration/restore-security-configuration.use-case.js";
 export { PublishedIamPolicies } from "./access-administration/security-configuration/published-iam-policies.js";
 export { CancelAccountDeletionUseCase } from "./accounts/cancel-account-deletion/cancel-account-deletion.use-case.js";
-export { GetAccountDeletionDisclosureUseCase } from "./accounts/get-account-deletion-disclosure/get-account-deletion-disclosure.use-case.js";
 export { DownloadAccountExportUseCase } from "./accounts/download-account-export/download-account-export.use-case.js";
+export { GetAccountDeletionDisclosureUseCase } from "./accounts/get-account-deletion-disclosure/get-account-deletion-disclosure.use-case.js";
 export { ListAccountExportsUseCase } from "./accounts/list-account-exports/list-account-exports.use-case.js";
 export { MaintainIamAccountsUseCase } from "./accounts/maintain-iam-accounts/maintain-iam-accounts.use-case.js";
 export {
