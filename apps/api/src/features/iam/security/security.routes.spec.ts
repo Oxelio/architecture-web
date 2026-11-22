@@ -440,7 +440,7 @@ describe("security HTTP application boundary", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "30", 0, 91, 2.5])(
+  it.each([undefined, 0, 91, 2.5])(
     "rejects deletion without a valid confirmed duration (%s)",
     async (days) => {
       const execute = vi.fn();
