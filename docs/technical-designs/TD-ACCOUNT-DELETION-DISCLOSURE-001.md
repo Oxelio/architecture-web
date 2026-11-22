@@ -100,10 +100,10 @@ A simple GET and a one-time policy read in `RequestAccountDeletionUseCase` do no
 
 Proposed consistency mechanism:
 
-1. The Web shows and the user confirms an effective duration. The HTTP adapter passes the confirmed value to the `accounts` command.
+1. The Web shows and the user confirms an effective duration. Its own dialog-local password/MFA proof fields are collected for the existing strengthened verification, and the HTTP adapter passes the confirmed value to the `accounts` command.
 2. The application reads the effective policy, rejects disabled/mismatched values, and executes existing strengthened verification. This early check avoids avoidable work but is **not** the final concurrency guarantee.
 3. The application computes `scheduledFor` from its captured policy, as today, and passes the captured duration to the existing deletion persistence capability for a final consistency check.
-4. In the deletion transaction, acquire advisory locks in the same order used by IAM administration: administrative-access lock `728194002`, then security-configuration lock `728194001`, **before** locking/mutating the account. Read the currently published policy **after** acquiring the configuration lock, within the same transaction.
+4. In the deletion transaction, acquire advisory locks in the same order used by IAM administration: administrative-access lock `728194002`, then security-configuration lock `728194001`, **before** locking/mutating the account. Read the currently published policy **after** acquiring the configuration lock, within the same transaction, using a transaction snapshot that can observe the configuration revision serialized before the lock (the current PostgreSQL default is READ COMMITTED; re-evaluate if transaction isolation changes).
 5. If deletion is disabled or the published grace period differs from the confirmed/captured period, return a closed expected refusal with no deletion request persisted and no deletion-related revocation or notification. Otherwise preserve the existing last-administrator checks, account transition, persistence and outbox transaction.
 6. Commit the request while still holding the configuration lock. Publication also holds that lock, preventing a new duration from becoming effective between the final comparison and commit. Then retain the existing post-persistence session cleanup and verified-address notification flow.
 
@@ -119,8 +119,8 @@ Replace the current native `window.confirm()` within `SecurityCenter` with a ded
 
 - When opened, load the authenticated disclosure using the read-only contract. Show loading, retryable technical failure and disabled states; never display the default as a fallback.
 - Present the duration with correct FR/EN localization and pluralization, and all approved disclosures: immediate access loss, deleted-data categories, retained-data categories and reasons, last-administrator consequences, and the separate warning about previously authorized notification delivery.
-- The confirmation is an explicit user action. It is disabled until effective disclosure is available, required strengthened proof is entered, and no deletion request is pending.
-- The dialog may contain password/MFA inputs rather than silently reusing credentials shared with unrelated SecurityCenter actions; settle the local placement to preserve existing reauthentication and MFA semantics and clear sensitive state on closure when applicable.
+- The confirmation is an explicit user action. It is disabled until effective disclosure is available, required strengthened proof is entered, and no deletion request is pending. Bind the submitted duration to the value explicitly acknowledged in the current dialog view; a stale React Query value or network refetch alone must not create consent.
+- **Accepted UI choice (2026-11-22):** the dialog contains its own password and, when enabled, MFA inputs. Do not silently reuse the credentials held by the other SecurityCenter controls. Preserve the existing strengthened-authentication/MFA contracts and clear dialog-specific sensitive state on closure, policy conflict, or successful submission.
 - Changing locale or refetching disclosure must never submit the POST. If a refetch shows a different duration, invalidate the earlier consent and require explicit reconfirmation.
 - On `409` for a changed grace period, discard the previous consent, refresh the read, and await new confirmation. Do not automatically retry POST.
 - Prevent unintended double submission while a request is pending. Preserve the existing success redirect/session handling. Cancellation of the **dialog** is not cancellation of an already accepted deletion request.
@@ -139,11 +139,28 @@ User-facing categories must faithfully summarize the Functional Specification, i
 
 ## 8. Compatibility and migration — decision required
 
-The API uses independently versioned HTTP `v1`. The existing request currently requires no duration confirmation field. Making that field mandatory for every POST is a behavioral and contract-breaking change for existing callers.
+The API uses independently versioned HTTP `v1`. The existing request requires no duration-confirmation field. Making that field mandatory is a behavioral and contract-breaking change for old clients.
 
-Before Readiness, determine whether there are supported callers other than the in-repository Web client and choose a compatibility strategy through the applicable API ownership/acceptance process. The default proposal is to require explicit duration confirmation for every accepted deletion request, migrate the first-party Web simultaneously, and coordinate an HTTP contract version or controlled client migration as needed.
+### Consumer inventory (repository evidence, 2026-11-22)
 
-**Do not** make the new field optional with a silent legacy acceptance path that would allow deletion without confirmed effective duration; that would violate the approved product behavior. Do not silently bump `v1` or assume there are no external consumers.
+- **First-party browser client:** `apps/web/src/services/api.ts` implements `requestAccountDeletion(password, confirmation, mfaCode?)` as `POST /iam/me/deletion`.
+- **Direct UI caller:** `apps/web/src/components/SecurityCenter.tsx` invokes it from the current `window.confirm` flow.
+- **API owner:** `apps/api/src/features/iam/security/security.routes.ts` validates the POST and delegates to `iam.accounts.requestDeletion`.
+- **Compatibility tests:** `apps/api/src/features/iam/security/security.routes.spec.ts` and `security.http.spec.ts` must be revisited.
+- No separately published deletion client SDK is identified in the repository files reviewed. **This does not prove there are no external HTTP consumers**, deployed older browser bundles, automations or scripts.
+
+### Recommended migration — target pending compatibility acceptance
+
+1. Add the authenticated GET as an additive operation to `v1`.
+2. Make the effective-duration confirmation datum mandatory for accepted POST operations; update the server validation, IAM application contract and first-party Web client in the same implementation candidate.
+3. An omitted/invalid confirmation datum fails closed with an explicit validation outcome. **Do not** accept legacy requests using the 14-day default or infer consent server-side.
+4. Preserve the success envelope, existing paths and successful deletion effects. Document the request-shape break in the PR and release/change notes; mark the integration PR as breaking in Conventional Commit metadata when the HTTP contract change is accepted.
+5. Check deployment ordering: an old Web bundle against the new API will be unable to request deletion. Serve coherent client/backend builds or use an explicit rollout/upgrade coordination plan, without opening a consent bypass.
+6. If a supported external client is identified, refer the contract/version migration to the proper owner before implementation; a separate v2 API route alone does not solve the requirement while unconfirmed v1 deletion remains accepted.
+
+**Compatibility decision remains open** until the API owner/maintainer accepts the mandatory `v1` request-shape change and deployment/migration impact. The technically preferred fail-closed direction is not an approved breaking-change exception.
+
+**Do not** make the new field optional with a silent legacy acceptance path that allows deletion without confirmed effective duration, silently bump `v1`, or assume external clients are absent.
 
 No database migration, new table, deletion-scheduler behavior change, or new public package boundary is expected. An application contract/port change requires coordinated updates to composition, adapters and test doubles.
 
@@ -178,10 +195,9 @@ A local API/application consistency change using existing architecture does not 
 
 ## 11. Open decisions and Readiness blockers
 
-1. **Functional authority:** review the exact proposed amendment to `SF-ACCOUNT-DATA-001` and record any required Human Functional Approval for the revised canonical behavior. D1–D5 were accepted in the Work conversation; a proposed document/PR itself is not an approval.
-2. **HTTP compatibility owner:** inventory supported `POST /iam/me/deletion` clients and accept a concrete breaking-change / versioning / migration route before making the confirmation datum required.
-3. **Concurrency feasibility:** confirm the shared advisory-lock ordering and transaction-visible effective-policy read against the existing persistence architecture, and define the required real-PostgreSQL acceptance scenario before Readiness. Execute that scenario against the implemented candidate during validation; do not misrepresent a pre-implementation test plan as executed evidence.
-4. **UI design detail:** settle whether strengthened-proof inputs reside inside the modal, retaining existing MFA and password proof semantics. This is a local UX design choice, not a new account-deletion policy.
+1. **Functional authority:** the human requester has chosen to inspect the exact SF diff **before approving its final wording**. Preserve its Proposed Target status; record any eventual explicit Human Functional Approval before treating the amended text as approved.
+2. **HTTP compatibility owner:** a first-party consumer inventory is recorded in section 8, but supported external/deployed clients remain unknown. Accept a concrete breaking-change/versioning and deployment route before requiring the confirmation datum in v1.
+3. **Concurrency feasibility:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. The proposed additional configuration lock fits this observed order. Final Technical Design review must still check all participating operations and transaction visibility; define real-PostgreSQL race/deadlock tests before Readiness and execute them on the implementation candidate during validation.
 
 **Readiness assessment at authoring:** NOT READY — the above decisions/evidence are not complete. Do not start implementation solely because this design exists.
 
