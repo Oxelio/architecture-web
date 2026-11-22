@@ -170,7 +170,19 @@ The API uses independently versioned HTTP `v1`. The existing request requires no
 5. Check deployment ordering: an old Web bundle against the new API will be unable to request deletion. Serve coherent client/backend builds or use an explicit rollout/upgrade coordination plan, without opening a consent bypass.
 6. If a supported external client is identified, refer the contract/version migration to the proper owner before implementation; a separate v2 API route alone does not solve the requirement while unconfirmed v1 deletion remains accepted.
 
-**Compatibility decision remains open** until the API owner/maintainer accepts the mandatory `v1` request-shape change and deployment/migration impact. The technically preferred fail-closed direction is not an approved breaking-change exception.
+### Coordinated deployment and rollback plan — proposal
+
+The repository contains separate API and Web Dockerfiles and a local Compose stack where `web` starts after `api`; this is **not** proof of an atomic production deployment or of an exhaustive production-client inventory.
+
+For an accepted breaking v1 request-shape change:
+
+1. Release compatible API and Web artifacts for the same Work candidate. Prefer upgrading the API first, then the Web, so the new Web does not encounter a missing authenticated disclosure GET; validate the precise production deployment mechanism before release.
+2. During the transition, old Web bundles or external clients submitting `POST` without the duration are **rejected without mutation**. This temporary inability to request deletion is an intentional fail-closed result, **not a compatibility success**. A refreshed new Web session can complete the new flow once the deployment is coherent.
+3. A new Web client against an old API must block because the disclosure GET is unavailable; it must never substitute the default or submit the old form. Show retry/reload feedback without automatic deletion.
+4. Deploy and rollback checks must verify the request shape, authenticated GET, response/error mapping, localization and unchanged cancellation behavior. If rollback would reinstate unconfirmed deletion requests, temporarily disable deletion or choose an explicitly authorized safe mitigation instead of silently restoring the defect.
+5. Confirm operational ownership of any public API consumers, CDN/browser asset caching and rollout ordering; the local Compose dependency alone is insufficient. Record accepted breaking behavior in the integration PR, client documentation and release notes where applicable.
+
+**Compatibility decision remains open** until the API owner/maintainer accepts the mandatory `v1` request-shape change, the potential temporary unavailability for older clients, and the coordinated deployment/rollback impact. The technically preferred fail-closed direction is not an approved breaking-change exception.
 
 **Do not** make the new field optional with a silent legacy acceptance path that allows deletion without confirmed effective duration, silently bump `v1`, or assume external clients are absent.
 
@@ -215,4 +227,13 @@ A local API/application consistency change using existing architecture does not 
 
 ## 12. Task-planning inputs
 
-If required during Preparing, sequence independently verifiable implementation work around: (a) IAM read projection and effective-duration confirmation contract, (b) transactional publication/deletion consistency and PostgreSQL tests, (c) HTTP exposure and compatibility, (d) accessible FR/EN Web dialog, and (e) regression and specialist review evidence. Each Task references this design, the approved Functional Specification and canonical project constraints; Tasks do not own alternative behavior.
+Task Planning is triggered: IAM application, transactional persistence, HTTP contract/migration and Web accessibility are independently verifiable execution units that require sequencing. The native GitHub Task Sub-issues under [Work #174](https://github.com/Oxelio/architecture-web/issues/174) are the operational owners:
+
+- [Task #177](https://github.com/Oxelio/architecture-web/issues/177) — effective-policy disclosure in the IAM accounts application.
+- [Task #178](https://github.com/Oxelio/architecture-web/issues/178) — confirmed duration, persistence publication fence and real PostgreSQL concurrency evidence.
+- [Task #179](https://github.com/Oxelio/architecture-web/issues/179) — authenticated HTTP GET / confirmed POST with compatibility handling.
+- [Task #180](https://github.com/Oxelio/architecture-web/issues/180) — accessible FR/EN dialog and modal-local password/MFA proof inputs.
+
+The implementation sequence is: finalize/accept the HTTP compatibility strategy and transactional design; establish the IAM application/port contracts; update persistence and HTTP; integrate the Web dialog; collect boundary/regression evidence and separate reviews at Work level. Parallelize only where contracts are stable.
+
+Each Task references this Technical Design, the approved Functional Specification and canonical project constraints, and does not own alternative product behavior or a separate Work State. No Task may be executed until the parent Work passes Readiness and becomes Ready.
