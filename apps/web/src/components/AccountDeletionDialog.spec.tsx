@@ -5,13 +5,12 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import i18n from "#app/i18n";
 import {
   ApiRequestError,
   getAccountDeletionDisclosure,
   requestAccountDeletion,
 } from "#services/api";
-
-import i18n from "../i18n.js";
 import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
 
 vi.mock("#services/api", () => ({
