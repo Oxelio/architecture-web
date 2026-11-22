@@ -517,6 +517,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
           tokenHash: tokens.hash(randomUUID()),
           now,
           scheduledFor: new Date(now.getTime() + 86400000),
+          confirmedGracePeriodDays: 14,
         });
       }),
     );
@@ -639,6 +640,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         tokenHash: tokens.hash(randomUUID()),
         now,
         scheduledFor: new Date(now.getTime() + 60000),
+          confirmedGracePeriodDays: 14,
       }),
     ).toBe("saved");
     const roots = await Promise.all([
@@ -773,6 +775,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       tokenHash: tokens.hash(randomUUID()),
       now,
       scheduledFor: new Date(now.getTime() - 1000),
+          confirmedGracePeriodDays: 14,
     });
     await db
       .updateTable("iam_account_deletions")
@@ -1511,6 +1514,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         tokenHash: tokens.hash(randomUUID()),
         now,
         scheduledFor: new Date(now.getTime() + 86400000),
+          confirmedGracePeriodDays: 14,
       }),
       module.iam.administration.assignUserRole.execute({
         actorUserId: a.user.identifier.value,
