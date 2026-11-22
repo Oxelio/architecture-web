@@ -107,6 +107,14 @@ Proposed consistency mechanism:
 5. If deletion is disabled or the published grace period differs from the confirmed/captured period, return a closed expected refusal with no deletion request persisted and no deletion-related revocation or notification. Otherwise preserve the existing last-administrator checks, account transition, persistence and outbox transaction.
 6. Commit the request while still holding the configuration lock. Publication also holds that lock, preventing a new duration from becoming effective between the final comparison and commit. Then retain the existing post-persistence session cleanup and verified-address notification flow.
 
+### Feasibility evidence from the existing persistence code
+
+- `KyselySecurityConfigurationAdapter.publish` acquires the administrative-access lock `728194002`, then configuration lock `728194001`, then the configuration row lock before publication.
+- `KyselyAccountDeletionAdapter.request` already acquires `728194002` before locking the account row; it currently does **not** acquire `728194001` or recheck the deletion grace period at persistence time.
+- `administrative-access.ts` documents administrative lock ordering; other inspected IAM unit-of-work and MFA workflows acquire the administrative lock before relevant account locks. The startup-only security configuration initializer uses the configuration lock without an administrative lock.
+- A transaction-bound instance of the existing `KyselySecurityConfigurationAdapter` can supply the persisted published snapshot; the final design must avoid introducing an application-to-adapter dependency. The deletion adapter can perform a narrow transaction-bound policy read behind its existing port.
+- This evidence supports the lock-order proposal but is **not** proof of freedom from deadlocks or of expected concurrent behavior. Audit remaining participating writers during Architecture Review and execute real PostgreSQL publication/deletion interleavings during validation.
+
 This is a **candidate** change to the `AccountDeletionStore.request` port/adapter and its result contract, not permission to import database details into the application layer. The adapter enforces the transaction-specific fence; the application owns the policy/deletion rule and error semantics. Validate locking and error propagation against real PostgreSQL, including the publisher's existing lock order. Do not hold a database transaction through SMTP delivery.
 
 An equal effective grace-period value after an unrelated revision change need not invalidate confirmation: D3 concerns a *changed duration*, not every configuration revision. If a later accepted requirement demands revision-level confirmation instead, revisit this choice before implementation.
@@ -124,7 +132,9 @@ Replace the current native `window.confirm()` within `SecurityCenter` with a ded
 - Changing locale or refetching disclosure must never submit the POST. If a refetch shows a different duration, invalidate the earlier consent and require explicit reconfirmation.
 - On `409` for a changed grace period, discard the previous consent, refresh the read, and await new confirmation. Do not automatically retry POST.
 - Prevent unintended double submission while a request is pending. Preserve the existing success redirect/session handling. Cancellation of the **dialog** is not cancellation of an already accepted deletion request.
-- Provide dialog semantics, focus trapping/restoration, keyboard navigation and Escape behavior, sensible accessible labels, error announcements and responsive scrolling. Prefer an established accessible component/native primitive rather than a custom generic dialog framework.
+- Provide dialog semantics, focus trapping/restoration, keyboard navigation and Escape behavior, sensible accessible labels, error announcements and responsive scrolling.
+- The current Web package does not declare a dedicated accessible dialog library. Prefer the native HTML `<dialog>` element with `showModal()` and a small React wrapper scoped to this feature. Test focus restoration and native close/cancel events explicitly; do not construct a new generic modal framework or add a component library without evidence of a need.
+- On reopening, fetch a fresh effective-policy projection and disable confirmation until the read is resolved. React Query's stale display must not be treated as a confirmed value. Preserve the last visible disclosure if an error is shown only as non-actionable context, never as an authorization to submit.
 
 User-facing categories must faithfully summarize the Functional Specification, including the qualified nature of legal retention; do not promise unconditional deletion of backups, external-context resources, or audit history.
 
@@ -195,7 +205,7 @@ A local API/application consistency change using existing architecture does not 
 
 ## 11. Open decisions and Readiness blockers
 
-1. **Functional authority:** the human requester has chosen to inspect the exact SF diff **before approving its final wording**. Preserve its Proposed Target status; record any eventual explicit Human Functional Approval before treating the amended text as approved.
+1. **Functional authority:** the human requester has chosen to inspect the exact SF diff **before approving its final wording**. Preserve its Proposed Target status; record any eventual explicit Human Functional Approval before treating the amended text as approved. The existing main-branch specification remains the currently effective approved owner until that acceptance and integration.
 2. **HTTP compatibility owner:** a first-party consumer inventory is recorded in section 8, but supported external/deployed clients remain unknown. Accept a concrete breaking-change/versioning and deployment route before requiring the confirmation datum in v1.
 3. **Concurrency feasibility:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. The proposed additional configuration lock fits this observed order. Final Technical Design review must still check all participating operations and transaction visibility; define real-PostgreSQL race/deadlock tests before Readiness and execute them on the implementation candidate during validation.
 
