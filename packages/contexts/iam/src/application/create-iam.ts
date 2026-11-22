@@ -34,6 +34,7 @@ import { DownloadAccountExportUseCase } from "#accounts/download-account-export/
 import type { EmailVerificationRateLimiter } from "#accounts/email-verification/email-verification-rate-limiter.port";
 import type { EmailVerificationTokenHasher } from "#accounts/email-verification/email-verification-token-hasher.port";
 import type { VerificationEmailSender } from "#accounts/email-verification/verification-email-sender.port";
+import { GetAccountDeletionDisclosureUseCase } from "#accounts/get-account-deletion-disclosure/get-account-deletion-disclosure.use-case";
 import { GetCurrentAccountUseCase } from "#accounts/get-current-account/get-current-account.use-case";
 import { ListAccountExportsUseCase } from "#accounts/list-account-exports/list-account-exports.use-case";
 import { MaintainIamAccountsUseCase } from "#accounts/maintain-iam-accounts/maintain-iam-accounts.use-case";
@@ -203,6 +204,9 @@ export function createIam(dependencies: IamDependencies): IamApplication {
       ),
       getCurrentAccount: new GetCurrentAccountUseCase(
         dependencies.userQueryRepository,
+      ),
+      getDeletionDisclosure: new GetAccountDeletionDisclosureUseCase(
+        dependencies.policies,
       ),
       getPasswordPolicy: new GetPasswordPolicyUseCase(dependencies.policies),
       evaluatePassword: new EvaluatePasswordUseCase(
