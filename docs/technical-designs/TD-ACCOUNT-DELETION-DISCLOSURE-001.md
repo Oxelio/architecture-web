@@ -34,15 +34,15 @@ This Work restores the disclosure and explicit acceptance of the duration withou
 
 ## 2. Responsibility ownership
 
-| Boundary | Responsibility |
-| --- | --- |
-| IAM domain | Existing deletion lifecycle and policy vocabulary; no HTTP or Web dependencies |
-| IAM `accounts` application | Read a minimal deletion disclosure projection; verify an explicitly confirmed duration; coordinate existing deletion behavior |
-| IAM application-owned ports | Read the effective published account policy and obtain a transactional consistency fence for deletion |
-| IAM persistence adapter | Keep deletion acceptance and effective-policy comparison consistent with configuration publication; preserve the last-administrator and account checks |
-| HTTP adapter | Authenticate, validate/map request and response schemas, add no-store response headers; map closed error codes to statuses |
-| Web | Show all required disclosures, accept/reject confirmation, localize the UI, handle loading/failure/conflict without an unintended mutation |
-| API composition root | Construct and expose IAM application contracts and concrete adapters |
+| Boundary                    | Responsibility                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| IAM domain                  | Existing deletion lifecycle and policy vocabulary; no HTTP or Web dependencies                                                                         |
+| IAM `accounts` application  | Read a minimal deletion disclosure projection; verify an explicitly confirmed duration; coordinate existing deletion behavior                          |
+| IAM application-owned ports | Read the effective published account policy and obtain a transactional consistency fence for deletion                                                  |
+| IAM persistence adapter     | Keep deletion acceptance and effective-policy comparison consistent with configuration publication; preserve the last-administrator and account checks |
+| HTTP adapter                | Authenticate, validate/map request and response schemas, add no-store response headers; map closed error codes to statuses                             |
+| Web                         | Show all required disclosures, accept/reject confirmation, localize the UI, handle loading/failure/conflict without an unintended mutation             |
+| API composition root        | Construct and expose IAM application contracts and concrete adapters                                                                                   |
 
 Avoid calling the administrative security-configuration application contract from a self-service route. Do not import the IAM domain model or database adapter into Web or API transport.
 
@@ -119,7 +119,7 @@ Proposed consistency mechanism:
 
 This is a **candidate** change to the `AccountDeletionStore.request` port/adapter and its result contract, not permission to import database details into the application layer. The adapter enforces the transaction-specific fence; the application owns the policy/deletion rule and error semantics. Validate locking and error propagation against real PostgreSQL, including the publisher's existing lock order. Do not hold a database transaction through SMTP delivery.
 
-An equal effective grace-period value after an unrelated revision change need not invalidate confirmation: D3 concerns a *changed duration*, not every configuration revision. If a later accepted requirement demands revision-level confirmation instead, revisit this choice before implementation.
+An equal effective grace-period value after an unrelated revision change need not invalidate confirmation: D3 concerns a _changed duration_, not every configuration revision. If a later accepted requirement demands revision-level confirmation instead, revisit this choice before implementation.
 
 A concurrent policy change discovered after reauthentication may already have affected an MFA attempt/code through the existing verification flow. That effect is distinct from the deletion mutation and must be addressed in UX/retry tests without silently changing MFA semantics.
 
@@ -180,28 +180,28 @@ No database migration, new table, deletion-scheduler behavior change, or new pub
 
 Use the [testing and verification policy](../development/testing.md), proportional to the affected boundaries.
 
-| Boundary | Required focused evidence |
-| --- | --- |
-| IAM application | Effective non-default period, disabled policy, equality/mismatch outcomes, no scheduling from client value, unchanged strengthened verification and deletion semantics |
-| IAM persistence / real PostgreSQL | Concurrent publication before, during and after deletion acceptance; lock-order/deadlock check; no persistence/outbox on conflict; last-admin check preserved |
-| HTTP contract | Authenticated-only read, minimal projection, no-store, typed payload, required confirmation handling, mapped 409/403/401 and sanitized 5xx |
-| Web component | All six disclosures, FR/EN and one-day pluralization, 1–90 day boundaries, loading/failure/disabled/changed-policy states, deliberate reconfirmation and double-click prevention |
-| Accessibility | Dialog labels, initial and restored focus, keyboard and Escape, announced errors, responsive/scroll behavior |
-| Regression | MFA, password reauthentication, session revocation, cancellation, notification delivery, audit, last administrator and `scheduledFor` |
+| Boundary                          | Required focused evidence                                                                                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IAM application                   | Effective non-default period, disabled policy, equality/mismatch outcomes, no scheduling from client value, unchanged strengthened verification and deletion semantics           |
+| IAM persistence / real PostgreSQL | Concurrent publication before, during and after deletion acceptance; lock-order/deadlock check; no persistence/outbox on conflict; last-admin check preserved                    |
+| HTTP contract                     | Authenticated-only read, minimal projection, no-store, typed payload, required confirmation handling, mapped 409/403/401 and sanitized 5xx                                       |
+| Web component                     | All six disclosures, FR/EN and one-day pluralization, 1–90 day boundaries, loading/failure/disabled/changed-policy states, deliberate reconfirmation and double-click prevention |
+| Accessibility                     | Dialog labels, initial and restored focus, keyboard and Escape, announced errors, responsive/scroll behavior                                                                     |
+| Regression                        | MFA, password reauthentication, session revocation, cancellation, notification delivery, audit, last administrator and `scheduledFor`                                            |
 
 Run the affected unit/HTTP/Web suites, TypeScript, lint, format and Markdown link checks. Real PostgreSQL concurrency evidence must not be inferred from mocked unit tests or skipped integration suites. A successful CI run alone does not approve Functional, Architecture, Code or security/privacy review findings.
 
 ## 10. Alternatives and rationale
 
-| Alternative | Evaluation |
-| --- | --- |
-| Hard-code 14 days | Rejected: may differ from the effective policy and violates the existing Functional Specification |
-| Extend public `/iam/capabilities` with duration | Technically possible but unnecessarily broad for a self-service, security-sensitive confirmation journey |
-| Read administrator configuration from Web | Rejected: privileged data and authorization boundary |
-| Dedicated authenticated `accounts` disclosure read | Preferred: small projection with clear least-privilege ownership |
-| Compare only in the Web / before the POST | Rejected: races with configuration publication |
-| Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests |
-| Versioned/managed legacy client migration | To be decided before Readiness; no unconfirmed legacy deletion bypass |
+| Alternative                                               | Evaluation                                                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Hard-code 14 days                                         | Rejected: may differ from the effective policy and violates the existing Functional Specification        |
+| Extend public `/iam/capabilities` with duration           | Technically possible but unnecessarily broad for a self-service, security-sensitive confirmation journey |
+| Read administrator configuration from Web                 | Rejected: privileged data and authorization boundary                                                     |
+| Dedicated authenticated `accounts` disclosure read        | Preferred: small projection with clear least-privilege ownership                                         |
+| Compare only in the Web / before the POST                 | Rejected: races with configuration publication                                                           |
+| Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests        |
+| Versioned/managed legacy client migration                 | To be decided before Readiness; no unconfirmed legacy deletion bypass                                    |
 
 A local API/application consistency change using existing architecture does not currently warrant an ADR. Re-evaluate if the final solution introduces a durable cross-cutting transaction or versioning rule.
 
