@@ -405,14 +405,31 @@ export function listSecurityEvents() {
   >("/iam/me/security-events?page=1&pageSize=25", { method: "GET" });
 }
 
+export interface AccountDeletionDisclosure {
+  enabled: boolean;
+  gracePeriodDays: number;
+}
+
+export function getAccountDeletionDisclosure() {
+  return request<AccountDeletionDisclosure>("/iam/me/deletion", {
+    method: "GET",
+    cache: "no-store",
+  });
+}
+
 export function requestAccountDeletion(
   password: string,
-  confirmation: string,
+  confirmedGracePeriodDays: number,
   mfaCode?: string,
 ) {
   return request<{ scheduledFor: string }>("/iam/me/deletion", {
     method: "POST",
-    body: JSON.stringify({ password, confirmation, mfaCode }),
+    body: JSON.stringify({
+      password,
+      confirmation: "DELETE",
+      confirmedGracePeriodDays,
+      mfaCode,
+    }),
   });
 }
 
