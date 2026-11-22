@@ -12,6 +12,7 @@ import { UserEntity } from "@architecture/iam/domain";
 import {
   KyselyAccountDeletionAdapter,
   KyselyIamUnitOfWorkAdapter,
+  KyselySecurityConfigurationAdapter,
   KyselyUserAdapter,
 } from "@architecture/iam-persistence-kysely";
 import {
@@ -101,6 +102,13 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       outbox = new KyselyOutboxRepositoryAdapter(db as never);
       writer = new KyselyOutboxWriterAdapter(db as never);
       notifications = new KyselyNotificationRepositoryAdapter(db as never);
+      // Real deployments initialize a published security policy at composition.
+      // This isolated integration schema needs the same prerequisite before
+      // exercising account deletion through its persistence boundary.
+      await new KyselySecurityConfigurationAdapter(
+        db as never,
+        (transaction) => new KyselyOutboxWriterAdapter(transaction as never),
+      ).initialize();
     }, 30000);
     afterAll(async () => {
       if (db) {
