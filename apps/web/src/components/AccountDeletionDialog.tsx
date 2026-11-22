@@ -104,8 +104,7 @@ export function AccountDeletionDialog({
     password.length > 0 &&
     (!mfaEnabled || mfaCode.trim().length > 0) &&
     acknowledgedDays === current.gracePeriodDays &&
-    !deletion.isPending &&
-    !submissionInFlight.current;
+    !deletion.isPending;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
