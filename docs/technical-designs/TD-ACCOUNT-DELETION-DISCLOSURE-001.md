@@ -172,7 +172,6 @@ The maintainer reports development environments whose data is recreated from scr
 
 If a persistent external deployment or client is introduced in the future, its compatibility obligations are a new explicit scope decision, not a reason to retain unused legacy branches in Work #174.
 
-
 ## 9. Validation strategy
 
 Use the [testing and verification policy](../development/testing.md), proportional to the affected boundaries.
@@ -198,7 +197,7 @@ Run the affected unit/HTTP/Web suites, TypeScript, lint, format and Markdown lin
 | Dedicated authenticated `accounts` disclosure read        | Preferred: small projection with clear least-privilege ownership                                         |
 | Compare only in the Web / before the POST                 | Rejected: races with configuration publication                                                           |
 | Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests        |
-| Versioned/managed legacy client migration                 | Rejected for the declared no-production Work scope; breaking HTTP v1 replacement explicitly accepted |
+| Versioned/managed legacy client migration                 | Rejected for the declared no-production Work scope; breaking HTTP v1 replacement explicitly accepted     |
 
 A local API/application consistency change using existing architecture does not currently warrant an ADR. Re-evaluate if the final solution introduces a durable cross-cutting transaction or versioning rule.
 

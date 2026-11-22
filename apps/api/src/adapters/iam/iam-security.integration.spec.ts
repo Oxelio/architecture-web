@@ -509,7 +509,10 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     async (_scenario, days, enabled, expected) => {
       const administrator = await account(true);
       const target = await account();
-      const configuration = new KyselySecurityConfigurationAdapter(iamDb, outbox);
+      const configuration = new KyselySecurityConfigurationAdapter(
+        iamDb,
+        outbox,
+      );
       const published = await configuration.readPublished();
       const values = structuredClone(published.values);
       values.accounts.deletionGraceDays = days;
@@ -573,13 +576,16 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
 
     const entered = barrier();
     const proceed = barrier();
-    const gatedStore = new KyselyAccountDeletionAdapter(iamDb, (transaction) => ({
-      append: async (events) => {
-        await outbox(transaction).append(events);
-        entered.release();
-        await proceed.wait;
-      },
-    }));
+    const gatedStore = new KyselyAccountDeletionAdapter(
+      iamDb,
+      (transaction) => ({
+        append: async (events) => {
+          await outbox(transaction).append(events);
+          entered.release();
+          await proceed.wait;
+        },
+      }),
+    );
     const now = new Date();
     const scheduledFor = new Date(now.getTime() + 14 * 86_400_000);
     target.user.requestDeletion();
@@ -623,8 +629,9 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
             .executeTakeFirstOrThrow()
         ).scheduled_for,
       ).toEqual(scheduledFor);
-      expect((await configuration.readPublished()).values.accounts.deletionGraceDays)
-        .toBe(30);
+      expect(
+        (await configuration.readPublished()).values.accounts.deletionGraceDays,
+      ).toBe(30);
     } finally {
       proceed.release();
     }
@@ -769,7 +776,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         tokenHash: tokens.hash(randomUUID()),
         now,
         scheduledFor: new Date(now.getTime() + 60000),
-          confirmedGracePeriodDays: 14,
+        confirmedGracePeriodDays: 14,
       }),
     ).toBe("saved");
     const roots = await Promise.all([
@@ -904,7 +911,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       tokenHash: tokens.hash(randomUUID()),
       now,
       scheduledFor: new Date(now.getTime() - 1000),
-          confirmedGracePeriodDays: 14,
+      confirmedGracePeriodDays: 14,
     });
     await db
       .updateTable("iam_account_deletions")
@@ -1643,7 +1650,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         tokenHash: tokens.hash(randomUUID()),
         now,
         scheduledFor: new Date(now.getTime() + 86400000),
-          confirmedGracePeriodDays: 14,
+        confirmedGracePeriodDays: 14,
       }),
       module.iam.administration.assignUserRole.execute({
         actorUserId: a.user.identifier.value,

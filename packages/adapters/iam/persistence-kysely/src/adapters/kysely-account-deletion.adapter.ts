@@ -101,11 +101,7 @@ export class KyselyAccountDeletionAdapter
         return "conflict" as const;
       }
       if (input.requireAnotherAdministrator) {
-        const other = await hasAdministrativeAccess(
-          trx,
-          policy,
-          account.id,
-        );
+        const other = await hasAdministrativeAccess(trx, policy, account.id);
         if (!other) {
           return "last_administrator" as const;
         }

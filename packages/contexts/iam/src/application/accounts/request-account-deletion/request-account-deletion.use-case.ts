@@ -91,7 +91,9 @@ export class RequestAccountDeletionUseCase implements RequestAccountDeletion {
       if (saved === "grace_period_changed") {
         return Result.failure(RequestAccountDeletionErrors.gracePeriodChanged);
       }
-      return Result.failure(RequestAccountDeletionErrors.concurrentModification);
+      return Result.failure(
+        RequestAccountDeletionErrors.concurrentModification,
+      );
     }
     await this.sessions.deleteAllForUser(user.identifier);
     const email = await this.identities.findForUser(user.identifier, "email");

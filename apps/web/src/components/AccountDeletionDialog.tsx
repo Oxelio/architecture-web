@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -152,11 +152,15 @@ export function AccountDeletionDialog({
         >
           {t("securityCenter.deletionTitle")}
         </h2>
-        <p id="account-deletion-description" className="mt-2 text-sm text-slate-300">
+        <p
+          id="account-deletion-description"
+          className="mt-2 text-sm text-slate-300"
+        >
           {t("securityCenter.deletionDescription")}
         </p>
 
-        {disclosure.isFetching || (!disclosure.isSuccess && !disclosure.isError) ? (
+        {disclosure.isFetching ||
+        (!disclosure.isSuccess && !disclosure.isError) ? (
           <p className="mt-5 text-sm" role="status">
             {t("securityCenter.deletionLoading")}
           </p>
@@ -222,7 +226,10 @@ export function AccountDeletionDialog({
             </div>
             {mfaEnabled ? (
               <div>
-                <label htmlFor="deletion-mfa-code" className="mb-1 block text-sm">
+                <label
+                  htmlFor="deletion-mfa-code"
+                  className="mb-1 block text-sm"
+                >
                   {t("securityCenter.mfaCode")}
                 </label>
                 <input

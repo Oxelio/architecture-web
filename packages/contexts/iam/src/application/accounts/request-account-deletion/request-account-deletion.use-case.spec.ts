@@ -7,9 +7,14 @@ import { UserEntity } from "#entities/user.entity";
 
 import { RequestAccountDeletionUseCase } from "./request-account-deletion.use-case.js";
 
-function fixture(acceptedOutcome: "saved" | "grace_period_changed" | "disabled" = "saved", enabled = true) {
+function fixture(
+  acceptedOutcome: "saved" | "grace_period_changed" | "disabled" = "saved",
+  enabled = true,
+) {
   const user = UserEntity.create();
-  const reauthentication = { strong: vi.fn(async () => Result.success(undefined)) };
+  const reauthentication = {
+    strong: vi.fn(async () => Result.success(undefined)),
+  };
   const store = {
     request: vi.fn(
       async (_input: Parameters<AccountDeletionStore["request"]>[0]) =>

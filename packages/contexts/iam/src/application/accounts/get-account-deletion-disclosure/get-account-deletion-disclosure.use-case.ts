@@ -7,9 +7,7 @@ import type {
   GetAccountDeletionDisclosureOutput,
 } from "./get-account-deletion-disclosure.contracts.js";
 
-export class GetAccountDeletionDisclosureUseCase
-  implements GetAccountDeletionDisclosure
-{
+export class GetAccountDeletionDisclosureUseCase implements GetAccountDeletionDisclosure {
   constructor(private readonly policies: AccountPolicyReader) {}
 
   async execute(): Promise<GetAccountDeletionDisclosureOutput> {

@@ -57,7 +57,11 @@ export interface AccountDeletionStore {
     scheduledFor: Date;
     confirmedGracePeriodDays: number;
   }): Promise<
-    "saved" | "last_administrator" | "conflict" | "disabled" | "grace_period_changed"
+    | "saved"
+    | "last_administrator"
+    | "conflict"
+    | "disabled"
+    | "grace_period_changed"
   >;
   find(tokenHash: string): Promise<DeletionRequest | null>;
   cancel(input: {

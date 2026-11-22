@@ -76,7 +76,10 @@ const localizedCopy = {
       "Demander la suppression du compte",
       "Request account deletion",
     ],
-    deletionTitle: ["Confirmer la suppression du compte", "Confirm account deletion"],
+    deletionTitle: [
+      "Confirmer la suppression du compte",
+      "Confirm account deletion",
+    ],
     deletionDescription: [
       "Cette demande désactivera immédiatement votre accès. Examinez les conséquences avant de confirmer.",
       "This request will immediately disable your access. Review the consequences before confirming.",
