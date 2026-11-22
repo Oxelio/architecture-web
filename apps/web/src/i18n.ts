@@ -10,7 +10,7 @@ const getInitialLanguage = (): Language => {
     return "fr";
   }
 
-  const storedLanguage = window.localStorage.getItem("locale");
+  const storedLanguage = window.localStorage?.getItem("locale");
   if (storedLanguage === "fr" || storedLanguage === "en") {
     return storedLanguage;
   }
@@ -1195,7 +1195,7 @@ synchronizeDocumentLocale(i18n.language || getInitialLanguage());
 export const changeLanguage = (language: Language) => {
   void i18n.changeLanguage(language);
   if (typeof window !== "undefined") {
-    window.localStorage.setItem("locale", language);
+    window.localStorage?.setItem("locale", language);
   }
 };
 
