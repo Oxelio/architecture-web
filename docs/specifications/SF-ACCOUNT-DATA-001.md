@@ -6,6 +6,10 @@
 >
 > **Content status:** Canonical
 >
+> **Work #174 amendment:** Proposed Target, pending review of the exact diff and
+> Human Functional Approval. The existing `Approved` lifecycle refers to the
+> current baseline on `main`; this branch does not make the amendment approved.
+>
 > **Document type:** Functional Specification
 >
 > **Domain:** Identity and Access Management
