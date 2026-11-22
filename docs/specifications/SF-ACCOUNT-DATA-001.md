@@ -6,9 +6,12 @@
 >
 > **Content status:** Canonical
 >
-> **Work #174 amendment:** Proposed Target, pending review of the exact diff and
-> Human Functional Approval. The existing `Approved` lifecycle refers to the
-> current baseline on `main`; this branch does not make the amendment approved.
+> **Work #174 amendment:** Approved Target for the defined correction scope.
+> **Human Functional Approval:** 2026-11-22, recorded in
+> [Work #174 approval](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138).
+> The existing `Approved` lifecycle refers to the baseline on `main`.
+> Approval of this amendment does not make its implementation effective, and
+> does not approve a specific HTTP contract or migration strategy.
 >
 > **Document type:** Functional Specification
 >
