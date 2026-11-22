@@ -87,7 +87,10 @@ async function openDialog(mfaEnabled = false) {
   await act(async () => {
     await vi.waitFor(() => {
       expect(["success", "error"]).toContain(
-        queryClient.getQueryState(["account-deletion-disclosure"])?.status,
+        queryClient
+          .getQueryCache()
+          .findAll({ queryKey: ["account-deletion-disclosure"] })
+          .at(-1)?.state.status,
       );
     });
   });
