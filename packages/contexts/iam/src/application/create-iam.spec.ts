@@ -358,13 +358,14 @@ describe("createIam", () => {
     }
   });
 
-  it("exposes all 41 operation contracts through their owning capabilities without performing I/O", () => {
+  it("exposes all 42 operation contracts through their owning capabilities without performing I/O", () => {
     const f = fixture();
     const expected = {
       accounts: [
         "changeEmail",
         "changePassword",
         "getCurrentAccount",
+        "getDeletionDisclosure",
         "getPasswordPolicy",
         "evaluatePassword",
         "resendEmailVerification",
