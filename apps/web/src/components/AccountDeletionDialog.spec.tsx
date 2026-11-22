@@ -11,6 +11,7 @@ import {
   getAccountDeletionDisclosure,
   requestAccountDeletion,
 } from "#services/api";
+
 import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
 
 vi.mock("#services/api", () => ({
