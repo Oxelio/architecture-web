@@ -20,7 +20,9 @@
 - **Functional owner:** [SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md), especially deletion request, cancellation and final deletion; notification delivery remains owned by [SF-NOTIFICATIONS-001](../specifications/SF-NOTIFICATIONS-001.md).
 - **Architecture owners:** [Architecture principles](../project/architecture-principles.md), [dependency rules](../architecture/dependency-rules.md), [IAM security](../architecture/iam-security.md), [packages and public APIs](../architecture/packages.md).
 - **Method:** [Project Method Profile](../project/project-method-profile.md) and the adopted Software Engineering Method submodule.
-- **Human functional decisions:** Work #174's requester explicitly accepted D1 (complete disclosure), D2 (block when effective duration is unavailable), D3 (fresh confirmation if duration changes), D4 (preserve existing deletion/security behavior), and D5 (dedicated confirmation modal). The proposed wording of the amendment to the canonical Functional Specification and the technical contract in this document remain subject to review. An issue or draft PR is not an approval of a new API contract.
+- **Human functional decisions:** The requester accepted D1 (complete disclosure), D2 (block when effective duration is unavailable), D3 (fresh confirmation if duration changes), D4 (preserve existing deletion/security behavior), and D5 (dedicated confirmation modal), including dialog-local password and MFA proof inputs.
+- **Functional Approval:** On 2026-11-22, the human maintainer explicitly approved the exact proposed [SF-ACCOUNT-DATA-001 amendment](../specifications/SF-ACCOUNT-DATA-001.md) for Work #174; see the [issue approval record](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138). This establishes an **Approved Target**, not currently implemented behavior.
+- **Technical authority:** The HTTP/API confirmation contract, rollout strategy and this Technical Design remain Proposed. Neither the human functional approval nor the draft PR grants acceptance of a breaking HTTP contract.
 
 This design is a **proposed target**, not a description of implemented behavior. Do not synchronize current-architecture documentation until the implementation becomes effective.
 
@@ -205,11 +207,11 @@ A local API/application consistency change using existing architecture does not 
 
 ## 11. Open decisions and Readiness blockers
 
-1. **Functional authority:** the human requester has chosen to inspect the exact SF diff **before approving its final wording**. Preserve its Proposed Target status; record any eventual explicit Human Functional Approval before treating the amended text as approved. The existing main-branch specification remains the currently effective approved owner until that acceptance and integration.
-2. **HTTP compatibility owner:** a first-party consumer inventory is recorded in section 8, but supported external/deployed clients remain unknown. Accept a concrete breaking-change/versioning and deployment route before requiring the confirmation datum in v1.
-3. **Concurrency feasibility:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. The proposed additional configuration lock fits this observed order. Final Technical Design review must still check all participating operations and transaction visibility; define real-PostgreSQL race/deadlock tests before Readiness and execute them on the implementation candidate during validation.
+1. **Resolved — Functional authority:** the human maintainer explicitly approved the exact SF amendment for Work #174 on 2026-11-22; see the [approval record](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138). This authorizes the functional **Approved Target** only. Current implementation and HTTP contract are unchanged.
+2. **Open — HTTP compatibility owner:** a first-party consumer inventory is recorded in section 8, but supported external/deployed clients remain unknown. Accept a concrete breaking-change/versioning and deployment route before requiring the confirmation datum in v1.
+3. **Open — Concurrency design review:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. The proposed additional configuration lock fits this observed order. Final Technical Design review must still check participating operations and transaction visibility; define real-PostgreSQL race/deadlock tests before Readiness and execute them on the implementation candidate during validation.
 
-**Readiness assessment at authoring:** NOT READY — the above decisions/evidence are not complete. Do not start implementation solely because this design exists.
+**Readiness assessment after functional approval (2026-11-22): NOT READY.** Human Functional Approval is complete for the SF amendment, but the HTTP compatibility/rollout decision and focused architecture/concurrency design review remain open. Do not start implementation solely because the functional scope is approved or this Technical Design exists.
 
 ## 12. Task-planning inputs
 
