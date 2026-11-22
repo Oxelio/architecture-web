@@ -187,9 +187,15 @@ describe("account deletion confirmation dialog", () => {
     await act(async () => {
       await vi.waitFor(() => {
         expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
-        expect(dialog.textContent).toContain("14 jours");
+        expect(
+          queryClient
+            .getQueryCache()
+            .findAll({ queryKey: ["account-deletion-disclosure"] })
+            .at(-1)?.state.data,
+        ).toEqual({ enabled: true, gracePeriodDays: 14 });
       });
     });
+    expect(dialog.textContent).toContain("14 jours");
     expect(requestAccountDeletion).toHaveBeenCalledExactlyOnceWith(
       "deletion-proof",
       30,
@@ -201,7 +207,7 @@ describe("account deletion confirmation dialog", () => {
 
   it("does not submit the same destructive command twice", async () => {
     vi.mocked(requestAccountDeletion).mockImplementation(
-      () => new Promise(() => undefined),
+      () => new Promise<Awaited<ReturnType<typeof requestAccountDeletion>>>(() => undefined),
     );
     const dialog = await openDialog();
     await completeProof(dialog);
