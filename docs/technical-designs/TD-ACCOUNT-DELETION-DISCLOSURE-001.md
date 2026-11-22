@@ -149,44 +149,29 @@ User-facing categories must faithfully summarize the Functional Specification, i
 - Preserve rate limits, reauthentication proof, MFA, existing last-admin refusal, event/outbox behavior and email flows.
 - Do not treat logging, analytics, or translated strings as permission to record passwords or MFA codes.
 
-## 8. Compatibility and migration — decision required
+## 8. HTTP v1 contract replacement and development environment
 
-The API uses independently versioned HTTP `v1`. The existing request requires no duration-confirmation field. Making that field mandatory is a behavioral and contract-breaking change for old clients.
+### Accepted work-level decision (2026-11-22)
 
-### Consumer inventory (repository evidence, 2026-11-22)
+The human maintainer explicitly accepts **breaking the existing HTTP v1 account-deletion POST contract**, with no legacy compatibility path, API version migration or staged rollout. There is currently **no production environment** to support, and the project's development data is reset/recreated rather than preserved through a migration for this Work. This is an accepted **Work-scoped technical/compatibility decision**, not an implicit change to the repository-wide release, migration or governance policy.
 
-- **First-party browser client:** `apps/web/src/services/api.ts` implements `requestAccountDeletion(password, confirmation, mfaCode?)` as `POST /iam/me/deletion`.
-- **Direct UI caller:** `apps/web/src/components/SecurityCenter.tsx` invokes it from the current `window.confirm` flow.
-- **API owner:** `apps/api/src/features/iam/security/security.routes.ts` validates the POST and delegates to `iam.accounts.requestDeletion`.
-- **Compatibility tests:** `apps/api/src/features/iam/security/security.routes.spec.ts` and `security.http.spec.ts` must be revisited.
-- No separately published deletion client SDK is identified in the repository files reviewed. **This does not prove there are no external HTTP consumers**, deployed older browser bundles, automations or scripts.
+### Existing consumers and contract replacement
 
-### Recommended migration — target pending compatibility acceptance
+The source inventory identifies the first-party Web function `apps/web/src/services/api.ts`, its `SecurityCenter` caller, the HTTP controller `apps/api/src/features/iam/security/security.routes.ts` and related contract tests. No separately published SDK was identified. The maintainer confirms that there is no production compatibility obligation for this Work.
 
-1. Add the authenticated GET as an additive operation to `v1`.
-2. Make the effective-duration confirmation datum mandatory for accepted POST operations; update the server validation, IAM application contract and first-party Web client in the same implementation candidate.
-3. An omitted/invalid confirmation datum fails closed with an explicit validation outcome. **Do not** accept legacy requests using the 14-day default or infer consent server-side.
-4. Preserve the success envelope, existing paths and successful deletion effects. Document the request-shape break in the PR and release/change notes; mark the integration PR as breaking in Conventional Commit metadata when the HTTP contract change is accepted.
-5. Check deployment ordering: an old Web bundle against the new API will be unable to request deletion. Serve coherent client/backend builds or use an explicit rollout/upgrade coordination plan, without opening a consent bypass.
-6. If a supported external client is identified, refer the contract/version migration to the proper owner before implementation; a separate v2 API route alone does not solve the requirement while unconfirmed v1 deletion remains accepted.
+- Add authenticated `GET /v1/iam/me/deletion` returning only the effective deletion availability and grace-period days with `Cache-Control: no-store`.
+- Require `confirmedGracePeriodDays` in `POST /v1/iam/me/deletion`. An omitted, malformed or out-of-range value fails validation and **cannot initiate deletion**; a stale, otherwise valid duration receives the typed `409` application outcome. Validate as an integer within the supported 1–90 policy range.
+- Update the first-party Web client, API schema, application contract, persistence implementation and tests in the same candidate. Remove obsolete confirmation behavior and test expectations rather than preserving adapter facades, deprecated fields or conditional legacy logic.
+- Preserve the existing accepted success response, strengthened authentication, MFA, cancellation and irreversible security effects. No change to deletion and audit persistence schemas is expected.
+- The same `/v1` URL is retained as an intentional breaking correction. Update the PR Conventional Commit metadata to indicate breaking behavior when the implementation lands.
+- No phased compatibility layer, old-client support, API v2 duplication, production rollout or production rollback plan is required **for the currently declared environment**.
 
-### Coordinated deployment and rollback plan — proposal
+### Development/test data resets
 
-The repository contains separate API and Web Dockerfiles and a local Compose stack where `web` starts after `api`; this is **not** proof of an atomic production deployment or of an exhaustive production-client inventory.
+The maintainer reports development environments whose data is recreated from scratch. The expected code change does not require a schema migration or data conversion. Where fixtures must be reinitialized, use only the repository's documented **isolated development/test environments** and controlled reset procedures. Do not execute destructive resets against unspecified databases or assume that every environment is disposable solely because production does not currently exist.
 
-For an accepted breaking v1 request-shape change:
+If a persistent external deployment or client is introduced in the future, its compatibility obligations are a new explicit scope decision, not a reason to retain unused legacy branches in Work #174.
 
-1. Release compatible API and Web artifacts for the same Work candidate. Prefer upgrading the API first, then the Web, so the new Web does not encounter a missing authenticated disclosure GET; validate the precise production deployment mechanism before release.
-2. During the transition, old Web bundles or external clients submitting `POST` without the duration are **rejected without mutation**. This temporary inability to request deletion is an intentional fail-closed result, **not a compatibility success**. A refreshed new Web session can complete the new flow once the deployment is coherent.
-3. A new Web client against an old API must block because the disclosure GET is unavailable; it must never substitute the default or submit the old form. Show retry/reload feedback without automatic deletion.
-4. Deploy and rollback checks must verify the request shape, authenticated GET, response/error mapping, localization and unchanged cancellation behavior. If rollback would reinstate unconfirmed deletion requests, temporarily disable deletion or choose an explicitly authorized safe mitigation instead of silently restoring the defect.
-5. Confirm operational ownership of any public API consumers, CDN/browser asset caching and rollout ordering; the local Compose dependency alone is insufficient. Record accepted breaking behavior in the integration PR, client documentation and release notes where applicable.
-
-**Compatibility decision remains open** until the API owner/maintainer accepts the mandatory `v1` request-shape change, the potential temporary unavailability for older clients, and the coordinated deployment/rollback impact. The technically preferred fail-closed direction is not an approved breaking-change exception.
-
-**Do not** make the new field optional with a silent legacy acceptance path that allows deletion without confirmed effective duration, silently bump `v1`, or assume external clients are absent.
-
-No database migration, new table, deletion-scheduler behavior change, or new public package boundary is expected. An application contract/port change requires coordinated updates to composition, adapters and test doubles.
 
 ## 9. Validation strategy
 
@@ -220,10 +205,10 @@ A local API/application consistency change using existing architecture does not 
 ## 11. Open decisions and Readiness blockers
 
 1. **Resolved — Functional authority:** the human maintainer explicitly approved the exact SF amendment for Work #174 on 2026-11-22; see the [approval record](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138). This authorizes the functional **Approved Target** only. Current implementation and HTTP contract are unchanged.
-2. **Open — HTTP compatibility owner:** a first-party consumer inventory is recorded in section 8, but supported external/deployed clients remain unknown. Accept a concrete breaking-change/versioning and deployment route before requiring the confirmation datum in v1.
+2. **Resolved — HTTP contract authority:** the maintainer explicitly accepted a breaking HTTP v1 replacement with no legacy client path, no production rollout and disposable development data. See section 8 and the Work #174 decision record. Update the first-party Web and API together; do not add compatibility adapters.
 3. **Open — Concurrency design review:** the existing persistence code shows publication locks administrative access (`728194002`) before configuration (`728194001`), while deletion currently obtains administrative access before the account lock. The proposed additional configuration lock fits this observed order. Final Technical Design review must still check participating operations and transaction visibility; define real-PostgreSQL race/deadlock tests before Readiness and execute them on the implementation candidate during validation.
 
-**Readiness assessment after functional approval (2026-11-22): NOT READY.** Human Functional Approval is complete for the SF amendment, but the HTTP compatibility/rollout decision and focused architecture/concurrency design review remain open. Do not start implementation solely because the functional scope is approved or this Technical Design exists.
+**Readiness assessment:** Functional Approval and the Work-scoped breaking HTTP v1 contract decision are complete. Remaining preparation consists of verifying the focused architecture/concurrency design and completing a candidate-bound Readiness Review; acceptance of this document does not itself prove implementation or validation.
 
 ## 12. Task-planning inputs
 
@@ -234,6 +219,6 @@ Task Planning is triggered: IAM application, transactional persistence, HTTP con
 - [Task #179](https://github.com/Oxelio/architecture-web/issues/179) — authenticated HTTP GET / confirmed POST with compatibility handling.
 - [Task #180](https://github.com/Oxelio/architecture-web/issues/180) — accessible FR/EN dialog and modal-local password/MFA proof inputs.
 
-The implementation sequence is: finalize/accept the HTTP compatibility strategy and transactional design; establish the IAM application/port contracts; update persistence and HTTP; integrate the Web dialog; collect boundary/regression evidence and separate reviews at Work level. Parallelize only where contracts are stable.
+The implementation sequence is: finalize the focused transaction/port design; establish IAM application contracts; update persistence and HTTP to the **accepted breaking v1 contract**; integrate the Web dialog; collect boundary/regression evidence and separate reviews at Work level. Parallelize only where contracts are stable. No compatibility migration or production rollout Task is required for the current declared environment.
 
 Each Task references this Technical Design, the approved Functional Specification and canonical project constraints, and does not own alternative product behavior or a separate Work State. No Task may be executed until the parent Work passes Readiness and becomes Ready.
