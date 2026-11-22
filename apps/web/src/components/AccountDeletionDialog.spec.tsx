@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ApiRequestError,
   getAccountDeletionDisclosure,
   requestAccountDeletion,
 } from "#services/api";
@@ -101,6 +102,28 @@ async function openDialog(mfaEnabled = false) {
   return dialog;
 }
 
+async function completeProof(dialog: HTMLDialogElement) {
+  const password = dialog.querySelector<HTMLInputElement>("#deletion-password");
+  const acknowledgement = dialog.querySelector<HTMLInputElement>(
+    'input[type="checkbox"]',
+  );
+  if (!password || !acknowledgement) {
+    throw new Error("Disclosure or password fields unavailable");
+  }
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    if (!setter) {
+      throw new Error("No native input setter");
+    }
+    setter.call(password, "deletion-proof");
+    password.dispatchEvent(new Event("input", { bubbles: true }));
+    acknowledgement.click();
+  });
+}
+
 describe("account deletion confirmation dialog", () => {
   it("displays the actual duration and all approved disclosure categories in French", async () => {
     const dialog = await openDialog(true);
@@ -139,6 +162,63 @@ describe("account deletion confirmation dialog", () => {
     expect(dialog.textContent).toContain("Impossible de connaître le délai");
     expect(dialog.querySelector('button[type="submit"]')).toBeNull();
     expect(dialog.textContent).not.toContain("14 jours");
+  });
+
+  it("requires new consent after a changed-period conflict", async () => {
+    vi.mocked(getAccountDeletionDisclosure)
+      .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 30 })
+      .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 14 });
+    vi.mocked(requestAccountDeletion).mockRejectedValue(
+      new ApiRequestError("account_deletion.grace_period_changed"),
+    );
+    const dialog = await openDialog();
+    await completeProof(dialog);
+    const submit = dialog.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
+    const form = dialog.querySelector("form");
+    if (!submit || !form) {
+      throw new Error("Missing deletion form");
+    }
+    expect(submit.disabled).toBe(false);
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
+        expect(dialog.textContent).toContain("14 jours");
+      });
+    });
+    expect(requestAccountDeletion).toHaveBeenCalledExactlyOnceWith(
+      "deletion-proof",
+      30,
+      undefined,
+    );
+    expect(dialog.textContent).toContain("Le délai de grâce a changé");
+    expect(submit.disabled).toBe(true);
+  });
+
+  it("does not submit the same destructive command twice", async () => {
+    vi.mocked(requestAccountDeletion).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    const dialog = await openDialog();
+    await completeProof(dialog);
+    const form = dialog.querySelector("form");
+    if (!form) {
+      throw new Error("Missing deletion form");
+    }
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    expect(requestAccountDeletion).toHaveBeenCalledOnce();
+    expect(requestAccountDeletion).toHaveBeenCalledWith(
+      "deletion-proof",
+      30,
+      undefined,
+    );
   });
 
   it("shows the English effective duration without a fixed default", async () => {
