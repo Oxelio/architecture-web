@@ -387,7 +387,7 @@ describe("account and configuration transaction guards", () => {
           id: "published-configuration",
           status: "published",
           representation_version: 2,
-          values: JSON.stringify(DEFAULT_SECURITY_POLICY),
+          values: structuredClone(DEFAULT_SECURITY_POLICY),
         },
       });
       const adapter = new KyselyAccountDeletionAdapter(db, () => ({
