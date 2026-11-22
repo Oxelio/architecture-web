@@ -226,14 +226,53 @@ For `Standard` or `Complex` work, create Sub-issues only when implementation
 requires delegation, sequencing, or independently verifiable units. Use the
 [Task template](templates/task.md) as body guidance.
 
-Task Sub-issues SHOULD NOT be added to the Architecture Web Project as independent
-Work items by default. Their native parent relationship and open/closed state own
-Task structure and completion, while the parent Work may expose derived
-Sub-issue progress in Project views.
+### GitHub Project #3 Task visibility — proposed Governance Target (Work #181)
 
-If a future project policy intentionally adds Task Sub-issues as Project items,
-it MUST define dedicated Task field semantics and MUST NOT apply Work State,
-Work Type, Workflow Depth, or Priority as though each Task were a separate Work.
+> This amendment is a **Proposed Target** until explicit human Governance
+> Acceptance for Work #181, merge into the canonical project policy, and verified
+> activation of the backing GitHub Project fields/views. An open PR or an item
+> added to the Project does not establish this proposal as effective.
+
+For visibility, **Task Sub-issues MAY share GitHub Project #3 with their owning
+Works after this mapping is activated**, but MUST NOT be treated as additional
+Method Works. The native `Parent issue` relation identifies Task items, and the
+parent Work's `Sub-issues progress` is a derived display of their completion.
+
+- The existing Project `Status` field exclusively owns the **Work** Method
+  Work State. On Task Sub-issues it MUST remain unset; `Work Type`,
+  `Workflow Depth`, and `Priority` MUST also remain unset on Task items.
+- A separate Project single-select field **`Task Phase`** is the operational
+  owner of the progress phase for an **open Task Sub-issue**. Its values are
+  `Planned`, `In Progress`, `Blocked`, and `In Review`.
+- The native GitHub Issue **open/closed state** remains the sole operational
+  owner of Task completion. Do not create a separate `Done` value in
+  `Task Phase` or infer Task completion from a phase value.
+- `Task Phase` does not create a Task-level Method Work State, an approval gate,
+  a lock/lease, or independent implementation authority. Planned work cannot
+  execute until its owning Work satisfies Readiness and is eligible for
+  implementation under its applicable Task and dependency rules.
+- The Technical Planner establishes Task boundaries and relevant sequencing.
+  The executing human, or a Workflow Coordinator recording observed Task
+  activity, may update the phase; a `Blocked` phase must be explained in the
+  Task Issue context or an applicable native dependency. Only ordinary Task
+  close/reopen operations change its completion state.
+- Dedicated **Works** and **Tasks** Project views SHOULD separate the two
+  populations, using the native parent relationship or an equivalent verified
+  filter. The Works board groups by Method `Status`; the Tasks view shows
+  `Task Phase`, parent Work, assignee, native Issue state and linked PR when
+  available. Existing Ready Queue, review and merge-gate automation MUST
+  continue to select **Works only** and MUST NOT interpret a Task item with
+  empty `Status` as an unclassified Work.
+- On activation, verify that `Task Phase` exists with exactly the intended
+  options, that Project views/filters distinguish Works from Tasks, and that
+  native Task parent/child completion and any existing Project auto-add rules
+  behave as intended. Populate the Project with existing Task Sub-issues only
+  after these checks pass. A missing field or unsupported filter is an
+  activation blocker, not permission to reuse Work `Status`.
+
+This mapping is project-specific Governance; it does **not** change the generic
+Software Engineering Method or the existing Task Issue representation outside
+Project #3.
 
 ### Execution routing and Task execution
 
