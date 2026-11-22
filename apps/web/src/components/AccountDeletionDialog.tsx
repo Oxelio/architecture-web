@@ -22,13 +22,15 @@ export function AccountDeletionDialog({
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const [open, setOpen] = useState(false);
+  const [disclosureRequestKey, setDisclosureRequestKey] = useState(0);
+  const submissionInFlight = useRef(false);
   const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [acknowledgedDays, setAcknowledgedDays] = useState<number | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
 
   const disclosure = useQuery({
-    queryKey: ["account-deletion-disclosure"],
+    queryKey: ["account-deletion-disclosure", disclosureRequestKey],
     queryFn: getAccountDeletionDisclosure,
     enabled: open,
     staleTime: 0,
@@ -48,6 +50,7 @@ export function AccountDeletionDialog({
       ),
     onSuccess: () => window.location.assign("/"),
     onError: (error: unknown) => {
+      submissionInFlight.current = false;
       const code = error instanceof ApiRequestError ? error.code : "";
       if (code === "account_deletion.grace_period_changed") {
         setErrorKey("securityCenter.deletionChanged");
@@ -84,7 +87,7 @@ export function AccountDeletionDialog({
   }
 
   function close() {
-    if (!deletion.isPending) {
+    if (!submissionInFlight.current && !deletion.isPending) {
       setOpen(false);
     }
   }
@@ -101,13 +104,15 @@ export function AccountDeletionDialog({
     password.length > 0 &&
     (!mfaEnabled || mfaCode.trim().length > 0) &&
     acknowledgedDays === current.gracePeriodDays &&
-    !deletion.isPending;
+    !deletion.isPending &&
+    !submissionInFlight.current;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canConfirm || !current) {
+    if (!canConfirm || !current || submissionInFlight.current) {
       return;
     }
+    submissionInFlight.current = true;
     setErrorKey(null);
     deletion.mutate({
       password,
@@ -126,6 +131,7 @@ export function AccountDeletionDialog({
           setMfaCode("");
           setAcknowledgedDays(null);
           setErrorKey(null);
+          setDisclosureRequestKey((key) => key + 1);
           setOpen(true);
         }}
         className="mt-5 rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300"
@@ -138,7 +144,7 @@ export function AccountDeletionDialog({
         aria-describedby="account-deletion-description"
         onClose={resetAndRestoreFocus}
         onCancel={(event) => {
-          if (deletion.isPending) {
+          if (deletion.isPending || submissionInFlight.current) {
             event.preventDefault();
           }
         }}
