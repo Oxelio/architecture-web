@@ -2,8 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
-
 import {
   accountExportDownloadUrl,
   beginMfaEnrollment,
@@ -15,6 +13,8 @@ import {
   listSecurityEvents,
   requestAccountExport,
 } from "#services/api";
+
+import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
 
 const inputClass =
   "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white";
