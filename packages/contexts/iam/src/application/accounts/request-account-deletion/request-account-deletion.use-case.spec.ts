@@ -1,6 +1,7 @@
 import { Result } from "@architecture/foundation";
 import { describe, expect, it, vi } from "vitest";
 
+import type { AccountDeletionStore } from "#accounts/account-data/account-data.ports";
 import { DEFAULT_SECURITY_POLICY } from "#domain/security-policy";
 import { UserEntity } from "#entities/user.entity";
 
@@ -9,7 +10,12 @@ import { RequestAccountDeletionUseCase } from "./request-account-deletion.use-ca
 function fixture(acceptedOutcome: "saved" | "grace_period_changed" | "disabled" = "saved", enabled = true) {
   const user = UserEntity.create();
   const reauthentication = { strong: vi.fn(async () => Result.success(undefined)) };
-  const store = { request: vi.fn(async () => acceptedOutcome) };
+  const store = {
+    request: vi.fn(
+      async (_input: Parameters<AccountDeletionStore["request"]>[0]) =>
+        acceptedOutcome,
+    ),
+  };
   const sessions = { deleteAllForUser: vi.fn(async () => undefined) };
   const mail = { sendDeletionCancellation: vi.fn(async () => undefined) };
   const tokens = {
