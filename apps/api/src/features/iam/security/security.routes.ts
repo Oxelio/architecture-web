@@ -462,9 +462,38 @@ export function buildSecurityRoutes(
               .send(Buffer.from(result.value));
           },
         );
+        protectedApp.get(
+          "/me/deletion",
+          {
+            schema: {
+              response: {
+                200: Type.Object({
+                  data: Type.Object({
+                    enabled: Type.Boolean(),
+                    gracePeriodDays: Type.Integer({ minimum: 1, maximum: 90 }),
+                  }),
+                }),
+              },
+            },
+          },
+          async (request, reply) => {
+            const auth = actor(request, reply);
+            if (!auth) {
+              return reply;
+            }
+            return applicationResponse(
+              reply.header("cache-control", "no-store"),
+              await iam.accounts.getDeletionDisclosure.execute(),
+              {},
+            );
+          },
+        );
         const deletion = Type.Intersect([
           authentication,
-          Type.Object({ confirmation: Type.String() }),
+          Type.Object({
+            confirmation: Type.String(),
+            confirmedGracePeriodDays: Type.Integer({ minimum: 1, maximum: 90 }),
+          }),
         ]);
         protectedApp.post<{ Body: Static<typeof deletion> }>(
           "/me/deletion",
@@ -479,6 +508,7 @@ export function buildSecurityRoutes(
               sessionId: auth.sessionId,
               password: request.body.password,
               confirmation: request.body.confirmation,
+              confirmedGracePeriodDays: request.body.confirmedGracePeriodDays,
               ...(request.body.mfaCode ? { code: request.body.mfaCode } : {}),
             });
             if (result.success) {
