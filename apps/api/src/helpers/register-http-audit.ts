@@ -14,12 +14,12 @@ export function registerHttpAudit(
     if (reply.statusCode < 400 && DOMAIN_AUDITED_HTTP_EVENTS.has(type)) {
       return;
     }
-    const result =
-      reply.statusCode >= 500
-        ? "technical_failure"
-        : reply.statusCode < 400
-          ? "success"
-          : "denied";
+    let result: "technical_failure" | "success" | "denied" = "denied";
+    if (reply.statusCode >= 500) {
+      result = "technical_failure";
+    } else if (reply.statusCode < 400) {
+      result = "success";
+    }
     try {
       await events.record(
         type,
