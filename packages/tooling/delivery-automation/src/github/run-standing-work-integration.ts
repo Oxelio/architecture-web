@@ -150,7 +150,14 @@ export async function runStandingWorkIntegration(
     return { status: "denied" };
   }
 
-  return executeStandingOperations(input, scope, authorize, readLiveDelegation, recordReleased, start);
+  return executeStandingOperations(
+    input,
+    scope,
+    authorize,
+    readLiveDelegation,
+    recordReleased,
+    start,
+  );
 }
 
 async function recoverStandingReservation(
@@ -162,10 +169,7 @@ async function recoverStandingReservation(
   recordReleased: (
     candidate: StandingInput["candidate"],
   ) => ReturnType<typeof recordReleasedNativeSquash>,
-): Promise<
-  | Awaited<ReturnType<typeof runStandingWorkIntegration>>
-  | { readonly start: number }
-> {
+): Promise<StandingRecoveryResult> {
   try {
     let reservation = (await readReservedGitHubWorkIntegration(scope))
       ?.reservation;
@@ -187,18 +191,30 @@ async function recoverStandingReservation(
       }
       reservation = resolution.receipt.reservation;
     }
-    return await resumeStandingReservation(candidate, reservation, recordReleased);
+    return await resumeStandingReservation(
+      candidate,
+      reservation,
+      recordReleased,
+    );
   } catch {
     return { status: "deferred", operation: "queue-check" };
   }
 }
 
-type StandingRecoveryResult = Awaited<ReturnType<typeof runStandingWorkIntegration>> | { readonly start: number };
+type StandingRecoveryResult =
+  | Awaited<ReturnType<typeof runStandingWorkIntegration>>
+  | { readonly start: number };
 
 async function resumeStandingReservation(
   candidate: StandingInput["candidate"],
-  reservation: NonNullable<Awaited<ReturnType<typeof readReservedGitHubWorkIntegration>>>["reservation"] | undefined,
-  recordReleased: (candidate: StandingInput["candidate"]) => ReturnType<typeof recordReleasedNativeSquash>,
+  reservation:
+    | NonNullable<
+        Awaited<ReturnType<typeof readReservedGitHubWorkIntegration>>
+      >["reservation"]
+    | undefined,
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
 ): Promise<StandingRecoveryResult> {
   if (reservation?.state.phase === "released") {
     const previous = reservation.candidate;
@@ -268,7 +284,9 @@ async function executeStandingOperations(
   scope: StandingInput["scope"],
   authorize: StandingInput["authorize"],
   readLiveDelegation: () => Promise<StandingDelegation | null>,
-  recordReleased: (candidate: StandingInput["candidate"]) => ReturnType<typeof recordReleasedNativeSquash>,
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
   start: number,
 ): Promise<Awaited<ReturnType<typeof runStandingWorkIntegration>>> {
   const { candidate } = input;
