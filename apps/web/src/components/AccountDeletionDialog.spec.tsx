@@ -33,6 +33,12 @@ let onPolicyConflict = vi.fn<
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.mocked(requestAccountDeletion).mockReset();
+  vi.mocked(requestAccountDeletion).mockImplementation(
+    () =>
+      new Promise<Awaited<ReturnType<typeof requestAccountDeletion>>>(
+        () => undefined,
+      ),
+  );
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
