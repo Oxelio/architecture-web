@@ -98,7 +98,7 @@ export class AuditAcceptanceEventHandler implements IntegrationEventHandler {
       const value = event.context[key];
       if (value !== undefined) {
         if (typeof value !== "string") {
-          throw new Error("Invalid accepted Audit context");
+          throw new TypeError("Invalid accepted Audit context");
         }
         context[key] = value;
       }

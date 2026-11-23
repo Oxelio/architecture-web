@@ -39,7 +39,8 @@ export async function readStandingDelegation(input: {
       typeof record["gatePublication"] !== "boolean" ||
       typeof record["nativeSquash"] !== "boolean" ||
       typeof expiresAt !== "string" ||
-      !(Date.parse(expiresAt) > now)
+      Number.isNaN(Date.parse(expiresAt)) ||
+      Date.parse(expiresAt) <= now
     ) {
       return null;
     }

@@ -97,8 +97,7 @@ export async function executeWorkIntegrationOperation(
 
     const intent = await ports.append(previous, pending);
     if (
-      !intent ||
-      intent.revision !== previous.revision + 1 ||
+      intent?.revision !== previous.revision + 1 ||
       !isDeepStrictEqual(intent.reservation, pending)
     ) {
       return { status: "deferred" };
@@ -169,8 +168,7 @@ async function confirmResult(
   next: MergeReservation,
 ): Promise<WorkIntegrationOperationResult> {
   const receipt = await ports.append(intent, next);
-  return receipt &&
-    receipt.revision === intent.revision + 1 &&
+  return receipt?.revision === intent.revision + 1 &&
     isDeepStrictEqual(receipt.reservation, next)
     ? { status: "confirmed", receipt }
     : { status: "deferred" };

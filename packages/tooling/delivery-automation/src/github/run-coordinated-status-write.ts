@@ -82,36 +82,8 @@ export async function runCoordinatedStatusWrite(input: {
     }
     const receipt = { ...connection, commentId: input.commentId };
     let current = await journal.readProjectStatusBoundary();
-    const recovery = current.pending;
-    if (recovery) {
-      if (recovery.commentId !== input.commentId || !current.position) {
-        return "deferred";
-      }
-      const previous = await input.readRecoveryAuthorization(
-        recovery.authorityId,
-      );
-      const observed = previous
-        ? await input.readStatus(previous.command)
-        : null;
-      if (
-        !previous ||
-        !observed ||
-        !isDeepStrictEqual(
-          recovery,
-          buildStatusIntent(input.commentId, previous, observed.binding),
-        ) ||
-        (await readProjectStatusReceipt(receipt)) !== true ||
-        !observesDestination(observed, previous.command, observed.binding) ||
-        !(await input.verifyBoundary())
-      ) {
-        return "deferred";
-      }
-      return (await journal.finishProjectStatusWrite(
-        current.position,
-        recovery,
-      ))
-        ? "reconciled"
-        : "deferred";
+    if (current.pending) {
+      return reconcilePendingStatusWrite(input, journal, current, receipt);
     }
 
     if (input.recoveryOnly) {
@@ -221,6 +193,36 @@ export async function runCoordinatedStatusWrite(input: {
   } catch {
     return "deferred";
   }
+}
+
+async function reconcilePendingStatusWrite(
+  input: Parameters<typeof runCoordinatedStatusWrite>[0],
+  journal: Journal,
+  current: Boundary,
+  receipt: Parameters<typeof readProjectStatusReceipt>[0],
+): Promise<"reconciled" | "deferred"> {
+  const recovery = current.pending;
+  if (recovery?.commentId !== input.commentId || !current.position) {
+    return "deferred";
+  }
+  const previous = await input.readRecoveryAuthorization(recovery.authorityId);
+  const observed = previous ? await input.readStatus(previous.command) : null;
+  if (
+    !previous ||
+    !observed ||
+    !isDeepStrictEqual(
+      recovery,
+      buildStatusIntent(input.commentId, previous, observed.binding),
+    ) ||
+    (await readProjectStatusReceipt(receipt)) !== true ||
+    !observesDestination(observed, previous.command, observed.binding) ||
+    !(await input.verifyBoundary())
+  ) {
+    return "deferred";
+  }
+  return (await journal.finishProjectStatusWrite(current.position, recovery))
+    ? "reconciled"
+    : "deferred";
 }
 
 function observesDestination(

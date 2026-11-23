@@ -43,12 +43,12 @@ export class AuditIntegrationEventHandler implements IntegrationEventHandler {
       throw new Error("Unsupported audit event version");
     }
     validateAuditPayload(event);
-    const subjectId =
-      event.topic === "account.deletion.executed"
-        ? undefined
-        : event.topic === "security.config.published"
-          ? event.context["subjectId"]
-          : event.payload["userId"];
+    let subjectId: unknown;
+    if (event.topic === "security.config.published") {
+      subjectId = event.context["subjectId"];
+    } else if (event.topic !== "account.deletion.executed") {
+      subjectId = event.payload["userId"];
+    }
     const actorId = event.context["actorId"] ?? event.payload["actorId"];
     if (
       (typeof event.context["subjectId"] === "string" &&
