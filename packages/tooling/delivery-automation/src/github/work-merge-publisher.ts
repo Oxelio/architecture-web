@@ -866,10 +866,35 @@ async function verifyChecks(
     }
   }
 
+  const checks = await readCandidateCheckInventory(
+    publisher,
+    repoPath,
+    pr.head.sha,
+    pr.merge_commit_sha,
+  );
+  if (!checks) {
+    return "CHECK_INVENTORY_INCOMPLETE";
+  }
+  const pending = verifyExpectedChecks(checks, pr, grant, expected, expectedGateName, mode, { mergeSha: pr.merge_commit_sha, evaluateGate, ...(reservedCheck ? { reservedCheck } : {}) });
+  if (typeof pending === "string") {
+    return pending;
+  }
+  if (mode === "auto" && !pending) {
+    return "DIRECT_MERGE_REQUIRED";
+  }
+  return { bypassActors: noBypassActors ? "none" : "unverified" };
+}
+
+async function readCandidateCheckInventory(
+  publisher: WorkGateReader,
+  repoPath: string,
+  headSha: string,
+  mergeSha: string,
+): Promise<Map<string, readonly CheckRun[]> | null> {
   // Observe checks only on the current head and GitHub's current test merge SHA.
   // If both have the same context, use the test merge SHA as GitHub does.
   const checks = new Map<string, readonly CheckRun[]>();
-  for (const sha of new Set([pr.head.sha, pr.merge_commit_sha])) {
+  for (const sha of new Set([headSha, mergeSha])) {
     const payload = await github<{
       readonly total_count: number;
       readonly check_runs: readonly CheckRun[];
@@ -881,21 +906,14 @@ async function verifyChecks(
       !Array.isArray(payload.check_runs) ||
       payload.total_count !== payload.check_runs.length
     ) {
-      return "CHECK_INVENTORY_INCOMPLETE";
+      return null;
     }
     checks.set(
       sha,
       payload.check_runs.filter((check) => check.head_sha === sha),
     );
   }
-  const pending = verifyExpectedChecks(checks, pr, grant, expected, expectedGateName, mode, { mergeSha: pr.merge_commit_sha, evaluateGate, ...(reservedCheck ? { reservedCheck } : {}) });
-  if (typeof pending === "string") {
-    return pending;
-  }
-  if (mode === "auto" && !pending) {
-    return "DIRECT_MERGE_REQUIRED";
-  }
-  return { bypassActors: noBypassActors ? "none" : "unverified" };
+  return checks;
 }
 
 function verifyExpectedChecks(
@@ -1640,6 +1658,20 @@ async function evaluateAuthorizedWorkMerge(
   if (!isDeepStrictEqual(currentGrant, grant)) {
     return blocked("MERGE_DELEGATION_CHANGED");
   }
+  return finishVerifiedWorkMerge(publisher, candidate, current, grant, { mode, observe, ...(reservedCheck ? { reservedCheck } : {}) }, checks, { repoPath, prPath });
+}
+
+async function finishVerifiedWorkMerge(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  current: PullRequest,
+  grant: WorkMergeGrant,
+  options: { readonly mode: MergeMode; readonly observe: boolean; readonly reservedCheck?: ReservedGateCheck },
+  checks: { readonly bypassActors: "none" | "unverified" },
+  paths: { readonly repoPath: string; readonly prPath: string },
+): Promise<WorkMergeOutcome> {
+  const { mode, observe, reservedCheck } = options;
+  const { repoPath, prPath } = paths;
   if (reservedCheck?.release) {
     return releaseVerifiedGate(publisher, candidate, current, grant, reservedCheck, reservedCheck.release);
   }
