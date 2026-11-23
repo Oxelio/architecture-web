@@ -60,8 +60,7 @@ export async function publishWorkCompletion(
   try {
     const initial = await publisher.read();
     if (
-      !initial ||
-      initial.baseRef !== "main" ||
+      initial?.baseRef !== "main" ||
       !/^[0-9a-f]{40}$/u.test(initial.mergeSha) ||
       (initial.status !== "Validating" && initial.status !== "Done")
     ) {
