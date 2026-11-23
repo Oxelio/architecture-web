@@ -562,7 +562,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       ).toBe("active");
       expect(
         await db.selectFrom("messaging_outbox").select("id").execute(),
-    ).toHaveLength(outboxBefore);
+      ).toHaveLength(outboxBefore);
     },
   );
 
