@@ -48,10 +48,9 @@ export function AdminPage({ currentUserId }: Readonly<AdminPageProps>) {
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{
-    key: string;
-    tone: "success" | "error";
-  } | null>(null);
+  const [notice, setNotice] = useState<AdministrationNoticeState | null>(
+    null,
+  );
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -330,28 +329,10 @@ export function AdminPage({ currentUserId }: Readonly<AdminPageProps>) {
       </AnimatePresence>
 
       {notice ? (
-        <div
-          role={notice.tone === "error" ? "alert" : "status"}
-          className="fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 shadow-2xl"
-        >
-          {notice.tone === "error" ? (
-            <CircleAlert className="h-5 w-5 shrink-0 text-rose-400" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
-          )}
-          <span>
-            {notice.tone === "error"
-              ? errorMessage(t, notice.key)
-              : t(notice.key)}
-          </span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            aria-label={t("admin.close")}
-          >
-            <X className="h-4 w-4 text-slate-400" />
-          </button>
-        </div>
+        <AdministrationNotice
+          notice={notice}
+          onClose={() => setNotice(null)}
+        />
       ) : null}
       <AdminSecurityCenter />
     </motion.section>
@@ -706,5 +687,43 @@ function Stat({
         <span className="text-xs text-slate-400">{label}</span>
       </span>
     </div>
+  );
+}
+
+type AdministrationNoticeState = {
+  key: string;
+  tone: "success" | "error";
+};
+
+function AdministrationNotice({
+  notice,
+  onClose,
+}: Readonly<{
+  notice: AdministrationNoticeState;
+  onClose: () => void;
+}>) {
+  const { t } = useTranslation();
+  const isError = notice.tone === "error";
+  const className =
+    "fixed bottom-5 right-5 z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-100 shadow-2xl";
+  const contents = (
+    <>
+      {isError ? (
+        <CircleAlert className="h-5 w-5 shrink-0 text-rose-400" />
+      ) : (
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+      )}
+      <span>{isError ? errorMessage(t, notice.key) : t(notice.key)}</span>
+      <button type="button" onClick={onClose} aria-label={t("admin.close")}>
+        <X className="h-4 w-4 text-slate-400" />
+      </button>
+    </>
+  );
+  return isError ? (
+    <div role="alert" className={className}>
+      {contents}
+    </div>
+  ) : (
+    <output className={className}>{contents}</output>
   );
 }
