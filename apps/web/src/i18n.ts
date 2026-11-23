@@ -97,10 +97,7 @@ const localizedCopy = {
       "Dès la confirmation",
       "Immediately after confirmation",
     ],
-    deletionAfterTitle: [
-      "À l’expiration du délai",
-      "After the grace period",
-    ],
+    deletionAfterTitle: ["À l’expiration du délai", "After the grace period"],
     deletionOtherTitle: [
       "Conservation et autres conséquences",
       "Retention and other consequences",
