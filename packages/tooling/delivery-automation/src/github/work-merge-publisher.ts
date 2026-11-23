@@ -484,11 +484,7 @@ function selectStandingEvidence(
     }
     const record = parseEvidenceComment(comment.body);
     const kind = required.find((entry) => entry === record?.["kind"]);
-    if (
-      !kind ||
-      !record ||
-      !sameWorkIntegrationCandidate(candidate, record)
-    ) {
+    if (!kind || !record || !sameWorkIntegrationCandidate(candidate, record)) {
       continue;
     }
     const app = comment.performed_via_github_app;

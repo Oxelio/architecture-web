@@ -218,9 +218,16 @@ export async function runStandingWorkIntegration(
 async function recoverStandingReservation(
   candidate: StandingInput["candidate"],
   scope: StandingInput["scope"],
-  authorizeObservation: (candidate: StandingInput["candidate"]) => StandingInput["authorize"],
-  recordReleased: (candidate: StandingInput["candidate"]) => ReturnType<typeof recordReleasedNativeSquash>,
-): Promise<Awaited<ReturnType<typeof runStandingWorkIntegration>> | { readonly start: number }> {
+  authorizeObservation: (
+    candidate: StandingInput["candidate"],
+  ) => StandingInput["authorize"],
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
+): Promise<
+  | Awaited<ReturnType<typeof runStandingWorkIntegration>>
+  | { readonly start: number }
+> {
   try {
     let reservation = (await readReservedGitHubWorkIntegration(scope))
       ?.reservation;

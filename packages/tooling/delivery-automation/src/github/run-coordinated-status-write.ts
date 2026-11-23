@@ -179,7 +179,9 @@ async function dispatchStatusWrite(
   receipt: Parameters<typeof readProjectStatusReceipt>[0],
   authorization: AuthorizedStatusWrite,
   snapshot: ProjectStatusSnapshot,
-  position: NonNullable<Awaited<ReturnType<Journal["beginProjectStatusWrite"]>>>,
+  position: NonNullable<
+    Awaited<ReturnType<Journal["beginProjectStatusWrite"]>>
+  >,
   intent: ReturnType<typeof buildStatusIntent>,
   stillAuthorized: () => Promise<boolean>,
 ): Promise<StatusWriteResult> {
