@@ -882,45 +882,16 @@ async function verifyChecks(
     return "REQUIRED_PROTECTIONS_UNVERIFIED";
   }
   if (reservedCheck) {
-    // The latest-per-suite view does not prove that the held check is
-    // the only candidate for this required context.
-    const shas = [...new Set([pr.head.sha, pr.merge_commit_sha])];
-    const inventories = await Promise.all(
-      shas.map((sha) =>
-        github<{
-          readonly total_count: number;
-          readonly check_runs: readonly CheckRun[];
-        }>(
-          publisher,
-          `${repoPath}/commits/${sha}/check-runs?check_name=${encodeURIComponent(gateName)}&filter=all&per_page=100`,
-        ),
-      ),
+    const failure = await verifyReservedCheckInventory(
+      publisher,
+      repoPath,
+      pr,
+      pr.merge_commit_sha,
+      grant.gateAppId,
+      reservedCheck,
     );
-    const matches: CheckRun[] = [];
-    for (const [index, inventory] of inventories.entries()) {
-      if (
-        !Array.isArray(inventory.check_runs) ||
-        inventory.total_count !== inventory.check_runs.length ||
-        inventory.total_count >= 100 ||
-        inventory.check_runs.some(
-          (check) => check.name !== gateName || check.head_sha !== shas[index],
-        )
-      ) {
-        return "RESERVED_GATE_INVENTORY_UNVERIFIED";
-      }
-      matches.push(...inventory.check_runs);
-    }
-    const [check] = matches;
-    if (
-      matches.length !== 1 ||
-      check?.id !== reservedCheck.checkId ||
-      check.app?.id !== grant.gateAppId ||
-      check.external_id !== reservedCheck.reservationId ||
-      check.head_sha !== pr.head.sha ||
-      check.status !== "queued" ||
-      check.conclusion !== null
-    ) {
-      return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+    if (failure) {
+      return failure;
     }
   }
 
@@ -957,26 +928,7 @@ async function verifyChecks(
     if (!matches?.length || matches.some((check) => check.app?.id !== appId)) {
       return `UNVERIFIED_CHECK:${name}`;
     }
-    let check = matches[0];
-    if (matches.length > 1) {
-      // The PR workflow can cancel a Draft run and start a new suite for the
-      // same head when it becomes ready. GitHub lists both as latest per suite.
-      if (!evaluateGate) {
-        return `UNVERIFIED_CHECK:${name}`;
-      }
-      const attempts = matches.map((run) => ({
-        run,
-        started: Date.parse(run.started_at ?? ""),
-      }));
-      attempts.sort((a, b) => b.started - a.started);
-      if (
-        attempts.some(({ started }) => !Number.isFinite(started)) ||
-        attempts[0]?.started === attempts[1]?.started
-      ) {
-        return `UNVERIFIED_CHECK:${name}`;
-      }
-      check = attempts[0]?.run;
-    }
+    const check = selectLatestCheck(matches, evaluateGate);
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
@@ -1021,6 +973,87 @@ async function verifyChecks(
     return "DIRECT_MERGE_REQUIRED";
   }
   return { bypassActors: noBypassActors ? "none" : "unverified" };
+}
+
+function selectLatestCheck(
+  matches: readonly CheckRun[],
+  evaluateGate: boolean,
+): CheckRun | undefined {
+  let check = matches[0];
+  if (matches.length > 1) {
+    // The PR workflow can cancel a Draft run and start a new suite for the
+    // same head when it becomes ready. GitHub lists both as latest per suite.
+    if (!evaluateGate) {
+      return undefined;
+    }
+    const attempts = matches.map((run) => ({
+      run,
+      started: Date.parse(run.started_at ?? ""),
+    }));
+    attempts.sort((a, b) => b.started - a.started);
+    if (
+      attempts.some(({ started }) => !Number.isFinite(started)) ||
+      attempts[0]?.started === attempts[1]?.started
+    ) {
+      return undefined;
+    }
+    check = attempts[0]?.run;
+  }
+  if (!check) {
+    return undefined;
+  }
+  return check;
+}
+
+async function verifyReservedCheckInventory(
+  publisher: WorkGateReader,
+  repoPath: string,
+  pr: PullRequest,
+  mergeSha: string,
+  gateAppId: number,
+  reservedCheck: ReservedGateCheck,
+): Promise<string | null> {
+  // The latest-per-suite view does not prove that the held check is
+  // the only candidate for this required context.
+  const shas = [...new Set([pr.head.sha, mergeSha])];
+  const inventories = await Promise.all(
+    shas.map((sha) =>
+      github<{
+        readonly total_count: number;
+        readonly check_runs: readonly CheckRun[];
+      }>(
+        publisher,
+        `${repoPath}/commits/${sha}/check-runs?check_name=${encodeURIComponent(gateName)}&filter=all&per_page=100`,
+      ),
+    ),
+  );
+  const matches: CheckRun[] = [];
+  for (const [index, inventory] of inventories.entries()) {
+    if (
+      !Array.isArray(inventory.check_runs) ||
+      inventory.total_count !== inventory.check_runs.length ||
+      inventory.total_count >= 100 ||
+      inventory.check_runs.some(
+        (check) => check.name !== gateName || check.head_sha !== shas[index],
+      )
+    ) {
+      return "RESERVED_GATE_INVENTORY_UNVERIFIED";
+    }
+    matches.push(...inventory.check_runs);
+  }
+  const [check] = matches;
+  if (
+    matches.length !== 1 ||
+    check?.id !== reservedCheck.checkId ||
+    check.app?.id !== gateAppId ||
+    check.external_id !== reservedCheck.reservationId ||
+    check.head_sha !== pr.head.sha ||
+    check.status !== "queued" ||
+    check.conclusion !== null
+  ) {
+    return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+  }
+  return null;
 }
 
 export async function publishWorkMerge(
