@@ -432,6 +432,69 @@ describe("account deletion confirmation dialog", () => {
     expect(dialog.open).toBe(true);
   });
 
+  it("focuses the named dialog heading and announces technical errors", async () => {
+    const dialog = await openDialog();
+    const heading = dialog.querySelector<HTMLHeadingElement>(
+      "#account-deletion-title",
+    );
+    const description = dialog.querySelector("#account-deletion-description");
+    expect(heading).not.toBeNull();
+    expect(description).not.toBeNull();
+    expect(dialog.getAttribute("aria-labelledby")).toBe(heading?.id);
+    expect(dialog.getAttribute("aria-describedby")).toBe(description?.id);
+    expect(document.activeElement).toBe(heading);
+
+    await completeProof(dialog);
+    vi.mocked(requestAccountDeletion).mockRejectedValue(
+      new Error("network unavailable"),
+    );
+    const form = dialog.querySelector("form");
+    if (!form) {
+      throw new Error("Missing deletion form");
+    }
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(dialog.querySelector('[role="alert"]')?.textContent).toContain(
+        "La demande de suppression n’a pas été acceptée",
+      );
+    });
+  });
+
+  it("allows Escape-style native cancellation when no deletion is pending", async () => {
+    const dialog = await openDialog();
+    const trigger = container.querySelector<HTMLButtonElement>("button");
+    const cancelEvent = new Event("cancel", { cancelable: true });
+    await act(async () => {
+      dialog.dispatchEvent(cancelEvent);
+    });
+    expect(cancelEvent.defaultPrevented).toBe(false);
+
+    // The browser closes a native dialog after an uncancelled Escape event.
+    // JSDOM does not implement that default action, so emulate only the close.
+    await act(async () => {
+      dialog.close();
+    });
+    expect(dialog.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+    expect(requestAccountDeletion).not.toHaveBeenCalled();
+  });
+
+  it("switches disclosure language while open without submitting deletion", async () => {
+    const dialog = await openDialog();
+    expect(dialog.textContent).toContain("30 jours");
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    expect(dialog.open).toBe(true);
+    expect(dialog.textContent).toContain("30-day grace period");
+    expect(dialog.textContent).toContain("last active administrator");
+    expect(requestAccountDeletion).not.toHaveBeenCalled();
+  });
+
   it("shows the English effective duration without a fixed default", async () => {
     await i18n.changeLanguage("en");
     vi.mocked(getAccountDeletionDisclosure).mockResolvedValue({
