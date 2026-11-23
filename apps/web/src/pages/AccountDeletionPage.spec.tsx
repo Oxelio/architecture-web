@@ -98,8 +98,10 @@ async function renderPage() {
 }
 
 function continueButton() {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
-    (button) => button.textContent?.includes("Continuer vers la confirmation"),
+  return Array.from(
+    container.querySelectorAll<HTMLButtonElement>("button"),
+  ).find((button) =>
+    button.textContent?.includes("Continuer vers la confirmation"),
   );
 }
 
@@ -163,7 +165,9 @@ describe("account-deletion information page", () => {
       expect(headings).toContain("Dès la confirmation");
       expect(headings).toContain("À l’expiration du délai");
       expect(headings).toContain("Conservation et autres conséquences");
-      expect(container.textContent).toContain("lien envoyé à votre adresse vérifiée");
+      expect(container.textContent).toContain(
+        "lien envoyé à votre adresse vérifiée",
+      );
       expect(container.textContent).toContain("jetons de récupération");
       expect(container.textContent).toContain("secrets et codes MFA");
       expect(container.textContent).toContain("journaux d’audit");
@@ -186,27 +190,31 @@ describe("account-deletion information page", () => {
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("blocks navigation to consent when the effective policy is disabled", async () => {
+  it("blocks confirmation when deletion is disabled", async () => {
     vi.mocked(getAccountDeletionDisclosure).mockResolvedValue({
       enabled: false,
       gracePeriodDays: 30,
     });
     await renderPage();
     await vi.waitFor(() => {
-      expect(container.textContent).toContain("suppression des comptes est actuellement désactivée");
+      expect(container.textContent).toContain(
+        "suppression des comptes est actuellement désactivée",
+      );
     });
     expect(continueButton()).toBeUndefined();
     expect(container.querySelector("dialog")).toBeNull();
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("fails closed without a default duration and allows retry after read failure", async () => {
+  it("fails closed and retries a failed policy read", async () => {
     vi.mocked(getAccountDeletionDisclosure)
       .mockRejectedValueOnce(new Error("unavailable"))
       .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 90 });
     await renderPage();
     await vi.waitFor(() => {
-      expect(container.textContent).toContain("Impossible de connaître le délai");
+      expect(container.textContent).toContain(
+        "Impossible de connaître le délai",
+      );
     });
     expect(container.textContent).not.toContain("14 jours");
     expect(continueButton()).toBeUndefined();
@@ -222,7 +230,7 @@ describe("account-deletion information page", () => {
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("checks the effective policy again before opening a short modal", async () => {
+  it("refreshes policy before opening the compact modal", async () => {
     await renderPage();
     await vi.waitFor(() => {
       expect(container.textContent).toContain("30 jours");
@@ -236,7 +244,7 @@ describe("account-deletion information page", () => {
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("returns to the updated information rather than opening consent when the duration changes", async () => {
+  it("requires another Continue when the policy changes", async () => {
     vi.mocked(getAccountDeletionDisclosure)
       .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 30 })
       .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 90 })
@@ -261,7 +269,7 @@ describe("account-deletion information page", () => {
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("closes the modal and requires review again after server-side 409", async () => {
+  it("returns to disclosure after a server-side 409", async () => {
     vi.mocked(getAccountDeletionDisclosure)
       .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 30 })
       .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 30 })
@@ -296,7 +304,7 @@ describe("account-deletion information page", () => {
     });
   });
 
-  it("restores focus to Continue after cancel, and rechecks the policy on re-entry", async () => {
+  it("restores focus and refreshes policy on reopening", async () => {
     const dialog = await (async () => {
       await renderPage();
       return continueToDialog();
@@ -333,13 +341,15 @@ describe("account-deletion information page", () => {
       continueButton()?.click();
     });
     await vi.waitFor(() => {
-      expect(container.textContent).toContain("Impossible de vérifier l’état MFA");
+      expect(container.textContent).toContain(
+        "Impossible de vérifier l’état MFA",
+      );
     });
     expect(container.querySelector("dialog")).toBeNull();
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("translates all information in English while preserving the actual period", async () => {
+  it("translates all information in English", async () => {
     await renderPage();
     await vi.waitFor(() => {
       expect(container.textContent).toContain("30 jours");
