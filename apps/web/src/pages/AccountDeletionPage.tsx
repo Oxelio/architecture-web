@@ -6,12 +6,11 @@ import { Link } from "react-router-dom";
 import { AccountDeletionDialog } from "#components/AccountDeletionDialog";
 import { getAccountDeletionDisclosure, getMfaStatus } from "#services/api";
 
-type PolicyResult = {
+interface PolicyResult {
   readonly status: string;
   readonly data:
-    | Awaited<ReturnType<typeof getAccountDeletionDisclosure>>
-    | undefined;
-};
+    Awaited<ReturnType<typeof getAccountDeletionDisclosure>> | undefined;
+}
 
 function policyReadNotice(
   result: PolicyResult,
@@ -261,7 +260,7 @@ export function AccountDeletionPage() {
             </button>
           </div>
         </>
-      )}
+      ) : null}
 
       {confirmationDays !== null && mfa.isSuccess ? (
         <AccountDeletionDialog
