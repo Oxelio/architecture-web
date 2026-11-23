@@ -55,23 +55,49 @@ function DeletionConfirmationForm({
   const { t } = useTranslation();
 
   return (
-    <form className="mt-5 space-y-4" onSubmit={onSubmit}>
-      <p className="rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 font-semibold text-amber-100">
-        {t("securityCenter.deletionGracePeriod", {
-          count: gracePeriodDays,
-        })}
-      </p>
-      <ul className="list-disc space-y-2 pl-5 text-sm text-slate-200">
-        <li>{t("securityCenter.deletionAccess")}</li>
-        <li>{t("securityCenter.deletionData")}</li>
-        <li>{t("securityCenter.deletionRetention")}</li>
-        <li>{t("securityCenter.deletionAdministrator")}</li>
-        <li>{t("securityCenter.deletionNotification")}</li>
-      </ul>
-      <label className="flex items-start gap-3 text-sm">
+    <form className="mt-5 space-y-5" onSubmit={onSubmit}>
+      <div className="rounded-xl border border-amber-500/40 bg-amber-950/30 px-4 py-3">
+        <p className="font-semibold leading-6 text-amber-100">
+          {t("securityCenter.deletionGracePeriod", {
+            count: gracePeriodDays,
+          })}
+        </p>
+        <p className="mt-2 text-sm leading-5 text-slate-200">
+          {t("securityCenter.deletionCancellation")}
+        </p>
+      </div>
+      <div className="space-y-4">
+        <section className="border-l-2 border-rose-500/60 pl-3">
+          <h3 className="text-sm font-semibold text-white">
+            {t("securityCenter.deletionImmediateTitle")}
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-slate-300">
+            {t("securityCenter.deletionAccess")}
+          </p>
+        </section>
+        <section className="border-l-2 border-slate-500 pl-3">
+          <h3 className="text-sm font-semibold text-white">
+            {t("securityCenter.deletionAfterTitle")}
+          </h3>
+          <p className="mt-1 text-sm leading-5 text-slate-300">
+            {t("securityCenter.deletionData")}
+          </p>
+        </section>
+        <section className="border-l-2 border-slate-600 pl-3">
+          <h3 className="text-sm font-semibold text-white">
+            {t("securityCenter.deletionOtherTitle")}
+          </h3>
+          <ul className="mt-2 list-disc space-y-2 pl-4 text-sm leading-5 text-slate-300">
+            <li>{t("securityCenter.deletionRetention")}</li>
+            <li>{t("securityCenter.deletionAdministrator")}</li>
+            <li>{t("securityCenter.deletionNotification")}</li>
+          </ul>
+        </section>
+      </div>
+      <label className="flex items-start gap-3 rounded-lg border border-slate-700 bg-slate-950/30 p-3 text-sm leading-5">
         <input
           type="checkbox"
-          className="mt-1 accent-rose-400"
+          className="mt-0.5 size-4 shrink-0 accent-rose-400"
           checked={acknowledgedDays === gracePeriodDays}
           onChange={(event) =>
             setAcknowledgedDays(event.target.checked ? gracePeriodDays : null)
@@ -127,14 +153,14 @@ function DeletionConfirmationForm({
           type="button"
           disabled={pending}
           onClick={onClose}
-          className="rounded-lg border border-slate-600 px-4 py-2 disabled:opacity-50"
+          className="min-h-11 rounded-lg border border-slate-600 px-4 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:opacity-50"
         >
           {t("securityCenter.deletionCancel")}
         </button>
         <button
           type="submit"
           disabled={!canConfirm}
-          className="rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:bg-rose-950 disabled:text-rose-200"
         >
           {pending
             ? t("securityCenter.deletionPending")
