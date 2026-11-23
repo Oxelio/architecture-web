@@ -41,8 +41,7 @@ async function main(): Promise<void> {
     requiredEnvironment("DELIVERY_OBSERVATION_GRANT"),
   ) as WorkMergeGrant | null;
   if (
-    !grant ||
-    grant.actorId !== actorId ||
+    grant?.actorId !== actorId ||
     grant.repositoryId !== repositoryId ||
     grant.workNumber !== candidate.workNumber ||
     grant.pullNumber !== candidate.pullNumber ||
@@ -136,12 +135,12 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error: unknown) {
-  const message =
-    error instanceof SyntaxError
-      ? "Observation grant is invalid JSON"
-      : error instanceof Error
-        ? error.message
-        : "Observation failed";
+  let message = "Observation failed";
+  if (error instanceof SyntaxError) {
+    message = "Observation grant is invalid JSON";
+  } else if (error instanceof Error) {
+    message = error.message;
+  }
   process.stderr.write(`Work integration observation failed: ${message}\n`);
   process.exitCode = 1;
 }
