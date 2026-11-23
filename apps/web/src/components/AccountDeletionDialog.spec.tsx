@@ -25,8 +25,10 @@ vi.mock("#services/api", () => ({
 let container: HTMLDivElement;
 let root: Root;
 let queryClient: QueryClient;
-let onDismiss: ReturnType<typeof vi.fn>;
-let onPolicyConflict: ReturnType<typeof vi.fn>;
+let onDismiss = vi.fn<() => void>();
+let onPolicyConflict = vi.fn<
+  (code: "account_deletion.grace_period_changed" | "account_deletion.disabled") => void
+>();
 
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -37,8 +39,10 @@ beforeEach(async () => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  onDismiss = vi.fn();
-  onPolicyConflict = vi.fn();
+  onDismiss = vi.fn<() => void>();
+  onPolicyConflict = vi.fn<
+    (code: "account_deletion.grace_period_changed" | "account_deletion.disabled") => void
+  >();
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value(this: HTMLDialogElement) {
