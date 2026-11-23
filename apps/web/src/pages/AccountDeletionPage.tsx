@@ -6,6 +6,69 @@ import { Link } from "react-router-dom";
 import { AccountDeletionDialog } from "#components/AccountDeletionDialog";
 import { getAccountDeletionDisclosure, getMfaStatus } from "#services/api";
 
+type PolicyResult = {
+  readonly status: string;
+  readonly data: Awaited<ReturnType<typeof getAccountDeletionDisclosure>> | undefined;
+};
+
+function policyReadNotice(result: PolicyResult, reviewedDays: number): string | null {
+  if (result.status !== "success" || !result.data) {
+    return "securityCenter.deletionUnavailable";
+  }
+  if (!result.data.enabled) {
+    return "securityCenter.deletionDisabled";
+  }
+  if (result.data.gracePeriodDays !== reviewedDays) {
+    return "securityCenter.deletionChanged";
+  }
+  return null;
+}
+
+interface PolicyReadStateProps {
+  readonly loading: boolean;
+  readonly error: boolean;
+  readonly disabled: boolean;
+  readonly onRetry: () => void;
+}
+
+function PolicyReadState({
+  loading,
+  error,
+  disabled,
+  onRetry,
+}: PolicyReadStateProps) {
+  const { t } = useTranslation();
+  if (loading) {
+    return (
+      <output className="block rounded-2xl border border-slate-700 bg-slate-900 p-5 text-slate-200">
+        {t("securityCenter.deletionLoading")}
+      </output>
+    );
+  }
+  if (error) {
+    return (
+      <div role="alert" className="rounded-2xl border border-rose-500/40 bg-slate-900 p-5">
+        <p>{t("securityCenter.deletionUnavailable")}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 min-h-11 rounded-lg border border-slate-500 px-4 py-2"
+        >
+          {t("securityCenter.deletionRetry")}
+        </button>
+      </div>
+    );
+  }
+  if (disabled) {
+    return (
+      <output className="block rounded-2xl border border-slate-700 bg-slate-900 p-5">
+        {t("securityCenter.deletionDisabled")}
+      </output>
+    );
+  }
+  return null;
+}
+
 export function AccountDeletionPage() {
   const { t } = useTranslation();
   const continueButton = useRef<HTMLButtonElement>(null);
@@ -47,16 +110,9 @@ export function AccountDeletionPage() {
     const reviewedDays = disclosure.data.gracePeriodDays;
     try {
       const policy = await disclosure.refetch();
-      if (policy.status !== "success" || !policy.data) {
-        setNoticeKey("securityCenter.deletionUnavailable");
-        return;
-      }
-      if (!policy.data.enabled) {
-        setNoticeKey("securityCenter.deletionDisabled");
-        return;
-      }
-      if (policy.data.gracePeriodDays !== reviewedDays) {
-        setNoticeKey("securityCenter.deletionChanged");
+      const policyNotice = policyReadNotice(policy, reviewedDays);
+      if (policyNotice) {
+        setNoticeKey(policyNotice);
         return;
       }
       const proof = await mfa.refetch();
@@ -64,7 +120,7 @@ export function AccountDeletionPage() {
         setNoticeKey("securityCenter.deletionMfaUnavailable");
         return;
       }
-      setConfirmationDays(policy.data.gracePeriodDays);
+      setConfirmationDays(reviewedDays);
     } catch {
       setNoticeKey("securityCenter.deletionUnavailable");
     } finally {
@@ -107,32 +163,13 @@ export function AccountDeletionPage() {
         </p>
       </div>
 
-      {disclosure.isPending || (disclosure.isFetching && !disclosure.data) ? (
-        <output className="block rounded-2xl border border-slate-700 bg-slate-900 p-5 text-slate-200">
-          {t("securityCenter.deletionLoading")}
-        </output>
-      ) : disclosure.isError ? (
-        <div
-          role="alert"
-          className="rounded-2xl border border-rose-500/40 bg-slate-900 p-5"
-        >
-          <p>{t("securityCenter.deletionUnavailable")}</p>
-          <button
-            type="button"
-            onClick={() => void disclosure.refetch()}
-            className="mt-3 min-h-11 rounded-lg border border-slate-500 px-4 py-2"
-          >
-            {t("securityCenter.deletionRetry")}
-          </button>
-        </div>
-      ) : !available ? (
-        <p
-          role="status"
-          className="rounded-2xl border border-slate-700 bg-slate-900 p-5"
-        >
-          {t("securityCenter.deletionDisabled")}
-        </p>
-      ) : (
+      <PolicyReadState
+        loading={disclosure.isPending || (disclosure.isFetching && !disclosure.data)}
+        error={disclosure.isError}
+        disabled={!available}
+        onRetry={() => void disclosure.refetch()}
+      />
+      {available ? (
         <>
           <section className="rounded-2xl border border-amber-500/40 bg-amber-950/25 p-5">
             <h2 className="font-semibold leading-6 text-amber-100">
