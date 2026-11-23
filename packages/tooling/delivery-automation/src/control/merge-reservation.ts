@@ -100,43 +100,51 @@ export function transitionMergeReservation(
     return null;
   }
 
-  switch (event.kind) {
-    case "check-queued":
-      return state.operation === "queue-check" &&
-        Number.isSafeInteger(event.checkId) &&
-        event.checkId > 0
-        ? { candidate, state: { phase: "queued", checkId: event.checkId } }
-        : null;
-    case "squash-armed":
-      return state.operation === "arm-squash" && state.checkId === event.checkId
-        ? { candidate, state: { phase: "armed", checkId: event.checkId } }
-        : null;
-    case "admit-release":
-      return state.operation === "release-check" &&
-        state.releaseAdmission === undefined &&
-        writeDigest.test(event.digest)
-        ? { candidate, state: { ...state, releaseAdmission: event.digest } }
-        : null;
-    case "check-released":
-      return state.operation === "release-check" &&
-        state.releaseAdmission !== undefined &&
-        state.checkId === event.checkId
-        ? { candidate, state: { phase: "released", checkId: event.checkId } }
-        : null;
-    case "squash-cancelled":
-      // This event is an authoritative terminal proof, not an HTTP ACK or
-      // a transient absence of autoMergeRequest.
-      return state.operation === "resolve"
-        ? { candidate, state: { phase: "cancelled" } }
-        : null;
-    case "squash-merged":
-      return ((state.operation === "release-check" &&
-        state.releaseAdmission !== undefined) ||
-        state.operation === "resolve") &&
-        oid.test(event.sha)
-        ? { candidate, state: { phase: "merged", sha: event.sha } }
-        : null;
-  }
+  return completePendingReservation(state, candidate, event);
+}
+
+function completePendingReservation(
+  state: Extract<MergeReservationState, { readonly phase: "pending" }>,
+  candidate: MergeCandidate,
+  event: MergeReservationEvent,
+): MergeReservation | null {
+    switch (event.kind) {
+      case "check-queued":
+        return state.operation === "queue-check" &&
+          Number.isSafeInteger(event.checkId) &&
+          event.checkId > 0
+          ? { candidate, state: { phase: "queued", checkId: event.checkId } }
+          : null;
+      case "squash-armed":
+        return state.operation === "arm-squash" && state.checkId === event.checkId
+          ? { candidate, state: { phase: "armed", checkId: event.checkId } }
+          : null;
+      case "admit-release":
+        return state.operation === "release-check" &&
+          state.releaseAdmission === undefined &&
+          writeDigest.test(event.digest)
+          ? { candidate, state: { ...state, releaseAdmission: event.digest } }
+          : null;
+      case "check-released":
+        return state.operation === "release-check" &&
+          state.releaseAdmission !== undefined &&
+          state.checkId === event.checkId
+          ? { candidate, state: { phase: "released", checkId: event.checkId } }
+          : null;
+      case "squash-cancelled":
+        // This event is an authoritative terminal proof, not an HTTP ACK or
+        // a transient absence of autoMergeRequest.
+        return state.operation === "resolve"
+          ? { candidate, state: { phase: "cancelled" } }
+          : null;
+      case "squash-merged":
+        return ((state.operation === "release-check" &&
+          state.releaseAdmission !== undefined) ||
+          state.operation === "resolve") &&
+          oid.test(event.sha)
+          ? { candidate, state: { phase: "merged", sha: event.sha } }
+          : null;
+    }
 }
 
 export function invalidatingWriteDisposition(
