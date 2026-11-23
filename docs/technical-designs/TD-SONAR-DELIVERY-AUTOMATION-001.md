@@ -2,9 +2,9 @@
 
 > **Identifier:** TD-SONAR-DELIVERY-AUTOMATION-001
 >
-> **Artifact status:** Prepared for implementation review
+> **Artifact status:** Prepared for implementation
 >
-> **Content status:** Proposed Target (Work #187, Task #189; not effective Current Truth)
+> **Content status:** Approved Target for Work #187 / Task #189 (not effective Current Truth)
 >
 > **Document type:** Technical Design
 >
@@ -15,7 +15,7 @@
 - **Work:** [#187](https://github.com/Oxelio/architecture-web/issues/187) — resolve outstanding Sonar findings.
 - **Task:** [#189](https://github.com/Oxelio/architecture-web/issues/189) — reduce cognitive complexity in protected delivery controls.
 - **Classification:** Technical Change / Standard (Work-level classification); behavior-preserving; operationally sensitive.
-- **Technical authority:** Software Architect selects local implementation responsibilities within the accepted project architecture. This document does **not** approve a material Governance Change, a new merge policy or a durable structural ADR decision.
+- **Technical authority:** Scope-bound technical design accepted by the Software Architect for readiness assessment. No separate human technical gate is required by the Project Method Profile for this behavior-preserving local design. This acceptance does **not** approve a material Governance Change, a new merge policy or a durable structural ADR decision.
 - **Current operational/governance owners:** [Delivery profile](../project/delivery-pipeline.md), [Project Method Profile](../project/project-method-profile.md), and [CI-driven Work integration](../architecture/ci-driven-work-integration.md). The latter identifies current native behavior separately from accepted but inactive delegated/standing targets.
 - **Validation owner:** [Tests and verification](../development/testing.md).
 - **Working Task Plan:** [#189 preparation record](https://github.com/Oxelio/architecture-web/issues/189#issuecomment-7106046839). The plan records exact affected Sonar issue keys, but this Technical Design owns the proposed technical target and its boundaries.
@@ -110,4 +110,4 @@ If implementation would change protected remote-write order, authorization owner
 
 ## 6. Readiness and current-truth synchronization
 
-This Technical Design records a **proposed scoped target**, not effective runtime behavior. The Task #189 Readiness Review assesses whether its technical choices are sufficient; neither this file on a PR branch nor a readiness comment makes the target current. Current integration documentation must be synchronized **only if implementation actually changes effective architecture**. Pure local extraction should not require rewriting the existing CI-driven integration owner.
+This Technical Design records an **accepted scope-bound technical target**, not effective runtime behavior. The Task #189 Readiness Review assesses whether its technical choices are sufficient; neither this file on a PR branch nor a readiness comment makes the target current. Current integration documentation must be synchronized **only if implementation actually changes effective architecture**. Pure local extraction should not require rewriting the existing CI-driven integration owner.
