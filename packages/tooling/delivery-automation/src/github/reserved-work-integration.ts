@@ -202,8 +202,7 @@ export async function executeReservedGitHubWorkIntegration(input: {
         perform: async (intent, admitRelease) => {
           const current = await journal.read();
           if (
-            !current ||
-            current.revision !== intent.revision ||
+            current?.revision !== intent.revision ||
             !isDeepStrictEqual(current.reservation, intent.reservation) ||
             !(await authorize({ candidate, operation }))
           ) {
@@ -395,8 +394,7 @@ export async function reconcileReservedGitHubWorkIntegration(input: {
       observe: async (intent) => {
         const current = await journal.read();
         if (
-          !current ||
-          current.revision !== intent.revision ||
+          current?.revision !== intent.revision ||
           !isDeepStrictEqual(current.reservation, intent.reservation)
         ) {
           return null;
