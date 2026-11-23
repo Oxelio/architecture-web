@@ -20,7 +20,7 @@
 - **Functional owner:** [SF-ACCOUNT-DATA-001](../specifications/SF-ACCOUNT-DATA-001.md), especially deletion request, cancellation and final deletion; notification delivery remains owned by [SF-NOTIFICATIONS-001](../specifications/SF-NOTIFICATIONS-001.md).
 - **Architecture owners:** [Architecture principles](../project/architecture-principles.md), [dependency rules](../architecture/dependency-rules.md), [IAM security](../architecture/iam-security.md), [packages and public APIs](../architecture/packages.md).
 - **Method:** [Project Method Profile](../project/project-method-profile.md) and the adopted Software Engineering Method submodule.
-- **Human functional decisions:** The requester accepted D1 (complete disclosure), D2 (block when effective duration is unavailable), D3 (fresh confirmation if duration changes), D4 (preserve existing deletion/security behavior), and D5 (dedicated confirmation modal), including dialog-local password and MFA proof inputs.
+- **Human functional decisions:** The requester accepted D1 (complete disclosure), D2 (block when effective duration is unavailable), D3 (fresh confirmation if duration changes), D4 (preserve existing deletion/security behavior), and D5 (dedicated confirmation modal), including dialog-local password and MFA proof inputs. On 2026-11-23, the maintainer selected **Solution C** for the Web presentation: a dedicated information page followed by a compact confirmation modal. This refines where approved disclosures appear, without changing the existing IAM deletion behavior. See [Work #174 UX decision](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7101972011).
 - **Functional Approval:** On 2026-11-22, the human maintainer explicitly approved the exact proposed [SF-ACCOUNT-DATA-001 amendment](../specifications/SF-ACCOUNT-DATA-001.md) for Work #174; see the [issue approval record](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084672138). This establishes an **Approved Target**, not currently implemented behavior.
 - **Technical authority:** The human maintainer accepted replacing the existing HTTP v1 POST request contract without legacy support or production rollout, recorded in [Work #174](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084906647). The focused [pre-implementation architecture review](https://github.com/Oxelio/architecture-web/issues/174#issuecomment-7084943575) found the transaction/ports approach suitable for Readiness, subject to real PostgreSQL evidence during validation. These decisions do not imply implementation or merge approval.
 
@@ -123,22 +123,31 @@ An equal effective grace-period value after an unrelated revision change need no
 
 A concurrent policy change discovered after reauthentication may already have affected an MFA attempt/code through the existing verification flow. That effect is distinct from the deletion mutation and must be addressed in UX/retry tests without silently changing MFA semantics.
 
-## 6. Web confirmation dialog and state management
+## 6. Web information page and compact confirmation dialog
 
-Replace the current native `window.confirm()` within `SecurityCenter` with a dedicated accessible dialog:
+The maintained Web target (Solution C, selected on 2026-11-23) separates **reading the full consequences** from **submitting a confirmed destructive request**:
 
-- When opened, load the authenticated disclosure using the read-only contract. Show loading, retryable technical failure and disabled states; never display the default as a fallback.
-- Present the duration with correct FR/EN localization and pluralization, and all approved disclosures: immediate access loss, deleted-data categories, retained-data categories and reasons, last-administrator consequences, and the separate warning about previously authorized notification delivery.
-- The confirmation is an explicit user action. It is disabled until effective disclosure is available, required strengthened proof is entered, and no deletion request is pending. Bind the submitted duration to the value explicitly acknowledged in the current dialog view; a stale React Query value or network refetch alone must not create consent.
-- **Accepted UI choice (2026-11-22):** the dialog contains its own password and, when enabled, MFA inputs. Do not silently reuse the credentials held by the other SecurityCenter controls. Preserve the existing strengthened-authentication/MFA contracts and clear dialog-specific sensitive state on closure, policy conflict, or successful submission.
-- Changing locale or refetching disclosure must never submit the POST. If a refetch shows a different duration, invalidate the earlier consent and require explicit reconfirmation.
-- On `409` for a changed grace period, discard the previous consent, refresh the read, and await new confirmation. Do not automatically retry POST.
-- Prevent unintended double submission while a request is pending. Preserve the existing success redirect/session handling. Cancellation of the **dialog** is not cancellation of an already accepted deletion request.
-- Provide dialog semantics, focus trapping/restoration, keyboard navigation and Escape behavior, sensible accessible labels, error announcements and responsive scrolling.
-- The current Web package does not declare a dedicated accessible dialog library. Prefer the native HTML `<dialog>` element with `showModal()` and a small React wrapper scoped to this feature. Test focus restoration and native close/cancel events explicitly; do not construct a new generic modal framework or add a component library without evidence of a need.
-- On reopening, fetch a fresh effective-policy projection and disable confirmation until the read is resolved. React Query's stale display must not be treated as a confirmed value. Preserve the last visible disclosure if an error is shown only as non-actionable context, never as an authorization to submit.
+1. From account/security settings, navigate to a dedicated authenticated account-deletion **information page**. It presents the effective configured grace period and all disclosures owned by the approved [Functional Specification](../specifications/SF-ACCOUNT-DATA-001.md): immediate access loss; intended data erasure; qualified legal/audit retention, backups and external resources; consequences for administrators, including the last-active-administrator constraint; and the warning about previously authorized notifications. It also explains the existing verified-address cancellation link with strengthened verification during the grace period. Present these categories in the current FR/EN language with correct duration pluralization, using ordinary page layout and scrolling instead of a full-height modal.
+2. A deliberate **Continue** action opens a short native confirmation dialog with the actual duration, an immediate-access-loss reminder, a checkbox acknowledging the effective duration and the previously reviewed consequences, dialog-local current-password proof and conditional MFA code, and Cancel / Request deletion actions. Detailed mandatory consequences must already have been visible and available on the information page before this modal can open; do not hide required details in optional accordions or behind a new action after consent.
+3. Keep the entire pre-submission journey on the first-party Web client. Reuse the existing authenticated, read-only IAM disclosure projection and existing destructive POST contract; no new backend operation, data model, privileged policy query or cross-context abstraction is justified.
 
-User-facing categories must faithfully summarize the Functional Specification, including the qualified nature of legal retention; do not promise unconditional deletion of backups, external-context resources, or audit history.
+### Policy freshness and consent state
+
+- On entry to the information page, load the effective disclosure. Show explicit loading, retryable technical failure and disabled-policy states, **without displaying 14 days as a fallback**. Block Continue and destructive submission if the policy cannot be read or deletion is disabled.
+- The confirmation dialog uses a **current** server-read duration, not an unexamined cached value. Refresh or verify the current disclosure when entering the confirmation step; a changed value invalidates previous consent and requires renewed review of the actual duration. Do not automatically carry an acknowledgment across a duration update, failed read, or route re-entry.
+- Bind the submitted `confirmedGracePeriodDays` to the duration explicitly acknowledged in the current confirmation step. Only the server determines `scheduledFor`. Preserve the transaction-level publication/deletion consistency check.
+- On the typed `409` for a changed grace period, abandon the previous consent and proof, show the new duration and require the user to review/acknowledge again before submitting. Never retry the POST automatically. Changing the language or refetching policy must not submit a request.
+- On entry to each fresh confirmation step, collect **modal-local** password and (if enabled) MFA proof rather than reusing credentials from unrelated SecurityCenter forms. Clear secrets on close, policy conflict and successful request. Preserve existing last-administrator refusal, sanitized errors, no-duplicate-submit guard, and the current success redirect/session behavior.
+- Cancellation of the **confirmation dialog** only dismisses the pending UI. The established account-deletion cancellation link is a distinct operation available after a deletion request has been accepted.
+
+### Accessibility and responsiveness
+
+- Keep the information page navigable in the regular page flow, with semantic headings and natural scrolling; do not nest a long scrollable legal document in the modal.
+- Prefer the existing native HTML `<dialog>` for the compact confirmation. Provide initial and restored focus, keyboard containment, Escape handling during idle/pending states, accessible labels and live error announcements. Avoid a new generic dialog framework or UI library without an established need.
+- At **320 CSS pixels** and **200% browser zoom**, ensure all approved information on the page remains readable/reachable, and that modal controls and destructive actions remain reachable without scrolling through the full consequence disclosure. A compact modal may still need ordinary small-screen overflow; never clip required controls or remove the ability to cancel.
+- A navigation failure, language switch, newly disabled policy, or refetch must not bypass the preceding information stage or silently enable the POST.
+
+This target replaces the previous single, full-disclosure scrollable modal **only in the approved Work scope**; code on `main` remains current truth until PR #176 is merged. It preserves the already-approved D5 requirement for a dedicated confirmation dialog while moving long-form disclosures to the information page.
 
 ## 7. Security, privacy and failures
 
@@ -181,8 +190,8 @@ Use the [testing and verification policy](../development/testing.md), proportion
 | IAM application                   | Effective non-default period, disabled policy, equality/mismatch outcomes, no scheduling from client value, unchanged strengthened verification and deletion semantics           |
 | IAM persistence / real PostgreSQL | Concurrent publication before, during and after deletion acceptance; lock-order/deadlock check; no persistence/outbox on conflict; last-admin check preserved                    |
 | HTTP contract                     | Authenticated-only read, minimal projection, no-store, typed payload, required confirmation handling, mapped 409/403/401 and sanitized 5xx                                       |
-| Web component                     | All six disclosures, FR/EN and one-day pluralization, 1–90 day boundaries, loading/failure/disabled/changed-policy states, deliberate reconfirmation and double-click prevention |
-| Accessibility                     | Dialog labels, initial and restored focus, keyboard and Escape, announced errors, responsive/scroll behavior                                                                     |
+| Web page and compact dialog       | All six disclosures on the information page; FR/EN and 1–90-day boundaries; no skipped page or fallback; loading/failure/disabled/changed-policy states; modal-local consent/proof; double-click prevention |
+| Accessibility                     | Natural page reading/scroll, dialog labels and focus restoration, keyboard/Escape, screen-reader error announcements, 320 CSS px / 200% zoom, reachable confirmation controls |
 | Regression                        | MFA, password reauthentication, session revocation, cancellation, notification delivery, audit, last administrator and `scheduledFor`                                            |
 
 Run the affected unit/HTTP/Web suites, TypeScript, lint, format and Markdown link checks. Real PostgreSQL concurrency evidence must not be inferred from mocked unit tests or skipped integration suites. A successful CI run alone does not approve Functional, Architecture, Code or security/privacy review findings.
@@ -198,6 +207,9 @@ Run the affected unit/HTTP/Web suites, TypeScript, lint, format and Markdown lin
 | Compare only in the Web / before the POST                 | Rejected: races with configuration publication                                                           |
 | Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests        |
 | Versioned/managed legacy client migration                 | Rejected for the declared no-production Work scope; breaking HTTP v1 replacement explicitly accepted     |
+| Single full-disclosure scrollable modal                    | Superseded after browser UX evidence: content and confirmation actions compete for limited viewport height |
+| Information page + compact confirmation dialog             | Selected by the maintainer (2026-11-23): readable disclosure in normal page flow, short explicit destructive confirmation |
+| Two-step wizard inside the same long modal                 | Not selected: adds focus/step complexity without resolving the constrained reading surface                  |
 
 A local API/application consistency change using existing architecture does not currently warrant an ADR. Re-evaluate if the final solution introduces a durable cross-cutting transaction or versioning rule.
 
@@ -216,8 +228,9 @@ Task Planning is triggered: IAM application, transactional persistence, breaking
 - [Task #177](https://github.com/Oxelio/architecture-web/issues/177) — effective-policy disclosure in the IAM accounts application.
 - [Task #178](https://github.com/Oxelio/architecture-web/issues/178) — confirmed duration, persistence publication fence and real PostgreSQL concurrency evidence.
 - [Task #179](https://github.com/Oxelio/architecture-web/issues/179) — authenticated HTTP GET / confirmed breaking v1 POST without legacy handling.
-- [Task #180](https://github.com/Oxelio/architecture-web/issues/180) — accessible FR/EN dialog and modal-local password/MFA proof inputs.
+- [Task #180](https://github.com/Oxelio/architecture-web/issues/180) — accessible FR/EN dialog and modal-local password/MFA proof inputs (completed implementation history).
+- [Task #186](https://github.com/Oxelio/architecture-web/issues/186) — redesign the Web journey into a complete disclosure page plus a compact, accessible confirmation dialog (planned; requires updated Readiness).
 
-The implementation sequence is: finalize the focused transaction/port design; establish IAM application contracts; update persistence and HTTP to the **accepted breaking v1 contract**; integrate the Web dialog; collect boundary/regression evidence and separate reviews at Work level. Parallelize only where contracts are stable. No compatibility migration or production rollout Task is required for the current declared environment.
+Tasks #177–#180 implemented the original IAM/application/HTTP/Web scope and are closed. For the maintainer-selected revision, implement Task #186 only after the focused Web design/readiness check; then run the affected Web and existing boundary regressions, repeat applicable reviews and collect new real-browser evidence at Work level. No compatibility migration or production rollout Task is required for the declared environment.
 
 Each Task references this Technical Design, the approved Functional Specification and canonical project constraints, and does not own alternative product behavior or a separate Work State. No Task may be executed until the parent Work passes Readiness and becomes Ready.
