@@ -203,8 +203,7 @@ async function reconcilePendingStatusWrite(
 ): Promise<"reconciled" | "deferred"> {
   const recovery = current.pending;
   if (
-    !recovery ||
-    recovery.commentId !== input.commentId ||
+    recovery?.commentId !== input.commentId ||
     !current.position
   ) {
     return "deferred";
