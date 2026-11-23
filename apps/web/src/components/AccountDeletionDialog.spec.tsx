@@ -148,6 +148,7 @@ describe("account deletion confirmation dialog", () => {
     });
     const dialog = await openDialog();
     expect(dialog.textContent).toContain("désactivée");
+    expect(dialog.querySelector("output")?.textContent).toContain("désactivée");
     expect(dialog.querySelector('button[type="submit"]')).toBeNull();
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
@@ -365,6 +366,9 @@ describe("account deletion confirmation dialog", () => {
     const dialog = await openDialog(false, false);
     await completeProof(dialog);
     expect(dialog.textContent).toContain(
+      "Chargement de la politique de suppression",
+    );
+    expect(dialog.querySelector("output")?.textContent).toContain(
       "Chargement de la politique de suppression",
     );
     expect(
