@@ -424,8 +424,12 @@ export async function discoverStandingWorkMergeGrant(
         continue;
       }
       const app = comment.performed_via_github_app;
-      const appId =
-        app === null ? null : app && "id" in app ? app.id : undefined;
+      let appId: number | null | undefined;
+      if (app === null) {
+        appId = null;
+      } else if (app && "id" in app) {
+        appId = app.id;
+      }
       const authorId = comment.user.id;
       if (
         !input.authority[kind]?.some(
@@ -466,7 +470,7 @@ export async function discoverStandingWorkMergeGrant(
       evidence: [...selected.values()].sort((left, right) =>
         left.kind.localeCompare(right.kind, "en"),
       ),
-      requiredTasks: requiredTasks.sort((left, right) => left - right),
+      requiredTasks: requiredTasks.toSorted((left, right) => left - right),
     };
   } catch {
     return null;
@@ -750,6 +754,11 @@ async function verifyChecks(
   const expected = evaluateGate
     ? ciChecks
     : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
+  const checksForMode = evaluateGate
+    ? [...ciChecks, [gateName, grant.gateAppId] as const]
+    : observe
+      ? ciChecks
+      : expected;
   const ruleset = await github<GateRuleset>(
     publisher,
     `${repoPath}/rulesets/${grant.rulesetId}`,
@@ -786,12 +795,7 @@ async function verifyChecks(
     methods?.length !== 1 ||
     methods[0] !== "squash" ||
     statusRule?.strict_required_status_checks_policy !== true ||
-    (evaluateGate
-      ? [...ciChecks, [gateName, grant.gateAppId] as const]
-      : observe
-        ? ciChecks
-        : expected
-    ).some(
+    checksForMode.some(
       ([context, appId]) =>
         !statusRule.required_status_checks?.some(
           (check) =>
@@ -1275,6 +1279,7 @@ export async function evaluateScopedWorkGate(
     "governance-approval",
     "adr-approval",
   ]);
+  const grantExpiresAt = Date.parse(grant?.expiresAt ?? "");
   if (
     grant?.purpose !== "evaluate-work-merge-gate" ||
     "direct" in grant ||
@@ -1287,7 +1292,7 @@ export async function evaluateScopedWorkGate(
     grant.baseSha !== candidate.baseSha ||
     !oid.test(candidate.headSha) ||
     !oid.test(candidate.baseSha) ||
-    !(Date.parse(grant.expiresAt) > Date.now()) ||
+    (Number.isNaN(grantExpiresAt) || grantExpiresAt <= Date.now()) ||
     grant.gateAppId !== 5625775 ||
     !Array.isArray(grant.requiredEvidence) ||
     !Array.isArray(grant.evidence) ||
@@ -1295,7 +1300,7 @@ export async function evaluateScopedWorkGate(
     new Set(grant.requiredTasks).size !== grant.requiredTasks.length ||
     !grant.requiredTasks.every(positiveId) ||
     !mandatory.every((kind) =>
-      grant.requiredEvidence.some((value) => value === kind),
+      grant.requiredEvidence.includes(kind),
     ) ||
     new Set(grant.requiredEvidence).size !== grant.requiredEvidence.length ||
     !grant.requiredEvidence.every((kind) => supported.has(kind)) ||
