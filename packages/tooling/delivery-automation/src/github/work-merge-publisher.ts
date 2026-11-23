@@ -969,7 +969,9 @@ function verifyExpectedChecks(
   const { mergeSha, evaluateGate, reservedCheck } = options;
   let pending = false;
   for (const [name, appId] of expected) {
-    const candidates = checks.get(mergeSha)?.filter((check) => check.name === name);
+    const candidates = checks
+      .get(mergeSha)
+      ?.filter((check) => check.name === name);
     const matches = candidates?.length
       ? candidates
       : checks.get(pr.head.sha)?.filter((check) => check.name === name);
@@ -1793,9 +1795,7 @@ function hasMergedSha(
   pr: PullRequest,
 ): pr is PullRequest & { readonly merge_commit_sha: string } {
   return (
-    pr.merged === true &&
-    !!pr.merge_commit_sha &&
-    oid.test(pr.merge_commit_sha)
+    pr.merged === true && !!pr.merge_commit_sha && oid.test(pr.merge_commit_sha)
   );
 }
 
@@ -2049,11 +2049,7 @@ async function requestNativeAutoMerge(
     armedPr?.id === current.node_id &&
     armedPr.autoMergeRequest &&
     (!reservedCheck ||
-      (await observeReservedNativeArm(
-        publisher,
-        candidate,
-        publisher.actorId,
-      )))
+      (await observeReservedNativeArm(publisher, candidate, publisher.actorId)))
   ) {
     return { status: "auto-merge-requested" };
   }

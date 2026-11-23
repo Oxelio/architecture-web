@@ -199,7 +199,10 @@ async function retryUnverifiedClosure(
   previous: Awaited<ReturnType<typeof publishWorkCompletion>>,
   delay: number,
 ): ReturnType<typeof publishWorkCompletion> {
-  if (previous.status !== "retry" || previous.reason !== "CLOSURE_NOT_VERIFIED") {
+  if (
+    previous.status !== "retry" ||
+    previous.reason !== "CLOSURE_NOT_VERIFIED"
+  ) {
     return previous;
   }
   await setTimeout(delay);
