@@ -91,7 +91,8 @@ export function authorizeWorkIntegrationEvaluation(
     grant.actorId !== context.actorId ||
     grant.repositoryId !== context.repositoryId ||
     !sameWorkIntegrationCandidate(request.candidate, grant) ||
-    !(Date.parse(grant.expiresAt) > now) ||
+    (Number.isNaN(Date.parse(grant.expiresAt)) ||
+      Date.parse(grant.expiresAt) <= now) ||
     "direct" in grant ||
     "auto" in grant
   ) {
