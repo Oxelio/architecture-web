@@ -581,7 +581,7 @@ describe("account deletion confirmation dialog", () => {
       "Retention and other consequences",
     ]);
     expect(dialog.textContent).toContain("last active administrator");
-    expect(dialog.textContent).toContain("legal obligations");
+    expect(dialog.textContent).toContain("Legal obligations");
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 });
