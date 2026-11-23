@@ -360,22 +360,8 @@ async function observeReservedGitHubIntegration(
         ))
         ? ({ kind: "squash-armed", checkId: state.checkId } as const)
         : null;
-    case "release-check": {
-      if (!state.releaseAdmission) {
-        return null;
-      }
-      const merged = await observeReservedWorkSquash(publisher, candidate);
-      if (merged || state.checkId === undefined) {
-        return merged;
-      }
-      const check = await observeReservedGateCheck(checkScope, {
-        state: "completed",
-        checkId: state.checkId,
-      });
-      return check
-        ? ({ kind: "check-released", checkId: check.id } as const)
-        : null;
-    }
+    case "release-check":
+      return observeReleasedGate(reservation, scope, checkScope);
     case "resolve":
       return observeReservedWorkSquash(publisher, candidate);
   }
@@ -411,6 +397,28 @@ export async function reconcileReservedGitHubWorkIntegration(input: {
       },
     },
   });
+}
+
+async function observeReleasedGate(
+  reservation: MergeReservation,
+  scope: ReservedGitHubScope,
+  checkScope: Parameters<typeof observeReservedGateCheck>[0],
+) {
+  const { candidate, state } = reservation;
+  if (state.phase !== "pending" || !state.releaseAdmission) {
+    return null;
+  }
+  const merged = await observeReservedWorkSquash(scope.publisher, candidate);
+  if (merged || state.checkId === undefined) {
+    return merged;
+  }
+  const check = await observeReservedGateCheck(checkScope, {
+    state: "completed",
+    checkId: state.checkId,
+  });
+  return check
+    ? ({ kind: "check-released", checkId: check.id } as const)
+    : null;
 }
 
 interface InvalidatingWriteRequest {
