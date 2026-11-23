@@ -526,6 +526,29 @@ function parseEvidenceComment(body: string): Record<string, unknown> | null {
   }
 }
 
+function validEvidenceComment(
+  comment: IssueComment,
+  reference: EvidenceReference,
+  candidate: MergeCandidate,
+  repoPath: string,
+  requireUnedited: boolean,
+): boolean {
+  const issueUrl = comment.issue_url?.toLowerCase();
+  const prefix = `https://api.github.com${repoPath.toLowerCase()}/issues/`;
+  return (
+    comment.id === reference.commentId &&
+    comment.user?.id === reference.authorId &&
+    (issueUrl === `${prefix}${candidate.workNumber}` ||
+      issueUrl === `${prefix}${candidate.pullNumber}`) &&
+    (!requireUnedited ||
+      (Boolean(comment.created_at) &&
+        comment.created_at === comment.updated_at)) &&
+    (!reference.kind.endsWith("-approval") ||
+      (comment.user.type === "User" &&
+        comment.performed_via_github_app === null))
+  );
+}
+
 async function verifyEvidence(
   publisher: WorkGateReader,
   candidate: MergeCandidate,
@@ -551,19 +574,7 @@ async function verifyEvidence(
       publisher,
       `${repoPath}/issues/comments/${reference.commentId}`,
     );
-    const issueUrl = comment.issue_url?.toLowerCase();
-    const prefix = `https://api.github.com${repoPath.toLowerCase()}/issues/`;
-    if (
-      comment.id !== reference.commentId ||
-      comment.user?.id !== reference.authorId ||
-      (issueUrl !== `${prefix}${candidate.workNumber}` &&
-        issueUrl !== `${prefix}${candidate.pullNumber}`) ||
-      (requireUnedited &&
-        (!comment.created_at || comment.created_at !== comment.updated_at)) ||
-      (reference.kind.endsWith("-approval") &&
-        (comment.user.type !== "User" ||
-          comment.performed_via_github_app !== null))
-    ) {
+    if (!validEvidenceComment(comment, reference, candidate, repoPath, requireUnedited)) {
       return `UNVERIFIED_EVIDENCE:${reference.kind}`;
     }
     const record = parseEvidenceComment(comment.body);
