@@ -124,6 +124,8 @@ if (process.env["COMPLETION_WAIT_FOR_DOWNSTREAM"] === "true") {
     if ((await downstreamResults(mergeSha)).every(Boolean)) {
       break;
     }
+    // Each poll must observe the preceding wait; concurrent polls cannot
+    // establish downstream completion.
     await setTimeout(20_000);
   }
 }
@@ -185,17 +187,23 @@ const publisher: Parameters<typeof publishWorkCompletion>[0] = {
 };
 let result = await publishWorkCompletion(publisher);
 if (eventName !== "workflow_dispatch") {
-  for (const delay of [5_000, 10_000]) {
-    if (result.status !== "retry" || result.reason !== "CLOSURE_NOT_VERIFIED") {
-      break;
-    }
-    await setTimeout(delay);
-    result = await publishWorkCompletion(publisher);
-  }
+  result = await retryUnverifiedClosure(result, 5_000);
+  result = await retryUnverifiedClosure(result, 10_000);
 }
 writeJson({ workNumber, pullNumber, result });
 if (result.status === "blocked" || result.status === "retry") {
   process.exitCode = 2;
+}
+
+async function retryUnverifiedClosure(
+  previous: Awaited<ReturnType<typeof publishWorkCompletion>>,
+  delay: number,
+): ReturnType<typeof publishWorkCompletion> {
+  if (previous.status !== "retry" || previous.reason !== "CLOSURE_NOT_VERIFIED") {
+    return previous;
+  }
+  await setTimeout(delay);
+  return publishWorkCompletion(publisher);
 }
 
 async function readSnapshot(): Promise<WorkCompletionSnapshot | null> {
