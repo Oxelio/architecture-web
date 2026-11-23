@@ -76,33 +76,46 @@ const localizedCopy = {
       "Demander la suppression du compte",
       "Request account deletion",
     ],
-    deletionTitle: [
-      "Confirmer la suppression du compte",
-      "Confirm account deletion",
-    ],
+    deletionTitle: ["Supprimer votre compte", "Delete your account"],
     deletionDescription: [
-      "Cette demande désactivera immédiatement votre accès. Examinez les conséquences avant de confirmer.",
-      "This request will immediately disable your access. Review the consequences before confirming.",
+      "Cette demande désactivera votre accès immédiatement. Vérifiez les conséquences avant de continuer.",
+      "This request will immediately disable your access. Review the consequences before continuing.",
     ],
     deletionGracePeriod_one: [
-      "Votre compte sera définitivement supprimé après {{count}} jour de délai de grâce.",
-      "Your account will be permanently deleted after a {{count}}-day grace period.",
+      "Suppression définitive de votre compte après {{count}} jour de délai de grâce.",
+      "Your account is scheduled for permanent deletion after a {{count}}-day grace period.",
     ],
     deletionGracePeriod_other: [
-      "Votre compte sera définitivement supprimé après {{count}} jours de délai de grâce.",
-      "Your account will be permanently deleted after a {{count}}-day grace period.",
+      "Suppression définitive de votre compte après {{count}} jours de délai de grâce.",
+      "Your account is scheduled for permanent deletion after a {{count}}-day grace period.",
+    ],
+    deletionCancellation: [
+      "Pendant ce délai, vous pouvez annuler la demande avec le lien envoyé à votre adresse vérifiée, après une vérification renforcée.",
+      "During this period, you can cancel the request using the link sent to your verified email address, after strengthened identity verification.",
+    ],
+    deletionImmediateTitle: [
+      "Dès la confirmation",
+      "Immediately after confirmation",
+    ],
+    deletionAfterTitle: [
+      "À l’expiration du délai",
+      "After the grace period",
+    ],
+    deletionOtherTitle: [
+      "Conservation et autres conséquences",
+      "Retention and other consequences",
     ],
     deletionAccess: [
-      "Toutes les sessions et les jetons actifs seront révoqués immédiatement. Vous ne pourrez plus vous connecter ni demander d’export.",
-      "All sessions and active tokens will be revoked immediately. You will no longer be able to sign in or request an export.",
+      "Vos sessions et jetons actifs seront révoqués immédiatement. Vous ne pourrez plus vous connecter ni demander de nouvel export.",
+      "Your sessions and active tokens will be revoked immediately. You will no longer be able to sign in or request a new export.",
     ],
     deletionData: [
-      "À l’expiration du délai, les identifiants du compte, le mot de passe, les sessions, les jetons de récupération et de vérification, les secrets et codes MFA, les archives d’export et les données techniques sans obligation de conservation seront supprimés.",
-      "After the grace period, account identifiers, the password, sessions, recovery and verification tokens, MFA secrets and codes, export archives, and technical data without a retention duty will be deleted.",
+      "Les identifiants du compte, le mot de passe, les sessions, les jetons de récupération et de vérification, les secrets et codes MFA, les archives d’export et les données techniques non soumises à conservation seront supprimés.",
+      "Account identifiers, the password, sessions, recovery and verification tokens, MFA secrets and codes, export archives, and technical data with no retention duty will be deleted.",
     ],
     deletionRetention: [
-      "Certaines données peuvent être conservées temporairement en raison d’une obligation légale ; les journaux d’audit soumis à conservation sont limités dans le temps et leurs références directes au compte sont supprimées ou pseudonymisées. La suppression ne garantit pas l’effacement immédiat de sauvegardes ou de ressources externes.",
-      "Some data may be retained temporarily due to legal obligations; audit records subject to retention are time-limited and direct account references are removed or pseudonymized. Deletion does not guarantee immediate removal from backups or external resources.",
+      "Une obligation légale peut imposer la conservation temporaire de certaines données. Les journaux d’audit conservés sont limités dans le temps et leurs références directes au compte sont supprimées ou pseudonymisées. Les sauvegardes et ressources externes ne sont pas nécessairement effacées immédiatement.",
+      "Legal obligations may require temporary retention of some data. Retained audit records are time-limited, with direct account references removed or pseudonymized. Backups and external resources may not be erased immediately.",
     ],
     deletionAdministrator: [
       "Un compte administrateur perdra ses accès d’administration. Le dernier administrateur actif ne peut pas demander la suppression de son propre compte.",
@@ -146,10 +159,7 @@ const localizedCopy = {
       "The deletion request was not accepted. Check your credentials and retry.",
     ],
     deletionCancel: ["Annuler", "Cancel"],
-    deletionConfirmAction: [
-      "Confirmer la demande de suppression",
-      "Confirm deletion request",
-    ],
+    deletionConfirmAction: ["Demander la suppression", "Request deletion"],
     deletionPending: [
       "Demande de suppression en cours…",
       "Submitting deletion request…",
