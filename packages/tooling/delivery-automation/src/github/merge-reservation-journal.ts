@@ -130,7 +130,7 @@ export async function readMergeJournalTail(input: {
   }
   const matches: unknown = await response.json();
   if (!Array.isArray(matches)) {
-    throw new Error("MERGE_JOURNAL_INVENTORY_UNVERIFIED");
+    throw new TypeError("MERGE_JOURNAL_INVENTORY_UNVERIFIED");
   }
 
   const tags = new Map<number, string>();
