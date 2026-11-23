@@ -77,12 +77,7 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
     ]);
     const deliveries = [];
     for (const channel of requested) {
-      const destination =
-        channel === "slack" &&
-        role.administrator &&
-        policy.administratorChannels?.includes(channel)
-          ? "security"
-          : recipient.destinationFor(channel);
+      const destination = recipientDestination(recipient, channel, role, policy);
       const enabled =
         policy.mandatory ||
         (await this.preferences.find(recipient.userId, channel))?.enabled !==
@@ -91,17 +86,11 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
         (delivery) => delivery.channel === channel,
       );
       if (destination && enabled && available) {
-        const user = role.user && policy.userChannels.includes(channel);
-        const administrator =
-          role.administrator &&
-          (policy.administratorChannels?.includes(channel) ?? false);
-        let audience: NotificationDeliveryAudience = "administrator";
-        if (user) {
-          audience = administrator
-            ? "affected_user_and_administrator"
-            : "affected_user";
-        }
-        deliveries.push({ channel, destination, audience });
+        deliveries.push({
+          channel,
+          destination,
+          audience: recipientAudience(channel, role, policy),
+        });
       }
     }
     const severity = NotificationSeverityValueObject.create(policy.severity);
@@ -128,4 +117,34 @@ function notificationSubject(event: IntegrationEvent): string | undefined {
   return typeof event.context["subjectId"] === "string"
     ? event.context["subjectId"]
     : undefined;
+}
+
+type RecipientRole = { user: boolean; administrator: boolean };
+type NotificationChannel = NotificationPolicy["userChannels"][number];
+
+function recipientDestination(
+  recipient: NotificationRecipientEntity,
+  channel: NotificationChannel,
+  role: RecipientRole,
+  policy: NotificationPolicy,
+) {
+  return channel === "slack" &&
+    role.administrator &&
+    policy.administratorChannels?.includes(channel)
+    ? "security"
+    : recipient.destinationFor(channel);
+}
+
+function recipientAudience(
+  channel: NotificationChannel,
+  role: RecipientRole,
+  policy: NotificationPolicy,
+): NotificationDeliveryAudience {
+  if (!role.user || !policy.userChannels.includes(channel)) {
+    return "administrator";
+  }
+  return role.administrator &&
+    (policy.administratorChannels?.includes(channel) ?? false)
+    ? "affected_user_and_administrator"
+    : "affected_user";
 }
