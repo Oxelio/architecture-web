@@ -570,27 +570,18 @@ export async function resolveWorkIntegrationPr(input: {
     if (pullRequest.number !== number) {
       return { status: "unavailable" };
     }
-    if (
-      pullRequest.state !== "open" ||
-      normalizeRepository(pullRequest.head.repo?.full_name ?? "") !==
-        normalizeRepository(input.repository) ||
-      !isAllowedIntegrationBase(pullRequest.base.ref)
-    ) {
-      continue;
-    }
-    if (pullRequest.body !== null && typeof pullRequest.body !== "string") {
+    const selection = classifyWorkPull(
+      pullRequest,
+      input.repository,
+      input.workNumber,
+    );
+    if (selection.kind === "invalid") {
       return { status: "unavailable" };
     }
-    const references = workReferences(pullRequest.body);
-    if (!references.includes(input.workNumber)) {
-      continue;
+    if (selection.kind === "match") {
+      hasConflictingReferences ||= selection.conflicting;
+      candidates.push(selection.candidate);
     }
-    hasConflictingReferences ||= references.length > 1;
-    candidates.push({
-      number: pullRequest.number,
-      headRef: pullRequest.head.ref,
-      baseRef: pullRequest.base.ref,
-    });
   }
 
   const sorted = candidates.toSorted(
@@ -761,6 +752,67 @@ async function readProjectItemsPage(
   return connection;
 }
 
+function classifyWorkPull(
+  pullRequest: PullRequestSnapshot,
+  repository: string,
+  workNumber: number,
+):
+  | { readonly kind: "skip" | "invalid" }
+  | {
+      readonly kind: "match";
+      readonly candidate: WorkIntegrationPrSnapshot;
+      readonly conflicting: boolean;
+    } {
+  if (
+    pullRequest.state !== "open" ||
+    normalizeRepository(pullRequest.head.repo?.full_name ?? "") !==
+      normalizeRepository(repository) ||
+    !isAllowedIntegrationBase(pullRequest.base.ref)
+  ) {
+    return { kind: "skip" };
+  }
+  if (pullRequest.body !== null && typeof pullRequest.body !== "string") {
+    return { kind: "invalid" };
+  }
+  const references = workReferences(pullRequest.body);
+  if (!references.includes(workNumber)) {
+    return { kind: "skip" };
+  }
+  return {
+    kind: "match",
+    conflicting: references.length > 1,
+    candidate: {
+      number: pullRequest.number,
+      headRef: pullRequest.head.ref,
+      baseRef: pullRequest.base.ref,
+    },
+  };
+}
+
+function collectTimelineReferences(
+  events: readonly TimelineEvent[],
+  repositoryUrl: string,
+  referencedNumbers: Set<number>,
+): boolean {
+  for (const event of events) {
+    const sourceIssue =
+      event.event === "cross-referenced" ? event.source?.issue : undefined;
+    if (!sourceIssue?.pull_request) {
+      continue;
+    }
+    if (typeof sourceIssue.repository_url !== "string") {
+      return false;
+    }
+    if (
+      normalizeRepository(sourceIssue.repository_url).replace(/\/+$/u, "") ===
+      repositoryUrl
+    ) {
+      referencedNumbers.add(sourceIssue.number);
+    }
+  }
+  return true;
+}
+
 async function readReferencedPullRequests(
   repository: string,
   workNumber: number,
@@ -780,22 +832,8 @@ async function readReferencedPullRequests(
     }
 
     const events = (await response.json()) as readonly TimelineEvent[];
-    for (const event of events) {
-      const sourceIssue =
-        event.event === "cross-referenced" ? event.source?.issue : undefined;
-      if (sourceIssue?.pull_request) {
-        if (typeof sourceIssue.repository_url !== "string") {
-          return null;
-        }
-        if (
-          normalizeRepository(sourceIssue.repository_url).replace(
-            /\/+$/u,
-            "",
-          ) === repositoryUrl
-        ) {
-          referencedNumbers.add(sourceIssue.number);
-        }
-      }
+    if (!collectTimelineReferences(events, repositoryUrl, referencedNumbers)) {
+      return null;
     }
     if (events.length < 100) {
       break;
