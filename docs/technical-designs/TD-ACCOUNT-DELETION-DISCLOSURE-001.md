@@ -185,31 +185,31 @@ If a persistent external deployment or client is introduced in the future, its c
 
 Use the [testing and verification policy](../development/testing.md), proportional to the affected boundaries.
 
-| Boundary                          | Required focused evidence                                                                                                                                                        |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| IAM application                   | Effective non-default period, disabled policy, equality/mismatch outcomes, no scheduling from client value, unchanged strengthened verification and deletion semantics           |
-| IAM persistence / real PostgreSQL | Concurrent publication before, during and after deletion acceptance; lock-order/deadlock check; no persistence/outbox on conflict; last-admin check preserved                    |
-| HTTP contract                     | Authenticated-only read, minimal projection, no-store, typed payload, required confirmation handling, mapped 409/403/401 and sanitized 5xx                                       |
+| Boundary                          | Required focused evidence                                                                                                                                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| IAM application                   | Effective non-default period, disabled policy, equality/mismatch outcomes, no scheduling from client value, unchanged strengthened verification and deletion semantics                                      |
+| IAM persistence / real PostgreSQL | Concurrent publication before, during and after deletion acceptance; lock-order/deadlock check; no persistence/outbox on conflict; last-admin check preserved                                               |
+| HTTP contract                     | Authenticated-only read, minimal projection, no-store, typed payload, required confirmation handling, mapped 409/403/401 and sanitized 5xx                                                                  |
 | Web page and compact dialog       | All six disclosures on the information page; FR/EN and 1–90-day boundaries; no skipped page or fallback; loading/failure/disabled/changed-policy states; modal-local consent/proof; double-click prevention |
-| Accessibility                     | Natural page reading/scroll, dialog labels and focus restoration, keyboard/Escape, screen-reader error announcements, 320 CSS px / 200% zoom, reachable confirmation controls |
-| Regression                        | MFA, password reauthentication, session revocation, cancellation, notification delivery, audit, last administrator and `scheduledFor`                                            |
+| Accessibility                     | Natural page reading/scroll, dialog labels and focus restoration, keyboard/Escape, screen-reader error announcements, 320 CSS px / 200% zoom, reachable confirmation controls                               |
+| Regression                        | MFA, password reauthentication, session revocation, cancellation, notification delivery, audit, last administrator and `scheduledFor`                                                                       |
 
 Run the affected unit/HTTP/Web suites, TypeScript, lint, format and Markdown link checks. Real PostgreSQL concurrency evidence must not be inferred from mocked unit tests or skipped integration suites. A successful CI run alone does not approve Functional, Architecture, Code or security/privacy review findings.
 
 ## 10. Alternatives and rationale
 
-| Alternative                                               | Evaluation                                                                                               |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Hard-code 14 days                                         | Rejected: may differ from the effective policy and violates the existing Functional Specification        |
-| Extend public `/iam/capabilities` with duration           | Technically possible but unnecessarily broad for a self-service, security-sensitive confirmation journey |
-| Read administrator configuration from Web                 | Rejected: privileged data and authorization boundary                                                     |
-| Dedicated authenticated `accounts` disclosure read        | Preferred: small projection with clear least-privilege ownership                                         |
-| Compare only in the Web / before the POST                 | Rejected: races with configuration publication                                                           |
-| Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests        |
-| Versioned/managed legacy client migration                 | Rejected for the declared no-production Work scope; breaking HTTP v1 replacement explicitly accepted     |
-| Single full-disclosure scrollable modal                    | Superseded after browser UX evidence: content and confirmation actions compete for limited viewport height |
-| Information page + compact confirmation dialog             | Selected by the maintainer (2026-11-23): readable disclosure in normal page flow, short explicit destructive confirmation |
-| Two-step wizard inside the same long modal                 | Not selected: adds focus/step complexity without resolving the constrained reading surface                  |
+| Alternative                                               | Evaluation                                                                                                                |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Hard-code 14 days                                         | Rejected: may differ from the effective policy and violates the existing Functional Specification                         |
+| Extend public `/iam/capabilities` with duration           | Technically possible but unnecessarily broad for a self-service, security-sensitive confirmation journey                  |
+| Read administrator configuration from Web                 | Rejected: privileged data and authorization boundary                                                                      |
+| Dedicated authenticated `accounts` disclosure read        | Preferred: small projection with clear least-privilege ownership                                                          |
+| Compare only in the Web / before the POST                 | Rejected: races with configuration publication                                                                            |
+| Persist request under a shared publication/deletion fence | Preferred: ensures effective-duration comparison at acceptance, subject to real integration tests                         |
+| Versioned/managed legacy client migration                 | Rejected for the declared no-production Work scope; breaking HTTP v1 replacement explicitly accepted                      |
+| Single full-disclosure scrollable modal                   | Superseded after browser UX evidence: content and confirmation actions compete for limited viewport height                |
+| Information page + compact confirmation dialog            | Selected by the maintainer (2026-11-23): readable disclosure in normal page flow, short explicit destructive confirmation |
+| Two-step wizard inside the same long modal                | Not selected: adds focus/step complexity without resolving the constrained reading surface                                |
 
 A local API/application consistency change using existing architecture does not currently warrant an ADR. Re-evaluate if the final solution introduces a durable cross-cutting transaction or versioning rule.
 
