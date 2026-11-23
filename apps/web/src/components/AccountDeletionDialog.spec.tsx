@@ -181,7 +181,9 @@ describe("account deletion confirmation dialog", () => {
     }
     expect(submit.disabled).toBe(false);
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
     await vi.waitFor(() => {
       expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
@@ -198,7 +200,10 @@ describe("account deletion confirmation dialog", () => {
 
   it("does not submit the same destructive command twice", async () => {
     vi.mocked(requestAccountDeletion).mockImplementation(
-      () => new Promise<Awaited<ReturnType<typeof requestAccountDeletion>>>(() => undefined),
+      () =>
+        new Promise<Awaited<ReturnType<typeof requestAccountDeletion>>>(
+          () => undefined,
+        ),
     );
     const dialog = await openDialog();
     await completeProof(dialog);
@@ -207,8 +212,12 @@ describe("account deletion confirmation dialog", () => {
       throw new Error("Missing deletion form");
     }
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
     });
     expect(requestAccountDeletion).toHaveBeenCalledOnce();
     expect(requestAccountDeletion).toHaveBeenCalledWith(
