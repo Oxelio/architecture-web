@@ -78,7 +78,10 @@ const localizedCopy = {
     ],
     deletionTitle: ["Supprimer votre compte", "Delete your account"],
     deletionBack: ["Retour à mon profil", "Back to my profile"],
-    deletionContinue: ["Continuer vers la confirmation", "Continue to confirmation"],
+    deletionContinue: [
+      "Continuer vers la confirmation",
+      "Continue to confirmation",
+    ],
     deletionVerifying: [
       "Vérification du délai effectif…",
       "Verifying the effective grace period…",
