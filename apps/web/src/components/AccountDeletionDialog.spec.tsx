@@ -352,8 +352,7 @@ describe("account deletion confirmation dialog", () => {
       dialog.querySelector<HTMLInputElement>("#deletion-password")?.value,
     ).toBe("");
     expect(
-      dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')
-        ?.checked,
+      dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,
     ).toBe(false);
     expect(
       dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
