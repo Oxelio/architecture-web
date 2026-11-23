@@ -690,10 +690,10 @@ function Stat({
   );
 }
 
-type AdministrationNoticeState = {
+interface AdministrationNoticeState {
   key: string;
   tone: "success" | "error";
-};
+}
 
 function AdministrationNotice({
   notice,
