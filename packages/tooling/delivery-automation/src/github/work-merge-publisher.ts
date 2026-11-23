@@ -487,13 +487,7 @@ function selectStandingEvidence(
     if (!kind || !record || !sameWorkIntegrationCandidate(candidate, record)) {
       continue;
     }
-    const app = comment.performed_via_github_app;
-    let appId: unknown;
-    if (app === null) {
-      appId = null;
-    } else if (app && "id" in app) {
-      appId = app.id;
-    }
+    const appId = standingEvidenceAppId(comment);
     const authorId = comment.user.id;
     if (
       !authority[kind]?.some(
@@ -503,7 +497,17 @@ function selectStandingEvidence(
     ) {
       continue;
     }
-    if (!isAcceptedStandingEvidence(comment, record, candidate, prefix, kind, appId) || selected.has(kind)) {
+    if (
+      !isAcceptedStandingEvidence(
+        comment,
+        record,
+        candidate,
+        prefix,
+        kind,
+        appId,
+      ) ||
+      selected.has(kind)
+    ) {
       return null;
     }
     selected.set(kind, { kind, commentId: comment.id, authorId });
@@ -512,6 +516,14 @@ function selectStandingEvidence(
     return null;
   }
   return selected;
+}
+
+function standingEvidenceAppId(comment: IssueComment): unknown {
+  const app = comment.performed_via_github_app;
+  if (app === null) {
+    return null;
+  }
+  return app && "id" in app ? app.id : undefined;
 }
 
 function isAcceptedStandingEvidence(
@@ -827,20 +839,11 @@ async function verifyChecks(
   ) {
     return "CHECK_CANDIDATE_UNAVAILABLE";
   }
-  const ciChecks = [
-    ["Quality checks", 15368],
-    ["SonarCloud Code Analysis", 12526],
-  ] as const;
-  const expectedGateName = observe ? workMergeObservationCheckName : gateName;
-  const expected = evaluateGate
-    ? ciChecks
-    : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
-  let checksForMode: readonly (readonly [string, number])[] = expected;
-  if (evaluateGate) {
-    checksForMode = [...ciChecks, [gateName, grant.gateAppId] as const];
-  } else if (observe) {
-    checksForMode = ciChecks;
-  }
+  const { expectedGateName, expected, checksForMode } = expectedMergeChecks(
+    grant.gateAppId,
+    observe,
+    evaluateGate,
+  );
   const noBypassActors = await verifyRequiredProtections(
     publisher,
     grant.rulesetId,
@@ -875,7 +878,19 @@ async function verifyChecks(
   if (!checks) {
     return "CHECK_INVENTORY_INCOMPLETE";
   }
-  const pending = verifyExpectedChecks(checks, pr, grant, expected, expectedGateName, mode, { mergeSha: pr.merge_commit_sha, evaluateGate, ...(reservedCheck ? { reservedCheck } : {}) });
+  const pending = verifyExpectedChecks(
+    checks,
+    pr,
+    grant,
+    expected,
+    expectedGateName,
+    mode,
+    {
+      mergeSha: pr.merge_commit_sha,
+      evaluateGate,
+      ...(reservedCheck ? { reservedCheck } : {}),
+    },
+  );
   if (typeof pending === "string") {
     return pending;
   }
@@ -883,6 +898,28 @@ async function verifyChecks(
     return "DIRECT_MERGE_REQUIRED";
   }
   return { bypassActors: noBypassActors ? "none" : "unverified" };
+}
+
+function expectedMergeChecks(
+  gateAppId: number,
+  observe: boolean,
+  evaluateGate: boolean,
+) {
+  const ciChecks = [
+    ["Quality checks", 15368],
+    ["SonarCloud Code Analysis", 12526],
+  ] as const;
+  const expectedGateName = observe ? workMergeObservationCheckName : gateName;
+  const expected = evaluateGate
+    ? ciChecks
+    : [...ciChecks, [expectedGateName, gateAppId] as const];
+  let checksForMode: readonly (readonly [string, number])[] = expected;
+  if (evaluateGate) {
+    checksForMode = [...ciChecks, [gateName, gateAppId] as const];
+  } else if (observe) {
+    checksForMode = ciChecks;
+  }
+  return { expectedGateName, expected, checksForMode };
 }
 
 async function readCandidateCheckInventory(
@@ -923,14 +960,16 @@ function verifyExpectedChecks(
   expected: readonly (readonly [string, number])[],
   expectedGateName: string,
   mode: MergeMode,
-  options: { readonly mergeSha: string; readonly evaluateGate: boolean; readonly reservedCheck?: ReservedGateCheck },
+  options: {
+    readonly mergeSha: string;
+    readonly evaluateGate: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  },
 ): boolean | string {
   const { mergeSha, evaluateGate, reservedCheck } = options;
   let pending = false;
   for (const [name, appId] of expected) {
-    const candidates = checks
-      .get(mergeSha)
-      ?.filter((check) => check.name === name);
+    const candidates = checks.get(mergeSha)?.filter((check) => check.name === name);
     const matches = candidates?.length
       ? candidates
       : checks.get(pr.head.sha)?.filter((check) => check.name === name);
@@ -941,7 +980,15 @@ function verifyExpectedChecks(
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
-    const result = classifyExpectedCheck(check, pr, grant, name, expectedGateName, mode, reservedCheck);
+    const result = classifyExpectedCheck(
+      check,
+      pr,
+      grant,
+      name,
+      expectedGateName,
+      mode,
+      reservedCheck,
+    );
     if (result === "pending") {
       pending = true;
     } else if (result !== "success") {
@@ -1601,7 +1648,15 @@ async function evaluateWorkMergeRequest(
       return blocked("MERGE_NOT_DELEGATED");
     }
     const evaluate = () =>
-      evaluateAuthorizedWorkMerge(publisher, candidate, mode, observe, reservedCheck, repoPath, prPath);
+      evaluateAuthorizedWorkMerge(
+        publisher,
+        candidate,
+        mode,
+        observe,
+        reservedCheck,
+        repoPath,
+        prPath,
+      );
     const result = observe
       ? await evaluate()
       : await publisher.withinVerifiedBoundary(candidate, mode, evaluate);
@@ -1641,7 +1696,15 @@ async function evaluateAuthorizedWorkMerge(
     return blocked("CANDIDATE_CHANGED");
   }
 
-  const checks = await verifyMergeEligibility(publisher, candidate, grant, repoPath, pr, mode, { observe, ...(reservedCheck ? { reservedCheck } : {}) });
+  const checks = await verifyMergeEligibility(
+    publisher,
+    candidate,
+    grant,
+    repoPath,
+    pr,
+    mode,
+    { observe, ...(reservedCheck ? { reservedCheck } : {}) },
+  );
   if (typeof checks === "string") {
     return blocked(checks);
   }
@@ -1658,7 +1721,15 @@ async function evaluateAuthorizedWorkMerge(
   if (!isDeepStrictEqual(currentGrant, grant)) {
     return blocked("MERGE_DELEGATION_CHANGED");
   }
-  return finishVerifiedWorkMerge(publisher, candidate, current, grant, { mode, observe, ...(reservedCheck ? { reservedCheck } : {}) }, checks, { repoPath, prPath });
+  return finishVerifiedWorkMerge(
+    publisher,
+    candidate,
+    current,
+    grant,
+    { mode, observe, ...(reservedCheck ? { reservedCheck } : {}) },
+    checks,
+    { repoPath, prPath },
+  );
 }
 
 async function finishVerifiedWorkMerge(
@@ -1666,14 +1737,25 @@ async function finishVerifiedWorkMerge(
   candidate: MergeCandidate,
   current: PullRequest,
   grant: WorkMergeGrant,
-  options: { readonly mode: MergeMode; readonly observe: boolean; readonly reservedCheck?: ReservedGateCheck },
+  options: {
+    readonly mode: MergeMode;
+    readonly observe: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  },
   checks: { readonly bypassActors: "none" | "unverified" },
   paths: { readonly repoPath: string; readonly prPath: string },
 ): Promise<WorkMergeOutcome> {
   const { mode, observe, reservedCheck } = options;
   const { repoPath, prPath } = paths;
   if (reservedCheck?.release) {
-    return releaseVerifiedGate(publisher, candidate, current, grant, reservedCheck, reservedCheck.release);
+    return releaseVerifiedGate(
+      publisher,
+      candidate,
+      current,
+      grant,
+      reservedCheck,
+      reservedCheck.release,
+    );
   }
 
   // An existing request may have been armed for another candidate.
@@ -1692,19 +1774,41 @@ async function finishVerifiedWorkMerge(
     };
   }
 
-  const outcome = await requestWorkMerge(publisher, candidate, current, mode, reservedCheck, headline, { repoPath, prPath, message });
+  const outcome = await requestWorkMerge(
+    publisher,
+    candidate,
+    current,
+    mode,
+    reservedCheck,
+    headline,
+    { repoPath, prPath, message },
+  );
   if (outcome) {
     return outcome;
   }
   return observeWorkMergeOutcome(publisher, candidate, prPath, reservedCheck);
 }
 
-function hasMergedSha(pr: PullRequest): pr is PullRequest & { readonly merge_commit_sha: string } {
-  return pr.merged === true && !!pr.merge_commit_sha && oid.test(pr.merge_commit_sha);
+function hasMergedSha(
+  pr: PullRequest,
+): pr is PullRequest & { readonly merge_commit_sha: string } {
+  return (
+    pr.merged === true &&
+    !!pr.merge_commit_sha &&
+    oid.test(pr.merge_commit_sha)
+  );
 }
 
-function isOpenMergeCandidate(pr: PullRequest, candidate: MergeCandidate): boolean {
-  return pr.state === "open" && pr.draft === false && pr.merged === false && pr.base.sha === candidate.baseSha;
+function isOpenMergeCandidate(
+  pr: PullRequest,
+  candidate: MergeCandidate,
+): boolean {
+  return (
+    pr.state === "open" &&
+    pr.draft === false &&
+    pr.merged === false &&
+    pr.base.sha === candidate.baseSha
+  );
 }
 
 async function verifyMergeEligibility(
@@ -1714,7 +1818,10 @@ async function verifyMergeEligibility(
   repoPath: string,
   pr: PullRequest,
   mode: MergeMode,
-  options: { readonly observe: boolean; readonly reservedCheck?: ReservedGateCheck },
+  options: {
+    readonly observe: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  },
 ): ReturnType<typeof verifyChecks> {
   const { observe, reservedCheck } = options;
   const live = await readWorkMergeGateLiveEvidence({
@@ -1812,12 +1919,23 @@ async function requestWorkMerge(
   mode: MergeMode,
   reservedCheck: ReservedGateCheck | undefined,
   headline: string,
-  paths: { readonly repoPath: string; readonly prPath: string; readonly message: string },
+  paths: {
+    readonly repoPath: string;
+    readonly prPath: string;
+    readonly message: string;
+  },
 ): Promise<WorkMergeOutcome | undefined> {
   try {
     return mode === "direct"
       ? await requestDirectSquash(publisher, candidate, headline, paths)
-      : await requestNativeAutoMerge(publisher, candidate, current, reservedCheck, headline, paths.message);
+      : await requestNativeAutoMerge(
+          publisher,
+          candidate,
+          current,
+          reservedCheck,
+          headline,
+          paths.message,
+        );
   } catch {
     // A failed response can arrive after GitHub has accepted the mutation.
     return undefined;
@@ -1828,7 +1946,15 @@ async function requestDirectSquash(
   publisher: WorkMergePublisher,
   candidate: MergeCandidate,
   headline: string,
-  { repoPath, prPath, message }: { readonly repoPath: string; readonly prPath: string; readonly message: string },
+  {
+    repoPath,
+    prPath,
+    message,
+  }: {
+    readonly repoPath: string;
+    readonly prPath: string;
+    readonly message: string;
+  },
 ): Promise<WorkMergeOutcome | undefined> {
   // Only a new, confirmed create authorizes a squash attempt. A lost
   // response consumes the candidate without authorizing an API retry.
