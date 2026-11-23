@@ -816,7 +816,7 @@ it("announces a successful user-administration action in an output element", asy
   fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
   await clickButton("Suspend");
   await expectFeedback("output", "The user was suspended.");
-  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(element("output").getAttribute("role")).toBeNull();
 
   await changeLocale("fr");
   expect(element("output").textContent).toContain(
