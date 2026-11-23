@@ -45,6 +45,7 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
           ),
         ),
       ].sort((left, right) => left.localeCompare(right, "en"));
+      // Acquire transaction locks in deterministic order before checking deletion markers.
       for (const reference of references) {
         await sql`select pg_advisory_xact_lock(hashtextextended(${reference}, 0))`.execute(
           transaction,
@@ -185,6 +186,7 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
         .orderBy("id", "asc")
         .forUpdate()
         .execute();
+      // Finish each locked row update before starting the next on this transaction.
       for (const row of rows) {
         const replacements = new Map<string, string>();
         if (row.actor_reference === reference && row.actor_id) {

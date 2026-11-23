@@ -109,32 +109,7 @@ export async function runStandingWorkIntegration(
     return { status: "denied" };
   }
 
-  const readLiveDelegation = async (): Promise<StandingDelegation | null> => {
-    try {
-      const delegation = await input.readDelegation();
-      if (
-        delegation?.repositoryId === context.repositoryId &&
-        delegation.controllerBotId === scope.controllerBotId &&
-        delegation.workflowSha === context.workflowSha &&
-        delegation.gatePublication === true &&
-        delegation.nativeSquash === true &&
-        Date.parse(delegation.expiresAt) > Date.now() &&
-        !(await isStandingDelegationRevoked({
-          repositoryToken: bindings.publisher.repositoryToken,
-          delegationCommentId: delegation.decisionCommentId,
-          ...(bindings.publisher.fetchImpl
-            ? { fetchImpl: bindings.publisher.fetchImpl }
-            : {}),
-        })) &&
-        Date.parse(delegation.expiresAt) > Date.now()
-      ) {
-        return delegation;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
+  const readLiveDelegation = () => readLiveStandingDelegation(input, scope);
 
   const authorize: StandingInput["authorize"] = async (request) =>
     sameWorkIntegrationCandidate(candidate, request.candidate) &&
@@ -160,7 +135,6 @@ export async function runStandingWorkIntegration(
       authorize: authorizeObservation(released),
     });
 
-  const operations = ["queue-check", "arm-squash", "release-check"] as const;
   const recovery = await recoverStandingReservation(
     candidate,
     scope,
@@ -176,6 +150,147 @@ export async function runStandingWorkIntegration(
     return { status: "denied" };
   }
 
+  return executeStandingOperations(
+    input,
+    scope,
+    authorize,
+    readLiveDelegation,
+    recordReleased,
+    start,
+  );
+}
+
+async function recoverStandingReservation(
+  candidate: StandingInput["candidate"],
+  scope: StandingInput["scope"],
+  authorizeObservation: (
+    candidate: StandingInput["candidate"],
+  ) => StandingInput["authorize"],
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
+): Promise<StandingRecoveryResult> {
+  try {
+    let reservation = (await readReservedGitHubWorkIntegration(scope))
+      ?.reservation;
+    if (reservation?.state.phase === "pending") {
+      const { candidate: previous, state } = reservation;
+      const resolution = await reconcileReservedGitHubWorkIntegration({
+        candidate: previous,
+        scope,
+        authorize: authorizeObservation(previous),
+      });
+      if (resolution.status !== "confirmed") {
+        return resolution.status === "denied"
+          ? { status: "denied" }
+          : {
+              status: "deferred",
+              operation:
+                state.operation === "resolve" ? "queue-check" : state.operation,
+            };
+      }
+      reservation = resolution.receipt.reservation;
+    }
+    return await resumeStandingReservation(
+      candidate,
+      reservation,
+      recordReleased,
+    );
+  } catch {
+    return { status: "deferred", operation: "queue-check" };
+  }
+}
+
+type StandingRecoveryResult =
+  | Awaited<ReturnType<typeof runStandingWorkIntegration>>
+  | { readonly start: number };
+
+async function resumeStandingReservation(
+  candidate: StandingInput["candidate"],
+  reservation:
+    | NonNullable<
+        Awaited<ReturnType<typeof readReservedGitHubWorkIntegration>>
+      >["reservation"]
+    | undefined,
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
+): Promise<StandingRecoveryResult> {
+  if (reservation?.state.phase === "released") {
+    const previous = reservation.candidate;
+    const merged = await recordReleased(previous);
+    if (sameWorkIntegrationCandidate(candidate, previous)) {
+      return merged
+        ? { status: "merged", sha: merged }
+        : { status: "released", checkId: reservation.state.checkId };
+    }
+    if (!merged) {
+      return { status: "deferred", operation: "queue-check" };
+    }
+  } else if (
+    reservation &&
+    sameWorkIntegrationCandidate(candidate, reservation.candidate)
+  ) {
+    const { state } = reservation;
+    switch (state.phase) {
+      case "reserved":
+        return { start: 0 };
+      case "queued":
+        return { start: 1 };
+      case "armed":
+        return { start: 2 };
+      case "merged":
+        return { status: "merged", sha: state.sha };
+      default:
+        return { status: "denied" };
+    }
+  }
+  return { start: 0 };
+}
+
+async function readLiveStandingDelegation(
+  input: Parameters<typeof runStandingWorkIntegration>[0],
+  scope: StandingInput["scope"],
+): Promise<StandingDelegation | null> {
+  const { context, scope: bindings } = input;
+  try {
+    const delegation = await input.readDelegation();
+    if (
+      delegation?.repositoryId === context.repositoryId &&
+      delegation.controllerBotId === scope.controllerBotId &&
+      delegation.workflowSha === context.workflowSha &&
+      delegation.gatePublication === true &&
+      delegation.nativeSquash === true &&
+      Date.parse(delegation.expiresAt) > Date.now() &&
+      !(await isStandingDelegationRevoked({
+        repositoryToken: bindings.publisher.repositoryToken,
+        delegationCommentId: delegation.decisionCommentId,
+        ...(bindings.publisher.fetchImpl
+          ? { fetchImpl: bindings.publisher.fetchImpl }
+          : {}),
+      })) &&
+      Date.parse(delegation.expiresAt) > Date.now()
+    ) {
+      return delegation;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function executeStandingOperations(
+  input: Parameters<typeof runStandingWorkIntegration>[0],
+  scope: StandingInput["scope"],
+  authorize: StandingInput["authorize"],
+  readLiveDelegation: () => Promise<StandingDelegation | null>,
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
+  start: number,
+): Promise<Awaited<ReturnType<typeof runStandingWorkIntegration>>> {
+  const { candidate } = input;
+  const operations = ["queue-check", "arm-squash", "release-check"] as const;
   for (const operation of operations.slice(start)) {
     const result = await executeEligibleStandingWorkIntegration({
       ...input,
@@ -213,74 +328,4 @@ export async function runStandingWorkIntegration(
   }
 
   return { status: "deferred", operation: "release-check" };
-}
-
-async function recoverStandingReservation(
-  candidate: StandingInput["candidate"],
-  scope: StandingInput["scope"],
-  authorizeObservation: (
-    candidate: StandingInput["candidate"],
-  ) => StandingInput["authorize"],
-  recordReleased: (
-    candidate: StandingInput["candidate"],
-  ) => ReturnType<typeof recordReleasedNativeSquash>,
-): Promise<
-  | Awaited<ReturnType<typeof runStandingWorkIntegration>>
-  | { readonly start: number }
-> {
-  try {
-    let reservation = (await readReservedGitHubWorkIntegration(scope))
-      ?.reservation;
-    if (reservation?.state.phase === "pending") {
-      const { candidate: previous, state } = reservation;
-      const resolution = await reconcileReservedGitHubWorkIntegration({
-        candidate: previous,
-        scope,
-        authorize: authorizeObservation(previous),
-      });
-      if (resolution.status !== "confirmed") {
-        return resolution.status === "denied"
-          ? { status: "denied" }
-          : {
-              status: "deferred",
-              operation:
-                state.operation === "resolve" ? "queue-check" : state.operation,
-            };
-      }
-      reservation = resolution.receipt.reservation;
-    }
-    if (reservation?.state.phase === "released") {
-      const previous = reservation.candidate;
-      const merged = await recordReleased(previous);
-      if (sameWorkIntegrationCandidate(candidate, previous)) {
-        return merged
-          ? { status: "merged", sha: merged }
-          : { status: "released", checkId: reservation.state.checkId };
-      }
-      if (!merged) {
-        return { status: "deferred", operation: "queue-check" };
-      }
-    } else if (
-      reservation &&
-      sameWorkIntegrationCandidate(candidate, reservation.candidate)
-    ) {
-      const { state } = reservation;
-      switch (state.phase) {
-        case "reserved":
-          return { start: 0 };
-        case "queued":
-          return { start: 1 };
-        case "armed":
-          return { start: 2 };
-        case "merged":
-          return { status: "merged", sha: state.sha };
-        default:
-          return { status: "denied" };
-      }
-    }
-  } catch {
-    return { status: "deferred", operation: "queue-check" };
-  }
-
-  return { start: 0 };
 }

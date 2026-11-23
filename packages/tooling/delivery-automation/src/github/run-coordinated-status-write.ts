@@ -150,8 +150,7 @@ export async function runCoordinatedStatusWrite(input: {
       receipt,
       authorization,
       snapshot,
-      position,
-      intent,
+      { position, intent },
       stillAuthorized,
     );
   } catch {
@@ -179,13 +178,16 @@ async function dispatchStatusWrite(
   receipt: Parameters<typeof readProjectStatusReceipt>[0],
   authorization: AuthorizedStatusWrite,
   snapshot: ProjectStatusSnapshot,
-  position: NonNullable<
-    Awaited<ReturnType<Journal["beginProjectStatusWrite"]>>
-  >,
-  intent: ReturnType<typeof buildStatusIntent>,
+  pending: {
+    readonly position: NonNullable<
+      Awaited<ReturnType<Journal["beginProjectStatusWrite"]>>
+    >;
+    readonly intent: ReturnType<typeof buildStatusIntent>;
+  },
   stillAuthorized: () => Promise<boolean>,
 ): Promise<StatusWriteResult> {
   const { command } = authorization;
+  const { position, intent } = pending;
   if (
     !(await stillAuthorized()) ||
     !(await claimProjectStatusCommand({

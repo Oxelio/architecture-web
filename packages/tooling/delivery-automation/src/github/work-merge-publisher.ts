@@ -487,13 +487,7 @@ function selectStandingEvidence(
     if (!kind || !record || !sameWorkIntegrationCandidate(candidate, record)) {
       continue;
     }
-    const app = comment.performed_via_github_app;
-    let appId: unknown;
-    if (app === null) {
-      appId = null;
-    } else if (app && "id" in app) {
-      appId = app.id;
-    }
+    const appId = standingEvidenceAppId(comment);
     const authorId = comment.user.id;
     if (
       !authority[kind]?.some(
@@ -503,16 +497,15 @@ function selectStandingEvidence(
     ) {
       continue;
     }
-    const issueUrl = comment.issue_url?.toLowerCase();
     if (
-      !positiveId(comment.id) ||
-      (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
-        issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
-      !comment.created_at ||
-      comment.created_at !== comment.updated_at ||
-      record["decision"] !== "accepted" ||
-      (kind.endsWith("-approval") &&
-        (comment.user.type !== "User" || appId !== null)) ||
+      !isAcceptedStandingEvidence(
+        comment,
+        record,
+        candidate,
+        prefix,
+        kind,
+        appId,
+      ) ||
       selected.has(kind)
     ) {
       return null;
@@ -523,6 +516,35 @@ function selectStandingEvidence(
     return null;
   }
   return selected;
+}
+
+function standingEvidenceAppId(comment: IssueComment): unknown {
+  const app = comment.performed_via_github_app;
+  if (app === null) {
+    return null;
+  }
+  return app && "id" in app ? app.id : undefined;
+}
+
+function isAcceptedStandingEvidence(
+  comment: IssueComment,
+  record: Record<string, unknown>,
+  candidate: MergeCandidate,
+  prefix: string,
+  kind: EvidenceReference["kind"],
+  appId: unknown,
+): boolean {
+  const issueUrl = comment.issue_url?.toLowerCase();
+  return !(
+    !positiveId(comment.id) ||
+    (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
+      issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
+    !comment.created_at ||
+    comment.created_at !== comment.updated_at ||
+    record["decision"] !== "accepted" ||
+    (kind.endsWith("-approval") &&
+      (comment.user?.type !== "User" || appId !== null))
+  );
 }
 
 function parseEvidenceComment(body: string): Record<string, unknown> | null {
@@ -817,64 +839,20 @@ async function verifyChecks(
   ) {
     return "CHECK_CANDIDATE_UNAVAILABLE";
   }
-  const ciChecks = [
-    ["Quality checks", 15368],
-    ["SonarCloud Code Analysis", 12526],
-  ] as const;
-  const expectedGateName = observe ? workMergeObservationCheckName : gateName;
-  const expected = evaluateGate
-    ? ciChecks
-    : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
-  let checksForMode: readonly (readonly [string, number])[] = expected;
-  if (evaluateGate) {
-    checksForMode = [...ciChecks, [gateName, grant.gateAppId] as const];
-  } else if (observe) {
-    checksForMode = ciChecks;
-  }
-  const ruleset = await github<GateRuleset>(
-    publisher,
-    `${repoPath}/rulesets/${grant.rulesetId}`,
+  const { expectedGateName, expected, checksForMode } = expectedMergeChecks(
+    grant.gateAppId,
+    observe,
+    evaluateGate,
   );
-  const refs = ruleset.conditions?.ref_name;
-  const statusRule = ruleset.rules?.find(
-    (rule) => rule.type === "required_status_checks",
-  )?.parameters;
-  const methods = ruleset.rules?.find((rule) => rule.type === "pull_request")
-    ?.parameters?.allowed_merge_methods;
-  const repository = await github<{
-    readonly id: number;
-    readonly default_branch: string;
-  }>(publisher, repoPath);
-  const bypassActors = ruleset.bypass_actors;
-  // For the reserved path, the independently verified administrative view
-  // can supply the omitted field. A contradictory live response always wins.
-  const noBypassActors =
-    bypassActors === undefined && reservedCheck
-      ? (await readObservedRulesetBypassActors(publisher, ruleset))?.length ===
-        0
-      : Array.isArray(bypassActors) && bypassActors.length === 0;
-  if (
-    repository.id !== publisher.repositoryId ||
-    repository.default_branch !== "main" ||
-    ruleset.id !== grant.rulesetId ||
-    ruleset.enforcement !== "active" ||
-    ruleset.target !== "branch" ||
-    (!noBypassActors && !(observe && bypassActors === undefined)) ||
-    refs?.exclude.length !== 0 ||
-    !refs.include.some(
-      (ref) => ref === "refs/heads/main" || ref === "~DEFAULT_BRANCH",
-    ) ||
-    methods?.length !== 1 ||
-    methods[0] !== "squash" ||
-    statusRule?.strict_required_status_checks_policy !== true ||
-    checksForMode.some(
-      ([context, appId]) =>
-        !statusRule.required_status_checks?.some(
-          (check) =>
-            check.context === context && check.integration_id === appId,
-        ),
-    )
-  ) {
+  const noBypassActors = await verifyRequiredProtections(
+    publisher,
+    grant.rulesetId,
+    repoPath,
+    checksForMode,
+    observe,
+    reservedCheck,
+  );
+  if (noBypassActors === null) {
     return "REQUIRED_PROTECTIONS_UNVERIFIED";
   }
   if (reservedCheck) {
@@ -891,10 +869,69 @@ async function verifyChecks(
     }
   }
 
+  const checks = await readCandidateCheckInventory(
+    publisher,
+    repoPath,
+    pr.head.sha,
+    pr.merge_commit_sha,
+  );
+  if (!checks) {
+    return "CHECK_INVENTORY_INCOMPLETE";
+  }
+  const pending = verifyExpectedChecks(
+    checks,
+    pr,
+    grant,
+    expected,
+    expectedGateName,
+    mode,
+    {
+      mergeSha: pr.merge_commit_sha,
+      evaluateGate,
+      ...(reservedCheck ? { reservedCheck } : {}),
+    },
+  );
+  if (typeof pending === "string") {
+    return pending;
+  }
+  if (mode === "auto" && !pending) {
+    return "DIRECT_MERGE_REQUIRED";
+  }
+  return { bypassActors: noBypassActors ? "none" : "unverified" };
+}
+
+function expectedMergeChecks(
+  gateAppId: number,
+  observe: boolean,
+  evaluateGate: boolean,
+) {
+  const ciChecks = [
+    ["Quality checks", 15368],
+    ["SonarCloud Code Analysis", 12526],
+  ] as const;
+  const expectedGateName = observe ? workMergeObservationCheckName : gateName;
+  const expected = evaluateGate
+    ? ciChecks
+    : [...ciChecks, [expectedGateName, gateAppId] as const];
+  let checksForMode: readonly (readonly [string, number])[] = expected;
+  if (evaluateGate) {
+    checksForMode = [...ciChecks, [gateName, gateAppId] as const];
+  } else if (observe) {
+    checksForMode = ciChecks;
+  }
+  return { expectedGateName, expected, checksForMode };
+}
+
+async function readCandidateCheckInventory(
+  publisher: WorkGateReader,
+  repoPath: string,
+  headSha: string,
+  mergeSha: string,
+): Promise<Map<string, readonly CheckRun[]> | null> {
   // Observe checks only on the current head and GitHub's current test merge SHA.
   // If both have the same context, use the test merge SHA as GitHub does.
   const checks = new Map<string, readonly CheckRun[]>();
-  for (const sha of new Set([pr.head.sha, pr.merge_commit_sha])) {
+  for (const sha of new Set([headSha, mergeSha])) {
     const payload = await github<{
       readonly total_count: number;
       readonly check_runs: readonly CheckRun[];
@@ -906,17 +943,34 @@ async function verifyChecks(
       !Array.isArray(payload.check_runs) ||
       payload.total_count !== payload.check_runs.length
     ) {
-      return "CHECK_INVENTORY_INCOMPLETE";
+      return null;
     }
     checks.set(
       sha,
       payload.check_runs.filter((check) => check.head_sha === sha),
     );
   }
+  return checks;
+}
+
+function verifyExpectedChecks(
+  checks: Map<string, readonly CheckRun[]>,
+  pr: PullRequest,
+  grant: Pick<WorkMergeGrant, "workNumber" | "pullNumber">,
+  expected: readonly (readonly [string, number])[],
+  expectedGateName: string,
+  mode: MergeMode,
+  options: {
+    readonly mergeSha: string;
+    readonly evaluateGate: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  },
+): boolean | string {
+  const { mergeSha, evaluateGate, reservedCheck } = options;
   let pending = false;
   for (const [name, appId] of expected) {
     const candidates = checks
-      .get(pr.merge_commit_sha)
+      .get(mergeSha)
       ?.filter((check) => check.name === name);
     const matches = candidates?.length
       ? candidates
@@ -928,47 +982,138 @@ async function verifyChecks(
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
-    if (reservedCheck && name === expectedGateName) {
-      if (
-        check.id !== reservedCheck.checkId ||
-        check.external_id !== reservedCheck.reservationId ||
-        check.head_sha !== pr.head.sha ||
-        check.status !== "queued" ||
-        check.conclusion !== null
-      ) {
-        return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
-      }
+    const result = classifyExpectedCheck(
+      check,
+      pr,
+      grant,
+      name,
+      expectedGateName,
+      mode,
+      reservedCheck,
+    );
+    if (result === "pending") {
       pending = true;
-      continue;
+    } else if (result !== "success") {
+      return result;
     }
-    if (
-      name === expectedGateName &&
-      check.external_id !==
-        `work:${grant.workNumber}:pr:${grant.pullNumber}:${pr.head.sha}:${pr.base.sha}`
-    ) {
-      return "STALE_WORK_MERGE_GATE";
-    }
-    if (check.status === "completed" && check.conclusion === "success") {
-      continue;
-    }
-    if (
-      mode === "auto" &&
-      !reservedCheck &&
-      name !== expectedGateName &&
-      ["queued", "in_progress", "pending", "waiting", "requested"].includes(
-        check.status,
-      ) &&
-      check.conclusion === null
-    ) {
-      pending = true;
-      continue;
-    }
-    return `CHECK_NOT_SUCCESSFUL:${name}`;
   }
-  if (mode === "auto" && !pending) {
-    return "DIRECT_MERGE_REQUIRED";
+  return pending;
+}
+
+function classifyExpectedCheck(
+  check: CheckRun,
+  pr: PullRequest,
+  grant: Pick<WorkMergeGrant, "workNumber" | "pullNumber">,
+  name: string,
+  expectedGateName: string,
+  mode: MergeMode,
+  reservedCheck: ReservedGateCheck | undefined,
+): string {
+  if (reservedCheck && name === expectedGateName) {
+    if (
+      check.id !== reservedCheck.checkId ||
+      check.external_id !== reservedCheck.reservationId ||
+      check.head_sha !== pr.head.sha ||
+      check.status !== "queued" ||
+      check.conclusion !== null
+    ) {
+      return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+    }
+    return "pending";
   }
-  return { bypassActors: noBypassActors ? "none" : "unverified" };
+  if (
+    name === expectedGateName &&
+    check.external_id !==
+      `work:${grant.workNumber}:pr:${grant.pullNumber}:${pr.head.sha}:${pr.base.sha}`
+  ) {
+    return "STALE_WORK_MERGE_GATE";
+  }
+  if (check.status === "completed" && check.conclusion === "success") {
+    return "success";
+  }
+  if (
+    mode === "auto" &&
+    !reservedCheck &&
+    name !== expectedGateName &&
+    ["queued", "in_progress", "pending", "waiting", "requested"].includes(
+      check.status,
+    ) &&
+    check.conclusion === null
+  ) {
+    return "pending";
+  }
+  return `CHECK_NOT_SUCCESSFUL:${name}`;
+}
+
+async function verifyRequiredProtections(
+  publisher: WorkGateReader,
+  rulesetId: number,
+  repoPath: string,
+  checksForMode: readonly (readonly [string, number])[],
+  observe: boolean,
+  reservedCheck: ReservedGateCheck | undefined,
+): Promise<boolean | null> {
+  const ruleset = await github<GateRuleset>(
+    publisher,
+    `${repoPath}/rulesets/${rulesetId}`,
+  );
+  const branchProtection = readBranchProtection(ruleset);
+  const repository = await github<{
+    readonly id: number;
+    readonly default_branch: string;
+  }>(publisher, repoPath);
+  const bypassActors = ruleset.bypass_actors;
+  // For the reserved path, the independently verified administrative view
+  // can supply the omitted field. A contradictory live response always wins.
+  const noBypassActors =
+    bypassActors === undefined && reservedCheck
+      ? (await readObservedRulesetBypassActors(publisher, ruleset))?.length ===
+        0
+      : Array.isArray(bypassActors) && bypassActors.length === 0;
+  if (
+    repository.id !== publisher.repositoryId ||
+    repository.default_branch !== "main" ||
+    ruleset.id !== rulesetId ||
+    ruleset.enforcement !== "active" ||
+    ruleset.target !== "branch" ||
+    (!noBypassActors && !(observe && bypassActors === undefined)) ||
+    !hasRequiredBranchChecks(branchProtection, checksForMode)
+  ) {
+    return null;
+  }
+  return noBypassActors;
+}
+
+function readBranchProtection(ruleset: GateRuleset) {
+  const refs = ruleset.conditions?.ref_name;
+  const statusRule = ruleset.rules?.find(
+    (rule) => rule.type === "required_status_checks",
+  )?.parameters;
+  const methods = ruleset.rules?.find((rule) => rule.type === "pull_request")
+    ?.parameters?.allowed_merge_methods;
+  return { refs, statusRule, methods };
+}
+
+function hasRequiredBranchChecks(
+  { refs, statusRule, methods }: ReturnType<typeof readBranchProtection>,
+  checksForMode: readonly (readonly [string, number])[],
+): boolean {
+  return !(
+    refs?.exclude.length !== 0 ||
+    !refs.include.some(
+      (ref) => ref === "refs/heads/main" || ref === "~DEFAULT_BRANCH",
+    ) ||
+    methods?.length !== 1 ||
+    methods[0] !== "squash" ||
+    statusRule?.strict_required_status_checks_policy !== true ||
+    checksForMode.some(
+      ([context, appId]) =>
+        !statusRule.required_status_checks?.some(
+          (check) =>
+            check.context === context && check.integration_id === appId,
+        ),
+    )
+  );
 }
 
 function selectLatestCheck(
@@ -1504,268 +1649,16 @@ async function evaluateWorkMergeRequest(
     if (!authorized(await publisher.readGrant(), publisher, candidate, mode)) {
       return blocked("MERGE_NOT_DELEGATED");
     }
-    const evaluate = async (): Promise<WorkMergeOutcome> => {
-      const grant = structuredClone(await publisher.readGrant());
-      if (!authorized(grant, publisher, candidate, mode)) {
-        return blocked("MERGE_NOT_DELEGATED");
-      }
-      const pr = await github<PullRequest>(publisher, prPath);
-      if (!sameCandidate(pr, candidate, publisher.repositoryId)) {
-        return blocked("CANDIDATE_CHANGED");
-      }
-      if (
-        pr.merged === true &&
-        pr.merge_commit_sha &&
-        oid.test(pr.merge_commit_sha)
-      ) {
-        if (reservedCheck) {
-          const merged = await observeReservedWorkSquash(publisher, candidate);
-          return merged
-            ? { status: "already-merged", sha: merged.sha }
-            : blocked("RESERVED_SQUASH_OUTCOME_UNVERIFIED");
-        }
-        return { status: "already-merged", sha: pr.merge_commit_sha };
-      }
-      if (
-        pr.state !== "open" ||
-        pr.draft !== false ||
-        pr.merged !== false ||
-        pr.base.sha !== candidate.baseSha
-      ) {
-        return blocked("CANDIDATE_CHANGED");
-      }
-
-      const live = await readWorkMergeGateLiveEvidence({
-        ...publisher,
-        workNumber: candidate.workNumber,
-      });
-      if (live.status !== "ready") {
-        return blocked(live.reason);
-      }
-      if (
-        live.workState !== "Validating" ||
-        !live.dependenciesResolved ||
-        !live.pullRequestMergeable ||
-        live.target.pullRequestNumber !== candidate.pullNumber ||
-        live.target.headSha !== candidate.headSha ||
-        live.baseSha !== candidate.baseSha
-      ) {
-        return blocked("WORK_NOT_ELIGIBLE");
-      }
-      const evidenceFailure = await verifyEvidence(
+    const evaluate = () =>
+      evaluateAuthorizedWorkMerge(
         publisher,
         candidate,
-        grant,
-        repoPath,
-      );
-      if (evidenceFailure) {
-        return blocked(evidenceFailure);
-      }
-      const checks = await verifyChecks(
-        publisher,
-        grant,
-        repoPath,
-        pr,
         mode,
         observe,
-        reservedCheck ? { reservedCheck } : {},
+        reservedCheck,
+        repoPath,
+        prPath,
       );
-      if (typeof checks === "string") {
-        return blocked(checks);
-      }
-
-      const current = await github<PullRequest>(publisher, prPath);
-      if (
-        !sameCandidate(current, candidate, publisher.repositoryId) ||
-        current.base.sha !== candidate.baseSha ||
-        current.state !== "open" ||
-        current.draft !== false ||
-        current.merged !== false ||
-        current.merge_commit_sha !== pr.merge_commit_sha
-      ) {
-        return blocked("CANDIDATE_CHANGED");
-      }
-      const currentGrant = await publisher.readGrant();
-      if (!isDeepStrictEqual(currentGrant, grant)) {
-        return blocked("MERGE_DELEGATION_CHANGED");
-      }
-      if (reservedCheck?.release) {
-        const { checksToken, controllerBotId, admit } = reservedCheck.release;
-        if (!isNativeSquashFrom(current, controllerBotId)) {
-          return blocked("RESERVED_NATIVE_ARM_UNVERIFIED");
-        }
-        const completed = await completeReservedGateCheck({
-          repository: publisher.repository,
-          ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
-          checksToken,
-          name: gateName,
-          headSha: candidate.headSha,
-          reservationId: reservedCheck.reservationId,
-          checkId: reservedCheck.checkId,
-          expectedAppId: grant.gateAppId,
-          beforePatch: async () => {
-            const binding = createHash("sha256")
-              .update(
-                JSON.stringify([
-                  candidate,
-                  reservedCheck.reservationId,
-                  reservedCheck.checkId,
-                  grant,
-                ]),
-              )
-              .digest("hex");
-            return isDeepStrictEqual(await publisher.readGrant(), grant)
-              ? admit(binding)
-              : null;
-          },
-          title: "Work Merge Gate: PASS",
-          summary: `Work #${candidate.workNumber} / PR #${candidate.pullNumber}\nHead: ${candidate.headSha}\nBase: ${candidate.baseSha}`,
-        });
-        if (completed) {
-          return { status: "gate-released", checkId: completed.id };
-        }
-        const merged = await observeReservedWorkSquash(publisher, candidate);
-        return merged
-          ? { status: "merged", sha: merged.sha }
-          : {
-              status: "uncertain",
-              reason: "RESERVED_GATE_RELEASE_NOT_CONFIRMED",
-            };
-      }
-
-      // An existing request may have been armed for another candidate.
-      if (current.auto_merge !== null) {
-        return blocked("EXISTING_AUTO_MERGE_REQUEST");
-      }
-      const headline = await safeSquashHeadline(publisher, current);
-      if (!headline) {
-        return blocked("NATIVE_ISSUE_CLOSURE_UNVERIFIED");
-      }
-      const message = `Refs #${candidate.workNumber}`;
-      if (observe) {
-        return {
-          status: "observed-checks-passed",
-          bypassActors: checks.bypassActors,
-        };
-      }
-
-      try {
-        if (mode === "direct") {
-          // Only a new, confirmed create authorizes a squash attempt. A lost
-          // response consumes the candidate without authorizing an API retry.
-          const ref = `refs/tags/delivery-direct/work-${candidate.workNumber}-pr-${candidate.pullNumber}/${candidate.headSha}-${candidate.baseSha}`;
-          try {
-            const receipt = await github<{
-              readonly ref: string;
-              readonly object: { readonly sha: string; readonly type: string };
-            }>(
-              publisher,
-              `${repoPath}/git/refs`,
-              "POST",
-              { ref, sha: candidate.headSha },
-              publisher.mergeToken,
-              201,
-            );
-            if (
-              receipt.ref !== ref ||
-              receipt.object?.type !== "commit" ||
-              receipt.object.sha !== candidate.headSha
-            ) {
-              return blocked("DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED");
-            }
-          } catch {
-            return blocked("DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED");
-          }
-          const merged = await github<{
-            readonly merged: boolean;
-            readonly sha: string;
-          }>(
-            publisher,
-            `${prPath}/merge`,
-            "PUT",
-            {
-              sha: candidate.headSha,
-              merge_method: "squash",
-              commit_title: headline,
-              commit_message: message,
-            },
-            publisher.mergeToken,
-          );
-          if (merged.merged === true && oid.test(merged.sha)) {
-            return { status: "merged", sha: merged.sha };
-          }
-        } else {
-          if (reservedCheck && !(await reservedCheck.authorizeArm?.())) {
-            return blocked("STANDING_ARM_AUTHORITY_UNVERIFIED");
-          }
-          const armed = await github<{
-            readonly data?: {
-              readonly enablePullRequestAutoMerge?: {
-                readonly pullRequest?: {
-                  readonly id: string;
-                  readonly autoMergeRequest?: object | null;
-                };
-              };
-            };
-            readonly errors?: readonly unknown[];
-          }>(
-            publisher,
-            "/graphql",
-            "POST",
-            {
-              query: `mutation($input: EnablePullRequestAutoMergeInput!) {
-              enablePullRequestAutoMerge(input: $input) { pullRequest { id autoMergeRequest { enabledAt } } }
-            }`,
-              variables: {
-                input: {
-                  pullRequestId: current.node_id,
-                  expectedHeadOid: candidate.headSha,
-                  mergeMethod: "SQUASH",
-                  commitHeadline: headline,
-                  commitBody: message,
-                },
-              },
-            },
-            publisher.mergeToken,
-          );
-          const armedPr = armed.data?.enablePullRequestAutoMerge?.pullRequest;
-          if (
-            !armed.errors?.length &&
-            armedPr?.id === current.node_id &&
-            armedPr.autoMergeRequest &&
-            (!reservedCheck ||
-              (await observeReservedNativeArm(
-                publisher,
-                candidate,
-                publisher.actorId,
-              )))
-          ) {
-            return { status: "auto-merge-requested" };
-          }
-        }
-      } catch {
-        // A failed response can arrive after GitHub has accepted the mutation.
-      }
-      if (reservedCheck) {
-        const merged = await observeReservedWorkSquash(publisher, candidate);
-        return merged
-          ? { status: "merged", sha: merged.sha }
-          : { status: "uncertain", reason: "MUTATION_NOT_CONFIRMED" };
-      }
-      const observed = await github<PullRequest>(publisher, prPath).catch(
-        () => null,
-      );
-      if (
-        observed &&
-        sameCandidate(observed, candidate, publisher.repositoryId) &&
-        observed.merged === true &&
-        observed.merge_commit_sha &&
-        oid.test(observed.merge_commit_sha)
-      ) {
-        return { status: "merged", sha: observed.merge_commit_sha };
-      }
-      return { status: "uncertain", reason: "MUTATION_NOT_CONFIRMED" };
-    };
     const result = observe
       ? await evaluate()
       : await publisher.withinVerifiedBoundary(candidate, mode, evaluate);
@@ -1773,4 +1666,419 @@ async function evaluateWorkMergeRequest(
   } catch {
     return blocked("TRUSTED_EVIDENCE_UNAVAILABLE");
   }
+}
+
+async function evaluateAuthorizedWorkMerge(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  mode: MergeMode,
+  observe: boolean,
+  reservedCheck: ReservedGateCheck | undefined,
+  repoPath: string,
+  prPath: string,
+): Promise<WorkMergeOutcome> {
+  const grant = structuredClone(await publisher.readGrant());
+  if (!authorized(grant, publisher, candidate, mode)) {
+    return blocked("MERGE_NOT_DELEGATED");
+  }
+  const pr = await github<PullRequest>(publisher, prPath);
+  if (!sameCandidate(pr, candidate, publisher.repositoryId)) {
+    return blocked("CANDIDATE_CHANGED");
+  }
+  if (hasMergedSha(pr)) {
+    if (reservedCheck) {
+      const merged = await observeReservedWorkSquash(publisher, candidate);
+      return merged
+        ? { status: "already-merged", sha: merged.sha }
+        : blocked("RESERVED_SQUASH_OUTCOME_UNVERIFIED");
+    }
+    return { status: "already-merged", sha: pr.merge_commit_sha };
+  }
+  if (!isOpenMergeCandidate(pr, candidate)) {
+    return blocked("CANDIDATE_CHANGED");
+  }
+
+  const checks = await verifyMergeEligibility(
+    publisher,
+    candidate,
+    grant,
+    repoPath,
+    pr,
+    mode,
+    { observe, ...(reservedCheck ? { reservedCheck } : {}) },
+  );
+  if (typeof checks === "string") {
+    return blocked(checks);
+  }
+
+  const current = await github<PullRequest>(publisher, prPath);
+  if (
+    !sameCandidate(current, candidate, publisher.repositoryId) ||
+    !isOpenMergeCandidate(current, candidate) ||
+    current.merge_commit_sha !== pr.merge_commit_sha
+  ) {
+    return blocked("CANDIDATE_CHANGED");
+  }
+  const currentGrant = await publisher.readGrant();
+  if (!isDeepStrictEqual(currentGrant, grant)) {
+    return blocked("MERGE_DELEGATION_CHANGED");
+  }
+  return finishVerifiedWorkMerge(
+    publisher,
+    candidate,
+    current,
+    grant,
+    { mode, observe, ...(reservedCheck ? { reservedCheck } : {}) },
+    checks,
+    { repoPath, prPath },
+  );
+}
+
+async function finishVerifiedWorkMerge(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  current: PullRequest,
+  grant: WorkMergeGrant,
+  options: {
+    readonly mode: MergeMode;
+    readonly observe: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  },
+  checks: { readonly bypassActors: "none" | "unverified" },
+  paths: { readonly repoPath: string; readonly prPath: string },
+): Promise<WorkMergeOutcome> {
+  const { mode, observe, reservedCheck } = options;
+  const { repoPath, prPath } = paths;
+  if (reservedCheck?.release) {
+    return releaseVerifiedGate(
+      publisher,
+      candidate,
+      current,
+      grant,
+      reservedCheck,
+      reservedCheck.release,
+    );
+  }
+
+  // An existing request may have been armed for another candidate.
+  if (current.auto_merge !== null) {
+    return blocked("EXISTING_AUTO_MERGE_REQUEST");
+  }
+  const headline = await safeSquashHeadline(publisher, current);
+  if (!headline) {
+    return blocked("NATIVE_ISSUE_CLOSURE_UNVERIFIED");
+  }
+  const message = `Refs #${candidate.workNumber}`;
+  if (observe) {
+    return {
+      status: "observed-checks-passed",
+      bypassActors: checks.bypassActors,
+    };
+  }
+
+  const outcome = await requestWorkMerge(
+    publisher,
+    candidate,
+    current,
+    mode,
+    reservedCheck,
+    headline,
+    { repoPath, prPath, message },
+  );
+  if (outcome) {
+    return outcome;
+  }
+  return observeWorkMergeOutcome(publisher, candidate, prPath, reservedCheck);
+}
+
+function hasMergedSha(
+  pr: PullRequest,
+): pr is PullRequest & { readonly merge_commit_sha: string } {
+  return (
+    pr.merged === true && !!pr.merge_commit_sha && oid.test(pr.merge_commit_sha)
+  );
+}
+
+function isOpenMergeCandidate(
+  pr: PullRequest,
+  candidate: MergeCandidate,
+): boolean {
+  return (
+    pr.state === "open" &&
+    pr.draft === false &&
+    pr.merged === false &&
+    pr.base.sha === candidate.baseSha
+  );
+}
+
+async function verifyMergeEligibility(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  grant: WorkMergeGrant,
+  repoPath: string,
+  pr: PullRequest,
+  mode: MergeMode,
+  options: {
+    readonly observe: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  },
+): ReturnType<typeof verifyChecks> {
+  const { observe, reservedCheck } = options;
+  const live = await readWorkMergeGateLiveEvidence({
+    ...publisher,
+    workNumber: candidate.workNumber,
+  });
+  if (live.status !== "ready") {
+    return live.reason;
+  }
+  if (
+    live.workState !== "Validating" ||
+    !live.dependenciesResolved ||
+    !live.pullRequestMergeable ||
+    live.target.pullRequestNumber !== candidate.pullNumber ||
+    live.target.headSha !== candidate.headSha ||
+    live.baseSha !== candidate.baseSha
+  ) {
+    return "WORK_NOT_ELIGIBLE";
+  }
+  const evidenceFailure = await verifyEvidence(
+    publisher,
+    candidate,
+    grant,
+    repoPath,
+  );
+  if (evidenceFailure) {
+    return evidenceFailure;
+  }
+  return verifyChecks(
+    publisher,
+    grant,
+    repoPath,
+    pr,
+    mode,
+    observe,
+    reservedCheck ? { reservedCheck } : {},
+  );
+}
+
+async function releaseVerifiedGate(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  current: PullRequest,
+  grant: WorkMergeGrant,
+  reservedCheck: ReservedGateCheck,
+  release: NonNullable<ReservedGateCheck["release"]>,
+): Promise<WorkMergeOutcome> {
+  const { checksToken, controllerBotId, admit } = release;
+  if (!isNativeSquashFrom(current, controllerBotId)) {
+    return blocked("RESERVED_NATIVE_ARM_UNVERIFIED");
+  }
+  const completed = await completeReservedGateCheck({
+    repository: publisher.repository,
+    ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+    checksToken,
+    name: gateName,
+    headSha: candidate.headSha,
+    reservationId: reservedCheck.reservationId,
+    checkId: reservedCheck.checkId,
+    expectedAppId: grant.gateAppId,
+    beforePatch: async () => {
+      const binding = createHash("sha256")
+        .update(
+          JSON.stringify([
+            candidate,
+            reservedCheck.reservationId,
+            reservedCheck.checkId,
+            grant,
+          ]),
+        )
+        .digest("hex");
+      return isDeepStrictEqual(await publisher.readGrant(), grant)
+        ? admit(binding)
+        : null;
+    },
+    title: "Work Merge Gate: PASS",
+    summary: `Work #${candidate.workNumber} / PR #${candidate.pullNumber}\nHead: ${candidate.headSha}\nBase: ${candidate.baseSha}`,
+  });
+  if (completed) {
+    return { status: "gate-released", checkId: completed.id };
+  }
+  const merged = await observeReservedWorkSquash(publisher, candidate);
+  return merged
+    ? { status: "merged", sha: merged.sha }
+    : {
+        status: "uncertain",
+        reason: "RESERVED_GATE_RELEASE_NOT_CONFIRMED",
+      };
+}
+
+async function requestWorkMerge(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  current: PullRequest,
+  mode: MergeMode,
+  reservedCheck: ReservedGateCheck | undefined,
+  headline: string,
+  paths: {
+    readonly repoPath: string;
+    readonly prPath: string;
+    readonly message: string;
+  },
+): Promise<WorkMergeOutcome | undefined> {
+  try {
+    return mode === "direct"
+      ? await requestDirectSquash(publisher, candidate, headline, paths)
+      : await requestNativeAutoMerge(
+          publisher,
+          candidate,
+          current,
+          reservedCheck,
+          headline,
+          paths.message,
+        );
+  } catch {
+    // A failed response can arrive after GitHub has accepted the mutation.
+    return undefined;
+  }
+}
+
+async function requestDirectSquash(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  headline: string,
+  {
+    repoPath,
+    prPath,
+    message,
+  }: {
+    readonly repoPath: string;
+    readonly prPath: string;
+    readonly message: string;
+  },
+): Promise<WorkMergeOutcome | undefined> {
+  // Only a new, confirmed create authorizes a squash attempt. A lost
+  // response consumes the candidate without authorizing an API retry.
+  const ref = `refs/tags/delivery-direct/work-${candidate.workNumber}-pr-${candidate.pullNumber}/${candidate.headSha}-${candidate.baseSha}`;
+  try {
+    const receipt = await github<{
+      readonly ref: string;
+      readonly object: { readonly sha: string; readonly type: string };
+    }>(
+      publisher,
+      `${repoPath}/git/refs`,
+      "POST",
+      { ref, sha: candidate.headSha },
+      publisher.mergeToken,
+      201,
+    );
+    if (
+      receipt.ref !== ref ||
+      receipt.object?.type !== "commit" ||
+      receipt.object.sha !== candidate.headSha
+    ) {
+      return blocked("DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED");
+    }
+  } catch {
+    return blocked("DIRECT_REQUEST_CONSUMPTION_UNCONFIRMED");
+  }
+  const merged = await github<{
+    readonly merged: boolean;
+    readonly sha: string;
+  }>(
+    publisher,
+    `${prPath}/merge`,
+    "PUT",
+    {
+      sha: candidate.headSha,
+      merge_method: "squash",
+      commit_title: headline,
+      commit_message: message,
+    },
+    publisher.mergeToken,
+  );
+  if (merged.merged === true && oid.test(merged.sha)) {
+    return { status: "merged", sha: merged.sha };
+  }
+  return undefined;
+}
+
+async function requestNativeAutoMerge(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  current: PullRequest,
+  reservedCheck: ReservedGateCheck | undefined,
+  headline: string,
+  message: string,
+): Promise<WorkMergeOutcome | undefined> {
+  if (reservedCheck && !(await reservedCheck.authorizeArm?.())) {
+    return blocked("STANDING_ARM_AUTHORITY_UNVERIFIED");
+  }
+  const armed = await github<{
+    readonly data?: {
+      readonly enablePullRequestAutoMerge?: {
+        readonly pullRequest?: {
+          readonly id: string;
+          readonly autoMergeRequest?: object | null;
+        };
+      };
+    };
+    readonly errors?: readonly unknown[];
+  }>(
+    publisher,
+    "/graphql",
+    "POST",
+    {
+      query: `mutation($input: EnablePullRequestAutoMergeInput!) {
+      enablePullRequestAutoMerge(input: $input) { pullRequest { id autoMergeRequest { enabledAt } } }
+    }`,
+      variables: {
+        input: {
+          pullRequestId: current.node_id,
+          expectedHeadOid: candidate.headSha,
+          mergeMethod: "SQUASH",
+          commitHeadline: headline,
+          commitBody: message,
+        },
+      },
+    },
+    publisher.mergeToken,
+  );
+  const armedPr = armed.data?.enablePullRequestAutoMerge?.pullRequest;
+  if (
+    !armed.errors?.length &&
+    armedPr?.id === current.node_id &&
+    armedPr.autoMergeRequest &&
+    (!reservedCheck ||
+      (await observeReservedNativeArm(publisher, candidate, publisher.actorId)))
+  ) {
+    return { status: "auto-merge-requested" };
+  }
+  return undefined;
+}
+
+async function observeWorkMergeOutcome(
+  publisher: WorkMergePublisher,
+  candidate: MergeCandidate,
+  prPath: string,
+  reservedCheck: ReservedGateCheck | undefined,
+): Promise<WorkMergeOutcome> {
+  if (reservedCheck) {
+    const merged = await observeReservedWorkSquash(publisher, candidate);
+    return merged
+      ? { status: "merged", sha: merged.sha }
+      : { status: "uncertain", reason: "MUTATION_NOT_CONFIRMED" };
+  }
+  const observed = await github<PullRequest>(publisher, prPath).catch(
+    () => null,
+  );
+  if (
+    observed &&
+    sameCandidate(observed, candidate, publisher.repositoryId) &&
+    observed.merged === true &&
+    observed.merge_commit_sha &&
+    oid.test(observed.merge_commit_sha)
+  ) {
+    return { status: "merged", sha: observed.merge_commit_sha };
+  }
+  return { status: "uncertain", reason: "MUTATION_NOT_CONFIRMED" };
 }
