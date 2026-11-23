@@ -91,12 +91,11 @@ async function openDialog(mfaEnabled = false, mfaLoaded = true) {
   }
   await vi.waitFor(() => {
     expect(getAccountDeletionDisclosure).toHaveBeenCalledOnce();
-    expect(dialog.textContent).not.toContain(
-      "Chargement de la politique de suppression",
-    );
-    expect(dialog.textContent).not.toContain(
-      "Loading the effective deletion policy",
-    );
+    expect(
+      dialog.querySelector("form") !== null ||
+        dialog.querySelector('[role="alert"]') !== null ||
+        dialog.textContent?.includes("désactivée") === true,
+    ).toBe(true);
   });
   return dialog;
 }
