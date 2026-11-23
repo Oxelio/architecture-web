@@ -503,18 +503,7 @@ function selectStandingEvidence(
     ) {
       continue;
     }
-    const issueUrl = comment.issue_url?.toLowerCase();
-    if (
-      !positiveId(comment.id) ||
-      (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
-        issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
-      !comment.created_at ||
-      comment.created_at !== comment.updated_at ||
-      record["decision"] !== "accepted" ||
-      (kind.endsWith("-approval") &&
-        (comment.user.type !== "User" || appId !== null)) ||
-      selected.has(kind)
-    ) {
+    if (!isAcceptedStandingEvidence(comment, record, candidate, prefix, kind, appId) || selected.has(kind)) {
       return null;
     }
     selected.set(kind, { kind, commentId: comment.id, authorId });
@@ -523,6 +512,27 @@ function selectStandingEvidence(
     return null;
   }
   return selected;
+}
+
+function isAcceptedStandingEvidence(
+  comment: IssueComment,
+  record: Record<string, unknown>,
+  candidate: MergeCandidate,
+  prefix: string,
+  kind: EvidenceReference["kind"],
+  appId: unknown,
+): boolean {
+  const issueUrl = comment.issue_url?.toLowerCase();
+  return !(
+    !positiveId(comment.id) ||
+    (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
+      issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
+    !comment.created_at ||
+    comment.created_at !== comment.updated_at ||
+    record["decision"] !== "accepted" ||
+    (kind.endsWith("-approval") &&
+      (comment.user?.type !== "User" || appId !== null))
+  );
 }
 
 function parseEvidenceComment(body: string): Record<string, unknown> | null {
@@ -831,50 +841,15 @@ async function verifyChecks(
   } else if (observe) {
     checksForMode = ciChecks;
   }
-  const ruleset = await github<GateRuleset>(
+  const noBypassActors = await verifyRequiredProtections(
     publisher,
-    `${repoPath}/rulesets/${grant.rulesetId}`,
+    grant.rulesetId,
+    repoPath,
+    checksForMode,
+    observe,
+    reservedCheck,
   );
-  const refs = ruleset.conditions?.ref_name;
-  const statusRule = ruleset.rules?.find(
-    (rule) => rule.type === "required_status_checks",
-  )?.parameters;
-  const methods = ruleset.rules?.find((rule) => rule.type === "pull_request")
-    ?.parameters?.allowed_merge_methods;
-  const repository = await github<{
-    readonly id: number;
-    readonly default_branch: string;
-  }>(publisher, repoPath);
-  const bypassActors = ruleset.bypass_actors;
-  // For the reserved path, the independently verified administrative view
-  // can supply the omitted field. A contradictory live response always wins.
-  const noBypassActors =
-    bypassActors === undefined && reservedCheck
-      ? (await readObservedRulesetBypassActors(publisher, ruleset))?.length ===
-        0
-      : Array.isArray(bypassActors) && bypassActors.length === 0;
-  if (
-    repository.id !== publisher.repositoryId ||
-    repository.default_branch !== "main" ||
-    ruleset.id !== grant.rulesetId ||
-    ruleset.enforcement !== "active" ||
-    ruleset.target !== "branch" ||
-    (!noBypassActors && !(observe && bypassActors === undefined)) ||
-    refs?.exclude.length !== 0 ||
-    !refs.include.some(
-      (ref) => ref === "refs/heads/main" || ref === "~DEFAULT_BRANCH",
-    ) ||
-    methods?.length !== 1 ||
-    methods[0] !== "squash" ||
-    statusRule?.strict_required_status_checks_policy !== true ||
-    checksForMode.some(
-      ([context, appId]) =>
-        !statusRule.required_status_checks?.some(
-          (check) =>
-            check.context === context && check.integration_id === appId,
-        ),
-    )
-  ) {
+  if (noBypassActors === null) {
     return "REQUIRED_PROTECTIONS_UNVERIFIED";
   }
   if (reservedCheck) {
@@ -913,6 +888,26 @@ async function verifyChecks(
       payload.check_runs.filter((check) => check.head_sha === sha),
     );
   }
+  const pending = verifyExpectedChecks(checks, pr, grant, expected, expectedGateName, mode, { evaluateGate, ...(reservedCheck ? { reservedCheck } : {}) });
+  if (typeof pending === "string") {
+    return pending;
+  }
+  if (mode === "auto" && !pending) {
+    return "DIRECT_MERGE_REQUIRED";
+  }
+  return { bypassActors: noBypassActors ? "none" : "unverified" };
+}
+
+function verifyExpectedChecks(
+  checks: Map<string, readonly CheckRun[]>,
+  pr: PullRequest,
+  grant: Pick<WorkMergeGrant, "workNumber" | "pullNumber">,
+  expected: readonly (readonly [string, number])[],
+  expectedGateName: string,
+  mode: MergeMode,
+  options: { readonly evaluateGate: boolean; readonly reservedCheck?: ReservedGateCheck },
+): boolean | string {
+  const { evaluateGate, reservedCheck } = options;
   let pending = false;
   for (const [name, appId] of expected) {
     const candidates = checks
@@ -928,47 +923,125 @@ async function verifyChecks(
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
-    if (reservedCheck && name === expectedGateName) {
-      if (
-        check.id !== reservedCheck.checkId ||
-        check.external_id !== reservedCheck.reservationId ||
-        check.head_sha !== pr.head.sha ||
-        check.status !== "queued" ||
-        check.conclusion !== null
-      ) {
-        return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
-      }
+    const result = classifyExpectedCheck(check, pr, grant, name, expectedGateName, mode, reservedCheck);
+    if (result === "pending") {
       pending = true;
-      continue;
+    } else if (result !== "success") {
+      return result;
     }
-    if (
-      name === expectedGateName &&
-      check.external_id !==
-        `work:${grant.workNumber}:pr:${grant.pullNumber}:${pr.head.sha}:${pr.base.sha}`
-    ) {
-      return "STALE_WORK_MERGE_GATE";
-    }
-    if (check.status === "completed" && check.conclusion === "success") {
-      continue;
-    }
-    if (
-      mode === "auto" &&
-      !reservedCheck &&
-      name !== expectedGateName &&
-      ["queued", "in_progress", "pending", "waiting", "requested"].includes(
-        check.status,
-      ) &&
-      check.conclusion === null
-    ) {
-      pending = true;
-      continue;
-    }
-    return `CHECK_NOT_SUCCESSFUL:${name}`;
   }
-  if (mode === "auto" && !pending) {
-    return "DIRECT_MERGE_REQUIRED";
+  return pending;
+}
+
+function classifyExpectedCheck(
+  check: CheckRun,
+  pr: PullRequest,
+  grant: Pick<WorkMergeGrant, "workNumber" | "pullNumber">,
+  name: string,
+  expectedGateName: string,
+  mode: MergeMode,
+  reservedCheck: ReservedGateCheck | undefined,
+): string {
+  if (reservedCheck && name === expectedGateName) {
+    if (
+      check.id !== reservedCheck.checkId ||
+      check.external_id !== reservedCheck.reservationId ||
+      check.head_sha !== pr.head.sha ||
+      check.status !== "queued" ||
+      check.conclusion !== null
+    ) {
+      return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+    }
+    return "pending";
   }
-  return { bypassActors: noBypassActors ? "none" : "unverified" };
+  if (
+    name === expectedGateName &&
+    check.external_id !==
+      `work:${grant.workNumber}:pr:${grant.pullNumber}:${pr.head.sha}:${pr.base.sha}`
+  ) {
+    return "STALE_WORK_MERGE_GATE";
+  }
+  if (check.status === "completed" && check.conclusion === "success") {
+    return "success";
+  }
+  if (
+    mode === "auto" &&
+    !reservedCheck &&
+    name !== expectedGateName &&
+    ["queued", "in_progress", "pending", "waiting", "requested"].includes(
+      check.status,
+    ) &&
+    check.conclusion === null
+  ) {
+    return "pending";
+  }
+  return `CHECK_NOT_SUCCESSFUL:${name}`;
+}
+
+async function verifyRequiredProtections(
+  publisher: WorkGateReader,
+  rulesetId: number,
+  repoPath: string,
+  checksForMode: readonly (readonly [string, number])[],
+  observe: boolean,
+  reservedCheck: ReservedGateCheck | undefined,
+): Promise<boolean | null> {
+  const ruleset = await github<GateRuleset>(
+    publisher,
+    `${repoPath}/rulesets/${rulesetId}`,
+  );
+  const repository = await github<{
+    readonly id: number;
+    readonly default_branch: string;
+  }>(publisher, repoPath);
+  const bypassActors = ruleset.bypass_actors;
+  // For the reserved path, the independently verified administrative view
+  // can supply the omitted field. A contradictory live response always wins.
+  const noBypassActors =
+    bypassActors === undefined && reservedCheck
+      ? (await readObservedRulesetBypassActors(publisher, ruleset))?.length ===
+        0
+      : Array.isArray(bypassActors) && bypassActors.length === 0;
+  if (
+    repository.id !== publisher.repositoryId ||
+    repository.default_branch !== "main" ||
+    ruleset.id !== rulesetId ||
+    ruleset.enforcement !== "active" ||
+    ruleset.target !== "branch" ||
+    (!noBypassActors && !(observe && bypassActors === undefined)) ||
+    !hasRequiredBranchChecks(ruleset, checksForMode)
+  ) {
+    return null;
+  }
+  return noBypassActors;
+}
+
+function hasRequiredBranchChecks(
+  ruleset: GateRuleset,
+  checksForMode: readonly (readonly [string, number])[],
+): boolean {
+  const refs = ruleset.conditions?.ref_name;
+  const statusRule = ruleset.rules?.find(
+    (rule) => rule.type === "required_status_checks",
+  )?.parameters;
+  const methods = ruleset.rules?.find((rule) => rule.type === "pull_request")
+    ?.parameters?.allowed_merge_methods;
+  return !(
+    refs?.exclude.length !== 0 ||
+    !refs.include.some(
+      (ref) => ref === "refs/heads/main" || ref === "~DEFAULT_BRANCH",
+    ) ||
+    methods?.length !== 1 ||
+    methods[0] !== "squash" ||
+    statusRule?.strict_required_status_checks_policy !== true ||
+    checksForMode.some(
+      ([context, appId]) =>
+        !statusRule.required_status_checks?.some(
+          (check) =>
+            check.context === context && check.integration_id === appId,
+        ),
+    )
+  );
 }
 
 function selectLatestCheck(
