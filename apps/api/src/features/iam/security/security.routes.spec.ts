@@ -277,9 +277,11 @@ describe("security HTTP application boundary", () => {
         password: "password",
         mfaCode: "123456",
         confirmation: "DELETE",
+        confirmedGracePeriodDays: 30,
       },
       errors: [
         ["account_deletion.confirmation_required", 400],
+        ["account_deletion.grace_period_changed", 409],
         ["mfa.code_required", 400],
         ["authentication.invalid_credentials", 401],
         ["authentication.recent_proof_required", 401],
@@ -400,10 +402,62 @@ describe("security HTTP application boundary", () => {
       const response = await app.inject({
         method: "POST",
         url,
-        payload: { password: "password", confirmation: "DELETE" },
+        payload: {
+          password: "password",
+          confirmation: "DELETE",
+          confirmedGracePeriodDays: 14,
+        },
       });
       expect(response.statusCode).toBe(403);
       expect(response.json()).toEqual({ error: { code } });
+    },
+  );
+
+  it("reads only the effective deletion disclosure for an authenticated actor without caching", async () => {
+    const execute = vi.fn(async () =>
+      Result.success({ enabled: true, gracePeriodDays: 30 }),
+    );
+    const app = await server({
+      accounts: { getDeletionDisclosure: { execute } },
+    });
+    const response = await app.inject({ method: "GET", url: "/me/deletion" });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.json()).toEqual({
+      data: { enabled: true, gracePeriodDays: 30 },
+    });
+    expect(execute).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("does not call the disclosure application without authentication", async () => {
+    const execute = vi.fn();
+    const app = await server(
+      { accounts: { getDeletionDisclosure: { execute } as never } },
+      false,
+    );
+    const response = await app.inject({ method: "GET", url: "/me/deletion" });
+    expect(response.statusCode).toBe(401);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "30", true, null, 0, 91, 2.5])(
+    "rejects deletion without a valid JSON integer duration (%s)",
+    async (days) => {
+      const execute = vi.fn();
+      const app = await server({
+        accounts: { requestDeletion: { execute } as never },
+      });
+      const response = await app.inject({
+        method: "POST",
+        url: "/me/deletion",
+        payload: {
+          password: "password",
+          confirmation: "DELETE",
+          ...(days !== undefined ? { confirmedGracePeriodDays: days } : {}),
+        },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(execute).not.toHaveBeenCalled();
     },
   );
 

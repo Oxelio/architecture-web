@@ -5,8 +5,10 @@ import {
   assignUserRole,
   changeEmail,
   changePassword,
+  getAccountDeletionDisclosure,
   listUsers,
   publishSecurityConfig,
+  requestAccountDeletion,
   resendEmailVerification,
   revokeCurrentUserSession,
   revokeUserSession,
@@ -69,6 +71,63 @@ describe("IAM API client", () => {
     );
 
     await expect(command()).resolves.toBeUndefined();
+  });
+
+  it("fetches the authenticated effective deletion disclosure without HTTP caching", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ data: { enabled: true, gracePeriodDays: 30 } }),
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(getAccountDeletionDisclosure()).resolves.toEqual({
+      enabled: true,
+      gracePeriodDays: 30,
+    });
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/iam\/me\/deletion$/);
+    expect(init.method).toBe("GET");
+    expect(init.credentials).toBe("include");
+    expect(init.cache).toBe("no-store");
+  });
+
+  it("sends mandatory effective-duration confirmation without a legacy request shape", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ data: { scheduledFor: "2026-12-22T12:00:00Z" } }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    await requestAccountDeletion("proof-password", 30, "123456");
+    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/iam\/me\/deletion$/);
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      password: "proof-password",
+      confirmation: "DELETE",
+      confirmedGracePeriodDays: 30,
+      mfaCode: "123456",
+    });
+    expect(url).not.toContain("proof-password");
+  });
+
+  it("surfaces the changed-period application code without retrying deletion", async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({
+        error: { code: "account_deletion.grace_period_changed" },
+      }),
+    });
+    vi.stubGlobal("fetch", fetch);
+    await expect(requestAccountDeletion("proof", 14)).rejects.toMatchObject({
+      code: "account_deletion.grace_period_changed",
+    });
+    expect(fetch).toHaveBeenCalledOnce();
   });
 
   it("reads the created user identifier from a successful sign-up", async () => {

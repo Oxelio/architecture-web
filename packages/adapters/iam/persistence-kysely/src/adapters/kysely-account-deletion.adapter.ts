@@ -77,6 +77,16 @@ export class KyselyAccountDeletionAdapter
   async request(input: Parameters<AccountDeletionStore["request"]>[0]) {
     return this.db.transaction().execute(async (trx) => {
       await sql`select pg_advisory_xact_lock(728194002)`.execute(trx);
+      await sql`select pg_advisory_xact_lock(728194001)`.execute(trx);
+      const policy = await currentAccessPolicy(trx);
+      if (!policy.accounts.deletion) {
+        return "disabled" as const;
+      }
+      if (
+        policy.accounts.deletionGraceDays !== input.confirmedGracePeriodDays
+      ) {
+        return "grace_period_changed" as const;
+      }
       const account = await trx
         .selectFrom("iam_users")
         .selectAll()
@@ -91,11 +101,7 @@ export class KyselyAccountDeletionAdapter
         return "conflict" as const;
       }
       if (input.requireAnotherAdministrator) {
-        const other = await hasAdministrativeAccess(
-          trx,
-          await currentAccessPolicy(trx),
-          account.id,
-        );
+        const other = await hasAdministrativeAccess(trx, policy, account.id);
         if (!other) {
           return "last_administrator" as const;
         }

@@ -1,4 +1,4 @@
-import { UserEntity } from "@architecture/iam/domain";
+import { DEFAULT_SECURITY_POLICY, UserEntity } from "@architecture/iam/domain";
 import { Kysely, PostgresDialect, type PostgresPoolClient } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
@@ -381,12 +381,24 @@ describe("account and configuration transaction guards", () => {
   ])(
     "refuses mismatched deletion generations, status and role",
     async (row) => {
-      const { db } = database({ iam_users: row });
+      const { db } = database({
+        iam_users: row,
+        iam_security_config_revisions: {
+          id: "published-configuration",
+          status: "published",
+          representation_version: 2,
+          values: structuredClone(DEFAULT_SECURITY_POLICY),
+        },
+      });
       const adapter = new KyselyAccountDeletionAdapter(db, () => ({
         append: () => Promise.resolve(),
       }));
       expect(
-        await adapter.request({ user, previousStatus: "active" } as never),
+        await adapter.request({
+          user,
+          previousStatus: "active",
+          confirmedGracePeriodDays: 14,
+        } as never),
       ).toBe("conflict");
       expect(await adapter.cancel({ user } as never)).toBe(false);
       await db.destroy();

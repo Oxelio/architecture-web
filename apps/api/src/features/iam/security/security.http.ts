@@ -162,6 +162,10 @@ export const RequestAccountDeletionHttpErrors = {
     code: "account_deletion.disabled",
     status: 403,
   },
+  "account_deletion.grace_period_changed": {
+    code: "account_deletion.grace_period_changed",
+    status: 409,
+  },
   "account_deletion.confirmation_required": {
     code: "account_deletion.confirmation_required",
     status: 400,
