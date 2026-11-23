@@ -35,13 +35,16 @@ async function up(db: Kysely<AuditDatabase>): Promise<void> {
     .on("audit_events")
     .columns(["subject_id", "occurred_at"])
     .execute();
-  for (const column of ["actor_reference", "subject_reference"] as const) {
-    await db.schema
-      .createIndex(`audit_events_${column}_idx`)
-      .on("audit_events")
-      .column(column)
-      .execute();
-  }
+  await db.schema
+    .createIndex("audit_events_actor_reference_idx")
+    .on("audit_events")
+    .column("actor_reference")
+    .execute();
+  await db.schema
+    .createIndex("audit_events_subject_reference_idx")
+    .on("audit_events")
+    .column("subject_reference")
+    .execute();
 }
 
 async function down(db: Kysely<AuditDatabase>): Promise<void> {
