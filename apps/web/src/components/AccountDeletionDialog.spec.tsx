@@ -70,11 +70,11 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function openDialog(mfaEnabled = false) {
+async function openDialog(mfaEnabled = false, mfaLoaded = true) {
   await act(async () => {
     root.render(
       <QueryClientProvider client={queryClient}>
-        <AccountDeletionDialog mfaEnabled={mfaEnabled} mfaLoaded={true} />
+        <AccountDeletionDialog mfaEnabled={mfaEnabled} mfaLoaded={mfaLoaded} />
       </QueryClientProvider>,
     );
   });
@@ -225,6 +225,213 @@ describe("account deletion confirmation dialog", () => {
       30,
       undefined,
     );
+  });
+
+  it("retries a failed effective-policy read before allowing any confirmation", async () => {
+    vi.mocked(getAccountDeletionDisclosure)
+      .mockRejectedValueOnce(new Error("configuration unavailable"))
+      .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 90 });
+
+    const dialog = await openDialog();
+    expect(dialog.textContent).toContain("Impossible de connaître le délai");
+    expect(dialog.querySelector('button[type="submit"]')).toBeNull();
+
+    const retry = dialog.querySelector<HTMLButtonElement>("button");
+    if (!retry) {
+      throw new Error("Missing effective-policy retry button");
+    }
+    await act(async () => {
+      retry.click();
+    });
+    await vi.waitFor(() => {
+      expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
+      expect(dialog.textContent).toContain("90 jours");
+    });
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(true);
+    expect(requestAccountDeletion).not.toHaveBeenCalled();
+  });
+
+  it("blocks a second confirmation when deletion becomes disabled after disclosure", async () => {
+    vi.mocked(getAccountDeletionDisclosure)
+      .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 30 })
+      .mockResolvedValueOnce({ enabled: false, gracePeriodDays: 30 });
+    vi.mocked(requestAccountDeletion).mockRejectedValue(
+      new ApiRequestError("account_deletion.disabled"),
+    );
+
+    const dialog = await openDialog();
+    await completeProof(dialog);
+    const form = dialog.querySelector("form");
+    if (!form) {
+      throw new Error("Missing deletion form");
+    }
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    await vi.waitFor(() => {
+      expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
+      expect(dialog.textContent).toContain("désactivée");
+    });
+    expect(requestAccountDeletion).toHaveBeenCalledExactlyOnceWith(
+      "deletion-proof",
+      30,
+      undefined,
+    );
+    expect(dialog.querySelector("form")).toBeNull();
+    expect(dialog.textContent).toContain("suppression des comptes");
+  });
+
+  it("surfaces a technical submission failure without losing the disclosed consent", async () => {
+    vi.mocked(requestAccountDeletion).mockRejectedValue(
+      new Error("network unreachable"),
+    );
+    const dialog = await openDialog();
+    await completeProof(dialog);
+    const form = dialog.querySelector("form");
+    if (!form) {
+      throw new Error("Missing deletion form");
+    }
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(dialog.textContent).toContain(
+        "La demande de suppression n’a pas été acceptée",
+      );
+    });
+    expect(requestAccountDeletion).toHaveBeenCalledOnce();
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(false);
+  });
+
+  it("resets the credentials and requires fresh policy consent when reopened", async () => {
+    vi.mocked(getAccountDeletionDisclosure)
+      .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 30 })
+      .mockResolvedValueOnce({ enabled: true, gracePeriodDays: 14 });
+
+    const dialog = await openDialog();
+    await completeProof(dialog);
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(false);
+
+    const cancel = dialog.querySelector<HTMLButtonElement>(
+      'form button[type="button"]',
+    );
+    if (!cancel) {
+      throw new Error("Missing cancellation button");
+    }
+    await act(async () => {
+      cancel.click();
+    });
+    expect(dialog.open).toBe(false);
+    const trigger = container.querySelector<HTMLButtonElement>("button");
+    expect(document.activeElement).toBe(trigger);
+    if (!trigger) {
+      throw new Error("Missing deletion trigger");
+    }
+    await act(async () => {
+      trigger.click();
+    });
+    await vi.waitFor(() => {
+      expect(getAccountDeletionDisclosure).toHaveBeenCalledTimes(2);
+      expect(dialog.textContent).toContain("14 jours");
+    });
+    expect(dialog.open).toBe(true);
+    expect(
+      dialog.querySelector<HTMLInputElement>("#deletion-password")?.value,
+    ).toBe("");
+    expect(
+      dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')
+        ?.checked,
+    ).toBe(false);
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(true);
+    expect(requestAccountDeletion).not.toHaveBeenCalled();
+  });
+
+  it("requires a loaded MFA state before enabling deletion confirmation", async () => {
+    const dialog = await openDialog(false, false);
+    await completeProof(dialog);
+    expect(dialog.textContent).toContain(
+      "Chargement de la politique de suppression",
+    );
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(true);
+    expect(requestAccountDeletion).not.toHaveBeenCalled();
+  });
+
+  it("submits the dialog-local MFA code and prevents cancellation while pending", async () => {
+    vi.mocked(requestAccountDeletion).mockImplementation(
+      () =>
+        new Promise<Awaited<ReturnType<typeof requestAccountDeletion>>>(
+          () => undefined,
+        ),
+    );
+    const dialog = await openDialog(true);
+    await completeProof(dialog);
+    const mfa = dialog.querySelector<HTMLInputElement>("#deletion-mfa-code");
+    const form = dialog.querySelector("form");
+    if (!mfa || !form) {
+      throw new Error("Missing modal-local MFA proof fields");
+    }
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(true);
+
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      if (!setter) {
+        throw new Error("No native input setter");
+      }
+      setter.call(mfa, " 123456 ");
+      mfa.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(false);
+
+    await act(async () => {
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(requestAccountDeletion).toHaveBeenCalledExactlyOnceWith(
+      "deletion-proof",
+      30,
+      "123456",
+    );
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
+    ).toBe(true);
+
+    const cancelEvent = new Event("cancel", { cancelable: true });
+    await act(async () => {
+      dialog.dispatchEvent(cancelEvent);
+    });
+    expect(cancelEvent.defaultPrevented).toBe(true);
+    expect(dialog.open).toBe(true);
   });
 
   it("shows the English effective duration without a fixed default", async () => {
