@@ -132,9 +132,11 @@ describe("account deletion confirmation dialog", () => {
     expect(dialog.textContent).toContain("vérification renforcée");
     const sections = dialog.querySelectorAll("form section");
     expect(sections).toHaveLength(3);
-    expect(
-      Array.from(sections, (section) => section.querySelector("h3")?.textContent),
-    ).toEqual([
+    const headings = Array.from(
+      sections,
+      (section) => section.querySelector("h3")?.textContent,
+    );
+    expect(headings).toEqual([
       "Dès la confirmation",
       "À l’expiration du délai",
       "Conservation et autres conséquences",
@@ -144,7 +146,10 @@ describe("account deletion confirmation dialog", () => {
     expect(sections[2]?.textContent).toContain("obligation légale");
     expect(sections[2]?.textContent).toContain("administrateur");
     expect(sections[2]?.textContent).toContain("notification");
-    expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toContain("Demander la suppression");
+    expect(
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.textContent,
+    ).toContain("Demander la suppression");
     expect(dialog.querySelector("#deletion-password")).not.toBeNull();
     expect(dialog.querySelector("#deletion-mfa-code")).not.toBeNull();
     expect(
@@ -162,7 +167,9 @@ describe("account deletion confirmation dialog", () => {
     const dialog = await openDialog();
     expect(dialog.textContent).toContain("désactivée");
     expect(dialog.querySelector("output")?.textContent).toContain("désactivée");
-    expect(dialog.textContent).not.toContain("lien envoyé à votre adresse vérifiée");
+    expect(dialog.textContent).not.toContain(
+      "lien envoyé à votre adresse vérifiée",
+    );
     expect(dialog.querySelector('button[type="submit"]')).toBeNull();
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
@@ -564,9 +571,11 @@ describe("account deletion confirmation dialog", () => {
     expect(dialog.textContent).toContain("1-day grace period");
     expect(dialog.textContent).toContain("verified email address");
     expect(dialog.textContent).toContain("strengthened identity verification");
-    expect(
-      Array.from(dialog.querySelectorAll("form section h3"), (heading) => heading.textContent),
-    ).toEqual([
+    const headings = Array.from(
+      dialog.querySelectorAll("form section h3"),
+      (heading) => heading.textContent,
+    );
+    expect(headings).toEqual([
       "Immediately after confirmation",
       "After the grace period",
       "Retention and other consequences",
