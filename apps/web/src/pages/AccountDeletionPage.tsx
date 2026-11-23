@@ -8,10 +8,15 @@ import { getAccountDeletionDisclosure, getMfaStatus } from "#services/api";
 
 type PolicyResult = {
   readonly status: string;
-  readonly data: Awaited<ReturnType<typeof getAccountDeletionDisclosure>> | undefined;
+  readonly data:
+    | Awaited<ReturnType<typeof getAccountDeletionDisclosure>>
+    | undefined;
 };
 
-function policyReadNotice(result: PolicyResult, reviewedDays: number): string | null {
+function policyReadNotice(
+  result: PolicyResult,
+  reviewedDays: number,
+): string | null {
   if (result.status !== "success" || !result.data) {
     return "securityCenter.deletionUnavailable";
   }
@@ -47,7 +52,10 @@ function PolicyReadState({
   }
   if (error) {
     return (
-      <div role="alert" className="rounded-2xl border border-rose-500/40 bg-slate-900 p-5">
+      <div
+        role="alert"
+        className="rounded-2xl border border-rose-500/40 bg-slate-900 p-5"
+      >
         <p>{t("securityCenter.deletionUnavailable")}</p>
         <button
           type="button"
@@ -164,7 +172,9 @@ export function AccountDeletionPage() {
       </div>
 
       <PolicyReadState
-        loading={disclosure.isPending || (disclosure.isFetching && !disclosure.data)}
+        loading={
+          disclosure.isPending || (disclosure.isFetching && !disclosure.data)
+        }
         error={disclosure.isError}
         disabled={!available}
         onRetry={() => void disclosure.refetch()}
