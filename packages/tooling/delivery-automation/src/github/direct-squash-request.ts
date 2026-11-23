@@ -141,8 +141,7 @@ export async function authenticateDirectSquashRequest(input: {
   const createdAt = Date.parse(comment.created_at);
   const expiresAt = Date.parse(grant?.expiresAt ?? "");
   if (
-    !grant ||
-    grant.operation !== "direct-squash" ||
+    grant?.operation !== "direct-squash" ||
     grant.repositoryId !== repositoryId ||
     grant.actorId !== actorId ||
     grant.appId !== connectorAppId ||
