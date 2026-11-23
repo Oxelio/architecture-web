@@ -252,7 +252,7 @@ async function github<T>(
 }
 
 function hasClosingIssueReference(title: string): boolean {
-  const verbs = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))/giu;
+  const verbs = /\b(?:clos(?:es|ed|e)|fix(?:es|ed)?|resolv(?:es|ed|e))\b/giu;
   const issue = /^(?:[\w.-]+\/[\w.-]+)?#\d+/iu;
   const url = /^https?:\/\//iu;
   for (const match of title.matchAll(verbs)) {
