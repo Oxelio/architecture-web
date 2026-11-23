@@ -141,13 +141,23 @@ function completePendingReservation(
         ? { candidate, state: { phase: "cancelled" } }
         : null;
     case "squash-merged":
-      return ((state.operation === "release-check" &&
-        state.releaseAdmission !== undefined) ||
-        state.operation === "resolve") &&
-        oid.test(event.sha)
-        ? { candidate, state: { phase: "merged", sha: event.sha } }
-        : null;
+      return mergedReservation(state, candidate, event.sha);
   }
+}
+
+function mergedReservation(
+  state: Extract<MergeReservationState, { readonly phase: "pending" }>,
+  candidate: MergeCandidate,
+  sha: string,
+): MergeReservation | null {
+  if (!oid.test(sha)) {
+    return null;
+  }
+  return (state.operation === "release-check" &&
+    state.releaseAdmission !== undefined) ||
+    state.operation === "resolve"
+    ? { candidate, state: { phase: "merged", sha } }
+    : null;
 }
 
 export function invalidatingWriteDisposition(
