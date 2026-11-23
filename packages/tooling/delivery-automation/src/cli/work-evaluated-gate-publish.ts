@@ -50,7 +50,8 @@ if (
     candidate,
   ) ||
   baseSha !== requiredEnvironment("TRUSTED_WORKFLOW_SHA") ||
-  !(Date.parse(evaluated.expiresAt) > Date.now()) ||
+  (Number.isNaN(Date.parse(evaluated.expiresAt)) ||
+    Date.parse(evaluated.expiresAt) <= Date.now()) ||
   typeof result.pass !== "boolean" ||
   !Array.isArray(result.blockers) ||
   result.pass !== (result.blockers.length === 0) ||
