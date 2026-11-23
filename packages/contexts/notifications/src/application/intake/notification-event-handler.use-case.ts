@@ -95,11 +95,12 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
         const administrator =
           role.administrator &&
           (policy.administratorChannels?.includes(channel) ?? false);
-        const audience: NotificationDeliveryAudience = user
-          ? administrator
+        let audience: NotificationDeliveryAudience = "administrator";
+        if (user) {
+          audience = administrator
             ? "affected_user_and_administrator"
-            : "affected_user"
-          : "administrator";
+            : "affected_user";
+        }
         deliveries.push({ channel, destination, audience });
       }
     }
