@@ -819,7 +819,9 @@ it("announces a successful user-administration action in an output element", asy
   expect(container.querySelector('[role="alert"]')).toBeNull();
 
   await changeLocale("fr");
-  expect(element("output").textContent).toContain("L’utilisateur a été suspendu.");
+  expect(element("output").textContent).toContain(
+    "L’utilisateur a été suspendu.",
+  );
   await click('output button[aria-label]');
   expect(container.querySelector("output")).toBeNull();
 });
