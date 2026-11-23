@@ -176,8 +176,7 @@ export async function readStandingWorkFacts(
 
     const current = await readPull();
     if (
-      !current ||
-      current.changed_files !== pr.changed_files ||
+      current?.changed_files !== pr.changed_files ||
       files.size !== pr.changed_files
     ) {
       return null;
