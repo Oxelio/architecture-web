@@ -74,9 +74,7 @@ function DeletionConfirmationForm({
           className="mt-1 accent-rose-400"
           checked={acknowledgedDays === gracePeriodDays}
           onChange={(event) =>
-            setAcknowledgedDays(
-              event.target.checked ? gracePeriodDays : null,
-            )
+            setAcknowledgedDays(event.target.checked ? gracePeriodDays : null)
           }
         />
         <span>
@@ -101,10 +99,7 @@ function DeletionConfirmationForm({
       </div>
       {mfaEnabled ? (
         <div>
-          <label
-            htmlFor="deletion-mfa-code"
-            className="mb-1 block text-sm"
-          >
+          <label htmlFor="deletion-mfa-code" className="mb-1 block text-sm">
             {t("securityCenter.mfaCode")}
           </label>
           <input
