@@ -1529,7 +1529,7 @@ async function evaluateWorkMergeRequest(
         pr,
         mode,
         observe,
-        ...(reservedCheck ? [{ reservedCheck }] : [{}]),
+        reservedCheck ? { reservedCheck } : {},
       );
       if (typeof checks === "string") {
         return blocked(checks);
