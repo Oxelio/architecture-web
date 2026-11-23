@@ -67,6 +67,72 @@ function validPath(path: unknown): path is string {
   );
 }
 
+interface PullFileChange {
+  readonly filename?: unknown;
+  readonly previous_filename?: unknown;
+  readonly status?: string;
+}
+
+function recordChangedPath(
+  file: PullFileChange | null,
+  files: Set<string>,
+  paths: Set<string>,
+): boolean {
+  if (
+    !validPath(file?.filename) ||
+    files.has(file.filename) ||
+    !file.status ||
+    !fileStatuses.has(file.status)
+  ) {
+    return false;
+  }
+  files.add(file.filename);
+  paths.add(file.filename);
+  if (
+    file.previous_filename !== undefined ||
+    file.status === "renamed" ||
+    file.status === "copied"
+  ) {
+    if (!validPath(file.previous_filename)) {
+      return false;
+    }
+    paths.add(file.previous_filename);
+  }
+  return true;
+}
+
+async function readChangedPaths(
+  fetchImpl: FetchLike,
+  pullUrl: string,
+  options: RequestInit,
+  count: number,
+): Promise<{ files: Set<string>; paths: Set<string> } | null> {
+  const files = new Set<string>();
+  const paths = new Set<string>();
+  for (let page = 1; page <= Math.ceil(count / 100); page++) {
+    const response = await fetchImpl(
+      `${pullUrl}/files?per_page=100&page=${page}`,
+      options,
+    );
+    if (response.status !== 200) {
+      return null;
+    }
+    const changed = (await response.json()) as readonly PullFileChange[];
+    if (
+      !Array.isArray(changed) ||
+      changed.length !== Math.min(100, count - (page - 1) * 100)
+    ) {
+      return null;
+    }
+    for (const file of changed) {
+      if (!recordChangedPath(file, files, paths)) {
+        return null;
+      }
+    }
+  }
+  return { files, paths };
+}
+
 export async function readStandingWorkFacts(
   reader: StandingFactsReader,
   candidate: MergeCandidate,
@@ -129,51 +195,16 @@ export async function readStandingWorkFacts(
       return null;
     }
 
-    const files = new Set<string>();
-    const paths = new Set<string>();
-    for (let page = 1; page <= Math.ceil(pr.changed_files / 100); page++) {
-      const response = await fetchImpl(
-        `${pullUrl}/files?per_page=100&page=${page}`,
-        options,
-      );
-      if (response.status !== 200) {
-        return null;
-      }
-      const changed = (await response.json()) as readonly {
-        readonly filename?: unknown;
-        readonly previous_filename?: unknown;
-        readonly status?: string;
-      }[];
-      if (
-        !Array.isArray(changed) ||
-        changed.length !== Math.min(100, pr.changed_files - (page - 1) * 100)
-      ) {
-        return null;
-      }
-      for (const file of changed) {
-        if (
-          !validPath(file?.filename) ||
-          files.has(file.filename) ||
-          !file.status ||
-          !fileStatuses.has(file.status)
-        ) {
-          return null;
-        }
-        files.add(file.filename);
-        paths.add(file.filename);
-        if (
-          file.previous_filename !== undefined ||
-          file.status === "renamed" ||
-          file.status === "copied"
-        ) {
-          if (!validPath(file.previous_filename)) {
-            return null;
-          }
-          paths.add(file.previous_filename);
-        }
-      }
+    const inventory = await readChangedPaths(
+      fetchImpl,
+      pullUrl,
+      options,
+      pr.changed_files,
+    );
+    if (!inventory) {
+      return null;
     }
-
+    const { files, paths } = inventory;
     const current = await readPull();
     if (
       current?.changed_files !== pr.changed_files ||
