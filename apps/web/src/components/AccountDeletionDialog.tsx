@@ -268,6 +268,8 @@ export function AccountDeletionDialog({
         setErrorKey("securityCenter.deletionDisabled");
         setAcknowledgedDays(null);
         void disclosure.refetch();
+      } else if (code === "administrator.last_active_access") {
+        setErrorKey("securityCenter.deletionLastAdministrator");
       } else {
         setErrorKey("securityCenter.deletionError");
       }

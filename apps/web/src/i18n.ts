@@ -137,6 +137,10 @@ const localizedCopy = {
       "Le délai de grâce a changé. Lisez les nouvelles informations et confirmez de nouveau.",
       "The grace period changed. Review the updated disclosure and confirm again.",
     ],
+    deletionLastAdministrator: [
+      "Ce compte est le dernier administrateur actif. Désignez un autre administrateur actif avant de renouveler la demande de suppression.",
+      "This account is the last active administrator. Make another administrator active before requesting deletion again.",
+    ],
     deletionError: [
       "La demande de suppression n’a pas été acceptée. Vérifiez vos informations et réessayez.",
       "The deletion request was not accepted. Check your credentials and retry.",

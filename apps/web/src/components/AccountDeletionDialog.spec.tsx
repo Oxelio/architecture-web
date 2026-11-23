@@ -287,6 +287,47 @@ describe("account deletion confirmation dialog", () => {
     expect(dialog.textContent).toContain("suppression des comptes");
   });
 
+  it.each([
+    [
+      "fr",
+      "Désignez un autre administrateur actif avant de renouveler la demande",
+    ],
+    [
+      "en",
+      "Make another administrator active before requesting deletion again",
+    ],
+  ] as const)(
+    "explains the corrective action when the last active administrator requests deletion in %s",
+    async (language, expectedMessage) => {
+      await i18n.changeLanguage(language);
+      vi.mocked(requestAccountDeletion).mockRejectedValue(
+        new ApiRequestError("administrator.last_active_access"),
+      );
+      const dialog = await openDialog();
+      await completeProof(dialog);
+      const form = dialog.querySelector("form");
+      if (!form) {
+        throw new Error("Missing deletion form");
+      }
+      await act(async () => {
+        form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+      });
+      await vi.waitFor(() => {
+        expect(dialog.querySelector('[role="alert"]')?.textContent).toContain(
+          expectedMessage,
+        );
+      });
+      expect(requestAccountDeletion).toHaveBeenCalledExactlyOnceWith(
+        "deletion-proof",
+        30,
+        undefined,
+      );
+      expect(getAccountDeletionDisclosure).toHaveBeenCalledOnce();
+    },
+  );
+
   it("surfaces a technical submission failure without losing the disclosed consent", async () => {
     vi.mocked(requestAccountDeletion).mockRejectedValue(
       new Error("network unreachable"),
