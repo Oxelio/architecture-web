@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import {
   accountExportDownloadUrl,
@@ -13,8 +14,6 @@ import {
   listSecurityEvents,
   requestAccountExport,
 } from "#services/api";
-
-import { AccountDeletionDialog } from "./AccountDeletionDialog.js";
 
 const inputClass =
   "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white";
@@ -154,10 +153,12 @@ export function SecurityCenter() {
             </div>
           ))}
         </div>
-        <AccountDeletionDialog
-          mfaEnabled={mfa.data?.enabled ?? false}
-          mfaLoaded={mfa.isSuccess}
-        />
+        <Link
+          to="/profile/deletion"
+          className="mt-5 inline-flex min-h-11 items-center rounded-xl border border-rose-500/40 px-4 py-2 text-rose-300 transition hover:border-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+        >
+          {t("securityCenter.deleteRequest")}
+        </Link>
       </article>
 
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/80 p-6 lg:col-span-2">
