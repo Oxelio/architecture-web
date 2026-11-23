@@ -83,6 +83,24 @@ describe("merge reservation", () => {
     }
   });
 
+  it("requires release admission and a valid commit SHA before marking a squash merged", () => {
+    expect(
+      transitionMergeReservation(release, candidate, {
+        kind: "squash-merged",
+        sha: "c".repeat(40),
+      }),
+    ).toBeNull();
+    expect(
+      transitionMergeReservation(admitted, candidate, {
+        kind: "squash-merged",
+        sha: "invalid",
+      }),
+    ).toBeNull();
+    expect(
+      move(admitted, { kind: "squash-merged", sha: "c".repeat(40) }).state,
+    ).toEqual({ phase: "merged", sha: "c".repeat(40) });
+  });
+
   it("rejects a changed candidate and prevents reuse after cancellation", () => {
     const resolving = move(released, { kind: "begin", operation: "resolve" });
     const cancelled = move(resolving, { kind: "squash-cancelled" });
