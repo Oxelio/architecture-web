@@ -104,12 +104,11 @@ function continueButton() {
 }
 
 async function continueToDialog() {
-  const button = continueButton();
   await vi.waitFor(() => {
-    expect(button?.disabled).toBe(false);
+    expect(continueButton()?.disabled).toBe(false);
   });
   await act(async () => {
-    button?.click();
+    continueButton()?.click();
   });
   await vi.waitFor(() => {
     expect(container.querySelector("dialog")?.open).toBe(true);
@@ -246,12 +245,11 @@ describe("account-deletion information page", () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain("30 jours");
     });
-    const button = continueButton();
     await vi.waitFor(() => {
-      expect(button?.disabled).toBe(false);
+      expect(continueButton()?.disabled).toBe(false);
     });
     await act(async () => {
-      button?.click();
+      continueButton()?.click();
     });
     await vi.waitFor(() => {
       expect(container.textContent).toContain("90 jours");
@@ -293,7 +291,9 @@ describe("account-deletion information page", () => {
       30,
       undefined,
     );
-    expect(continueButton()?.disabled).toBe(false);
+    await vi.waitFor(() => {
+      expect(continueButton()?.disabled).toBe(false);
+    });
   });
 
   it("restores focus to Continue after cancel, and rechecks the policy on re-entry", async () => {
@@ -326,12 +326,11 @@ describe("account-deletion information page", () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain("30 jours");
     });
-    const button = continueButton();
     await vi.waitFor(() => {
-      expect(button?.disabled).toBe(false);
+      expect(continueButton()?.disabled).toBe(false);
     });
     await act(async () => {
-      button?.click();
+      continueButton()?.click();
     });
     await vi.waitFor(() => {
       expect(container.textContent).toContain("Impossible de vérifier l’état MFA");
