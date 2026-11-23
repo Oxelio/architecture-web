@@ -124,16 +124,12 @@ export function AccountDeletionDialog({
       </p>
 
       <form className="mt-5 space-y-4" onSubmit={submit}>
-        <p
-          className="rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 text-sm font-semibold leading-6 text-amber-100"
-        >
+        <p className="rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 text-sm font-semibold leading-6 text-amber-100">
           {t("securityCenter.deletionGracePeriod", {
             count: gracePeriodDays,
           })}
         </p>
-        <label
-          className="flex items-start gap-3 text-sm leading-6 text-slate-200"
-        >
+        <label className="flex items-start gap-3 text-sm leading-6 text-slate-200">
           <input
             type="checkbox"
             className="mt-1 size-4 shrink-0 accent-rose-400"
