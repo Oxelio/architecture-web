@@ -14,14 +14,16 @@ export function registerHttpAudit(
     if (reply.statusCode < 400 && DOMAIN_AUDITED_HTTP_EVENTS.has(type)) {
       return;
     }
+    const result =
+      reply.statusCode >= 500
+        ? "technical_failure"
+        : reply.statusCode < 400
+          ? "success"
+          : "denied";
     try {
       await events.record(
         type,
-        reply.statusCode >= 500
-          ? "technical_failure"
-          : reply.statusCode < 400
-            ? "success"
-            : "denied",
+        result,
         {
           actorType: auditActorType(request.auth),
           ...(request.auth ? { actorId: request.auth.userId } : {}),
