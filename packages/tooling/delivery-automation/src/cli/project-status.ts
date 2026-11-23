@@ -126,8 +126,7 @@ async function main() {
     const policy = await readPolicy(authorityId);
     if (
       !command ||
-      !policy ||
-      policy.mode !== mode ||
+      policy?.mode !== mode ||
       (mode === "supervised" &&
         (!Array.isArray(policy.workNumbers) ||
           !policy.workNumbers.includes(workNumber))) ||
@@ -324,9 +323,9 @@ async function verifyTransitionEvidence(
           `https://api.github.com/repos/${repository}/issues/${command.workNumber}` ||
         !comment.created_at ||
         comment.created_at !== comment.updated_at ||
-        !(
-          Date.parse(comment.created_at) > Date.parse(command.statusUpdatedAt)
-        ) ||
+        (Number.isNaN(Date.parse(comment.created_at)) ||
+          Number.isNaN(Date.parse(command.statusUpdatedAt)) ||
+          Date.parse(comment.created_at) <= Date.parse(command.statusUpdatedAt)) ||
         comment.body.length > 4096
       ) {
         return null;
@@ -334,8 +333,7 @@ async function verifyTransitionEvidence(
       const record = JSON.parse(comment.body) as Record<string, unknown> | null;
       const issuerApp = comment.performed_via_github_app;
       if (
-        !record ||
-        record["decision"] !== "accepted" ||
+        record?.["decision"] !== "accepted" ||
         record["workNumber"] !== command.workNumber ||
         record["from"] !== command.from ||
         record["to"] !== command.to ||
