@@ -131,12 +131,46 @@ The maintained Web target (Solution C, selected on 2026-11-23) separates **readi
 2. A deliberate **Continue** action opens a short native confirmation dialog with the actual duration, an immediate-access-loss reminder, a checkbox acknowledging the effective duration and the previously reviewed consequences, dialog-local current-password proof and conditional MFA code, and Cancel / Request deletion actions. Detailed mandatory consequences must already have been visible and available on the information page before this modal can open; do not hide required details in optional accordions or behind a new action after consent.
 3. Keep the entire pre-submission journey on the first-party Web client. Reuse the existing authenticated, read-only IAM disclosure projection and existing destructive POST contract; no new backend operation, data model, privileged policy query or cross-context abstraction is justified.
 
+### Web navigation and state ownership
+
+- The existing Web application owns navigation through React Router in
+  `App.tsx`. Expose a dedicated authenticated account-deletion route using
+  the existing profile-route guard, and replace the current
+  `SecurityCenter` dialog trigger with a navigation link to that route.
+  A direct URL must require the same authenticated session; unauthenticated
+  navigation follows the current sign-in redirect convention.
+- The information page owns disclosure loading, the readable consequences,
+  the Continue action, and the modal's open/close lifecycle. Use the
+  existing account-deletion GET client operation and Web MFA-status query;
+  do not share or copy credentials from `SecurityCenter` into this journey.
+  A normal back/return link leads to profile/security settings without
+  generating a deletion request.
+- A successful Continue action verifies current effective policy before
+  opening the confirmation dialog. If the newly read duration or enabled
+  status differs from the information that was displayed, update the page
+  instead, clear any pending consent, and require the user to continue
+  again. Do not show a modal that implicitly accepts a policy change.
+  A read failure also keeps the user on the information page, with retry
+  and no destructive action.
+- A server-side stale-policy conflict (`409`) likewise closes the
+  confirmation, clears consent and local proof, refreshes the information
+  page and presents the changed duration for review before another
+  Continue. An accepted request keeps the existing redirect and session
+  invalidation behavior. Dismissing the modal or navigating away has no
+  deletion side effect.
+- These interactions can be implemented with existing React/React Query
+  state inside the feature. Avoid adding persisted browser consent,
+  duration in query parameters, a new routing framework, or cross-page
+  credential storage. Do not mandate that users scroll through a fixed
+  percentage of the page to acknowledge it; the explicit acknowledgment
+  at confirmation remains the consent mechanism.
+
 ### Policy freshness and consent state
 
 - On entry to the information page, load the effective disclosure. Show explicit loading, retryable technical failure and disabled-policy states, **without displaying 14 days as a fallback**. Block Continue and destructive submission if the policy cannot be read or deletion is disabled.
-- The confirmation dialog uses a **current** server-read duration, not an unexamined cached value. Refresh or verify the current disclosure when entering the confirmation step; a changed value invalidates previous consent and requires renewed review of the actual duration. Do not automatically carry an acknowledgment across a duration update, failed read, or route re-entry.
+- The confirmation dialog uses the **freshly verified** effective duration, not an unexamined cached value. A changed policy returns the user to the information page before another attempt to continue. Do not carry an acknowledgment across a duration update, failed read, or route re-entry.
 - Bind the submitted `confirmedGracePeriodDays` to the duration explicitly acknowledged in the current confirmation step. Only the server determines `scheduledFor`. Preserve the transaction-level publication/deletion consistency check.
-- On the typed `409` for a changed grace period, abandon the previous consent and proof, show the new duration and require the user to review/acknowledge again before submitting. Never retry the POST automatically. Changing the language or refetching policy must not submit a request.
+- On the typed `409` for a changed grace period, abandon the previous consent and proof, return to the information page, show the new duration and require the user to review/acknowledge again before submitting. Never retry the POST automatically. Changing the language or refetching policy must not submit a request.
 - On entry to each fresh confirmation step, collect **modal-local** password and (if enabled) MFA proof rather than reusing credentials from unrelated SecurityCenter forms. Clear secrets on close, policy conflict and successful request. Preserve existing last-administrator refusal, sanitized errors, no-duplicate-submit guard, and the current success redirect/session behavior.
 - Cancellation of the **confirmation dialog** only dismisses the pending UI. The established account-deletion cancellation link is a distinct operation available after a deletion request has been accepted.
 
