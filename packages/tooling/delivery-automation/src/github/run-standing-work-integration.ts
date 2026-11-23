@@ -31,6 +31,24 @@ export interface StandingDelegation {
   readonly decisionCommentId: number;
 }
 
+function isTrustedStandingContext(
+  context: Omit<WorkIntegrationContext, "actorId">,
+  candidate: StandingInput["candidate"],
+  scope: StandingInput["scope"],
+): boolean {
+  return (
+    context.repository.toLowerCase() === "oxelio/architecture-web" &&
+    context.repositoryId === 1336937640 &&
+    context.ref === "refs/heads/main" &&
+    context.runAttempt === "1" &&
+    context.workflowSha === candidate.baseSha &&
+    scope.publisher.repository.toLowerCase() === context.repository.toLowerCase() &&
+    scope.publisher.repositoryId === context.repositoryId &&
+    scope.publisher.actorId === scope.controllerBotId &&
+    isWorkIntegrationCandidate(candidate)
+  );
+}
+
 export async function runStandingWorkIntegration(
   input: Omit<StandingInput, "authorize" | "operation" | "scope"> & {
     readonly scope: Omit<StandingInput["scope"], "publisher"> & {
@@ -82,18 +100,7 @@ export async function runStandingWorkIntegration(
       },
     },
   };
-  if (
-    context.repository.toLowerCase() !== "oxelio/architecture-web" ||
-    context.repositoryId !== 1336937640 ||
-    context.ref !== "refs/heads/main" ||
-    context.runAttempt !== "1" ||
-    context.workflowSha !== candidate.baseSha ||
-    scope.publisher.repository.toLowerCase() !==
-      context.repository.toLowerCase() ||
-    scope.publisher.repositoryId !== context.repositoryId ||
-    scope.publisher.actorId !== scope.controllerBotId ||
-    !isWorkIntegrationCandidate(candidate)
-  ) {
+  if (!isTrustedStandingContext(context, candidate, scope)) {
     return { status: "denied" };
   }
 
