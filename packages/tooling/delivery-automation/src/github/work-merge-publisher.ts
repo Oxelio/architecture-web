@@ -251,15 +251,42 @@ async function github<T>(
   return (await response.json()) as T;
 }
 
+function hasClosingIssueReference(title: string): boolean {
+  const verbs = /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))/giu;
+  const issue = /^(?:[\w.-]+\/[\w.-]+)?#\d+/u;
+  const url = /^https?:\/\//iu;
+  for (const match of title.matchAll(verbs)) {
+    const suffix = title.slice(match.index + match[0].length);
+    const whitespace = /^\s*/u.exec(suffix)?.[0] ?? "";
+    const next = suffix.slice(whitespace.length);
+    let reference: string;
+    if (next.startsWith(":")) {
+      const afterColon = next.slice(1);
+      const requiredSpace = /^\s+/u.exec(afterColon)?.[0];
+      if (!requiredSpace) {
+        continue;
+      }
+      reference = afterColon.slice(requiredSpace.length);
+    } else {
+      if (!whitespace) {
+        continue;
+      }
+      reference = next;
+    }
+    if (issue.test(reference) || url.test(reference)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function safeSquashHeadline(
   publisher: WorkMergePublisher,
   pr: PullRequest,
 ): Promise<string | null> {
   if (
     !pr.title?.trim() ||
-    /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:(?:[\w.-]+\/[\w.-]+)?#\d+|https?:\/\/)/iu.test(
-      pr.title,
-    )
+    hasClosingIssueReference(pr.title)
   ) {
     return null;
   }
