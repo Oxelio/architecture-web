@@ -77,6 +77,24 @@ const localizedCopy = {
       "Request account deletion",
     ],
     deletionTitle: ["Supprimer votre compte", "Delete your account"],
+    deletionBack: ["Retour à mon profil", "Back to my profile"],
+    deletionContinue: ["Continuer vers la confirmation", "Continue to confirmation"],
+    deletionVerifying: [
+      "Vérification du délai effectif…",
+      "Verifying the effective grace period…",
+    ],
+    deletionConfirmTitle: [
+      "Confirmer la suppression",
+      "Confirm account deletion",
+    ],
+    deletionConfirmDescription: [
+      "Votre accès sera désactivé immédiatement dès l’acceptation de la demande.",
+      "Your access will be disabled immediately when the request is accepted.",
+    ],
+    deletionMfaUnavailable: [
+      "Impossible de vérifier l’état MFA actuel. La confirmation est bloquée ; réessayez.",
+      "The current MFA status is unavailable. Confirmation is blocked; please retry.",
+    ],
     deletionDescription: [
       "Cette demande désactivera votre accès immédiatement. Vérifiez les conséquences avant de continuer.",
       "This request will immediately disable your access. Review the consequences before continuing.",
