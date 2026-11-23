@@ -26,8 +26,7 @@ let container: HTMLDivElement;
 let root: Root;
 let queryClient: QueryClient;
 type PolicyConflictCode =
-  | "account_deletion.grace_period_changed"
-  | "account_deletion.disabled";
+  "account_deletion.grace_period_changed" | "account_deletion.disabled";
 
 let onDismiss = vi.fn<() => void>();
 let onPolicyConflict = vi.fn<(code: PolicyConflictCode) => void>();
@@ -156,9 +155,8 @@ describe("compact account-deletion confirmation dialog", () => {
     "requires explicit acknowledgement for actual duration %s",
     async (days) => {
       const dialog = await mountDialog(false, days);
-      const password = dialog.querySelector<HTMLInputElement>(
-        "#deletion-password",
-      );
+      const password =
+        dialog.querySelector<HTMLInputElement>("#deletion-password");
       const submitButton = dialog.querySelector<HTMLButtonElement>(
         'button[type="submit"]',
       );
@@ -255,8 +253,7 @@ describe("compact account-deletion confirmation dialog", () => {
       dialog.querySelector<HTMLInputElement>("#deletion-password")?.value,
     ).toBe("");
     expect(
-      dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')
-        ?.checked,
+      dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked,
     ).toBe(false);
     expect(requestAccountDeletion).toHaveBeenCalledOnce();
   });

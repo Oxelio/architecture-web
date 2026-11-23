@@ -5,8 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ApiRequestError, requestAccountDeletion } from "#services/api";
 
 type PolicyConflictCode =
-  | "account_deletion.grace_period_changed"
-  | "account_deletion.disabled";
+  "account_deletion.grace_period_changed" | "account_deletion.disabled";
 
 interface AccountDeletionDialogProps {
   readonly gracePeriodDays: number;
