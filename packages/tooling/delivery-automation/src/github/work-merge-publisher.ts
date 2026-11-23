@@ -341,6 +341,28 @@ export type StandingEvidenceAuthority = Readonly<
 
 // Supplied by the protected environment from the applicable Method route.
 // A PR event or evidence comment cannot choose which roles are required.
+function isStandingGrantCandidate(
+  publisher: Pick<
+    WorkGateReader,
+    "repository" | "repositoryId" | "actorId"
+  >,
+  candidate: MergeCandidate,
+  input: { readonly gateAppId: number; readonly rulesetId: number },
+): boolean {
+  return (
+    publisher.repository.toLowerCase() === "oxelio/architecture-web" &&
+    publisher.repositoryId === 1336937640 &&
+    positiveId(publisher.actorId) &&
+    positiveId(candidate.workNumber) &&
+    positiveId(candidate.pullNumber) &&
+    candidate.workNumber !== candidate.pullNumber &&
+    oid.test(candidate.headSha) &&
+    oid.test(candidate.baseSha) &&
+    positiveId(input.gateAppId) &&
+    positiveId(input.rulesetId)
+  );
+}
+
 export async function discoverStandingWorkMergeGrant(
   publisher: Pick<
     WorkGateReader,
@@ -353,18 +375,7 @@ export async function discoverStandingWorkMergeGrant(
     readonly authority: StandingEvidenceAuthority;
   },
 ): Promise<WorkMergeGrant | null> {
-  if (
-    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
-    publisher.repositoryId !== 1336937640 ||
-    !positiveId(publisher.actorId) ||
-    !positiveId(candidate.workNumber) ||
-    !positiveId(candidate.pullNumber) ||
-    candidate.workNumber === candidate.pullNumber ||
-    !oid.test(candidate.headSha) ||
-    !oid.test(candidate.baseSha) ||
-    !positiveId(input.gateAppId) ||
-    !positiveId(input.rulesetId)
-  ) {
+  if (!isStandingGrantCandidate(publisher, candidate, input)) {
     return null;
   }
   const kinds = [
