@@ -64,17 +64,13 @@ export function AccountDeletionDialog({
   });
 
   useEffect(() => {
+    // React StrictMode replays effects in development. Do not treat its
+    // cleanup as a user dismissal of the native modal.
     const element = dialog.current;
-    if (!element) {
-      return;
+    if (element && !element.open) {
+      element.showModal();
+      heading.current?.focus();
     }
-    element.showModal();
-    heading.current?.focus();
-    return () => {
-      if (element.open) {
-        element.close();
-      }
-    };
   }, []);
 
   const canConfirm =
