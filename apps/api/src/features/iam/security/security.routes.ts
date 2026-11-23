@@ -497,7 +497,28 @@ export function buildSecurityRoutes(
         ]);
         protectedApp.post<{ Body: Static<typeof deletion> }>(
           "/me/deletion",
-          { schema: { body: deletion } },
+          {
+            schema: { body: deletion },
+            preValidation: async (request, reply) => {
+              // Ajv coerces numeric strings and booleans before schema validation.
+              // Deletion consent requires an actual JSON number, not a cast value.
+              const body = request.body as {
+                confirmedGracePeriodDays?: unknown;
+              } | null;
+              if (
+                body &&
+                "confirmedGracePeriodDays" in body &&
+                typeof body.confirmedGracePeriodDays !== "number"
+              ) {
+                return reply.status(400).send({
+                  error: {
+                    code: "request.validation_failed",
+                    message: "confirmedGracePeriodDays must be a JSON integer",
+                  },
+                });
+              }
+            },
+          },
           async (request, reply) => {
             const auth = actor(request, reply);
             if (!auth) {
