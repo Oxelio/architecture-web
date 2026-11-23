@@ -106,7 +106,10 @@ export function transitionMergeReservation(
 function completePendingReservation(
   state: Extract<MergeReservationState, { readonly phase: "pending" }>,
   candidate: MergeCandidate,
-  event: MergeReservationEvent,
+  event: Exclude<
+    MergeReservationEvent,
+    { readonly kind: "begin" | "begin-invalidation" | "invalidation-applied" }
+  >,
 ): MergeReservation | null {
   switch (event.kind) {
     case "check-queued":
