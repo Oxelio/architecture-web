@@ -41,6 +41,9 @@ export class RequestAccountDeletionUseCase implements RequestAccountDeletion {
     if (!policy.deletion) {
       return Result.failure(RequestAccountDeletionErrors.disabled);
     }
+    if (input.confirmedGracePeriodDays !== policy.deletionGraceDays) {
+      return Result.failure(RequestAccountDeletionErrors.gracePeriodChanged);
+    }
     const authorized = await this.reauthentication.strong(
       input.userId,
       input.sessionId,
@@ -76,12 +79,20 @@ export class RequestAccountDeletionUseCase implements RequestAccountDeletion {
       tokenHash: this.tokens.hash(token),
       now,
       scheduledFor,
+      confirmedGracePeriodDays: input.confirmedGracePeriodDays,
     });
     if (saved !== "saved") {
+      if (saved === "last_administrator") {
+        return Result.failure(RequestAccountDeletionErrors.lastActiveAccess);
+      }
+      if (saved === "disabled") {
+        return Result.failure(RequestAccountDeletionErrors.disabled);
+      }
+      if (saved === "grace_period_changed") {
+        return Result.failure(RequestAccountDeletionErrors.gracePeriodChanged);
+      }
       return Result.failure(
-        saved === "last_administrator"
-          ? RequestAccountDeletionErrors.lastActiveAccess
-          : RequestAccountDeletionErrors.concurrentModification,
+        RequestAccountDeletionErrors.concurrentModification,
       );
     }
     await this.sessions.deleteAllForUser(user.identifier);

@@ -38,6 +38,11 @@ const CancelDeletionPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import("./pages/ProfilePage").then((mod) => ({ default: mod.ProfilePage })),
 );
+const AccountDeletionPage = lazy(() =>
+  import("./pages/AccountDeletionPage").then((mod) => ({
+    default: mod.AccountDeletionPage,
+  })),
+);
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((mod) => ({ default: mod.AdminPage })),
 );
@@ -105,6 +110,16 @@ function App() {
               element={
                 user ? (
                   <ProfilePage user={user} />
+                ) : (
+                  <Navigate to="/signin" replace />
+                )
+              }
+            />
+            <Route
+              path="/profile/deletion"
+              element={
+                user ? (
+                  <AccountDeletionPage />
                 ) : (
                   <Navigate to="/signin" replace />
                 )

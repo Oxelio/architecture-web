@@ -2,6 +2,7 @@ import type { CancelAccountDeletion } from "#accounts/cancel-account-deletion/ca
 import type { ChangeEmail } from "#accounts/change-email/change-email.contracts";
 import type { ChangePassword } from "#accounts/change-password/change-password.contracts";
 import type { DownloadAccountExport } from "#accounts/download-account-export/download-account-export.contracts";
+import type { GetAccountDeletionDisclosure } from "#accounts/get-account-deletion-disclosure/get-account-deletion-disclosure.contracts";
 import type { GetCurrentAccount } from "#accounts/get-current-account/get-current-account.contracts";
 import type { ListAccountExports } from "#accounts/list-account-exports/list-account-exports.contracts";
 import type { MaintainIamAccounts } from "#accounts/maintain-iam-accounts/maintain-iam-accounts.contracts";
@@ -21,6 +22,7 @@ export interface AccountsApplication {
   changeEmail: ChangeEmail;
   changePassword: ChangePassword;
   getCurrentAccount: GetCurrentAccount;
+  getDeletionDisclosure: GetAccountDeletionDisclosure;
   getPasswordPolicy: GetPasswordPolicy;
   evaluatePassword: EvaluatePassword;
   resendEmailVerification: ResendEmailVerification;

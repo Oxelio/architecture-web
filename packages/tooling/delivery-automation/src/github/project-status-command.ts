@@ -44,7 +44,7 @@ function positiveId(value: unknown): value is number {
 }
 
 function isCoordinatedStatus(value: unknown): value is CoordinatedStatus {
-  return coordinatedStatuses.some((state) => state === value);
+  return coordinatedStatuses.includes(value as CoordinatedStatus);
 }
 
 export async function authenticateProjectStatusCommand(input: {
@@ -66,8 +66,7 @@ export async function authenticateProjectStatusCommand(input: {
       input.readChannelPolicy(),
     ]);
     if (
-      !comment ||
-      comment.id !== input.commentId ||
+      comment?.id !== input.commentId ||
       comment.issue_url !==
         `https://api.github.com/repos/Oxelio/architecture-web/issues/${input.workNumber}` ||
       comment.user.type !== "User" ||
@@ -93,7 +92,8 @@ export async function authenticateProjectStatusCommand(input: {
       !positiveId(channel["appId"]) ||
       channel["appId"] !== comment.performed_via_github_app?.id ||
       typeof expiresAt !== "string" ||
-      !(Date.parse(expiresAt) > input.now())
+      Number.isNaN(Date.parse(expiresAt)) ||
+      Date.parse(expiresAt) <= input.now()
     ) {
       return null;
     }
@@ -110,9 +110,10 @@ export async function authenticateProjectStatusCommand(input: {
       !isCoordinatedStatus(command["to"]) ||
       command["from"] === command["to"] ||
       typeof command["statusUpdatedAt"] !== "string" ||
-      !(
-        Date.parse(comment.created_at) > Date.parse(command["statusUpdatedAt"])
-      ) ||
+      Number.isNaN(Date.parse(comment.created_at)) ||
+      Number.isNaN(Date.parse(command["statusUpdatedAt"])) ||
+      Date.parse(comment.created_at) <=
+        Date.parse(command["statusUpdatedAt"]) ||
       !Array.isArray(evidence) ||
       evidence.length < 1 ||
       evidence.length > 20 ||

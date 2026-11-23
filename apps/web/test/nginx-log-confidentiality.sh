@@ -142,4 +142,4 @@ assert {"204", "404", "502"}.issubset({record["status"] for record in records})
 assert all(record["request_id"] and record["duration"] for record in records)
 assert any(record["group"] == "api" and record["upstream_status"] == "502" for record in records)
 PY
-echo "PASS: Nginx access/error logs contain no synthetic credential"
+printf '%s\n' 'PASS: Nginx access/error logs contain no synthetic credential'

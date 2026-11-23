@@ -251,16 +251,40 @@ async function github<T>(
   return (await response.json()) as T;
 }
 
+function hasClosingIssueReference(title: string): boolean {
+  const verbs = /\b(?:clos(?:es|ed|e)|fix(?:es|ed)?|resolv(?:es|ed|e))\b/giu;
+  const issue = /^(?:[\w.-]+\/[\w.-]+)?#\d+/iu;
+  const url = /^https?:\/\//iu;
+  for (const match of title.matchAll(verbs)) {
+    const suffix = title.slice(match.index + match[0].length);
+    const whitespace = /^\s*/u.exec(suffix)?.[0] ?? "";
+    const next = suffix.slice(whitespace.length);
+    let reference: string;
+    if (next.startsWith(":")) {
+      const afterColon = next.slice(1);
+      const requiredSpace = /^\s+/u.exec(afterColon)?.[0];
+      if (!requiredSpace) {
+        continue;
+      }
+      reference = afterColon.slice(requiredSpace.length);
+    } else {
+      if (!whitespace) {
+        continue;
+      }
+      reference = next;
+    }
+    if (issue.test(reference) || url.test(reference)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function safeSquashHeadline(
   publisher: WorkMergePublisher,
   pr: PullRequest,
 ): Promise<string | null> {
-  if (
-    !pr.title?.trim() ||
-    /\b(?:clos(?:e|es|ed)|fix(?:es|ed)?|resolv(?:e|es|ed))\s*:?\s+(?:(?:[\w.-]+\/[\w.-]+)?#\d+|https?:\/\/)/iu.test(
-      pr.title,
-    )
-  ) {
+  if (!pr.title?.trim() || hasClosingIssueReference(pr.title)) {
     return null;
   }
   const result = await github<{
@@ -314,6 +338,25 @@ export type StandingEvidenceAuthority = Readonly<
 
 // Supplied by the protected environment from the applicable Method route.
 // A PR event or evidence comment cannot choose which roles are required.
+function isStandingGrantCandidate(
+  publisher: Pick<WorkGateReader, "repository" | "repositoryId" | "actorId">,
+  candidate: MergeCandidate,
+  input: { readonly gateAppId: number; readonly rulesetId: number },
+): boolean {
+  return (
+    publisher.repository.toLowerCase() === "oxelio/architecture-web" &&
+    publisher.repositoryId === 1336937640 &&
+    positiveId(publisher.actorId) &&
+    positiveId(candidate.workNumber) &&
+    positiveId(candidate.pullNumber) &&
+    candidate.workNumber !== candidate.pullNumber &&
+    oid.test(candidate.headSha) &&
+    oid.test(candidate.baseSha) &&
+    positiveId(input.gateAppId) &&
+    positiveId(input.rulesetId)
+  );
+}
+
 export async function discoverStandingWorkMergeGrant(
   publisher: Pick<
     WorkGateReader,
@@ -326,18 +369,7 @@ export async function discoverStandingWorkMergeGrant(
     readonly authority: StandingEvidenceAuthority;
   },
 ): Promise<WorkMergeGrant | null> {
-  if (
-    publisher.repository.toLowerCase() !== "oxelio/architecture-web" ||
-    publisher.repositoryId !== 1336937640 ||
-    !positiveId(publisher.actorId) ||
-    !positiveId(candidate.workNumber) ||
-    !positiveId(candidate.pullNumber) ||
-    candidate.workNumber === candidate.pullNumber ||
-    !oid.test(candidate.headSha) ||
-    !oid.test(candidate.baseSha) ||
-    !positiveId(input.gateAppId) ||
-    !positiveId(input.rulesetId)
-  ) {
+  if (!isStandingGrantCandidate(publisher, candidate, input)) {
     return null;
   }
   const kinds = [
@@ -409,49 +441,14 @@ export async function discoverStandingWorkMergeGrant(
       return null;
     }
 
-    const selected = new Map<EvidenceReference["kind"], EvidenceReference>();
-    for (const comment of [...workComments, ...pullComments]) {
-      if (!comment.user || !positiveId(comment.user.id)) {
-        continue;
-      }
-      const record = parseEvidenceComment(comment.body);
-      const kind = required.find((entry) => entry === record?.["kind"]);
-      if (
-        !kind ||
-        !record ||
-        !sameWorkIntegrationCandidate(candidate, record)
-      ) {
-        continue;
-      }
-      const app = comment.performed_via_github_app;
-      const appId =
-        app === null ? null : app && "id" in app ? app.id : undefined;
-      const authorId = comment.user.id;
-      if (
-        !input.authority[kind]?.some(
-          (authority) =>
-            authority.authorId === authorId && authority.appId === appId,
-        )
-      ) {
-        continue;
-      }
-      const issueUrl = comment.issue_url?.toLowerCase();
-      if (
-        !positiveId(comment.id) ||
-        (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
-          issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
-        !comment.created_at ||
-        comment.created_at !== comment.updated_at ||
-        record["decision"] !== "accepted" ||
-        (kind.endsWith("-approval") &&
-          (comment.user.type !== "User" || appId !== null)) ||
-        selected.has(kind)
-      ) {
-        return null;
-      }
-      selected.set(kind, { kind, commentId: comment.id, authorId });
-    }
-    if (selected.size !== required.length) {
+    const selected = selectStandingEvidence(
+      [...workComments, ...pullComments],
+      required,
+      candidate,
+      input.authority,
+      prefix,
+    );
+    if (!selected) {
       return null;
     }
     return {
@@ -466,11 +463,66 @@ export async function discoverStandingWorkMergeGrant(
       evidence: [...selected.values()].sort((left, right) =>
         left.kind.localeCompare(right.kind, "en"),
       ),
-      requiredTasks: requiredTasks.sort((left, right) => left - right),
+      requiredTasks: requiredTasks.toSorted((left, right) => left - right),
     };
   } catch {
     return null;
   }
+}
+
+function selectStandingEvidence(
+  comments: readonly IssueComment[],
+  required: readonly EvidenceReference["kind"][],
+  candidate: MergeCandidate,
+  authority: StandingEvidenceAuthority,
+  prefix: string,
+): Map<EvidenceReference["kind"], EvidenceReference> | null {
+  const selected = new Map<EvidenceReference["kind"], EvidenceReference>();
+  for (const comment of comments) {
+    if (!comment.user || !positiveId(comment.user.id)) {
+      continue;
+    }
+    const record = parseEvidenceComment(comment.body);
+    const kind = required.find((entry) => entry === record?.["kind"]);
+    if (!kind || !record || !sameWorkIntegrationCandidate(candidate, record)) {
+      continue;
+    }
+    const app = comment.performed_via_github_app;
+    let appId: unknown;
+    if (app === null) {
+      appId = null;
+    } else if (app && "id" in app) {
+      appId = app.id;
+    }
+    const authorId = comment.user.id;
+    if (
+      !authority[kind]?.some(
+        (authority) =>
+          authority.authorId === authorId && authority.appId === appId,
+      )
+    ) {
+      continue;
+    }
+    const issueUrl = comment.issue_url?.toLowerCase();
+    if (
+      !positiveId(comment.id) ||
+      (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
+        issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
+      !comment.created_at ||
+      comment.created_at !== comment.updated_at ||
+      record["decision"] !== "accepted" ||
+      (kind.endsWith("-approval") &&
+        (comment.user.type !== "User" || appId !== null)) ||
+      selected.has(kind)
+    ) {
+      return null;
+    }
+    selected.set(kind, { kind, commentId: comment.id, authorId });
+  }
+  if (selected.size !== required.length) {
+    return null;
+  }
+  return selected;
 }
 
 function parseEvidenceComment(body: string): Record<string, unknown> | null {
@@ -482,6 +534,29 @@ function parseEvidenceComment(body: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+function validEvidenceComment(
+  comment: IssueComment,
+  reference: EvidenceReference,
+  candidate: MergeCandidate,
+  repoPath: string,
+  requireUnedited: boolean,
+): boolean {
+  const issueUrl = comment.issue_url?.toLowerCase();
+  const prefix = `https://api.github.com${repoPath.toLowerCase()}/issues/`;
+  return (
+    comment.id === reference.commentId &&
+    comment.user?.id === reference.authorId &&
+    (issueUrl === `${prefix}${candidate.workNumber}` ||
+      issueUrl === `${prefix}${candidate.pullNumber}`) &&
+    (!requireUnedited ||
+      (Boolean(comment.created_at) &&
+        comment.created_at === comment.updated_at)) &&
+    (!reference.kind.endsWith("-approval") ||
+      (comment.user.type === "User" &&
+        comment.performed_via_github_app === null))
+  );
 }
 
 async function verifyEvidence(
@@ -509,18 +584,14 @@ async function verifyEvidence(
       publisher,
       `${repoPath}/issues/comments/${reference.commentId}`,
     );
-    const issueUrl = comment.issue_url?.toLowerCase();
-    const prefix = `https://api.github.com${repoPath.toLowerCase()}/issues/`;
     if (
-      comment.id !== reference.commentId ||
-      comment.user?.id !== reference.authorId ||
-      (issueUrl !== `${prefix}${candidate.workNumber}` &&
-        issueUrl !== `${prefix}${candidate.pullNumber}`) ||
-      (requireUnedited &&
-        (!comment.created_at || comment.created_at !== comment.updated_at)) ||
-      (reference.kind.endsWith("-approval") &&
-        (comment.user.type !== "User" ||
-          comment.performed_via_github_app !== null))
+      !validEvidenceComment(
+        comment,
+        reference,
+        candidate,
+        repoPath,
+        requireUnedited,
+      )
     ) {
       return `UNVERIFIED_EVIDENCE:${reference.kind}`;
     }
@@ -695,9 +766,10 @@ export async function verifyStandingJournalRules(
     ) {
       return null;
     }
-    return ruleset.bypass_actors === undefined
-      ? readObservedRulesetBypassActors(publisher, ruleset)
-      : ruleset.bypass_actors;
+    if (ruleset.bypass_actors !== undefined) {
+      return ruleset.bypass_actors;
+    }
+    return readObservedRulesetBypassActors(publisher, ruleset);
   };
 
   try {
@@ -731,9 +803,12 @@ async function verifyChecks(
   pr: PullRequest,
   mode: MergeMode,
   observe: boolean,
-  evaluateGate = false,
-  reservedCheck?: ReservedGateCheck,
+  options: {
+    readonly evaluateGate?: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  } = {},
 ): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
+  const { evaluateGate = false, reservedCheck } = options;
   if (
     !positiveId(grant.gateAppId) ||
     !positiveId(grant.rulesetId) ||
@@ -750,6 +825,12 @@ async function verifyChecks(
   const expected = evaluateGate
     ? ciChecks
     : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
+  let checksForMode: readonly (readonly [string, number])[] = expected;
+  if (evaluateGate) {
+    checksForMode = [...ciChecks, [gateName, grant.gateAppId] as const];
+  } else if (observe) {
+    checksForMode = ciChecks;
+  }
   const ruleset = await github<GateRuleset>(
     publisher,
     `${repoPath}/rulesets/${grant.rulesetId}`,
@@ -786,12 +867,7 @@ async function verifyChecks(
     methods?.length !== 1 ||
     methods[0] !== "squash" ||
     statusRule?.strict_required_status_checks_policy !== true ||
-    (evaluateGate
-      ? [...ciChecks, [gateName, grant.gateAppId] as const]
-      : observe
-        ? ciChecks
-        : expected
-    ).some(
+    checksForMode.some(
       ([context, appId]) =>
         !statusRule.required_status_checks?.some(
           (check) =>
@@ -802,45 +878,16 @@ async function verifyChecks(
     return "REQUIRED_PROTECTIONS_UNVERIFIED";
   }
   if (reservedCheck) {
-    // The latest-per-suite view does not prove that the held check is
-    // the only candidate for this required context.
-    const shas = [...new Set([pr.head.sha, pr.merge_commit_sha])];
-    const inventories = await Promise.all(
-      shas.map((sha) =>
-        github<{
-          readonly total_count: number;
-          readonly check_runs: readonly CheckRun[];
-        }>(
-          publisher,
-          `${repoPath}/commits/${sha}/check-runs?check_name=${encodeURIComponent(gateName)}&filter=all&per_page=100`,
-        ),
-      ),
+    const failure = await verifyReservedCheckInventory(
+      publisher,
+      repoPath,
+      pr,
+      pr.merge_commit_sha,
+      grant.gateAppId,
+      reservedCheck,
     );
-    const matches: CheckRun[] = [];
-    for (const [index, inventory] of inventories.entries()) {
-      if (
-        !Array.isArray(inventory.check_runs) ||
-        inventory.total_count !== inventory.check_runs.length ||
-        inventory.total_count >= 100 ||
-        inventory.check_runs.some(
-          (check) => check.name !== gateName || check.head_sha !== shas[index],
-        )
-      ) {
-        return "RESERVED_GATE_INVENTORY_UNVERIFIED";
-      }
-      matches.push(...inventory.check_runs);
-    }
-    const [check] = matches;
-    if (
-      matches.length !== 1 ||
-      check?.id !== reservedCheck.checkId ||
-      check.app?.id !== grant.gateAppId ||
-      check.external_id !== reservedCheck.reservationId ||
-      check.head_sha !== pr.head.sha ||
-      check.status !== "queued" ||
-      check.conclusion !== null
-    ) {
-      return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+    if (failure) {
+      return failure;
     }
   }
 
@@ -877,26 +924,7 @@ async function verifyChecks(
     if (!matches?.length || matches.some((check) => check.app?.id !== appId)) {
       return `UNVERIFIED_CHECK:${name}`;
     }
-    let check = matches[0];
-    if (matches.length > 1) {
-      // The PR workflow can cancel a Draft run and start a new suite for the
-      // same head when it becomes ready. GitHub lists both as latest per suite.
-      if (!evaluateGate) {
-        return `UNVERIFIED_CHECK:${name}`;
-      }
-      const attempts = matches.map((run) => ({
-        run,
-        started: Date.parse(run.started_at ?? ""),
-      }));
-      attempts.sort((a, b) => b.started - a.started);
-      if (
-        attempts.some(({ started }) => !Number.isFinite(started)) ||
-        attempts[0]?.started === attempts[1]?.started
-      ) {
-        return `UNVERIFIED_CHECK:${name}`;
-      }
-      check = attempts[0]?.run;
-    }
+    const check = selectLatestCheck(matches, evaluateGate);
     if (!check) {
       return `UNVERIFIED_CHECK:${name}`;
     }
@@ -941,6 +969,87 @@ async function verifyChecks(
     return "DIRECT_MERGE_REQUIRED";
   }
   return { bypassActors: noBypassActors ? "none" : "unverified" };
+}
+
+function selectLatestCheck(
+  matches: readonly CheckRun[],
+  evaluateGate: boolean,
+): CheckRun | undefined {
+  let check = matches[0];
+  if (matches.length > 1) {
+    // The PR workflow can cancel a Draft run and start a new suite for the
+    // same head when it becomes ready. GitHub lists both as latest per suite.
+    if (!evaluateGate) {
+      return undefined;
+    }
+    const attempts = matches.map((run) => ({
+      run,
+      started: Date.parse(run.started_at ?? ""),
+    }));
+    attempts.sort((a, b) => b.started - a.started);
+    if (
+      attempts.some(({ started }) => !Number.isFinite(started)) ||
+      attempts[0]?.started === attempts[1]?.started
+    ) {
+      return undefined;
+    }
+    check = attempts[0]?.run;
+  }
+  if (!check) {
+    return undefined;
+  }
+  return check;
+}
+
+async function verifyReservedCheckInventory(
+  publisher: WorkGateReader,
+  repoPath: string,
+  pr: PullRequest,
+  mergeSha: string,
+  gateAppId: number,
+  reservedCheck: ReservedGateCheck,
+): Promise<string | null> {
+  // The latest-per-suite view does not prove that the held check is
+  // the only candidate for this required context.
+  const shas = [...new Set([pr.head.sha, mergeSha])];
+  const inventories = await Promise.all(
+    shas.map((sha) =>
+      github<{
+        readonly total_count: number;
+        readonly check_runs: readonly CheckRun[];
+      }>(
+        publisher,
+        `${repoPath}/commits/${sha}/check-runs?check_name=${encodeURIComponent(gateName)}&filter=all&per_page=100`,
+      ),
+    ),
+  );
+  const matches: CheckRun[] = [];
+  for (const [index, inventory] of inventories.entries()) {
+    if (
+      !Array.isArray(inventory.check_runs) ||
+      inventory.total_count !== inventory.check_runs.length ||
+      inventory.total_count >= 100 ||
+      inventory.check_runs.some(
+        (check) => check.name !== gateName || check.head_sha !== shas[index],
+      )
+    ) {
+      return "RESERVED_GATE_INVENTORY_UNVERIFIED";
+    }
+    matches.push(...inventory.check_runs);
+  }
+  const [check] = matches;
+  if (
+    matches.length !== 1 ||
+    check?.id !== reservedCheck.checkId ||
+    check.app?.id !== gateAppId ||
+    check.external_id !== reservedCheck.reservationId ||
+    check.head_sha !== pr.head.sha ||
+    check.status !== "queued" ||
+    check.conclusion !== null
+  ) {
+    return "RESERVED_WORK_MERGE_GATE_UNVERIFIED";
+  }
+  return null;
 }
 
 export async function publishWorkMerge(
@@ -1094,19 +1203,12 @@ export async function cancelReservedNativeSquash(
     workReference(pr.body) === candidate.workNumber;
   const checkIsHeld = async (pr: PullRequest) =>
     state.checkId !== undefined &&
-    typeof (await verifyChecks(
-      publisher,
-      grant,
-      repoPath,
-      pr,
-      "auto",
-      false,
-      false,
-      {
+    typeof (await verifyChecks(publisher, grant, repoPath, pr, "auto", false, {
+      reservedCheck: {
         checkId: state.checkId,
         reservationId: scope.reservationId,
       },
-    )) !== "string";
+    })) !== "string";
   const observeMerge = () => observeReservedWorkSquash(publisher, candidate);
 
   try {
@@ -1265,7 +1367,7 @@ export async function evaluateScopedWorkGate(
   candidate: MergeCandidate,
 ) {
   const grant = await reader.readGrant();
-  const mandatory = ["code-review", "validation", "working-decisions"];
+  const mandatory = ["code-review", "validation", "working-decisions"] as const;
   const supported = new Set([
     ...mandatory,
     "architecture-review",
@@ -1275,6 +1377,7 @@ export async function evaluateScopedWorkGate(
     "governance-approval",
     "adr-approval",
   ]);
+  const grantExpiresAt = Date.parse(grant?.expiresAt ?? "");
   if (
     grant?.purpose !== "evaluate-work-merge-gate" ||
     "direct" in grant ||
@@ -1287,16 +1390,15 @@ export async function evaluateScopedWorkGate(
     grant.baseSha !== candidate.baseSha ||
     !oid.test(candidate.headSha) ||
     !oid.test(candidate.baseSha) ||
-    !(Date.parse(grant.expiresAt) > Date.now()) ||
+    Number.isNaN(grantExpiresAt) ||
+    grantExpiresAt <= Date.now() ||
     grant.gateAppId !== 5625775 ||
     !Array.isArray(grant.requiredEvidence) ||
     !Array.isArray(grant.evidence) ||
     !Array.isArray(grant.requiredTasks) ||
     new Set(grant.requiredTasks).size !== grant.requiredTasks.length ||
     !grant.requiredTasks.every(positiveId) ||
-    !mandatory.every((kind) =>
-      grant.requiredEvidence.some((value) => value === kind),
-    ) ||
+    !mandatory.every((kind) => grant.requiredEvidence.includes(kind)) ||
     new Set(grant.requiredEvidence).size !== grant.requiredEvidence.length ||
     !grant.requiredEvidence.every((kind) => supported.has(kind)) ||
     grant.requiredEvidence.length !== grant.evidence.length ||
@@ -1345,15 +1447,9 @@ export async function evaluateScopedWorkGate(
   if (evidence && evidence !== "REQUIRED_TASKS_UNRESOLVED") {
     throw new Error(evidence);
   }
-  const checks = await verifyChecks(
-    reader,
-    grant,
-    repo,
-    pr,
-    "direct",
-    true,
-    true,
-  );
+  const checks = await verifyChecks(reader, grant, repo, pr, "direct", true, {
+    evaluateGate: true,
+  });
   if (
     checks === "REQUIRED_PROTECTIONS_UNVERIFIED" ||
     checks === "CHECK_CANDIDATE_UNAVAILABLE" ||
@@ -1472,8 +1568,7 @@ async function evaluateWorkMergeRequest(
         pr,
         mode,
         observe,
-        false,
-        reservedCheck,
+        reservedCheck ? { reservedCheck } : {},
       );
       if (typeof checks === "string") {
         return blocked(checks);

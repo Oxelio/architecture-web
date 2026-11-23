@@ -262,8 +262,7 @@ describe("resolveWorkIntegrationPr", () => {
             source: {
               issue: {
                 number: 13,
-                repository_url:
-                  "https://api.github.com/repos/Oxelio/Architecture-Web",
+                repository_url: `https://api.github.com/repos/Oxelio/Architecture-Web${"/".repeat(20_000)}`,
                 state: "open",
                 labels: [],
                 pull_request: {},
@@ -275,8 +274,7 @@ describe("resolveWorkIntegrationPr", () => {
             source: {
               issue: {
                 number: 8,
-                repository_url:
-                  "https://api.github.com/repos/Oxelio/Architecture-Web",
+                repository_url: `https://api.github.com/repos/Oxelio/Architecture-Web${"/".repeat(20_000)}foreign`,
                 state: "closed",
                 labels: [],
                 pull_request: {},

@@ -39,7 +39,7 @@ import { RedisSessionAdapter } from "@architecture/iam-session-redis";
 import { KyselyOutboxWriterAdapter } from "@architecture/messaging-persistence-kysely";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
-import { Kysely, PostgresDialect } from "kysely";
+import { Kysely, PostgresDialect, sql } from "kysely";
 import { Migrator } from "kysely/migration";
 import { Pool } from "pg";
 import {
@@ -501,6 +501,236 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       ).archive,
     ).toBeNull();
   });
+  it.each([
+    ["changed grace period", 30, true, "grace_period_changed"],
+    ["disabled deletion", 14, false, "disabled"],
+  ] as const)(
+    "rejects deletion transaction after publication of %s without side effects",
+    async (_scenario, days, enabled, expected) => {
+      const administrator = await account(true);
+      const target = await account();
+      const configuration = new KyselySecurityConfigurationAdapter(
+        iamDb,
+        outbox,
+      );
+      const published = await configuration.readPublished();
+      const values = structuredClone(published.values);
+      values.accounts.deletionGraceDays = days;
+      values.accounts.deletion = enabled;
+      expect(
+        await configuration.publish({
+          actorId: administrator.user.identifier.value,
+          expectedVersion: published.version,
+          values,
+          justification: "Deletion confirmation integration",
+          changedKeys: ["accounts.deletionGraceDays", "accounts.deletion"],
+        }),
+      ).not.toBeNull();
+
+      const outboxBefore = (
+        await db.selectFrom("messaging_outbox").select("id").execute()
+      ).length;
+      const store = new KyselyAccountDeletionAdapter(iamDb, outbox);
+      const now = new Date();
+      target.user.requestDeletion();
+      const outcome = await store.request({
+        user: target.user,
+        previousStatus: "active",
+        requireAnotherAdministrator: false,
+        id: randomUUID(),
+        tokenHash: tokens.hash(randomUUID()),
+        now,
+        scheduledFor: new Date(now.getTime() + 14 * 86_400_000),
+        confirmedGracePeriodDays: 14,
+      });
+      expect(outcome).toBe(expected);
+      expect(
+        await db
+          .selectFrom("iam_account_deletions")
+          .select("id")
+          .where("user_id", "=", target.user.identifier.value)
+          .executeTakeFirst(),
+      ).toBeUndefined();
+      expect(
+        (
+          await db
+            .selectFrom("iam_users")
+            .select("status")
+            .where("id", "=", target.user.identifier.value)
+            .executeTakeFirstOrThrow()
+        ).status,
+      ).toBe("active");
+      expect(
+        await db.selectFrom("messaging_outbox").select("id").execute(),
+      ).toHaveLength(outboxBefore);
+    },
+  );
+
+  it("rejects deletion when a concurrent policy publication holds the fence first", async () => {
+    const administrator = await account(true);
+    const target = await account();
+    const configuration = new KyselySecurityConfigurationAdapter(iamDb, outbox);
+    const current = await configuration.readPublished();
+    const values = structuredClone(current.values);
+    values.accounts.deletionGraceDays = 30;
+    const beforeOutbox = (
+      await db.selectFrom("messaging_outbox").select("id").execute()
+    ).length;
+
+    const entered = barrier();
+    const proceed = barrier();
+    const gatedPublisher = new KyselySecurityConfigurationAdapter(
+      iamDb,
+      (transaction) => ({
+        append: async (events) => {
+          await outbox(transaction).append(events);
+          // The revised policy is written, but the transaction still owns
+          // both advisory locks until the test releases this barrier.
+          entered.release();
+          await proceed.wait;
+        },
+      }),
+    );
+    const publication = gatedPublisher.publish({
+      actorId: administrator.user.identifier.value,
+      expectedVersion: current.version,
+      values,
+      justification: "Publication-first deletion race",
+      changedKeys: ["accounts.deletionGraceDays"],
+    });
+
+    let deletion: ReturnType<KyselyAccountDeletionAdapter["request"]> | null =
+      null;
+    try {
+      await entered.wait;
+      const now = new Date();
+      target.user.requestDeletion();
+      deletion = new KyselyAccountDeletionAdapter(iamDb, outbox).request({
+        user: target.user,
+        previousStatus: "active",
+        requireAnotherAdministrator: false,
+        id: randomUUID(),
+        tokenHash: tokens.hash(randomUUID()),
+        now,
+        scheduledFor: new Date(now.getTime() + 14 * 86_400_000),
+        confirmedGracePeriodDays: 14,
+      });
+
+      await vi.waitFor(
+        async () => {
+          const locks = await sql<{ waiting: boolean }>`
+            select exists (
+              select 1 from pg_locks
+              where locktype = 'advisory'
+                and granted = false
+                and classid = 0::oid
+                and objid = 728194002::oid
+            ) as waiting
+          `.execute(db);
+          expect(locks.rows[0]?.waiting).toBe(true);
+        },
+        { timeout: 5000, interval: 25 },
+      );
+    } finally {
+      proceed.release();
+      await Promise.allSettled([publication, deletion]);
+    }
+
+    expect(deletion).not.toBeNull();
+    expect(await publication).not.toBeNull();
+    expect(await deletion).toBe("grace_period_changed");
+    expect(
+      await db
+        .selectFrom("iam_account_deletions")
+        .select("id")
+        .where("user_id", "=", target.user.identifier.value)
+        .executeTakeFirst(),
+    ).toBeUndefined();
+    expect(
+      (
+        await db
+          .selectFrom("iam_users")
+          .select("status")
+          .where("id", "=", target.user.identifier.value)
+          .executeTakeFirstOrThrow()
+      ).status,
+    ).toBe("active");
+    expect(
+      await db.selectFrom("messaging_outbox").select("id").execute(),
+    ).toHaveLength(beforeOutbox + 1);
+  }, 30000);
+
+  it("serializes a confirmed deletion with a concurrent publication and keeps its scheduled date", async () => {
+    const administrator = await account(true);
+    const target = await account();
+    const configuration = new KyselySecurityConfigurationAdapter(iamDb, outbox);
+    const current = await configuration.readPublished();
+    const values = structuredClone(current.values);
+    values.accounts.deletionGraceDays = 30;
+
+    const entered = barrier();
+    const proceed = barrier();
+    const gatedStore = new KyselyAccountDeletionAdapter(
+      iamDb,
+      (transaction) => ({
+        append: async (events) => {
+          await outbox(transaction).append(events);
+          entered.release();
+          await proceed.wait;
+        },
+      }),
+    );
+    const now = new Date();
+    const scheduledFor = new Date(now.getTime() + 14 * 86_400_000);
+    target.user.requestDeletion();
+    const deletion = gatedStore.request({
+      user: target.user,
+      previousStatus: "active",
+      requireAnotherAdministrator: false,
+      id: randomUUID(),
+      tokenHash: tokens.hash(randomUUID()),
+      now,
+      scheduledFor,
+      confirmedGracePeriodDays: 14,
+    });
+    try {
+      await entered.wait;
+      let publicationFinished = false;
+      const publication = configuration
+        .publish({
+          actorId: administrator.user.identifier.value,
+          expectedVersion: current.version,
+          values,
+          justification: "Concurrent duration update",
+          changedKeys: ["accounts.deletionGraceDays"],
+        })
+        .then((result) => {
+          publicationFinished = true;
+          return result;
+        });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(publicationFinished).toBe(false);
+      proceed.release();
+      const [outcome, published] = await Promise.all([deletion, publication]);
+      expect(outcome).toBe("saved");
+      expect(published).not.toBeNull();
+      expect(
+        (
+          await db
+            .selectFrom("iam_account_deletions")
+            .select("scheduled_for")
+            .where("user_id", "=", target.user.identifier.value)
+            .executeTakeFirstOrThrow()
+        ).scheduled_for,
+      ).toEqual(scheduledFor);
+      expect(
+        (await configuration.readPublished()).values.accounts.deletionGraceDays,
+      ).toBe(30);
+    } finally {
+      proceed.release();
+    }
+  }, 30000);
+
   it("preserves one active administrator during concurrent deletion requests", async () => {
     const first = await account(true),
       second = await account(true),
@@ -517,6 +747,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
           tokenHash: tokens.hash(randomUUID()),
           now,
           scheduledFor: new Date(now.getTime() + 86400000),
+          confirmedGracePeriodDays: 14,
         });
       }),
     );
@@ -639,6 +870,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         tokenHash: tokens.hash(randomUUID()),
         now,
         scheduledFor: new Date(now.getTime() + 60000),
+        confirmedGracePeriodDays: 14,
       }),
     ).toBe("saved");
     const roots = await Promise.all([
@@ -773,6 +1005,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       tokenHash: tokens.hash(randomUUID()),
       now,
       scheduledFor: new Date(now.getTime() - 1000),
+      confirmedGracePeriodDays: 14,
     });
     await db
       .updateTable("iam_account_deletions")
@@ -1511,6 +1744,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         tokenHash: tokens.hash(randomUUID()),
         now,
         scheduledFor: new Date(now.getTime() + 86400000),
+        confirmedGracePeriodDays: 14,
       }),
       module.iam.administration.assignUserRole.execute({
         actorUserId: a.user.identifier.value,

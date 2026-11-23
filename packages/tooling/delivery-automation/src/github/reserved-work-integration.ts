@@ -51,35 +51,8 @@ export async function performReservedGitHubIntegration(
   }
 
   switch (state.operation) {
-    case "queue-check": {
-      if (
-        !checksToken.trim() ||
-        [
-          publisher.repositoryToken,
-          publisher.projectsToken,
-          publisher.mergeToken,
-        ].includes(checksToken)
-      ) {
-        return null;
-      }
-      const check = await publisher.withinVerifiedBoundary(
-        candidate,
-        "auto",
-        () =>
-          queueReservedGateCheck({
-            repository: publisher.repository,
-            checksToken,
-            name: workMergeRequiredCheckName,
-            headSha: candidate.headSha,
-            reservationId,
-            expectedAppId: scope.checksAppId,
-            ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
-          }),
-      );
-      return check
-        ? ({ kind: "check-queued", checkId: check.id } as const)
-        : null;
-    }
+    case "queue-check":
+      return queueReservedCheck(candidate, scope);
     case "arm-squash": {
       if (!authorizeArm) {
         return null;
@@ -124,6 +97,35 @@ export async function performReservedGitHubIntegration(
             rulesetId: scope.cancellationRulesetId,
           });
   }
+}
+
+async function queueReservedCheck(
+  candidate: MergeReservation["candidate"],
+  scope: ReservedGitHubScope,
+) {
+  const { publisher, checksToken, reservationId } = scope;
+  if (
+    !checksToken.trim() ||
+    [
+      publisher.repositoryToken,
+      publisher.projectsToken,
+      publisher.mergeToken,
+    ].includes(checksToken)
+  ) {
+    return null;
+  }
+  const check = await publisher.withinVerifiedBoundary(candidate, "auto", () =>
+    queueReservedGateCheck({
+      repository: publisher.repository,
+      checksToken,
+      name: workMergeRequiredCheckName,
+      headSha: candidate.headSha,
+      reservationId,
+      expectedAppId: scope.checksAppId,
+      ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+    }),
+  );
+  return check ? ({ kind: "check-queued", checkId: check.id } as const) : null;
 }
 
 type ControllerInput = Parameters<typeof executeWorkIntegrationOperation>[0];
@@ -202,8 +204,7 @@ export async function executeReservedGitHubWorkIntegration(input: {
         perform: async (intent, admitRelease) => {
           const current = await journal.read();
           if (
-            !current ||
-            current.revision !== intent.revision ||
+            current?.revision !== intent.revision ||
             !isDeepStrictEqual(current.reservation, intent.reservation) ||
             !(await authorize({ candidate, operation }))
           ) {
@@ -356,22 +357,8 @@ async function observeReservedGitHubIntegration(
         ))
         ? ({ kind: "squash-armed", checkId: state.checkId } as const)
         : null;
-    case "release-check": {
-      if (!state.releaseAdmission) {
-        return null;
-      }
-      const merged = await observeReservedWorkSquash(publisher, candidate);
-      if (merged || state.checkId === undefined) {
-        return merged;
-      }
-      const check = await observeReservedGateCheck(checkScope, {
-        state: "completed",
-        checkId: state.checkId,
-      });
-      return check
-        ? ({ kind: "check-released", checkId: check.id } as const)
-        : null;
-    }
+    case "release-check":
+      return observeReleasedGate(reservation, scope, checkScope);
     case "resolve":
       return observeReservedWorkSquash(publisher, candidate);
   }
@@ -395,8 +382,7 @@ export async function reconcileReservedGitHubWorkIntegration(input: {
       observe: async (intent) => {
         const current = await journal.read();
         if (
-          !current ||
-          current.revision !== intent.revision ||
+          current?.revision !== intent.revision ||
           !isDeepStrictEqual(current.reservation, intent.reservation)
         ) {
           return null;
@@ -408,6 +394,28 @@ export async function reconcileReservedGitHubWorkIntegration(input: {
       },
     },
   });
+}
+
+async function observeReleasedGate(
+  reservation: MergeReservation,
+  scope: ReservedGitHubScope,
+  checkScope: Parameters<typeof observeReservedGateCheck>[0],
+) {
+  const { candidate, state } = reservation;
+  if (state.phase !== "pending" || !state.releaseAdmission) {
+    return null;
+  }
+  const merged = await observeReservedWorkSquash(scope.publisher, candidate);
+  if (merged || state.checkId === undefined) {
+    return merged;
+  }
+  const check = await observeReservedGateCheck(checkScope, {
+    state: "completed",
+    checkId: state.checkId,
+  });
+  return check
+    ? ({ kind: "check-released", checkId: check.id } as const)
+    : null;
 }
 
 interface InvalidatingWriteRequest {

@@ -177,7 +177,7 @@ function isReservationState(value: unknown): value is MergeReservationState {
 
 function reservationRevision(id: unknown): number {
   return typeof id === "string"
-    ? Number(id.match(/^delivery-control\/r([1-9]\d*)$/u)?.[1])
+    ? Number(/^delivery-control\/r([1-9]\d*)$/u.exec(id)?.[1])
     : Number.NaN;
 }
 
@@ -285,14 +285,6 @@ export function createGitHubWorkReservationJournal(
             ),
       pending: body.pending,
     };
-  }
-
-  function toReceipt(
-    position: MergeJournalPosition,
-    body: ReservationBody,
-  ): PersistedReservation {
-    const { reservationId, candidate, state } = body;
-    return { ...position, reservationId, reservation: { candidate, state } };
   }
 
   async function read(): Promise<PersistedReservation | null> {
@@ -434,8 +426,7 @@ export function createGitHubWorkReservationJournal(
     ): Promise<PersistedReservation | null> {
       const tail = await read();
       if (
-        !tail ||
-        tail.revision !== previous.revision ||
+        tail?.revision !== previous.revision ||
         !isDeepStrictEqual(tail.reservation, previous.reservation) ||
         !sameWorkIntegrationCandidate(
           reservation.candidate,
@@ -448,4 +439,12 @@ export function createGitHubWorkReservationJournal(
       return appendEntry(tail, reservation, tail.reservationId);
     },
   };
+}
+
+function toReceipt(
+  position: MergeJournalPosition,
+  body: ReservationBody,
+): PersistedReservation {
+  const { reservationId, candidate, state } = body;
+  return { ...position, reservationId, reservation: { candidate, state } };
 }

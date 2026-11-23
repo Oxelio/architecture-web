@@ -31,15 +31,6 @@ export function createAuditQueries(
     }
     return Result.success(actor);
   }
-  function pagination(page: number, size: number) {
-    if (!Number.isSafeInteger(page) || page < 1) {
-      return AuditQueryErrors.invalidPage;
-    }
-    if (!Number.isSafeInteger(size) || size < 1 || size > 100) {
-      return AuditQueryErrors.invalidPageSize;
-    }
-    return null;
-  }
   async function acceptConsultation(
     actorId: string,
     administrative: boolean,
@@ -125,4 +116,14 @@ export function createAuditQueries(
       },
     },
   };
+}
+
+function pagination(page: number, size: number) {
+  if (!Number.isSafeInteger(page) || page < 1) {
+    return AuditQueryErrors.invalidPage;
+  }
+  if (!Number.isSafeInteger(size) || size < 1 || size > 100) {
+    return AuditQueryErrors.invalidPageSize;
+  }
+  return null;
 }

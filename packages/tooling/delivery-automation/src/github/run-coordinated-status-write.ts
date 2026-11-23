@@ -82,36 +82,8 @@ export async function runCoordinatedStatusWrite(input: {
     }
     const receipt = { ...connection, commentId: input.commentId };
     let current = await journal.readProjectStatusBoundary();
-    const recovery = current.pending;
-    if (recovery) {
-      if (recovery.commentId !== input.commentId || !current.position) {
-        return "deferred";
-      }
-      const previous = await input.readRecoveryAuthorization(
-        recovery.authorityId,
-      );
-      const observed = previous
-        ? await input.readStatus(previous.command)
-        : null;
-      if (
-        !previous ||
-        !observed ||
-        !isDeepStrictEqual(
-          recovery,
-          buildStatusIntent(input.commentId, previous, observed.binding),
-        ) ||
-        (await readProjectStatusReceipt(receipt)) !== true ||
-        !observesDestination(observed, previous.command, observed.binding) ||
-        !(await input.verifyBoundary())
-      ) {
-        return "deferred";
-      }
-      return (await journal.finishProjectStatusWrite(
-        current.position,
-        recovery,
-      ))
-        ? "reconciled"
-        : "deferred";
+    if (current.pending) {
+      return reconcilePendingStatusWrite(input, journal, current, receipt);
     }
 
     if (input.recoveryOnly) {
@@ -147,14 +119,7 @@ export async function runCoordinatedStatusWrite(input: {
     // The guard may have settled the exact reservation durably.
     const guarded = current.reservation;
     current = await journal.readProjectStatusBoundary();
-    if (
-      !isDeepStrictEqual(guarded, current.reservation) &&
-      (!guarded ||
-        current.reservation?.reservationId !== guarded.reservationId ||
-        !["cancelled", "merged", "invalidated"].includes(
-          current.reservation.reservation.state.phase,
-        ))
-    ) {
+    if (!isSettledOrUnchangedReservation(guarded, current.reservation)) {
       return "deferred";
     }
     const snapshot = await input.readStatus(command);
@@ -179,48 +144,117 @@ export async function runCoordinatedStatusWrite(input: {
     if (!position) {
       return "deferred";
     }
-    if (
-      !(await stillAuthorized()) ||
-      !(await claimProjectStatusCommand({
-        ...receipt,
-        controllerToken: input.controllerToken,
-        workflowSha: input.workflowSha,
-      })) ||
-      !(await stillAuthorized()) ||
-      !isDeepStrictEqual(snapshot, await input.readStatus(command))
-    ) {
-      if (await input.verifyBoundary()) {
-        await journal.finishProjectStatusWrite(position, intent);
-      }
-      return "deferred";
-    }
-
-    // Unknown acknowledgement leaves the intent pending. Recovery reads the
-    // Project and never dispatches the mutation a second time.
-    const dispatch = await input.writeStatus(
-      command,
-      snapshot.binding,
+    return await dispatchStatusWrite(
+      input,
+      journal,
+      receipt,
+      authorization,
+      snapshot,
+      position,
+      intent,
       stillAuthorized,
     );
-    if (dispatch === "unstarted" && (await input.verifyBoundary())) {
-      await journal.finishProjectStatusWrite(position, intent);
-    }
-    if (
-      dispatch !== "confirmed" ||
-      !observesDestination(
-        await input.readStatus(command),
-        command,
-        snapshot.binding,
-      )
-    ) {
-      return "deferred";
-    }
-    return (await journal.finishProjectStatusWrite(position, intent))
-      ? "recorded"
-      : "deferred";
   } catch {
     return "deferred";
   }
+}
+
+function isSettledOrUnchangedReservation(
+  guarded: Boundary["reservation"],
+  current: Boundary["reservation"],
+): boolean {
+  return (
+    isDeepStrictEqual(guarded, current) ||
+    (!!guarded &&
+      current?.reservationId === guarded.reservationId &&
+      ["cancelled", "merged", "invalidated"].includes(
+        current.reservation.state.phase,
+      ))
+  );
+}
+
+async function dispatchStatusWrite(
+  input: Parameters<typeof runCoordinatedStatusWrite>[0],
+  journal: Journal,
+  receipt: Parameters<typeof readProjectStatusReceipt>[0],
+  authorization: AuthorizedStatusWrite,
+  snapshot: ProjectStatusSnapshot,
+  position: NonNullable<
+    Awaited<ReturnType<Journal["beginProjectStatusWrite"]>>
+  >,
+  intent: ReturnType<typeof buildStatusIntent>,
+  stillAuthorized: () => Promise<boolean>,
+): Promise<StatusWriteResult> {
+  const { command } = authorization;
+  if (
+    !(await stillAuthorized()) ||
+    !(await claimProjectStatusCommand({
+      ...receipt,
+      controllerToken: input.controllerToken,
+      workflowSha: input.workflowSha,
+    })) ||
+    !(await stillAuthorized()) ||
+    !isDeepStrictEqual(snapshot, await input.readStatus(command))
+  ) {
+    if (await input.verifyBoundary()) {
+      await journal.finishProjectStatusWrite(position, intent);
+    }
+    return "deferred";
+  }
+
+  // Unknown acknowledgement leaves the intent pending. Recovery reads the
+  // Project and never dispatches the mutation a second time.
+  const dispatch = await input.writeStatus(
+    command,
+    snapshot.binding,
+    stillAuthorized,
+  );
+  if (dispatch === "unstarted" && (await input.verifyBoundary())) {
+    await journal.finishProjectStatusWrite(position, intent);
+  }
+  if (
+    dispatch !== "confirmed" ||
+    !observesDestination(
+      await input.readStatus(command),
+      command,
+      snapshot.binding,
+    )
+  ) {
+    return "deferred";
+  }
+  return (await journal.finishProjectStatusWrite(position, intent))
+    ? "recorded"
+    : "deferred";
+}
+
+async function reconcilePendingStatusWrite(
+  input: Parameters<typeof runCoordinatedStatusWrite>[0],
+  journal: Journal,
+  current: Boundary,
+  receipt: Parameters<typeof readProjectStatusReceipt>[0],
+): Promise<"reconciled" | "deferred"> {
+  const recovery = current.pending;
+  if (recovery?.commentId !== input.commentId || !current.position) {
+    return "deferred";
+  }
+  const previous = await input.readRecoveryAuthorization(recovery.authorityId);
+  const observed = previous ? await input.readStatus(previous.command) : null;
+  if (
+    !previous ||
+    !observed ||
+    !isDeepStrictEqual(
+      recovery,
+      buildStatusIntent(input.commentId, previous, observed.binding),
+    ) ||
+    (await readProjectStatusReceipt(receipt)) !== true ||
+    !observesDestination(observed, previous.command, observed.binding) ||
+    !(await input.verifyBoundary())
+  ) {
+    return "deferred";
+  }
+  return (await journal.finishProjectStatusWrite(current.position, recovery))
+    ? "reconciled"
+    : "deferred";
 }
 
 function observesDestination(

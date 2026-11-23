@@ -22,7 +22,7 @@ export class RedisRecoveryOriginLimiterAdapter implements RecoveryOriginLimiter 
       randomUUID(),
     );
     if (typeof count !== "number") {
-      throw new Error("Invalid recovery origin count");
+      throw new TypeError("Invalid recovery origin count");
     }
     return count;
   }

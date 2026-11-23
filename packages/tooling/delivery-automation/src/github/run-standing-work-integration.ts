@@ -31,6 +31,25 @@ export interface StandingDelegation {
   readonly decisionCommentId: number;
 }
 
+function isTrustedStandingContext(
+  context: Omit<WorkIntegrationContext, "actorId">,
+  candidate: StandingInput["candidate"],
+  scope: StandingInput["scope"],
+): boolean {
+  return (
+    context.repository.toLowerCase() === "oxelio/architecture-web" &&
+    context.repositoryId === 1336937640 &&
+    context.ref === "refs/heads/main" &&
+    context.runAttempt === "1" &&
+    context.workflowSha === candidate.baseSha &&
+    scope.publisher.repository.toLowerCase() ===
+      context.repository.toLowerCase() &&
+    scope.publisher.repositoryId === context.repositoryId &&
+    scope.publisher.actorId === scope.controllerBotId &&
+    isWorkIntegrationCandidate(candidate)
+  );
+}
+
 export async function runStandingWorkIntegration(
   input: Omit<StandingInput, "authorize" | "operation" | "scope"> & {
     readonly scope: Omit<StandingInput["scope"], "publisher"> & {
@@ -82,18 +101,7 @@ export async function runStandingWorkIntegration(
       },
     },
   };
-  if (
-    context.repository.toLowerCase() !== "oxelio/architecture-web" ||
-    context.repositoryId !== 1336937640 ||
-    context.ref !== "refs/heads/main" ||
-    context.runAttempt !== "1" ||
-    context.workflowSha !== candidate.baseSha ||
-    scope.publisher.repository.toLowerCase() !==
-      context.repository.toLowerCase() ||
-    scope.publisher.repositoryId !== context.repositoryId ||
-    scope.publisher.actorId !== scope.controllerBotId ||
-    !isWorkIntegrationCandidate(candidate)
-  ) {
+  if (!isTrustedStandingContext(context, candidate, scope)) {
     return { status: "denied" };
   }
 
@@ -153,62 +161,16 @@ export async function runStandingWorkIntegration(
     });
 
   const operations = ["queue-check", "arm-squash", "release-check"] as const;
-  let start = 0;
-  try {
-    let reservation = (await readReservedGitHubWorkIntegration(scope))
-      ?.reservation;
-    if (reservation?.state.phase === "pending") {
-      const { candidate: previous, state } = reservation;
-      const resolution = await reconcileReservedGitHubWorkIntegration({
-        candidate: previous,
-        scope,
-        authorize: authorizeObservation(previous),
-      });
-      if (resolution.status !== "confirmed") {
-        return resolution.status === "denied"
-          ? { status: "denied" }
-          : {
-              status: "deferred",
-              operation:
-                state.operation === "resolve" ? "queue-check" : state.operation,
-            };
-      }
-      reservation = resolution.receipt.reservation;
-    }
-    if (reservation?.state.phase === "released") {
-      const previous = reservation.candidate;
-      const merged = await recordReleased(previous);
-      if (sameWorkIntegrationCandidate(candidate, previous)) {
-        return merged
-          ? { status: "merged", sha: merged }
-          : { status: "released", checkId: reservation.state.checkId };
-      }
-      if (!merged) {
-        return { status: "deferred", operation: "queue-check" };
-      }
-    } else if (
-      reservation &&
-      sameWorkIntegrationCandidate(candidate, reservation.candidate)
-    ) {
-      const { state } = reservation;
-      switch (state.phase) {
-        case "reserved":
-          break;
-        case "queued":
-          start = 1;
-          break;
-        case "armed":
-          start = 2;
-          break;
-        case "merged":
-          return { status: "merged", sha: state.sha };
-        default:
-          return { status: "denied" };
-      }
-    }
-  } catch {
-    return { status: "deferred", operation: "queue-check" };
+  const recovery = await recoverStandingReservation(
+    candidate,
+    scope,
+    authorizeObservation,
+    recordReleased,
+  );
+  if (!("start" in recovery)) {
+    return recovery;
   }
+  const { start } = recovery;
 
   if (!(await authorize({ candidate, operation: "queue-check" }))) {
     return { status: "denied" };
@@ -251,4 +213,74 @@ export async function runStandingWorkIntegration(
   }
 
   return { status: "deferred", operation: "release-check" };
+}
+
+async function recoverStandingReservation(
+  candidate: StandingInput["candidate"],
+  scope: StandingInput["scope"],
+  authorizeObservation: (
+    candidate: StandingInput["candidate"],
+  ) => StandingInput["authorize"],
+  recordReleased: (
+    candidate: StandingInput["candidate"],
+  ) => ReturnType<typeof recordReleasedNativeSquash>,
+): Promise<
+  | Awaited<ReturnType<typeof runStandingWorkIntegration>>
+  | { readonly start: number }
+> {
+  try {
+    let reservation = (await readReservedGitHubWorkIntegration(scope))
+      ?.reservation;
+    if (reservation?.state.phase === "pending") {
+      const { candidate: previous, state } = reservation;
+      const resolution = await reconcileReservedGitHubWorkIntegration({
+        candidate: previous,
+        scope,
+        authorize: authorizeObservation(previous),
+      });
+      if (resolution.status !== "confirmed") {
+        return resolution.status === "denied"
+          ? { status: "denied" }
+          : {
+              status: "deferred",
+              operation:
+                state.operation === "resolve" ? "queue-check" : state.operation,
+            };
+      }
+      reservation = resolution.receipt.reservation;
+    }
+    if (reservation?.state.phase === "released") {
+      const previous = reservation.candidate;
+      const merged = await recordReleased(previous);
+      if (sameWorkIntegrationCandidate(candidate, previous)) {
+        return merged
+          ? { status: "merged", sha: merged }
+          : { status: "released", checkId: reservation.state.checkId };
+      }
+      if (!merged) {
+        return { status: "deferred", operation: "queue-check" };
+      }
+    } else if (
+      reservation &&
+      sameWorkIntegrationCandidate(candidate, reservation.candidate)
+    ) {
+      const { state } = reservation;
+      switch (state.phase) {
+        case "reserved":
+          return { start: 0 };
+        case "queued":
+          return { start: 1 };
+        case "armed":
+          return { start: 2 };
+        case "merged":
+          return { status: "merged", sha: state.sha };
+        default:
+          return { status: "denied" };
+      }
+    }
+  } catch {
+    return { status: "deferred", operation: "queue-check" };
+  }
+
+  return { start: 0 };
 }
