@@ -202,6 +202,10 @@ describe("account-deletion information page", () => {
       );
     });
     expect(continueButton()).toBeUndefined();
+    expect(container.querySelector("output")?.textContent).toContain(
+      "suppression des comptes est actuellement désactivée",
+    );
+    expect(container.querySelector('[role="status"]')).toBeNull();
     expect(container.querySelector("dialog")).toBeNull();
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
