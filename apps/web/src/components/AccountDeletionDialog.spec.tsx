@@ -128,7 +128,9 @@ describe("account deletion confirmation dialog", () => {
     expect(getAccountDeletionDisclosure).toHaveBeenCalledOnce();
     expect(dialog.open).toBe(true);
     expect(dialog.textContent).toContain("30 jours");
-    expect(dialog.textContent).toContain("lien envoyé à votre adresse vérifiée");
+    expect(dialog.textContent).toContain(
+      "lien envoyé à votre adresse vérifiée",
+    );
     expect(dialog.textContent).toContain("vérification renforcée");
     const sections = dialog.querySelectorAll("form section");
     expect(sections).toHaveLength(3);
