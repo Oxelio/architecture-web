@@ -441,53 +441,14 @@ export async function discoverStandingWorkMergeGrant(
       return null;
     }
 
-    const selected = new Map<EvidenceReference["kind"], EvidenceReference>();
-    for (const comment of [...workComments, ...pullComments]) {
-      if (!comment.user || !positiveId(comment.user.id)) {
-        continue;
-      }
-      const record = parseEvidenceComment(comment.body);
-      const kind = required.find((entry) => entry === record?.["kind"]);
-      if (
-        !kind ||
-        !record ||
-        !sameWorkIntegrationCandidate(candidate, record)
-      ) {
-        continue;
-      }
-      const app = comment.performed_via_github_app;
-      let appId: unknown;
-      if (app === null) {
-        appId = null;
-      } else if (app && "id" in app) {
-        appId = app.id;
-      }
-      const authorId = comment.user.id;
-      if (
-        !input.authority[kind]?.some(
-          (authority) =>
-            authority.authorId === authorId && authority.appId === appId,
-        )
-      ) {
-        continue;
-      }
-      const issueUrl = comment.issue_url?.toLowerCase();
-      if (
-        !positiveId(comment.id) ||
-        (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
-          issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
-        !comment.created_at ||
-        comment.created_at !== comment.updated_at ||
-        record["decision"] !== "accepted" ||
-        (kind.endsWith("-approval") &&
-          (comment.user.type !== "User" || appId !== null)) ||
-        selected.has(kind)
-      ) {
-        return null;
-      }
-      selected.set(kind, { kind, commentId: comment.id, authorId });
-    }
-    if (selected.size !== required.length) {
+    const selected = selectStandingEvidence(
+      [...workComments, ...pullComments],
+      required,
+      candidate,
+      input.authority,
+      prefix,
+    );
+    if (!selected) {
       return null;
     }
     return {
@@ -507,6 +468,65 @@ export async function discoverStandingWorkMergeGrant(
   } catch {
     return null;
   }
+}
+
+function selectStandingEvidence(
+  comments: readonly IssueComment[],
+  required: readonly EvidenceReference["kind"][],
+  candidate: MergeCandidate,
+  authority: StandingEvidenceAuthority,
+  prefix: string,
+): Map<EvidenceReference["kind"], EvidenceReference> | null {
+  const selected = new Map<EvidenceReference["kind"], EvidenceReference>();
+  for (const comment of comments) {
+    if (!comment.user || !positiveId(comment.user.id)) {
+      continue;
+    }
+    const record = parseEvidenceComment(comment.body);
+    const kind = required.find((entry) => entry === record?.["kind"]);
+    if (
+      !kind ||
+      !record ||
+      !sameWorkIntegrationCandidate(candidate, record)
+    ) {
+      continue;
+    }
+    const app = comment.performed_via_github_app;
+    let appId: unknown;
+    if (app === null) {
+      appId = null;
+    } else if (app && "id" in app) {
+      appId = app.id;
+    }
+    const authorId = comment.user.id;
+    if (
+      !authority[kind]?.some(
+        (authority) =>
+          authority.authorId === authorId && authority.appId === appId,
+      )
+    ) {
+      continue;
+    }
+    const issueUrl = comment.issue_url?.toLowerCase();
+    if (
+      !positiveId(comment.id) ||
+      (issueUrl !== `${prefix}/issues/${candidate.workNumber}` &&
+        issueUrl !== `${prefix}/issues/${candidate.pullNumber}`) ||
+      !comment.created_at ||
+      comment.created_at !== comment.updated_at ||
+      record["decision"] !== "accepted" ||
+      (kind.endsWith("-approval") &&
+        (comment.user.type !== "User" || appId !== null)) ||
+      selected.has(kind)
+    ) {
+      return null;
+    }
+    selected.set(kind, { kind, commentId: comment.id, authorId });
+  }
+  if (selected.size !== required.length) {
+    return null;
+  }
+  return selected;
 }
 
 function parseEvidenceComment(body: string): Record<string, unknown> | null {
