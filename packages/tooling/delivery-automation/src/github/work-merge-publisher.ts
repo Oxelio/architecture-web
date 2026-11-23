@@ -699,9 +699,10 @@ export async function verifyStandingJournalRules(
     ) {
       return null;
     }
-    return ruleset.bypass_actors === undefined
-      ? readObservedRulesetBypassActors(publisher, ruleset)
-      : ruleset.bypass_actors;
+    if (ruleset.bypass_actors !== undefined) {
+      return ruleset.bypass_actors;
+    }
+    return readObservedRulesetBypassActors(publisher, ruleset);
   };
 
   try {
@@ -735,9 +736,9 @@ async function verifyChecks(
   pr: PullRequest,
   mode: MergeMode,
   observe: boolean,
-  evaluateGate = false,
-  reservedCheck?: ReservedGateCheck,
+  options: { readonly evaluateGate?: boolean; readonly reservedCheck?: ReservedGateCheck } = {},
 ): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
+  const { evaluateGate = false, reservedCheck } = options;
   if (
     !positiveId(grant.gateAppId) ||
     !positiveId(grant.rulesetId) ||
@@ -754,11 +755,12 @@ async function verifyChecks(
   const expected = evaluateGate
     ? ciChecks
     : [...ciChecks, [expectedGateName, grant.gateAppId] as const];
-  const checksForMode = evaluateGate
-    ? [...ciChecks, [gateName, grant.gateAppId] as const]
-    : observe
-      ? ciChecks
-      : expected;
+  let checksForMode: readonly (readonly [string, number])[] = expected;
+  if (evaluateGate) {
+    checksForMode = [...ciChecks, [gateName, grant.gateAppId] as const];
+  } else if (observe) {
+    checksForMode = ciChecks;
+  }
   const ruleset = await github<GateRuleset>(
     publisher,
     `${repoPath}/rulesets/${grant.rulesetId}`,
@@ -1105,10 +1107,11 @@ export async function cancelReservedNativeSquash(
       pr,
       "auto",
       false,
-      false,
       {
-        checkId: state.checkId,
-        reservationId: scope.reservationId,
+        reservedCheck: {
+          checkId: state.checkId,
+          reservationId: scope.reservationId,
+        },
       },
     )) !== "string";
   const observeMerge = () => observeReservedWorkSquash(publisher, candidate);
@@ -1357,7 +1360,7 @@ export async function evaluateScopedWorkGate(
     pr,
     "direct",
     true,
-    true,
+    { evaluateGate: true },
   );
   if (
     checks === "REQUIRED_PROTECTIONS_UNVERIFIED" ||
@@ -1477,8 +1480,7 @@ async function evaluateWorkMergeRequest(
         pr,
         mode,
         observe,
-        false,
-        reservedCheck,
+        { reservedCheck },
       );
       if (typeof checks === "string") {
         return blocked(checks);
