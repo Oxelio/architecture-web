@@ -176,8 +176,9 @@ export function buildNotificationRoutes(
       return Promise.resolve();
     } catch (error: unknown) {
       return Promise.reject(error);
-    };
-  }
+    }
+  };
+}
 
 function authenticatedUserId(request: FastifyRequest): string {
   const userId = request.auth?.userId;
