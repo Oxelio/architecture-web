@@ -462,7 +462,7 @@ export async function discoverStandingWorkMergeGrant(
         continue;
       }
       const app = comment.performed_via_github_app;
-      let appId: number | null | undefined;
+      let appId: unknown;
       if (app === null) {
         appId = null;
       } else if (app && "id" in app) {
@@ -1321,7 +1321,7 @@ export async function evaluateScopedWorkGate(
   candidate: MergeCandidate,
 ) {
   const grant = await reader.readGrant();
-  const mandatory = ["code-review", "validation", "working-decisions"];
+  const mandatory = ["code-review", "validation", "working-decisions"] as const;
   const supported = new Set([
     ...mandatory,
     "architecture-review",
@@ -1529,7 +1529,7 @@ async function evaluateWorkMergeRequest(
         pr,
         mode,
         observe,
-        { reservedCheck },
+        ...(reservedCheck ? [{ reservedCheck }] : [{}]),
       );
       if (typeof checks === "string") {
         return blocked(checks);
