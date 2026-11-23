@@ -633,10 +633,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       );
     } finally {
       proceed.release();
-      await Promise.allSettled([
-        publication,
-        ...(deletion ? [deletion] : []),
-      ]);
+      await Promise.allSettled([publication, deletion]);
     }
 
     expect(deletion).not.toBeNull();
