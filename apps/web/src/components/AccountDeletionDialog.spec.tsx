@@ -25,10 +25,12 @@ vi.mock("#services/api", () => ({
 let container: HTMLDivElement;
 let root: Root;
 let queryClient: QueryClient;
+type PolicyConflictCode =
+  | "account_deletion.grace_period_changed"
+  | "account_deletion.disabled";
+
 let onDismiss = vi.fn<() => void>();
-let onPolicyConflict = vi.fn<
-  (code: "account_deletion.grace_period_changed" | "account_deletion.disabled") => void
->();
+let onPolicyConflict = vi.fn<(code: PolicyConflictCode) => void>();
 
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -46,9 +48,7 @@ beforeEach(async () => {
   document.body.append(container);
   root = createRoot(container);
   onDismiss = vi.fn<() => void>();
-  onPolicyConflict = vi.fn<
-    (code: "account_deletion.grace_period_changed" | "account_deletion.disabled") => void
-  >();
+  onPolicyConflict = vi.fn<(code: PolicyConflictCode) => void>();
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
     configurable: true,
     value(this: HTMLDialogElement) {
@@ -146,7 +146,8 @@ describe("compact account-deletion confirmation dialog", () => {
     expect(dialog.querySelector("#deletion-password")).not.toBeNull();
     expect(dialog.querySelector("#deletion-mfa-code")).not.toBeNull();
     expect(
-      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
     ).toBe(true);
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
@@ -182,7 +183,7 @@ describe("compact account-deletion confirmation dialog", () => {
     },
   );
 
-  it("requires the dialog-local MFA code and trims it at submission", async () => {
+  it("submits a trimmed dialog-local MFA code", async () => {
     const dialog = await mountDialog(true);
     await completeProof(dialog);
     const mfa = dialog.querySelector<HTMLInputElement>("#deletion-mfa-code");
@@ -203,7 +204,7 @@ describe("compact account-deletion confirmation dialog", () => {
     );
   });
 
-  it("prevents duplicate destructive requests and cancellation while pending", async () => {
+  it("blocks duplicate requests and pending cancellation", async () => {
     vi.mocked(requestAccountDeletion).mockImplementation(
       () =>
         new Promise<Awaited<ReturnType<typeof requestAccountDeletion>>>(
@@ -240,7 +241,7 @@ describe("compact account-deletion confirmation dialog", () => {
   it.each([
     "account_deletion.grace_period_changed",
     "account_deletion.disabled",
-  ] as const)("reports a changed/disabled policy without retrying (%s)", async (code) => {
+  ] as const)("reports stale or disabled policy (%s)", async (code) => {
     vi.mocked(requestAccountDeletion).mockRejectedValue(
       new ApiRequestError(code),
     );
@@ -295,7 +296,8 @@ describe("compact account-deletion confirmation dialog", () => {
       );
     });
     expect(
-      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled,
+      dialog.querySelector<HTMLButtonElement>('button[type="submit"]')
+        ?.disabled,
     ).toBe(false);
     await submit(dialog);
     expect(requestAccountDeletion).toHaveBeenCalledTimes(2);
