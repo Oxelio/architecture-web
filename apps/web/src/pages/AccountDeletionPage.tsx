@@ -108,9 +108,7 @@ export function AccountDeletionPage() {
       </div>
 
       {disclosure.isPending || (disclosure.isFetching && !disclosure.data) ? (
-        <output
-          className="block rounded-2xl border border-slate-700 bg-slate-900 p-5 text-slate-200"
-        >
+        <output className="block rounded-2xl border border-slate-700 bg-slate-900 p-5 text-slate-200">
           {t("securityCenter.deletionLoading")}
         </output>
       ) : disclosure.isError ? (
@@ -136,9 +134,7 @@ export function AccountDeletionPage() {
         </p>
       ) : (
         <>
-          <section
-            className="rounded-2xl border border-amber-500/40 bg-amber-950/25 p-5"
-          >
+          <section className="rounded-2xl border border-amber-500/40 bg-amber-950/25 p-5">
             <h2 className="font-semibold leading-6 text-amber-100">
               {t("securityCenter.deletionGracePeriod", {
                 count: disclosure.data.gracePeriodDays,
@@ -149,9 +145,7 @@ export function AccountDeletionPage() {
             </p>
           </section>
 
-          <div
-            className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 sm:p-7"
-          >
+          <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 sm:p-7">
             <section aria-labelledby="deletion-immediate">
               <h2 id="deletion-immediate" className="font-semibold text-white">
                 {t("securityCenter.deletionImmediateTitle")}
@@ -174,9 +168,7 @@ export function AccountDeletionPage() {
               <h2 id="deletion-other" className="font-semibold text-white">
                 {t("securityCenter.deletionOtherTitle")}
               </h2>
-              <ul
-                className="mt-2 list-disc space-y-3 pl-5 text-sm leading-6 text-slate-300"
-              >
+              <ul className="mt-2 list-disc space-y-3 pl-5 text-sm leading-6 text-slate-300">
                 <li>{t("securityCenter.deletionRetention")}</li>
                 <li>{t("securityCenter.deletionAdministrator")}</li>
                 <li>{t("securityCenter.deletionNotification")}</li>
@@ -202,9 +194,7 @@ export function AccountDeletionPage() {
             </div>
           ) : null}
 
-          <div
-            className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"
-          >
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Link
               to="/profile"
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-600 px-4 py-2 text-sm"
