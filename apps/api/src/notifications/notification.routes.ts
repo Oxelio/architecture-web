@@ -45,7 +45,7 @@ const NotificationItem = Type.Object({
 export function buildNotificationRoutes(
   notifications: NotificationsApplication,
 ) {
-  return async (app: FastifyInstance) => {
+  return (app: FastifyInstance) => {
     const { authenticate } = app as AuthenticatedFastifyInstance;
     app.addHook("preHandler", authenticate);
     app.get<{ Querystring: Static<typeof PageQuery> }>(
