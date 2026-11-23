@@ -351,7 +351,7 @@ describe("account-deletion information page", () => {
     expect(container.textContent).toContain("30-day grace period");
     expect(container.textContent).toContain("Retained audit records");
     expect(container.textContent).toContain("last active administrator");
-    expect(container.textContent).toContain("previously authorized notification");
+    expect(container.textContent).toContain("A notification authorized before");
     expect(container.querySelector("dialog")).toBeNull();
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
