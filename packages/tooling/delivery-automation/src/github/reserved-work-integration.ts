@@ -51,35 +51,8 @@ export async function performReservedGitHubIntegration(
   }
 
   switch (state.operation) {
-    case "queue-check": {
-      if (
-        !checksToken.trim() ||
-        [
-          publisher.repositoryToken,
-          publisher.projectsToken,
-          publisher.mergeToken,
-        ].includes(checksToken)
-      ) {
-        return null;
-      }
-      const check = await publisher.withinVerifiedBoundary(
-        candidate,
-        "auto",
-        () =>
-          queueReservedGateCheck({
-            repository: publisher.repository,
-            checksToken,
-            name: workMergeRequiredCheckName,
-            headSha: candidate.headSha,
-            reservationId,
-            expectedAppId: scope.checksAppId,
-            ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
-          }),
-      );
-      return check
-        ? ({ kind: "check-queued", checkId: check.id } as const)
-        : null;
-    }
+    case "queue-check":
+      return queueReservedCheck(candidate, scope);
     case "arm-squash": {
       if (!authorizeArm) {
         return null;
@@ -124,6 +97,38 @@ export async function performReservedGitHubIntegration(
             rulesetId: scope.cancellationRulesetId,
           });
   }
+}
+
+async function queueReservedCheck(
+  candidate: MergeReservation["candidate"],
+  scope: ReservedGitHubScope,
+) {
+  const { publisher, checksToken, reservationId } = scope;
+  if (
+    !checksToken.trim() ||
+    [
+      publisher.repositoryToken,
+      publisher.projectsToken,
+      publisher.mergeToken,
+    ].includes(checksToken)
+  ) {
+    return null;
+  }
+  const check = await publisher.withinVerifiedBoundary(
+    candidate,
+    "auto",
+    () =>
+      queueReservedGateCheck({
+        repository: publisher.repository,
+        checksToken,
+        name: workMergeRequiredCheckName,
+        headSha: candidate.headSha,
+        reservationId,
+        expectedAppId: scope.checksAppId,
+        ...(publisher.fetchImpl ? { fetchImpl: publisher.fetchImpl } : {}),
+      }),
+  );
+  return check ? ({ kind: "check-queued", checkId: check.id } as const) : null;
 }
 
 type ControllerInput = Parameters<typeof executeWorkIntegrationOperation>[0];
