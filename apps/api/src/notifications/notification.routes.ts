@@ -172,6 +172,7 @@ export function buildNotificationRoutes(
         return reply.status(204).send();
       },
     );
+    return Promise.resolve();
   };
 }
 function authenticatedUserId(request: FastifyRequest): string {
