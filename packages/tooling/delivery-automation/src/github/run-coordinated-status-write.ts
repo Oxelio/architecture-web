@@ -202,10 +202,7 @@ async function reconcilePendingStatusWrite(
   receipt: Parameters<typeof readProjectStatusReceipt>[0],
 ): Promise<"reconciled" | "deferred"> {
   const recovery = current.pending;
-  if (
-    recovery?.commentId !== input.commentId ||
-    !current.position
-  ) {
+  if (recovery?.commentId !== input.commentId || !current.position) {
     return "deferred";
   }
   const previous = await input.readRecoveryAuthorization(recovery.authorityId);

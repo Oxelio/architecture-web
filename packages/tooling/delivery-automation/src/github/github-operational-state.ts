@@ -812,8 +812,9 @@ function collectTimelineReferences(
       return false;
     }
     if (
-      withoutTrailingSlashes(normalizeRepository(sourceIssue.repository_url)) ===
-      repositoryUrl
+      withoutTrailingSlashes(
+        normalizeRepository(sourceIssue.repository_url),
+      ) === repositoryUrl
     ) {
       referencedNumbers.add(sourceIssue.number);
     }
