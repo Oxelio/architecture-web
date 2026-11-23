@@ -789,6 +789,14 @@ function classifyWorkPull(
   };
 }
 
+function withoutTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 function collectTimelineReferences(
   events: readonly TimelineEvent[],
   repositoryUrl: string,
@@ -804,7 +812,7 @@ function collectTimelineReferences(
       return false;
     }
     if (
-      normalizeRepository(sourceIssue.repository_url).replace(/\/+$/u, "") ===
+      withoutTrailingSlashes(normalizeRepository(sourceIssue.repository_url)) ===
       repositoryUrl
     ) {
       referencedNumbers.add(sourceIssue.number);
