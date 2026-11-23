@@ -149,7 +149,7 @@ const publisher: Parameters<typeof publishWorkCompletion>[0] = {
   read: readSnapshot,
   writeDone: async (itemId) => {
     const item = verifiedItem;
-    if (!item || item.itemId !== itemId) {
+    if (item?.itemId !== itemId) {
       throw new Error("Project item identity changed");
     }
     const response = await projectGraphql<{
