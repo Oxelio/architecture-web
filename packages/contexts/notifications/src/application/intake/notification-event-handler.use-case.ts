@@ -77,7 +77,12 @@ export class NotificationEventHandlerUseCase implements IntegrationEventHandler 
     ]);
     const deliveries = [];
     for (const channel of requested) {
-      const destination = recipientDestination(recipient, channel, role, policy);
+      const destination = recipientDestination(
+        recipient,
+        channel,
+        role,
+        policy,
+      );
       const enabled =
         policy.mandatory ||
         (await this.preferences.find(recipient.userId, channel))?.enabled !==
@@ -119,7 +124,10 @@ function notificationSubject(event: IntegrationEvent): string | undefined {
     : undefined;
 }
 
-type RecipientRole = { user: boolean; administrator: boolean };
+interface RecipientRole {
+  user: boolean;
+  administrator: boolean;
+}
 type NotificationChannel = NotificationPolicy["userChannels"][number];
 
 function recipientDestination(

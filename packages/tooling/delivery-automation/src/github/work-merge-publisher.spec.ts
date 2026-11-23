@@ -852,17 +852,20 @@ describe("trusted Work integration publisher", () => {
     "resolves Oxelio/architecture-web#91",
     "fixed https://github.com/Oxelio/architecture-web/issues/91",
     `fix${" ".repeat(50_000)}#91`,
-  ])("rejects a closing reference in a PR title without a merge", async (title) => {
-    const f = fixture();
-    f.state.title = title;
-    await expect(
-      publishWorkMerge(f.publisher(), candidate, "direct"),
-    ).resolves.toEqual({
-      status: "blocked",
-      reason: "NATIVE_ISSUE_CLOSURE_UNVERIFIED",
-    });
-    expect(f.writes).toEqual([]);
-  });
+  ])(
+    "rejects a closing reference in a PR title without a merge",
+    async (title) => {
+      const f = fixture();
+      f.state.title = title;
+      await expect(
+        publishWorkMerge(f.publisher(), candidate, "direct"),
+      ).resolves.toEqual({
+        status: "blocked",
+        reason: "NATIVE_ISSUE_CLOSURE_UNVERIFIED",
+      });
+      expect(f.writes).toEqual([]);
+    },
+  );
 
   it("handles a long title without a closing reference", async () => {
     const f = fixture();

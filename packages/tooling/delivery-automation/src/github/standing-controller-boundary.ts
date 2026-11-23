@@ -79,8 +79,8 @@ export function matchesStandingControllerBoundary(
     (!value.candidate ||
       !use.candidate ||
       !sameWorkIntegrationCandidate(value.candidate, use.candidate) ||
-      (Number.isNaN(Date.parse(value.expiresAt ?? "")) ||
-        Date.parse(value.expiresAt ?? "") <= use.now))
+      Number.isNaN(Date.parse(value.expiresAt ?? "")) ||
+      Date.parse(value.expiresAt ?? "") <= use.now)
   ) {
     return false;
   }

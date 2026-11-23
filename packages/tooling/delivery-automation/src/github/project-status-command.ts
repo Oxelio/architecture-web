@@ -92,8 +92,8 @@ export async function authenticateProjectStatusCommand(input: {
       !positiveId(channel["appId"]) ||
       channel["appId"] !== comment.performed_via_github_app?.id ||
       typeof expiresAt !== "string" ||
-      (Number.isNaN(Date.parse(expiresAt)) ||
-        Date.parse(expiresAt) <= input.now())
+      Number.isNaN(Date.parse(expiresAt)) ||
+      Date.parse(expiresAt) <= input.now()
     ) {
       return null;
     }
@@ -110,10 +110,10 @@ export async function authenticateProjectStatusCommand(input: {
       !isCoordinatedStatus(command["to"]) ||
       command["from"] === command["to"] ||
       typeof command["statusUpdatedAt"] !== "string" ||
-      (Number.isNaN(Date.parse(comment.created_at)) ||
-        Number.isNaN(Date.parse(command["statusUpdatedAt"])) ||
-        Date.parse(comment.created_at) <=
-          Date.parse(command["statusUpdatedAt"])) ||
+      Number.isNaN(Date.parse(comment.created_at)) ||
+      Number.isNaN(Date.parse(command["statusUpdatedAt"])) ||
+      Date.parse(comment.created_at) <=
+        Date.parse(command["statusUpdatedAt"]) ||
       !Array.isArray(evidence) ||
       evidence.length < 1 ||
       evidence.length > 20 ||

@@ -284,10 +284,7 @@ async function safeSquashHeadline(
   publisher: WorkMergePublisher,
   pr: PullRequest,
 ): Promise<string | null> {
-  if (
-    !pr.title?.trim() ||
-    hasClosingIssueReference(pr.title)
-  ) {
+  if (!pr.title?.trim() || hasClosingIssueReference(pr.title)) {
     return null;
   }
   const result = await github<{
@@ -342,10 +339,7 @@ export type StandingEvidenceAuthority = Readonly<
 // Supplied by the protected environment from the applicable Method route.
 // A PR event or evidence comment cannot choose which roles are required.
 function isStandingGrantCandidate(
-  publisher: Pick<
-    WorkGateReader,
-    "repository" | "repositoryId" | "actorId"
-  >,
+  publisher: Pick<WorkGateReader, "repository" | "repositoryId" | "actorId">,
   candidate: MergeCandidate,
   input: { readonly gateAppId: number; readonly rulesetId: number },
 ): boolean {
@@ -574,7 +568,15 @@ async function verifyEvidence(
       publisher,
       `${repoPath}/issues/comments/${reference.commentId}`,
     );
-    if (!validEvidenceComment(comment, reference, candidate, repoPath, requireUnedited)) {
+    if (
+      !validEvidenceComment(
+        comment,
+        reference,
+        candidate,
+        repoPath,
+        requireUnedited,
+      )
+    ) {
       return `UNVERIFIED_EVIDENCE:${reference.kind}`;
     }
     const record = parseEvidenceComment(comment.body);
@@ -785,7 +787,10 @@ async function verifyChecks(
   pr: PullRequest,
   mode: MergeMode,
   observe: boolean,
-  options: { readonly evaluateGate?: boolean; readonly reservedCheck?: ReservedGateCheck } = {},
+  options: {
+    readonly evaluateGate?: boolean;
+    readonly reservedCheck?: ReservedGateCheck;
+  } = {},
 ): Promise<string | { readonly bypassActors: "none" | "unverified" }> {
   const { evaluateGate = false, reservedCheck } = options;
   if (
@@ -1149,20 +1154,12 @@ export async function cancelReservedNativeSquash(
     workReference(pr.body) === candidate.workNumber;
   const checkIsHeld = async (pr: PullRequest) =>
     state.checkId !== undefined &&
-    typeof (await verifyChecks(
-      publisher,
-      grant,
-      repoPath,
-      pr,
-      "auto",
-      false,
-      {
-        reservedCheck: {
-          checkId: state.checkId,
-          reservationId: scope.reservationId,
-        },
+    typeof (await verifyChecks(publisher, grant, repoPath, pr, "auto", false, {
+      reservedCheck: {
+        checkId: state.checkId,
+        reservationId: scope.reservationId,
       },
-    )) !== "string";
+    })) !== "string";
   const observeMerge = () => observeReservedWorkSquash(publisher, candidate);
 
   try {
@@ -1344,16 +1341,15 @@ export async function evaluateScopedWorkGate(
     grant.baseSha !== candidate.baseSha ||
     !oid.test(candidate.headSha) ||
     !oid.test(candidate.baseSha) ||
-    (Number.isNaN(grantExpiresAt) || grantExpiresAt <= Date.now()) ||
+    Number.isNaN(grantExpiresAt) ||
+    grantExpiresAt <= Date.now() ||
     grant.gateAppId !== 5625775 ||
     !Array.isArray(grant.requiredEvidence) ||
     !Array.isArray(grant.evidence) ||
     !Array.isArray(grant.requiredTasks) ||
     new Set(grant.requiredTasks).size !== grant.requiredTasks.length ||
     !grant.requiredTasks.every(positiveId) ||
-    !mandatory.every((kind) =>
-      grant.requiredEvidence.includes(kind),
-    ) ||
+    !mandatory.every((kind) => grant.requiredEvidence.includes(kind)) ||
     new Set(grant.requiredEvidence).size !== grant.requiredEvidence.length ||
     !grant.requiredEvidence.every((kind) => supported.has(kind)) ||
     grant.requiredEvidence.length !== grant.evidence.length ||
@@ -1402,15 +1398,9 @@ export async function evaluateScopedWorkGate(
   if (evidence && evidence !== "REQUIRED_TASKS_UNRESOLVED") {
     throw new Error(evidence);
   }
-  const checks = await verifyChecks(
-    reader,
-    grant,
-    repo,
-    pr,
-    "direct",
-    true,
-    { evaluateGate: true },
-  );
+  const checks = await verifyChecks(reader, grant, repo, pr, "direct", true, {
+    evaluateGate: true,
+  });
   if (
     checks === "REQUIRED_PROTECTIONS_UNVERIFIED" ||
     checks === "CHECK_CANDIDATE_UNAVAILABLE" ||

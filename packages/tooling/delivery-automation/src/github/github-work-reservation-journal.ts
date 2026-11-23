@@ -287,7 +287,7 @@ export function createGitHubWorkReservationJournal(
     };
   }
 
-   async function read(): Promise<PersistedReservation | null> {
+  async function read(): Promise<PersistedReservation | null> {
     const tail = await readTail();
     if (tail?.pending) {
       throw new Error("PROJECT_STATUS_WRITE_PENDING");

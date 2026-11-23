@@ -42,7 +42,8 @@ function isTrustedStandingContext(
     context.ref === "refs/heads/main" &&
     context.runAttempt === "1" &&
     context.workflowSha === candidate.baseSha &&
-    scope.publisher.repository.toLowerCase() === context.repository.toLowerCase() &&
+    scope.publisher.repository.toLowerCase() ===
+      context.repository.toLowerCase() &&
     scope.publisher.repositoryId === context.repositoryId &&
     scope.publisher.actorId === scope.controllerBotId &&
     isWorkIntegrationCandidate(candidate)

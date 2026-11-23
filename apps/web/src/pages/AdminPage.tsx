@@ -48,9 +48,7 @@ export function AdminPage({ currentUserId }: Readonly<AdminPageProps>) {
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<AdministrationNoticeState | null>(
-    null,
-  );
+  const [notice, setNotice] = useState<AdministrationNoticeState | null>(null);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -329,10 +327,7 @@ export function AdminPage({ currentUserId }: Readonly<AdminPageProps>) {
       </AnimatePresence>
 
       {notice ? (
-        <AdministrationNotice
-          notice={notice}
-          onClose={() => setNotice(null)}
-        />
+        <AdministrationNotice notice={notice} onClose={() => setNotice(null)} />
       ) : null}
       <AdminSecurityCenter />
     </motion.section>
