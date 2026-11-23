@@ -797,6 +797,33 @@ it("retranslates an authorized user-administration error in its existing notice"
   expect(fetchApi).toHaveBeenCalledOnce();
 });
 
+it("announces a successful user-administration action in an output element", async () => {
+  client.setQueryData(["admin", "users", { page: 1, pageSize: 25 }], {
+    users: [user],
+    pagination: { page: 1, pageSize: 25, total: 1, totalPages: 1 },
+  });
+  client.setQueryData(["admin", "users-overview"], null);
+  client.setQueryData(["admin", "sessions", user.userId], []);
+  client.setQueryData(["admin-security-config"], null);
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminPage currentUserId="admin-id" />);
+  const row = Array.from(container.querySelectorAll("button")).find((node) =>
+    node.textContent?.includes("member@example.invalid"),
+  );
+  expect(row).toBeDefined();
+  await act(() => row?.click());
+
+  fetchApi.mockResolvedValueOnce(new Response(null, { status: 204 }));
+  await clickButton("Suspend");
+  await expectFeedback("output", "The user was suspended.");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+
+  await changeLocale("fr");
+  expect(element("output").textContent).toContain("L’utilisateur a été suspendu.");
+  await click('output button[aria-label]');
+  expect(container.querySelector("output")).toBeNull();
+});
+
 it("renders a configuration restore conflict without the raw API error", async () => {
   client.setQueryData(["admin-security-config"], {
     effectiveRevision: { version: 2 },
