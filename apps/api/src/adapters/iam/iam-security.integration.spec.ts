@@ -561,8 +561,8 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         ).status,
       ).toBe("active");
       expect(
-        (await db.selectFrom("messaging_outbox").select("id").execute()).length,
-      ).toBe(outboxBefore);
+        await db.selectFrom("messaging_outbox").select("id").execute(),
+    ).toHaveLength(outboxBefore);
     },
   );
 
@@ -656,8 +656,8 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       ).status,
     ).toBe("active");
     expect(
-      (await db.selectFrom("messaging_outbox").select("id").execute()).length,
-    ).toBe(beforeOutbox + 1);
+      await db.selectFrom("messaging_outbox").select("id").execute(),
+    ).toHaveLength(beforeOutbox + 1);
   }, 30000);
 
   it("serializes a confirmed deletion with a concurrent publication and keeps its scheduled date", async () => {
