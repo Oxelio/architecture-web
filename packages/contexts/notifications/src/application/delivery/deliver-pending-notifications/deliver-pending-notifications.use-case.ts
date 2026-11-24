@@ -27,27 +27,39 @@ export class DeliverPendingNotificationsUseCase implements DeliverPendingNotific
     input: DeliverPendingNotificationsInput = {},
   ): Promise<DeliverPendingNotificationsOutput> {
     const limit = input.limit ?? 50;
+
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
       return Result.failure(DeliverPendingNotificationsErrors.invalidLimit);
     }
+
     await this.repository.recoverStaleDeliveries();
-    let deliveryCount = 0;
-    // Resolve eligibility and finalize each claim before acquiring the next one.
-    while (deliveryCount < limit) {
-      const reservation = await this.repository.claimDelivery();
-      if (!reservation) {
-        break;
-      }
-      deliveryCount += 1;
-      const claim =
-        "recipientId" in reservation
-          ? await this.authorizeAffectedUserDelivery(reservation)
-          : reservation;
-      if (claim) {
-        await this.deliver(claim);
-      }
-    }
+
+    const deliveryCount = await this.processPendingDeliveries(limit);
+
     return Result.success(deliveryCount);
+  }
+
+  private async processPendingDeliveries(remaining: number): Promise<number> {
+    if (remaining === 0) {
+      return 0;
+    }
+
+    const reservation = await this.repository.claimDelivery();
+
+    if (!reservation) {
+      return 0;
+    }
+
+    const claim =
+      "recipientId" in reservation
+        ? await this.authorizeAffectedUserDelivery(reservation)
+        : reservation;
+
+    if (claim) {
+      await this.deliver(claim);
+    }
+
+    return 1 + (await this.processPendingDeliveries(remaining - 1));
   }
 
   private async authorizeAffectedUserDelivery(

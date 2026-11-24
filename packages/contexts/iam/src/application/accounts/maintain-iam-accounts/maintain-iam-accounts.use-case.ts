@@ -19,23 +19,39 @@ export class MaintainIamAccountsUseCase implements MaintainIamAccounts {
     private readonly sessions: SessionRepository,
   ) {}
   async execute(): Promise<MaintainIamAccountsOutput> {
-    const now = new Date(),
-      due = await this.deletions.due(now);
-    let deletedAccounts = 0;
-    // Complete erasure and session invalidation before processing another account.
-    for (const request of due) {
-      const userId = await this.deletions.eraseIfDue(request.id, now);
-      if (!userId) {
-        continue;
-      }
-      deletedAccounts++;
-      const id = UserIdentifierValueObject.create(userId);
-      if (!id.success) {
-        throw new Error("Invalid persisted account identifier");
-      }
-      await this.sessions.deleteAllForUser(id.value);
-    }
+    const now = new Date();
+    const due = await this.deletions.due(now);
+
+    const deletedAccounts = await due.reduce<Promise<number>>(
+      async (previous, request) => {
+        const count = await previous;
+        const deleted = await this.eraseAccount(request.id, now);
+
+        return count + Number(deleted);
+      },
+      Promise.resolve(0),
+    );
+
     await this.exports.expire(now);
+
     return Result.success({ deletedAccounts });
+  }
+
+  private async eraseAccount(requestId: string, now: Date): Promise<boolean> {
+    const userId = await this.deletions.eraseIfDue(requestId, now);
+
+    if (!userId) {
+      return false;
+    }
+
+    const id = UserIdentifierValueObject.create(userId);
+
+    if (!id.success) {
+      throw new Error("Invalid persisted account identifier");
+    }
+
+    await this.sessions.deleteAllForUser(id.value);
+
+    return true;
   }
 }

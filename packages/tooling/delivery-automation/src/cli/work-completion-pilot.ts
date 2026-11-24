@@ -118,16 +118,24 @@ const workNumber = owner;
 const mergeSha = integrated.merge_commit_sha;
 
 if (process.env["COMPLETION_WAIT_FOR_DOWNSTREAM"] === "true") {
-  // Initial merge events can arrive before either push workflow has finished.
-  // The existing authenticated recovery remains available for longer runs.
-  for (let attempt = 0; attempt < 18; attempt += 1) {
-    if ((await downstreamResults(mergeSha)).every(Boolean)) {
-      break;
-    }
-    // Each poll must observe the preceding wait; concurrent polls cannot
-    // establish downstream completion.
-    await setTimeout(20_000);
+  await waitForDownstreamCompletion(mergeSha);
+}
+
+async function waitForDownstreamCompletion(
+  mergeSha: string,
+  remainingAttempts = 18,
+): Promise<void> {
+  if (remainingAttempts === 0) {
+    return;
   }
+
+  if ((await downstreamResults(mergeSha)).every(Boolean)) {
+    return;
+  }
+
+  await setTimeout(20_000);
+
+  return waitForDownstreamCompletion(mergeSha, remainingAttempts - 1);
 }
 
 if (

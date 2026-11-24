@@ -157,6 +157,7 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       }),
       notifications.integrationEventHandler,
     ]);
+
     const auditQueries = createAuditQueries({
       repository: auditRepository,
       acceptance,
@@ -165,22 +166,38 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
         iamModule.configuration,
       ),
     });
+
     const outboxWorker = new OutboxWorker(
       new KyselyOutboxRepositoryAdapter(messagingDb),
       router,
     );
+
     const stopOutbox = startBackgroundPolling(
       () => outboxWorker.drain(),
       (error) => {
         console.error("Outbox polling failed", error);
       },
     );
-    const stopNotifications = startBackgroundPolling(
-      () => notifications.deliverPending.execute(),
-      () => {
-        console.error("Notification delivery polling failed");
-      },
+
+    const notificationWorkerCount = 4;
+    const notificationBatchSize = 50;
+    const notificationWorkers = Array.from(
+      { length: notificationWorkerCount },
+      () =>
+        startBackgroundPolling(
+          () =>
+            notifications.deliverPending.execute({
+              limit: notificationBatchSize,
+            }),
+          () => {
+            console.error("Notification delivery polling failed");
+          },
+        ),
     );
+
+    const stopNotifications = async (): Promise<void> => {
+      await Promise.all(notificationWorkers.map((stop) => stop()));
+    };
     const stopAudit = startBackgroundPolling(
       () => audit.purge(),
       (error) => {

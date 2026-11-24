@@ -45,12 +45,20 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
           ),
         ),
       ].sort((left, right) => left.localeCompare(right, "en"));
-      // Acquire transaction locks in deterministic order before checking deletion markers.
-      for (const reference of references) {
-        await sql`select pg_advisory_xact_lock(hashtextextended(${reference}, 0))`.execute(
+
+      const [first, second] = references;
+      if (first !== undefined) {
+        await sql`select pg_advisory_xact_lock(hashtextextended(${first}, 0))`.execute(
           transaction,
         );
       }
+
+      if (second !== undefined) {
+        await sql`select pg_advisory_xact_lock(hashtextextended(${second}, 0))`.execute(
+          transaction,
+        );
+      }
+
       const deleted = references.length
         ? await transaction
             .selectFrom("audit_deleted_subjects")
@@ -186,36 +194,56 @@ export class KyselyAuditRepositoryAdapter extends AuditRepository {
         .orderBy("id", "asc")
         .forUpdate()
         .execute();
-      // Finish each locked row update before starting the next on this transaction.
-      for (const row of rows) {
+
+      const updates = rows.map((row) => {
         const replacements = new Map<string, string>();
+
         if (row.actor_reference === reference && row.actor_id) {
           replacements.set(row.actor_id, reference);
         }
+
         if (row.subject_reference === reference && row.subject_id) {
           replacements.set(row.subject_id, reference);
         }
-        await transaction
-          .updateTable("audit_events")
-          .set({
-            actor_id: row.actor_reference === reference ? null : row.actor_id,
-            subject_id:
-              row.subject_reference === reference ? null : row.subject_id,
-            metadata: JSON.stringify(
-              pseudonymizeAuditMetadata(
-                toAuditEntry(row).metadata,
-                replacements,
-              ),
-            ),
-            correlation_id: row.correlation_id
-              ? pseudonymizeAuditMetadata(row.correlation_id, replacements)
-              : null,
-            client: row.client
-              ? pseudonymizeAuditMetadata(row.client, replacements)
-              : null,
-          })
-          .where("id", "=", row.id)
-          .execute();
+
+        return {
+          id: row.id,
+          actor_id: row.actor_reference === reference ? null : row.actor_id,
+          subject_id:
+            row.subject_reference === reference ? null : row.subject_id,
+          metadata: pseudonymizeAuditMetadata(
+            toAuditEntry(row).metadata,
+            replacements,
+          ),
+          correlation_id: row.correlation_id
+            ? pseudonymizeAuditMetadata(row.correlation_id, replacements)
+            : null,
+          client: row.client
+            ? pseudonymizeAuditMetadata(row.client, replacements)
+            : null,
+        };
+      });
+
+      if (updates.length > 0) {
+        await sql`
+    UPDATE audit_events AS event
+    SET
+      actor_id = updates.actor_id,
+      subject_id = updates.subject_id,
+      metadata = updates.metadata,
+      correlation_id = updates.correlation_id,
+      client = updates.client
+    FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb)
+      AS updates(
+        id uuid,
+        actor_id uuid,
+        subject_id uuid,
+        metadata jsonb,
+        correlation_id text,
+        client text
+      )
+    WHERE event.id = updates.id
+  `.execute(transaction);
       }
     });
   }
