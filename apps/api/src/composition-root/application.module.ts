@@ -195,9 +195,6 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
         ),
     );
 
-    const stopNotifications = async (): Promise<void> => {
-      await Promise.all(notificationWorkers.map((stop) => stop()));
-    };
     const stopAudit = startBackgroundPolling(
       () => audit.purge(),
       (error) => {
@@ -218,7 +215,7 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       async dispose() {
         const stopped = await Promise.allSettled([
           stopOutbox(),
-          stopNotifications(),
+          ...notificationWorkers.map((stop) => stop()),
           stopAudit(),
         ]);
         const closed = await Promise.allSettled([redis.quit(), db.destroy()]);

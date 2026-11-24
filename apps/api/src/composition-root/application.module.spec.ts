@@ -57,17 +57,19 @@ describe("application worker lifecycle", () => {
           finish = resolve;
         }),
     );
-    state.poll
-      .mockReturnValueOnce(async () => undefined)
-      .mockReturnValueOnce(async () => undefined)
-      .mockReturnValueOnce(stopRetention);
+    state.poll.mockImplementation((_work, _onError, intervalMs) =>
+      intervalMs === 3_600_000 ? stopRetention : async () => undefined,
+    );
     const purge = vi
       .spyOn(KyselyAuditRepositoryAdapter.prototype, "purgeExpired")
       .mockResolvedValue(0);
     try {
       const app = await buildApplicationModule();
-      expect(state.poll.mock.calls[2]?.[2]).toBe(3_600_000);
-      await state.poll.mock.calls[2]?.[0]();
+      const retentionPolls = state.poll.mock.calls.filter(
+        ([, , intervalMs]) => intervalMs === 3_600_000,
+      );
+      expect(retentionPolls).toHaveLength(1);
+      await retentionPolls[0]?.[0]();
       expect(purge).toHaveBeenCalledOnce();
       const closing = app.dispose();
       expect(state.db.destroy).not.toHaveBeenCalled();
@@ -96,7 +98,7 @@ describe("application worker lifecycle", () => {
     expect(state.db.destroy).toHaveBeenCalledOnce();
     expect(state.poll).not.toHaveBeenCalled();
   });
-  it("waits for both active workers before closing their connections", async () => {
+  it("waits for the active outbox worker before closing connections", async () => {
     let complete!: () => void;
     const stop = vi.fn(
       () =>
@@ -115,6 +117,63 @@ describe("application worker lifecycle", () => {
     expect(state.db.destroy).toHaveBeenCalledOnce();
     expect(state.redis.quit).toHaveBeenCalledOnce();
   });
+  it("schedules four notification workers with the expected batch size", async () => {
+    const app = await buildApplicationModule();
+    const execute = vi
+      .spyOn(app.notifications.deliverPending, "execute")
+      .mockResolvedValue({ success: true, value: 0 });
+    try {
+      expect(state.poll).toHaveBeenCalledTimes(6);
+      const notificationPolls = state.poll.mock.calls.slice(1, 5);
+      await Promise.all(notificationPolls.map(([work]) => work()));
+      expect(execute).toHaveBeenCalledTimes(4);
+      expect(execute).toHaveBeenCalledWith({ limit: 50 });
+    } finally {
+      execute.mockRestore();
+      await app.dispose();
+    }
+  });
+
+  it("waits for all notification workers even when one fails to stop", async () => {
+    const failure = new Error("Notification worker shutdown failed");
+    let complete!: () => void;
+    const stops = [
+      vi.fn().mockRejectedValue(failure),
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
+      vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            complete = resolve;
+          }),
+      ),
+    ];
+    state.poll.mockReturnValueOnce(async () => undefined);
+    for (const stop of stops) {
+      state.poll.mockReturnValueOnce(stop);
+    }
+
+    const app = await buildApplicationModule();
+    const closing = expect(app.dispose()).rejects.toThrow(
+      "Application resource cleanup failed",
+    );
+    try {
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve);
+      });
+      for (const stop of stops) {
+        expect(stop).toHaveBeenCalledOnce();
+      }
+      expect(state.db.destroy).not.toHaveBeenCalled();
+      expect(state.redis.quit).not.toHaveBeenCalled();
+    } finally {
+      complete();
+      await closing;
+    }
+    expect(state.db.destroy).toHaveBeenCalledOnce();
+    expect(state.redis.quit).toHaveBeenCalledOnce();
+  });
+
   it("attempts both resource cleanups and preserves cleanup errors", async () => {
     const failure = new Error("Redis quit failed");
     state.redis.quit.mockRejectedValue(failure);
