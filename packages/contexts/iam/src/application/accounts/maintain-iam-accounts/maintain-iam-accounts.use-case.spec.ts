@@ -95,7 +95,9 @@ describe("account maintenance orchestration", () => {
     eraseIfDue.mockReset().mockResolvedValue(userId);
     deleteAllForUser.mockRejectedValue(new Error("session store unavailable"));
 
-    await expect(useCase.execute()).rejects.toThrow("session store unavailable");
+    await expect(useCase.execute()).rejects.toThrow(
+      "session store unavailable",
+    );
     expect(eraseIfDue).toHaveBeenCalledOnce();
     expect(expire).not.toHaveBeenCalled();
   });

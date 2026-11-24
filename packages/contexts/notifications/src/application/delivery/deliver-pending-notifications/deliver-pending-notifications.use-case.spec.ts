@@ -90,7 +90,9 @@ describe("DeliverPendingNotificationsUseCase", () => {
       });
       expect(repository.recoverStaleDeliveries).toHaveBeenCalledOnce();
       expect(repository.claimDelivery).toHaveBeenCalledTimes(limit);
-      expect(repository.resolveDeliveryEligibility).toHaveBeenCalledTimes(limit);
+      expect(repository.resolveDeliveryEligibility).toHaveBeenCalledTimes(
+        limit,
+      );
       expect(send).not.toHaveBeenCalled();
     },
   );
