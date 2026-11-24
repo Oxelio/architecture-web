@@ -206,6 +206,82 @@ describe.skipIf(!databaseUrl || !redisUrl)(
       ).toHaveLength(1);
     });
 
+    it("pseudonymizes multiple matching audit rows without changing unrelated fields", async () => {
+      const repository = new KyselyAuditRepositoryAdapter(db as never);
+      const pseudonymizer = new Sha256AuditPseudonymizerAdapter();
+      const userId = randomUUID(),
+        otherId = randomUUID();
+      const reference = pseudonymizer.reference(userId);
+      const otherReference = pseudonymizer.reference(otherId);
+      const firstId = randomUUID(),
+        secondId = randomUUID(),
+        unrelatedId = randomUUID();
+
+      await repository.append({
+        id: firstId,
+        type: "test.pseudonymization",
+        result: "success",
+        context: {
+          actorType: "user",
+          actorId: otherId,
+          subjectId: userId,
+          correlationId: userId,
+          client: `client-${userId}`,
+        },
+        actorReference: otherReference,
+        subjectReference: reference,
+        metadata: { subjectId: userId, actorId: otherId },
+        retentionDays: 365,
+      });
+      await repository.append({
+        id: secondId,
+        type: "test.pseudonymization",
+        result: "success",
+        context: {
+          actorType: "user",
+          actorId: userId,
+          subjectId: userId,
+        },
+        actorReference: reference,
+        subjectReference: reference,
+        metadata: { userId },
+        retentionDays: 365,
+      });
+      await repository.append({
+        id: unrelatedId,
+        type: "test.pseudonymization",
+        result: "success",
+        context: { actorType: "user", actorId: otherId },
+        actorReference: otherReference,
+        subjectReference: null,
+        retentionDays: 365,
+      });
+      await repository.pseudonymizeSubject(reference);
+      const absentReference = pseudonymizer.reference(randomUUID());
+      await repository.pseudonymizeSubject(absentReference);
+
+      const rows = await db.selectFrom("audit_events").selectAll().execute();
+      expect(rows).toHaveLength(3);
+      expect(rows.find((row) => row.id === firstId)).toMatchObject({
+        actor_id: otherId,
+        subject_id: null,
+        correlation_id: reference,
+        client: `client-${reference}`,
+        metadata: { subjectId: reference, actorId: otherId },
+      });
+      expect(rows.find((row) => row.id === secondId)).toMatchObject({
+        actor_id: null,
+        subject_id: null,
+        correlation_id: null,
+        client: null,
+        metadata: { userId: reference },
+      });
+      expect(rows.find((row) => row.id === unrelatedId)).toMatchObject({
+        actor_id: otherId,
+        subject_id: null,
+      });
+    });
+
     it("recovers accepted Audit events after storage failure and does not duplicate them", async () => {
       const repository = new KyselyAuditRepositoryAdapter(db as never),
         audit = createAuditEventConsumer(

@@ -43,6 +43,58 @@ function createClaimedNotification(
 }
 
 describe("DeliverPendingNotificationsUseCase", () => {
+  it.each([0, -1, 101, 1.5, Number.NaN])(
+    "rejects invalid delivery limit %s before claiming",
+    async (limit) => {
+      const repository = {
+        recoverStaleDeliveries: vi.fn(),
+        claimDelivery: vi.fn(),
+      };
+      const useCase = new DeliverPendingNotificationsUseCase(
+        repository as never,
+        [],
+        directory,
+      );
+
+      expect(await useCase.execute({ limit })).toEqual({
+        success: false,
+        error: { code: "notifications.invalid_delivery_limit" },
+      });
+      expect(repository.recoverStaleDeliveries).not.toHaveBeenCalled();
+      expect(repository.claimDelivery).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([1, 100])(
+    "stops after %s reservations even when delivery is withheld",
+    async (limit) => {
+      const repository = {
+        recoverStaleDeliveries: vi.fn(),
+        claimDelivery: vi.fn().mockResolvedValue({
+          deliveryId: "delivery",
+          recipientId: "user-1",
+          claimToken: "owner",
+        }),
+        resolveDeliveryEligibility: vi.fn().mockResolvedValue(null),
+      };
+      const send = vi.fn();
+      const useCase = new DeliverPendingNotificationsUseCase(
+        repository as never,
+        [{ channel: "email", send }],
+        directory,
+      );
+
+      expect(await useCase.execute({ limit })).toEqual({
+        success: true,
+        value: limit,
+      });
+      expect(repository.recoverStaleDeliveries).toHaveBeenCalledOnce();
+      expect(repository.claimDelivery).toHaveBeenCalledTimes(limit);
+      expect(repository.resolveDeliveryEligibility).toHaveBeenCalledTimes(limit);
+      expect(send).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(["affected_user", "affected_user_and_administrator"] as const)(
     "preserves the %s basis without an administrative lookup",
     async (audience) => {

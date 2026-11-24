@@ -78,6 +78,28 @@ describe("account maintenance orchestration", () => {
     expect(expire).toHaveBeenCalledExactlyOnceWith(now);
   });
 
+  it("rejects an invalid persisted identifier before invalidating sessions", async () => {
+    const { useCase, eraseIfDue, deleteAllForUser, expire } = fixture();
+    eraseIfDue.mockReset().mockResolvedValue("invalid");
+
+    await expect(useCase.execute()).rejects.toThrow(
+      "Invalid persisted account identifier",
+    );
+    expect(eraseIfDue).toHaveBeenCalledOnce();
+    expect(deleteAllForUser).not.toHaveBeenCalled();
+    expect(expire).not.toHaveBeenCalled();
+  });
+
+  it("does not erase another account when session invalidation fails", async () => {
+    const { useCase, eraseIfDue, deleteAllForUser, expire, userId } = fixture();
+    eraseIfDue.mockReset().mockResolvedValue(userId);
+    deleteAllForUser.mockRejectedValue(new Error("session store unavailable"));
+
+    await expect(useCase.execute()).rejects.toThrow("session store unavailable");
+    expect(eraseIfDue).toHaveBeenCalledOnce();
+    expect(expire).not.toHaveBeenCalled();
+  });
+
   it("propagates an erasure failure without reporting completion or expiring exports", async () => {
     const { useCase, eraseIfDue, deleteAllForUser, expire } = fixture();
     eraseIfDue.mockReset().mockRejectedValue(new Error("database unavailable"));
