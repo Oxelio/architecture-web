@@ -439,6 +439,10 @@ const localizedCopy = {
       "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez.",
       "Could not verify your identity. Check your credentials and try again.",
     ],
+    recentAuthenticationRequired: [
+      "Une authentification récente est requise. Reconnectez-vous avant de réessayer.",
+      "Recent authentication is required. Sign in again before retrying.",
+    ],
     stepUp: [
       "Modifications critiques et restauration",
       "Critical changes and restoration",

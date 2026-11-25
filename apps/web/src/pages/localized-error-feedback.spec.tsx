@@ -826,39 +826,126 @@ it("announces a successful user-administration action in an output element", asy
   expect(container.querySelector("output")).toBeNull();
 });
 
-it("renders a configuration restore conflict without the raw API error", async () => {
+const recentAuthenticationFeedback = {
+  en: "Recent authentication is required. Sign in again before retrying.",
+  fr: "Une authentification récente est requise. Reconnectez-vous avant de réessayer.",
+};
+
+it.each([
+  {
+    code: "security_configuration.version_conflict",
+    status: 409,
+    en: "The configuration has changed. Refresh it before trying again.",
+    fr: "La configuration a changé. Actualisez-la avant de réessayer.",
+  },
+  {
+    code: "authentication.recent_proof_required",
+    status: 401,
+    ...recentAuthenticationFeedback,
+  },
+])(
+  "localizes a configuration restoration failure for $code without resubmitting",
+  async ({ code, status, en, fr }) => {
+    client.setQueryData(["admin-security-config"], {
+      effectiveRevision: { version: 2 },
+      effective: {},
+      catalog: [],
+      revisions: [
+        {
+          id: "previous",
+          version: 1,
+          status: "superseded",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    });
+    client.setQueryData(["admin-security-events"], []);
+    await render(<AdminSecurityCenter />);
+    await clickButton("History");
+    const reason = "fieldset input:not([type], [autocomplete])";
+    await enter(reason, "Restore the previous settings");
+    fetchApi.mockResolvedValueOnce(failure(code, status));
+    await clickButton("Restore");
+    await expectFeedback('[role="alert"]', en);
+    expect(element('[role="alert"]').textContent).toBe(en);
+
+    await changeLocale("fr");
+    expect(element('[role="alert"]').textContent).toBe(fr);
+    expect(element<HTMLInputElement>(reason).value).toBe(
+      "Restore the previous settings",
+    );
+    expect(container.textContent).not.toContain(code);
+    expect(container.textContent).not.toContain(privateDetail);
+    expect(fetchApi).toHaveBeenCalledOnce();
+    expect(fetchApi).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/iam\/admin\/security\/config\/previous\/rollback$/u,
+      ),
+      expect.objectContaining({ method: "POST" }),
+    );
+  },
+);
+
+it("asks for a new sign-in after a critical configuration publication fails", async () => {
+  const deletionGraceDays = "#security-accounts-deletionGraceDays";
+  const confirmation = 'input[type="checkbox"]';
   client.setQueryData(["admin-security-config"], {
     effectiveRevision: { version: 2 },
-    effective: {},
-    catalog: [],
-    revisions: [
+    effective: { accounts: { deletionGraceDays: 14 } },
+    catalog: [
       {
-        id: "previous",
-        version: 1,
-        status: "superseded",
-        created_at: "2026-01-01T00:00:00Z",
+        key: "accounts.deletionGraceDays",
+        category: "accounts",
+        control: "number",
+        impact: "critical",
+        availability: { available: true, readOnly: false },
       },
     ],
+    revisions: [],
   });
   client.setQueryData(["admin-security-events"], []);
   await render(<AdminSecurityCenter />);
-  await clickButton("History");
+  await enter(deletionGraceDays, "30");
+  await enter("textarea", "Update the deletion grace period");
   fetchApi.mockResolvedValueOnce(
-    failure("security_configuration.version_conflict", 409),
+    Response.json({
+      data: {
+        valid: true,
+        impact: "critical",
+        changedKeys: ["accounts.deletionGraceDays"],
+        changes: [{ key: "accounts.deletionGraceDays", before: 14, after: 30 }],
+        warnings: [],
+      },
+    }),
   );
-  await clickButton("Restore");
-  await expectFeedback(
-    '[role="alert"]',
-    "The configuration has changed. Refresh it before trying again.",
+  await clickButton("Preview impact");
+  await expectFeedback("article", "1 option changed · Critical impact");
+  await click(confirmation);
+
+  const code = "authentication.recent_proof_required";
+  fetchApi.mockResolvedValueOnce(failure(code, 401));
+  await clickButton("Publish without restart");
+  await expectFeedback('[role="alert"]', recentAuthenticationFeedback.en);
+  expect(element('[role="alert"]').textContent).toBe(
+    recentAuthenticationFeedback.en,
   );
+
   await changeLocale("fr");
   expect(element('[role="alert"]').textContent).toBe(
-    "La configuration a changé. Actualisez-la avant de réessayer.",
+    recentAuthenticationFeedback.fr,
   );
-  expect(container.textContent).not.toMatch(
-    /security_configuration\.version_conflict|internal traceback/u,
+  expect(element<HTMLInputElement>(deletionGraceDays).value).toBe("30");
+  expect(element<HTMLTextAreaElement>("textarea").value).toBe(
+    "Update the deletion grace period",
   );
-  expect(fetchApi).toHaveBeenCalledOnce();
+  expect(element<HTMLInputElement>(confirmation).checked).toBe(true);
+  expect(container.textContent).not.toContain(code);
+  expect(container.textContent).not.toContain(privateDetail);
+  expect(fetchApi).toHaveBeenCalledTimes(2);
+  expect(fetchApi).toHaveBeenLastCalledWith(
+    expect.stringMatching(/\/iam\/admin\/security\/config$/u),
+    expect.objectContaining({ method: "PUT" }),
+  );
 });
 
 it("shows a failed configuration preview after an earlier publication failure", async () => {

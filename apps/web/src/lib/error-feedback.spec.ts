@@ -87,6 +87,12 @@ describe.each(["fr", "en"] as const)("error feedback in %s", (locale) => {
       "Vérifiez les paramètres",
       "Check the configuration",
     ],
+    [
+      "securityConfig",
+      "authentication.recent_proof_required",
+      "Reconnectez-vous avant de réessayer.",
+      "Sign in again before retrying.",
+    ],
   ] as const)("localizes %s failure %s", (operation, code, fr, en) => {
     const text = errorMessage(
       t,
@@ -105,6 +111,32 @@ describe.each(["fr", "en"] as const)("error feedback in %s", (locale) => {
   ])("safely renders unrecognized failures", (error) => {
     expect(errorMessage(t, apiErrorKey(error, "signUp"))).toContain(
       locale === "fr" ? "Réessaie plus tard" : "Please try again later",
+    );
+  });
+
+  it.each([
+    new ApiRequestError("authentication.unknown"),
+    { error: { code: "authentication.recent_proof_required" } },
+  ])("preserves the security configuration fallback for %j", (error) => {
+    expect(errorMessage(t, apiErrorKey(error, "securityConfig"))).toBe(
+      locale === "fr"
+        ? "Impossible d’appliquer cette configuration. Réessayez."
+        : "Unable to apply this configuration. Please try again.",
+    );
+  });
+
+  it.each([
+    "authentication.invalid_credentials",
+    "mfa.code_required",
+    "mfa.invalid_code",
+    "mfa.invalid_challenge",
+    "mfa.not_enabled",
+  ])("preserves generic security configuration feedback for %s", (code) => {
+    const key = apiErrorKey(new ApiRequestError(code), "securityConfig");
+    expect(errorMessage(t, key)).toBe(
+      locale === "fr"
+        ? "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez."
+        : "Could not verify your identity. Check your credentials and try again.",
     );
   });
 
