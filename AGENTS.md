@@ -74,6 +74,9 @@ conflict rather than copying the exception.
 
 ## Implementation
 
+- Use the authorized Work or Task handoff to establish executor, active Role,
+  scope, and constraints. The [delivery profile](docs/project/delivery-pipeline.md#authorized-execution-handoff)
+  makes legacy `agent:*` labels irrelevant to normal execution.
 - Implement only the authorized Task/work scope.
 - Use GitHub Sub-issues for Tasks only when Task Planning is triggered and the
   Task/Sub-issue mapping is effectively activated and available; do not create

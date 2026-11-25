@@ -170,6 +170,44 @@ describe("resolveActivationContext", () => {
     }
   });
 
+  it("keeps shared delivery owners available without inactive routing and claim primitives", () => {
+    const snapshot = inventory();
+    const manifest = verifiedManifest();
+    const result = resolveActivationContext({
+      repository: "Oxelio/Architecture-Web",
+      manifest: {
+        ...manifest,
+        mappings: {
+          ...manifest.mappings,
+          routes: { status: "inactive" },
+          taskClaim: { status: "inactive" },
+        },
+      },
+      inventory: {
+        labels: snapshot.labels.filter((label) => label !== "agent:human"),
+        projects: snapshot.projects.map((project) => ({
+          ...project,
+          fields: project.fields.filter(
+            (field) => !claimFields.some((name) => name === field.name),
+          ),
+        })),
+      },
+    });
+
+    expect(result).toMatchObject({
+      status: "ready",
+      activation: {
+        workState: true,
+        priority: true,
+        routes: false,
+        dependencies: true,
+        taskParent: true,
+        taskClaim: false,
+        workIntegrationPr: true,
+      },
+    });
+  });
+
   it("fails closed if the verified Status lifecycle mapping drifts after activation", () => {
     const snapshot = inventory();
     const project = snapshot.projects[0];

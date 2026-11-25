@@ -13,7 +13,6 @@ function item(
     projectItemId: `PVTI_${workNumber}`,
     issueNumber: workNumber,
     issueOpen: true,
-    labels: [],
     fields,
   };
 }

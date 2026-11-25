@@ -1,12 +1,9 @@
-import { access, readFile } from "node:fs/promises";
-import { dirname, join, parse, resolve } from "node:path";
-
 import { resolveActivationContext } from "../config/activation-context.js";
-import { parseActivationManifest } from "../config/activation-manifest.js";
 import { planTaskDispatch } from "../control/coordinator.js";
 import { readTaskDispatchCandidate } from "../github/github-operational-state.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import { readAuthorizedWorkIntegrationTarget } from "../github/work-integration-target.js";
+import { readActivationManifest } from "./gate-publication-support.js";
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
@@ -28,33 +25,6 @@ function positiveInteger(name: string): number {
   return value;
 }
 
-async function findRepositoryRoot(start: string): Promise<string> {
-  let current = resolve(start);
-  const filesystemRoot = parse(current).root;
-  while (true) {
-    try {
-      await access(join(current, "pnpm-workspace.yaml"));
-      return current;
-    } catch {
-      if (current === filesystemRoot) {
-        throw new Error("Could not locate repository root");
-      }
-      current = dirname(current);
-    }
-  }
-}
-
-async function readManifest(): Promise<
-  ReturnType<typeof parseActivationManifest>
-> {
-  const root = await findRepositoryRoot(process.cwd());
-  const raw = await readFile(
-    join(root, ".github/delivery-automation.json"),
-    "utf8",
-  );
-  return parseActivationManifest(JSON.parse(raw) as unknown);
-}
-
 function blocked(reason: unknown): void {
   process.stdout.write(
     `${JSON.stringify({ status: "blocked", mutationRequested: false, reason }, null, 2)}\n`,
@@ -63,13 +33,18 @@ function blocked(reason: unknown): void {
 }
 
 async function main(): Promise<void> {
+  const manifest = await readActivationManifest();
+  if (manifest.mappings.routes.status === "inactive") {
+    blocked("ROUTE_OWNER_INACTIVE");
+    return;
+  }
+
   const repository = requiredEnvironment("GITHUB_REPOSITORY");
   const projectsToken = requiredEnvironment("ARCHITECTURE_WEB_PROJECTS_TOKEN");
   const repositoryToken = requiredEnvironment("GITHUB_TOKEN");
   const workNumber = positiveInteger("WORK_NUMBER");
   const taskNumber = positiveInteger("TASK_NUMBER");
   const executorRoute = requiredEnvironment("EXECUTOR_ROUTE");
-  const manifest = await readManifest();
 
   if (!manifest.project) {
     blocked("PROJECT_LOCATOR_INACTIVE");

@@ -32,6 +32,8 @@
 - `docs/architecture/agent-aware-delivery-activation.md` — Work #9 Technical Design and historical rationale for the claim implementation;
 - `.github/workflows/` and `packages/delivery-automation` — current implementation evidence.
 
+[Work #202](https://github.com/Oxelio/architecture-web/issues/202) supersedes this design's statements about the continued applicability of route metadata and route mutations. The [delivery profile](../project/delivery-pipeline.md) owns current handoff and Ready Queue rules. This document preserves Work #31's original scope and rationale.
+
 ## 1. Authorized constraints to preserve
 
 The accepted target changes only Task execution claim/concurrency policy for the currently human-directed delivery model.
