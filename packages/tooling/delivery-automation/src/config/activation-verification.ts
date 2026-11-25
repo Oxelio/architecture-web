@@ -292,6 +292,22 @@ function refreshedMappings(
   ) as DeliveryActivationManifest["mappings"];
 }
 
+function verifyNativeCapabilities(
+  capabilities: NativeCapabilityVerification,
+): ActivationVerificationBlocker[] {
+  const blockers: ActivationVerificationBlocker[] = [];
+  if (!capabilities.dependencies) {
+    blockers.push("DEPENDENCY_CAPABILITY_UNVERIFIED");
+  }
+  if (!capabilities.taskParent) {
+    blockers.push("TASK_PARENT_CAPABILITY_UNVERIFIED");
+  }
+  if (!capabilities.workIntegrationPr) {
+    blockers.push("WORK_INTEGRATION_PR_CAPABILITY_UNVERIFIED");
+  }
+  return blockers;
+}
+
 export function verifyDeliveryActivation(input: {
   readonly repository: string;
   readonly inventory: GitHubInventorySnapshot;
@@ -342,15 +358,7 @@ export function verifyDeliveryActivation(input: {
     blockers.push(...verifyViews(project));
   }
 
-  if (!input.nativeCapabilities.dependencies) {
-    blockers.push("DEPENDENCY_CAPABILITY_UNVERIFIED");
-  }
-  if (!input.nativeCapabilities.taskParent) {
-    blockers.push("TASK_PARENT_CAPABILITY_UNVERIFIED");
-  }
-  if (!input.nativeCapabilities.workIntegrationPr) {
-    blockers.push("WORK_INTEGRATION_PR_CAPABILITY_UNVERIFIED");
-  }
+  blockers.push(...verifyNativeCapabilities(input.nativeCapabilities));
 
   if (blockers.length > 0 || !project) {
     return { status: "blocked", project, manifest: null, blockers };
