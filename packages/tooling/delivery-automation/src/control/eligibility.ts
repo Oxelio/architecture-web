@@ -67,7 +67,6 @@ export interface WorkPullCandidate {
   readonly workState: WorkState | null;
   readonly dependencyState: DependencyState;
   readonly wipState: WipState;
-  readonly route: RouteState;
   readonly priorityAvailable: boolean;
   readonly priority: Priority | null;
 }
@@ -240,7 +239,6 @@ function evaluateTaskExecutionPrerequisites(
 
 export function evaluateWorkPull(
   candidate: WorkPullCandidate,
-  executorRoute: string,
 ): EligibilityDecision {
   const blockers: EligibilityBlocker[] = [];
 
@@ -262,8 +260,6 @@ export function evaluateWorkPull(
     blockers.push("WIP_LIMIT_REACHED");
   }
 
-  const route = evaluateRoute(candidate.route, executorRoute, blockers);
-
   if (!candidate.priorityAvailable || candidate.priority === null) {
     blockers.push("PRIORITY_OWNER_UNAVAILABLE");
   }
@@ -271,7 +267,7 @@ export function evaluateWorkPull(
   return {
     eligible: blockers.length === 0,
     blockers,
-    route,
+    route: null,
     targetRef: null,
   };
 }
@@ -315,11 +311,10 @@ export function evaluateTaskDispatch(
 
 export function selectNextWork(
   candidates: readonly WorkPullCandidate[],
-  executorRoute: string,
 ): WorkSelectionDecision {
   const evaluated = candidates.map((candidate) => ({
     candidate,
-    decision: evaluateWorkPull(candidate, executorRoute),
+    decision: evaluateWorkPull(candidate),
   }));
 
   const eligible = evaluated

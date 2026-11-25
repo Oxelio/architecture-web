@@ -1,10 +1,24 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { taskClaimFieldNames } from "../control/task-claim.js";
 import type { GitHubInventorySnapshot } from "../github/github-project-inventory.js";
 import type { ProjectSnapshot } from "../inventory/project-inventory.js";
-import { activationMappingNames } from "./activation-manifest.js";
+import { parseActivationManifest } from "./activation-manifest.js";
 import { verifyDeliveryActivation } from "./activation-verification.js";
+
+const manifest = parseActivationManifest(
+  JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../../../.github/delivery-automation.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ),
+);
 
 const workStates = [
   "Idea",
@@ -22,9 +36,9 @@ const workStates = [
 const project: ProjectSnapshot = {
   id: "PVT_1",
   owner: "Oxelio",
-  number: 1,
+  number: 3,
   title: "Architecture Web",
-  url: "https://github.com/users/Oxelio/projects/1",
+  url: "https://github.com/users/Oxelio/projects/3",
   closed: false,
   repositories: ["Oxelio/Architecture-Web"],
   fields: [
@@ -174,26 +188,45 @@ const nativeCapabilities = {
 } as const;
 
 describe("verifyDeliveryActivation", () => {
-  it("produces a fully verified manifest only after all backing state is verified", () => {
-    const result = verifyDeliveryActivation({
-      repository: "Oxelio/Architecture-Web",
-      inventory: inventory(),
-      nativeCapabilities,
-      evidenceRef: "issue:9#activation-evidence",
-    });
+  it.each([false, true])(
+    "preserves inactive routes and claims with legacy primitives present=%s",
+    (withLegacyPrimitives) => {
+      const snapshot = inventory();
+      const result = verifyDeliveryActivation({
+        manifest,
+        repository: "Oxelio/Architecture-Web",
+        inventory: withLegacyPrimitives
+          ? snapshot
+          : {
+              projects: [
+                {
+                  ...project,
+                  fields: project.fields.filter(
+                    (field) => !field.id.startsWith("CLAIM_"),
+                  ),
+                },
+              ],
+              labels: labels.filter((label) => label !== "agent:human"),
+            },
+        nativeCapabilities,
+        evidenceRef: "issue:202#activation-evidence",
+      });
 
-    expect(result.status).toBe("verified");
-    if (result.status !== "verified") {
-      throw new Error("expected verified result");
-    }
-    expect(result.manifest.project).toEqual({ owner: "Oxelio", number: 1 });
-    expect(Object.values(result.manifest.mappings)).toEqual(
-      Array.from({ length: activationMappingNames.length }, () => ({
+      expect(result.status).toBe("verified");
+      if (result.status !== "verified") {
+        throw new Error("expected verified result");
+      }
+      expect(result.manifest.project).toEqual({ owner: "Oxelio", number: 3 });
+      expect(result.manifest.mappings.routes).toEqual({ status: "inactive" });
+      expect(result.manifest.mappings.taskClaim).toEqual({
+        status: "inactive",
+      });
+      expect(result.manifest.mappings.workState).toEqual({
         status: "verified",
-        evidenceRef: "issue:9#activation-evidence",
-      })),
-    );
-  });
+        evidenceRef: "issue:202#activation-evidence",
+      });
+    },
+  );
 
   it("blocks when Status does not expose exactly the Method Work State values", () => {
     const invalidStatus = {
@@ -206,6 +239,7 @@ describe("verifyDeliveryActivation", () => {
     };
 
     const result = verifyDeliveryActivation({
+      manifest,
       repository: "Oxelio/Architecture-Web",
       inventory: inventory(invalidStatus),
       nativeCapabilities,
@@ -228,6 +262,13 @@ describe("verifyDeliveryActivation", () => {
     };
 
     const result = verifyDeliveryActivation({
+      manifest: {
+        ...manifest,
+        mappings: {
+          ...manifest.mappings,
+          taskClaim: manifest.mappings.workState,
+        },
+      },
       repository: "Oxelio/Architecture-Web",
       inventory: inventory(withoutClaim),
       nativeCapabilities,
@@ -252,6 +293,7 @@ describe("verifyDeliveryActivation", () => {
     };
 
     const result = verifyDeliveryActivation({
+      manifest,
       repository: "Oxelio/Architecture-Web",
       inventory: inventory(invalidReady),
       nativeCapabilities,
@@ -276,6 +318,7 @@ describe("verifyDeliveryActivation", () => {
     };
 
     const result = verifyDeliveryActivation({
+      manifest,
       repository: "Oxelio/Architecture-Web",
       inventory: inventory(invalidWaiting),
       nativeCapabilities,
@@ -291,6 +334,7 @@ describe("verifyDeliveryActivation", () => {
 
   it("blocks when a native operational capability has not been verified", () => {
     const result = verifyDeliveryActivation({
+      manifest,
       repository: "Oxelio/Architecture-Web",
       inventory: inventory(),
       nativeCapabilities: { ...nativeCapabilities, taskParent: false },

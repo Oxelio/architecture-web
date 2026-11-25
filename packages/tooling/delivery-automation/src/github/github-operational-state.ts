@@ -2,7 +2,6 @@ import type {
   ClaimState,
   DependencyState,
   Priority,
-  RouteState,
   TargetRefState,
   TaskDispatchCandidate,
   TaskParentState,
@@ -28,7 +27,6 @@ export interface ProjectWorkItemSnapshot {
   readonly projectItemId: string;
   readonly issueNumber: number;
   readonly issueOpen: boolean;
-  readonly labels: readonly string[];
   readonly fields: Readonly<Record<string, string>>;
 }
 
@@ -69,10 +67,6 @@ interface ProjectItemNode {
       readonly number: number;
       readonly repository?: { readonly nameWithOwner: string } | null;
     } | null;
-    readonly labels?: {
-      readonly nodes: readonly { readonly name: string }[];
-      readonly pageInfo: { readonly hasNextPage: boolean };
-    };
   } | null;
   readonly fieldValues: {
     readonly nodes: readonly ProjectFieldValueNode[];
@@ -141,10 +135,6 @@ const projectItemsQuery = `
                 parent {
                   number
                   repository { nameWithOwner }
-                }
-                labels(first: 100) {
-                  nodes { name }
-                  pageInfo { hasNextPage }
                 }
               }
             }
@@ -256,11 +246,6 @@ function toWorkItem(
     return null;
   }
 
-  if (content.labels?.pageInfo.hasNextPage) {
-    throw new Error(
-      `Issue #${content.number} has more than 100 labels; refusing truncated route state`,
-    );
-  }
   if (node.fieldValues.pageInfo.hasNextPage) {
     throw new Error(
       `Project item for issue #${content.number} has more than 100 field values; refusing truncated owner state`,
@@ -286,14 +271,6 @@ function toWorkItem(
     projectItemId: node.id,
     issueNumber: content.number,
     issueOpen: content.state === "OPEN",
-    labels: (content.labels?.nodes ?? [])
-      .map((label) => label.name)
-      .toSorted((a, b) => {
-        if (a === b) {
-          return 0;
-        }
-        return a < b ? -1 : 1;
-      }),
     fields,
   };
 }
@@ -418,13 +395,6 @@ function deriveWipState(input: {
   return "available";
 }
 
-function routeState(
-  item: { readonly labels: readonly string[] },
-  active: boolean,
-): RouteState {
-  return { mappingActive: active, labels: item.labels };
-}
-
 export async function readWorkPullCandidates(input: {
   readonly repository: string;
   readonly projectId: string;
@@ -467,7 +437,6 @@ export async function readWorkPullCandidates(input: {
           items,
           workStateActive: input.activation.workState,
         }),
-        route: routeState(item, input.activation.routes),
         priorityAvailable: input.activation.priority && priority !== null,
         priority,
       };

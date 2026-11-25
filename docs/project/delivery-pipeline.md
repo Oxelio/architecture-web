@@ -37,7 +37,6 @@ Work Type                        -> GitHub Project field: Work Type
 Workflow Depth                   -> GitHub Project field: Workflow Depth
 Priority                         -> GitHub Project field: Priority
 Change Characteristics           -> GitHub Issue labels: char:*
-Execution route/provider         -> GitHub Issue label: agent:*
 Human identity assignment         -> GitHub native assignees
 Work dependency/blocker relation -> GitHub native relationship when represented;
                                    otherwise Work Issue operational context
@@ -146,8 +145,8 @@ Initial activation of Project-backed fields, labels, views, relationships,
 required checks, environments, and privileged publisher credentials therefore
 requires separate delivery/governance implementation and verification. That step
 MUST verify at least the configured field names and values, applicable
-labels/relationships, the native `Status` Work State mapping, routing visibility,
-required checks, and the intended Project views before an external owner or
+labels/relationships, the native `Status` Work State mapping, required checks,
+and the intended Project views before an external owner or
 enforcement mechanism is treated as effective. Project lifecycle settings that
 cannot be
 proved through the available inventory API require explicit operator evidence
@@ -235,47 +234,31 @@ If a future project policy intentionally adds Task Sub-issues as Project items,
 it MUST define dedicated Task field semantics and MUST NOT apply Work State,
 Work Type, Workflow Depth, or Priority as though each Task were a separate Work.
 
-### Execution routing and Task execution
+### Authorized execution handoff
 
-`agent:*` is the project namespace for execution-route/provider assignment once
-that label mapping is activated. It owns only the selected execution route for
-the executable Work or Task.
-
-The namespace MUST NOT encode a concrete model, Method Role, runtime framework,
-or approval/authority gate. Tokens such as `agent:human`, `agent:codex`,
-`agent:claude-code`, or `agent:gemini` name contractual execution routes; for
-example, `agent:codex` does not freeze a model version, runtime framework,
-credential mechanism, inference provider, or scheduling mechanism.
-
-An executable Work or Task MUST have at most one active `agent:*` route:
-
-```text
-0 agent:*   -> unassigned route
-1 agent:*   -> assigned route
->1 agent:*  -> conflicting route; execution blocked
-```
-
-A missing route MUST NOT invalidate an otherwise valid Work State and MUST NOT
-become a hidden Readiness Gate. `agent:human` means human execution only; it does
-not represent human approval or authority.
-
-An automated execution agent MUST NOT assign, remove, or change its own route.
-A route mutation requires explicit human delivery assignment or an explicit
-project delegation granting the Workflow Coordinator authority to establish or
-record that route. Tool capability to edit labels does not create routing
-authority.
+An authorized maintainer-directed handoff selects a human, coding agent, or
+permitted delegate for an authorized Work or Task. The selection belongs to the
+working handoff context. Record the Work/Task identity, active Role, scope and
+applicable constraints. Existing authority and coordination rules govern Task
+selection and executor changes.
 
 Method Role remains independent from the physical executor. The active Role is
-resolved from Activity and Context; a material Activity/Role change SHOULD
-trigger focused context re-resolution.
+resolved from Activity and Context. A material Activity or Role change SHOULD
+trigger focused context re-resolution. Execution remains subject to the applicable
+authorization, Work State, scope, dependencies, WIP, target ref, and operational
+permissions. Executors MUST stay within the authorized assignment, including
+when delegating or changing executor.
+
+The `agent:*` mapping is inactive. Any residual labels are historical metadata.
+Zero, one or multiple such labels have no effect on normal Work or Task
+execution, selection, authority, exclusivity, or lifecycle. A handoff requires
+no persistent executor label, field, assignment, inheritance, or claim.
 
 A lightweight Work without implementation Tasks MAY itself be executable. When
-implementation Tasks exist, those Tasks are the executable units and MUST NOT
-implicitly inherit the parent Work's `agent:*` route in V1. Semantic Task order
-MUST use the activated dependency mechanism; non-semantic tie-breaks MAY be
-implementation-defined but MUST be deterministic. Task closure alone does not
-prove successful completion when its disposition does not satisfy the authorized
-Task plan.
+implementation Tasks exist, those Tasks are the executable units. Semantic Task
+order MUST use the activated dependency mechanism. Implementation-defined
+tie-breaks MUST be deterministic. Task closure alone does not prove successful
+completion when its disposition does not satisfy the authorized Task plan.
 
 #### Human-directed Task execution
 
@@ -298,11 +281,10 @@ If a specific Work requires Task serialization for semantic or technical reasons
 its Task plan, dependencies, or Technical Design MUST express that constraint for
 that Work rather than relying on a project-wide concurrency protocol.
 
-Autonomous Task selection or dispatch is not an active project requirement. A
-future autonomous executor that needs concurrency ownership, recovery, leases, or
-scheduling MUST establish those concrete requirements through separate accepted
-Governance and Technical Design scope before activation. `agent:*` routing alone
-does not grant autonomous Task-dispatch authority.
+Autonomous Work and Task dispatch is inactive. Any future autonomous execution
+requires separately accepted Governance and Technical Design scope before
+activation, including applicable selection, concurrency, recovery and scheduling
+requirements.
 
 ## 4. Work State
 
@@ -351,7 +333,7 @@ Once their assignments are effectively activated, the Project SHOULD expose:
 ```text
 Title
 Assignees
-Execution route (`agent:*`)
+Labels (including Change Characteristics)
 Status (Method Work State)
 Work Type
 Workflow Depth
@@ -459,21 +441,17 @@ Delivery selection policy:
 1. Only Work whose Method Work State is `Ready`, represented operationally as
    `Status = Ready`, is eligible for the Ready Queue.
 2. Dependencies and WIP policy remove Work that cannot currently execute.
-3. For an automated executor, retain only Work whose activated `agent:*` route
-   matches that executor. A Work routed elsewhere remains valid Ready Work but
-   is not a candidate for the current executor.
-4. Among the remaining executor-compatible Work, lower Priority number wins
-   (`P0` before `P1`, etc.).
-5. At equivalent dependency and Priority conditions, explicit manual ordering,
+3. Among the remaining Work, lower Priority number wins (`P0` before `P1`, etc.).
+4. At equivalent dependency and Priority conditions, explicit manual ordering,
    age, or another implementation-defined deterministic tie-break MAY decide.
-6. Initial **implementation WIP limit**: at most **1 Work in `Implementing`**
+5. Initial **implementation WIP limit**: at most **1 Work in `Implementing`**
    unless a human explicitly accepts a temporary exception.
 
-`agent:*` therefore filters dispatch candidates only after lifecycle, dependency,
-and WIP eligibility. It does not redefine Ready Queue membership or Priority.
-Inside an eligible `Implementing` Work, human Task selection follows the
-authorized Task plan and Task dependencies. Autonomous Task dispatch is not an
-active delivery requirement.
+The Ready Queue observer applies these criteria independently of executor or
+legacy labels. Observation grants no execution or mutation authority. An
+authorized handoff selects the executor and must respect Readiness and the
+selection constraints. Inside an eligible `Implementing` Work, Task selection
+follows the authorized Task plan and Task dependencies.
 
 The implementation WIP limit is an Architecture Web policy, not a generic Method
 invariant. Work in `Reviewing` or `Validating` is not counted by this initial
@@ -488,7 +466,7 @@ Table showing at least:
 ```text
 Title
 Priority
-Execution route (`agent:*`)
+Labels (including Change Characteristics)
 Status (Method Work State)
 Work Type
 Workflow Depth
@@ -503,10 +481,9 @@ Table filtered to:
 Status = Ready
 ```
 
-The view SHOULD expose `agent:*` routing when that mapping is activated so human
-and automated coordinators can distinguish executor-compatible candidates without
-redefining Ready Queue membership. Sort primarily by Priority and then use
-dependency/manual ordering as needed.
+The view SHOULD expose native Labels for Change Characteristics and MUST keep
+membership independent of executor labels. Sort primarily by Priority and then
+use dependency/manual ordering as needed.
 
 ### Workflow
 
@@ -748,7 +725,8 @@ Automation MUST NOT blindly:
 - mark a Work `Done` when a PR merges;
 - execute human-only approvals;
 - change Priority as a substitute for delivery authority;
-- let an execution agent self-assign or silently substitute its `agent:*` route;
+- let an executor take unrelated Work, broaden its scope, or substitute an
+  executor outside the authorized handoff;
 - accept a target ref solely from untrusted agent output;
 - treat Work Merge Gate or automatic publication check success as automatic merge
   authority.
@@ -771,11 +749,11 @@ feature execution unless the authorized Work explicitly includes them and
 applicable policy permits it.
 
 The delivery control plane MUST deterministically apply established policy for
-Work dispatch eligibility, dependencies, WIP, routing validation, target-ref
-validation, lifecycle-transition validity, Work Merge Gate evaluation, and
-automatic release publication prerequisites. Human Task selection remains governed by
-the authorized Task plan and Task dependencies rather than an autonomous
-control-plane dispatch protocol.
+Ready Queue eligibility, dependencies, WIP, target-ref validation,
+lifecycle-transition validity, Work Merge Gate evaluation, and automatic release
+publication prerequisites. Human-directed Task selection follows the authorized
+Task plan and Task dependencies. Legacy autonomous dispatch and claim paths
+MUST fail closed while their required mappings are inactive.
 
 The control plane MAY record or act on semantic results established by the Role
 or Authority responsible for the underlying Activity. It MUST NOT manufacture
@@ -784,11 +762,10 @@ sufficiency, Priority, release approval, or another semantic result merely from
 agent confidence, prose, or tool capability.
 
 The branch owning a scheduled workflow does not own application branch semantics.
-The control plane MUST select or validate an explicit authorized target ref before
-dispatch, and MUST NOT accept the target ref solely from untrusted agent output.
-A stable default-branch control plane may therefore coordinate authorized Work on
-`main` or an authorized temporary Work branch without
-creating a permanent branch solely for scheduling.
+The control plane MUST validate an explicit authorized target ref for operations
+that require one, and MUST NOT accept the target ref solely from untrusted agent
+output. A stable default-branch control plane may coordinate authorized
+operations on `main` or an authorized temporary Work branch.
 
 Exact runtime, secret storage, token issuance, model, reasoning effort, sandbox,
 workflow syntax, and publisher implementation belong to Technical Design.
@@ -881,24 +858,29 @@ accepted scope and activation; they are not prerequisites for source releases.
 ## 14. Runtime neutrality and activation
 
 Durable delivery governance MUST remain independent from a specific agent runtime
-or AI model. Runtime implementation MAY change without redefining `agent:*`,
-Work State, Method Roles, Work Merge Gate semantics, human-directed Task
-execution policy, or release authority.
+or AI model. Runtime implementation MAY change without redefining Work State,
+Method Roles, Work Merge Gate semantics, human-directed execution policy, or
+release authority.
 
 External mappings/enforcement become effective only after separate implementation
 and verification. This includes, where applicable:
 
 - native `Status` Work State mapping and its lifecycle-safe Project settings;
-- `agent:*` label inventory and route mapping;
 - Task dependency mappings;
-- routing visibility/filtering in Project views;
 - Work Merge Gate required checks/rulesets;
 - GitHub Release / release-manifest operational mapping;
 - `alpha`, `beta`, and `production` environment configuration;
 - first-stable human dispatch recording;
 - automatic release publication enforcement;
 - privileged publisher / Project credentials;
-- selected runtime adapters.
+- runtime adapters explicitly authorized for activation.
+
+The [activation manifest](../../.github/delivery-automation.json) retains inactive
+`routes` and `taskClaim` entries in schema version 1. Inventory and activation
+verification do not require their primitives while inactive. Verification of live
+configuration preserves inactive entries. Activating a mapping requires a
+separate, authorized change and verification. Verify live operational compatibility
+after integrating the retirement.
 
 Until each mechanism is verified, tooling MUST treat it as unavailable rather
 than inventing a parallel substitute owner or enforcement path.

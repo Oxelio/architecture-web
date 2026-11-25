@@ -85,6 +85,5 @@ export const architectureWebDeliveryExpectations: DeliveryExpectations = {
     "char:destructive",
     "char:operational",
     "char:compliance",
-    "agent:human",
   ],
 };

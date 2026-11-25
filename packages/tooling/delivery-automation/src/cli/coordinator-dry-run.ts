@@ -3,29 +3,14 @@ import { dirname, join, parse, resolve } from "node:path";
 
 import { resolveActivationContext } from "../config/activation-context.js";
 import { parseActivationManifest } from "../config/activation-manifest.js";
-import { planReadyQueue, planTaskDispatch } from "../control/coordinator.js";
-import {
-  readTaskDispatchCandidate,
-  readWorkPullCandidates,
-} from "../github/github-operational-state.js";
+import { planReadyQueue } from "../control/coordinator.js";
+import { readWorkPullCandidates } from "../github/github-operational-state.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 
 function requireEnvironment(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
     throw new Error(`Missing required environment variable ${name}`);
-  }
-  return value;
-}
-
-function optionalPositiveInteger(name: string): number | null {
-  const raw = process.env[name]?.trim();
-  if (!raw) {
-    return null;
-  }
-  const value = Number.parseInt(raw, 10);
-  if (!Number.isInteger(value) || value <= 0 || String(value) !== raw) {
-    throw new Error(`${name} must be a positive integer`);
   }
   return value;
 }
@@ -71,14 +56,24 @@ function writeResult(result: unknown, blocked = false): void {
 }
 
 async function main(): Promise<void> {
-  const repository = requireEnvironment("GITHUB_REPOSITORY");
   const mode = process.env["COORDINATOR_MODE"]?.trim() || "ready-queue";
-  if (mode !== "ready-queue" && mode !== "task-dispatch") {
-    throw new Error(
-      "COORDINATOR_MODE must be 'ready-queue' or 'task-dispatch'",
+  if (mode === "task-dispatch") {
+    writeResult(
+      {
+        mode,
+        status: "blocked",
+        blockers: ["TASK_DISPATCH_OBSERVATION_RETIRED"],
+        mutationRequested: false,
+      },
+      true,
     );
+    return;
+  }
+  if (mode !== "ready-queue") {
+    throw new Error("COORDINATOR_MODE must be 'ready-queue'");
   }
 
+  const repository = requireEnvironment("GITHUB_REPOSITORY");
   const manifest = await readManifest();
   if (!manifest.project) {
     writeResult(
@@ -127,57 +122,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  const executorRoute = process.env["EXECUTOR_ROUTE"]?.trim();
-  if (!executorRoute) {
-    writeResult(
-      {
-        mode,
-        status: "blocked",
-        blockers: ["EXECUTOR_ROUTE_UNSPECIFIED"],
-        mutationRequested: false,
-      },
-      true,
-    );
-    return;
-  }
-
-  if (mode === "ready-queue") {
-    const candidates = await readWorkPullCandidates({
-      repository,
-      projectId: context.project.id,
-      projectsToken,
-      repositoryToken,
-      activation: context.activation,
-    });
-    writeResult({
-      status: "observed",
-      mutationRequested: false,
-      plan: planReadyQueue({ candidates, executorRoute }),
-    });
-    return;
-  }
-
-  const workNumber = optionalPositiveInteger("WORK_NUMBER");
-  const taskNumber = optionalPositiveInteger("TASK_NUMBER");
-  if (!workNumber || !taskNumber) {
-    throw new Error(
-      "WORK_NUMBER and TASK_NUMBER are required for task-dispatch mode",
-    );
-  }
-
-  const candidate = await readTaskDispatchCandidate({
+  const candidates = await readWorkPullCandidates({
     repository,
     projectId: context.project.id,
     projectsToken,
     repositoryToken,
-    workNumber,
-    taskNumber,
     activation: context.activation,
   });
   writeResult({
     status: "observed",
     mutationRequested: false,
-    plan: planTaskDispatch({ candidate, executorRoute }),
+    plan: planReadyQueue({ candidates }),
   });
 }
 

@@ -278,12 +278,17 @@ function verifyViews(
   return blockers;
 }
 
-function verifiedMappings(
+function refreshedMappings(
+  mappings: DeliveryActivationManifest["mappings"],
   evidenceRef: string,
 ): DeliveryActivationManifest["mappings"] {
-  const mapping = { status: "verified" as const, evidenceRef };
   return Object.fromEntries(
-    activationMappingNames.map((name) => [name, mapping]),
+    activationMappingNames.map((name) => [
+      name,
+      mappings[name].status === "verified"
+        ? { status: "verified", evidenceRef }
+        : mappings[name],
+    ]),
   ) as DeliveryActivationManifest["mappings"];
 }
 
@@ -292,25 +297,29 @@ export function verifyDeliveryActivation(input: {
   readonly inventory: GitHubInventorySnapshot;
   readonly nativeCapabilities: NativeCapabilityVerification;
   readonly evidenceRef: string;
+  readonly manifest: DeliveryActivationManifest;
   readonly explicitProject?: ExplicitProjectLocator;
 }): ActivationVerificationResult {
   if (!input.evidenceRef.trim()) {
     throw new Error("Activation evidenceRef must be non-empty");
   }
 
+  const explicitProject = input.explicitProject ?? input.manifest.project;
+  const expectations = architectureWebDeliveryExpectations;
   const report = buildInventoryReport({
     repository: input.repository,
     projects: input.inventory.projects,
     labels: input.inventory.labels,
-    expectations: architectureWebDeliveryExpectations,
-    ...(input.explicitProject
-      ? { explicitProject: input.explicitProject }
-      : {}),
+    expectations:
+      input.manifest.mappings.routes.status === "verified"
+        ? { ...expectations, labels: [...expectations.labels, "agent:human"] }
+        : expectations,
+    ...(explicitProject ? { explicitProject } : {}),
   });
   const selection = selectProject(
     input.repository,
     input.inventory.projects,
-    input.explicitProject,
+    explicitProject ?? undefined,
   );
   const project = selection.status === "selected" ? selection.project : null;
   const blockers: ActivationVerificationBlocker[] = [];
@@ -324,7 +333,10 @@ export function verifyDeliveryActivation(input: {
     if (project.closed) {
       blockers.push("PROJECT_CLOSED");
     }
-    if (!verifyClaimFields(project)) {
+    if (
+      input.manifest.mappings.taskClaim.status === "verified" &&
+      !verifyClaimFields(project)
+    ) {
       blockers.push("CLAIM_FIELDS_MISSING_OR_INVALID");
     }
     blockers.push(...verifyViews(project));
@@ -352,7 +364,10 @@ export function verifyDeliveryActivation(input: {
       schemaVersion: 1,
       policyOwner: "docs/project/delivery-pipeline.md",
       project: { owner: project.owner, number: project.number },
-      mappings: verifiedMappings(input.evidenceRef.trim()),
+      mappings: refreshedMappings(
+        input.manifest.mappings,
+        input.evidenceRef.trim(),
+      ),
     },
   };
 }

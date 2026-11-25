@@ -2,6 +2,7 @@ import { verifyDeliveryActivation } from "../config/activation-verification.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import { probeNativeDeliveryCapabilities } from "../github/native-capability-probe.js";
 import type { ExplicitProjectLocator } from "../inventory/project-inventory.js";
+import { readActivationManifest } from "./gate-publication-support.js";
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
@@ -49,6 +50,7 @@ async function main(): Promise<void> {
     "ACTIVATION_PROBE_ISSUE",
   );
   const locator = explicitProjectLocator();
+  const manifest = await readActivationManifest();
 
   const [inventory, nativeCapabilities] = await Promise.all([
     readGitHubInventory({
@@ -68,6 +70,7 @@ async function main(): Promise<void> {
     inventory,
     nativeCapabilities,
     evidenceRef,
+    manifest,
     ...(locator ? { explicitProject: locator } : {}),
   });
 

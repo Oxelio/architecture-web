@@ -27,8 +27,7 @@
       "evidenceRef": "work-9-live-project-verification"
     },
     "routes": {
-      "status": "verified",
-      "evidenceRef": "work-9-live-project-verification"
+      "status": "inactive"
     },
     "dependencies": {
       "status": "verified",

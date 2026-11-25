@@ -38,7 +38,6 @@ const workItems: readonly ProjectWorkItemSnapshot[] = [
     projectItemId: "PVTI_9",
     issueNumber: 9,
     issueOpen: true,
-    labels: [],
     fields: {},
   },
 ];

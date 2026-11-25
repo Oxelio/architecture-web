@@ -18,7 +18,6 @@ function work(
     workState: "Ready",
     dependencyState: "resolved",
     wipState: "available",
-    route: { mappingActive: true, labels: ["agent:codex"] },
     priorityAvailable: true,
     priority,
     ...overrides,
@@ -51,7 +50,6 @@ function task(
 describe("planReadyQueue", () => {
   it("selects the next eligible Work without requesting dispatch", () => {
     const plan = planReadyQueue({
-      executorRoute: "agent:codex",
       candidates: [
         work(20, "P2 — Normal"),
         work(10, "P1 — High"),
@@ -65,12 +63,9 @@ describe("planReadyQueue", () => {
 
   it("returns no Work when every candidate fails closed", () => {
     const plan = planReadyQueue({
-      executorRoute: "agent:codex",
       candidates: [
         work(1, "P0 — Critical", { wipState: "unavailable" }),
-        work(2, "P1 — High", {
-          route: { mappingActive: false, labels: ["agent:codex"] },
-        }),
+        work(2, "P1 — High", { workState: "Preparing" }),
       ],
     });
 
@@ -101,12 +96,26 @@ describe("planTaskDispatch", () => {
     expect(plan.decision.blockers).toContain("CLAIM_INCONSISTENT");
   });
 
+  it("blocks legacy dispatch when routing and claims are inactive", () => {
+    const plan = planTaskDispatch({
+      executorRoute: "agent:codex",
+      candidate: task({
+        route: { mappingActive: false, labels: ["agent:codex"] },
+        claimState: "unavailable",
+      }),
+    });
+
+    expect(plan.dispatchRequested).toBe(false);
+    expect(plan.claimRequired).toBe(false);
+    expect(plan.decision.blockers).toEqual([
+      "CLAIM_OWNER_UNAVAILABLE",
+      "ROUTE_OWNER_UNAVAILABLE",
+    ]);
+  });
+
   it("rejects malformed executor routes before evaluating state", () => {
     expect(() =>
-      planReadyQueue({
-        executorRoute: "codex",
-        candidates: [],
-      }),
+      planTaskDispatch({ executorRoute: "codex", candidate: task() }),
     ).toThrow("Invalid executor route 'codex'");
   });
 });

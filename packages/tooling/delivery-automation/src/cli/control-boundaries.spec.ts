@@ -27,7 +27,8 @@ vi.mock("../github/gate-live-evidence.js", () => ({
 }));
 vi.mock("./gate-publication-support.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./gate-publication-support.js")>()),
-  readActivationManifest: () => Promise.resolve({}),
+  readActivationManifest: () =>
+    Promise.resolve({ mappings: { taskClaim: { status: "verified" } } }),
 }));
 
 const argv = process.argv;

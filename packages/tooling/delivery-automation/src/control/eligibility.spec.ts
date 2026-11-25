@@ -25,7 +25,6 @@ function work(overrides: Partial<WorkPullCandidate> = {}): WorkPullCandidate {
     workState: "Ready",
     dependencyState: "resolved",
     wipState: "available",
-    route: { mappingActive: true, labels: ["agent:codex"] },
     priorityAvailable: true,
     priority: "P2 — Normal",
     ...overrides,
@@ -52,42 +51,38 @@ function task(
 }
 
 describe("evaluateWorkPull", () => {
-  it("accepts only an eligible open Ready Work routed to the executor", () => {
-    expect(evaluateWorkPull(work(), "agent:codex")).toEqual({
+  it("accepts an eligible open Ready Work without an executor or target ref", () => {
+    expect(evaluateWorkPull(work())).toEqual({
       eligible: true,
       blockers: [],
-      route: "agent:codex",
+      route: null,
       targetRef: null,
     });
   });
 
-  it("does not require a Work Integration PR or target ref to enter the Ready Queue", () => {
-    const decision = evaluateWorkPull(work(), "agent:codex");
-
-    expect(decision.eligible).toBe(true);
-    expect(decision.targetRef).toBeNull();
-    expect(decision.blockers).not.toContain("TARGET_REF_UNAVAILABLE");
+  it.each([
+    [{ workOpen: false }, "WORK_CLOSED"],
+    [{ workState: "Implementing" }, "WORK_NOT_READY"],
+    [{ dependencyState: "blocked" }, "DEPENDENCY_BLOCKED"],
+    [{ wipState: "blocked" }, "WIP_LIMIT_REACHED"],
+    [{ priority: null }, "PRIORITY_OWNER_UNAVAILABLE"],
+  ] as const)("blocks Work with %j", (overrides, blocker) => {
+    expect(evaluateWorkPull(work(overrides))).toMatchObject({
+      eligible: false,
+      blockers: [blocker],
+    });
   });
 
-  it("blocks a closed Work even when its last Work State remains Ready", () => {
-    const decision = evaluateWorkPull(work({ workOpen: false }), "agent:codex");
-
-    expect(decision.eligible).toBe(false);
-    expect(decision.blockers).toContain("WORK_CLOSED");
-  });
-
-  it("fails closed when lifecycle, dependency, WIP, route or priority owners are unavailable", () => {
+  it("fails closed when lifecycle, dependency, WIP or Priority owners are unavailable", () => {
     const decision = evaluateWorkPull(
       work({
         workStateAvailable: false,
         workState: null,
         dependencyState: "unavailable",
         wipState: "unavailable",
-        route: { mappingActive: false, labels: [] },
         priorityAvailable: false,
         priority: null,
       }),
-      "agent:codex",
     );
 
     expect(decision.eligible).toBe(false);
@@ -95,62 +90,23 @@ describe("evaluateWorkPull", () => {
       "WORK_STATE_OWNER_UNAVAILABLE",
       "DEPENDENCY_OWNER_UNAVAILABLE",
       "WIP_STATE_UNAVAILABLE",
-      "ROUTE_OWNER_UNAVAILABLE",
       "PRIORITY_OWNER_UNAVAILABLE",
     ]);
-  });
-
-  it("blocks conflicting agent routes", () => {
-    const decision = evaluateWorkPull(
-      work({
-        route: {
-          mappingActive: true,
-          labels: ["agent:codex", "agent:human", "char:security"],
-        },
-      }),
-      "agent:codex",
-    );
-
-    expect(decision.eligible).toBe(false);
-    expect(decision.blockers).toContain("ROUTE_CONFLICT");
-  });
-
-  it("never selects a human-only route for automated dispatch", () => {
-    const decision = evaluateWorkPull(
-      work({ route: { mappingActive: true, labels: ["agent:human"] } }),
-      "agent:human",
-    );
-
-    expect(decision.eligible).toBe(false);
-    expect(decision.blockers).toContain("ROUTE_HUMAN_ONLY");
-  });
-
-  it("keeps a Work routed elsewhere valid but not executable by this executor", () => {
-    const decision = evaluateWorkPull(
-      work({ route: { mappingActive: true, labels: ["agent:other"] } }),
-      "agent:codex",
-    );
-
-    expect(decision.eligible).toBe(false);
-    expect(decision.blockers).toContain("ROUTE_MISMATCH");
   });
 });
 
 describe("selectNextWork", () => {
   it("orders eligible Work by Priority then deterministic Work number", () => {
-    const decision = selectNextWork(
-      [
-        work({ workNumber: 20, priority: "P2 — Normal" }),
-        work({ workNumber: 30, priority: "P1 — High" }),
-        work({ workNumber: 25, priority: "P1 — High" }),
-        work({
-          workNumber: 5,
-          priority: "P0 — Critical",
-          dependencyState: "blocked",
-        }),
-      ],
-      "agent:codex",
-    );
+    const decision = selectNextWork([
+      work({ workNumber: 20, priority: "P2 — Normal" }),
+      work({ workNumber: 30, priority: "P1 — High" }),
+      work({ workNumber: 25, priority: "P1 — High" }),
+      work({
+        workNumber: 5,
+        priority: "P0 — Critical",
+        dependencyState: "blocked",
+      }),
+    ]);
 
     expect(decision.selectedWorkNumber).toBe(25);
     expect(

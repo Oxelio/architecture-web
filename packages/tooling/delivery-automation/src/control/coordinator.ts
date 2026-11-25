@@ -9,7 +9,6 @@ import {
 
 export interface ReadyQueuePlan {
   readonly mode: "ready-queue";
-  readonly executorRoute: string;
   readonly selectedWorkNumber: number | null;
   readonly decision: WorkSelectionDecision;
   readonly dispatchRequested: false;
@@ -34,14 +33,11 @@ function assertExecutorRoute(route: string): void {
 
 export function planReadyQueue(input: {
   readonly candidates: readonly WorkPullCandidate[];
-  readonly executorRoute: string;
 }): ReadyQueuePlan {
-  assertExecutorRoute(input.executorRoute);
-  const decision = selectNextWork(input.candidates, input.executorRoute);
+  const decision = selectNextWork(input.candidates);
 
   return {
     mode: "ready-queue",
-    executorRoute: input.executorRoute,
     selectedWorkNumber: decision.selectedWorkNumber,
     decision,
     dispatchRequested: false,

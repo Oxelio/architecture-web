@@ -49,6 +49,35 @@ describe("CI trust and failure boundaries", () => {
   const shared = workflow("repository-validation");
   const release = workflow("release");
 
+  it("observes the Ready Queue without route inputs or write permissions", () => {
+    const coordinator = workflow("delivery-coordinator-dry-run");
+    expect(Object.keys(coordinator.on)).toEqual([
+      "workflow_dispatch",
+      "pull_request",
+    ]);
+    expect(coordinator.on["workflow_dispatch"]).toBeNull();
+    expect(coordinator.on["pull_request"]).toMatchObject({
+      branches: ["main"],
+      types: ["ready_for_review"],
+    });
+    expect(coordinator.permissions).toEqual({
+      contents: "read",
+      issues: "read",
+      "pull-requests": "read",
+    });
+
+    const observe = coordinator.jobs["observe"];
+    expect(observe?.permissions).toBeUndefined();
+    const entrypoint = observe?.steps?.find((step) =>
+      step.run?.includes("src/cli/coordinator-dry-run.ts"),
+    );
+    expect(entrypoint?.env).toEqual({
+      ARCHITECTURE_WEB_PROJECTS_TOKEN:
+        "${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN || '' }}",
+      GITHUB_TOKEN: "${{ github.token }}",
+    });
+  });
+
   it("wires integration observation to a fresh protected dispatch with read-only permissions", () => {
     const observation = workflow("delivery-work-integration-observation");
     expect(Object.keys(observation.on)).toEqual(["workflow_dispatch"]);

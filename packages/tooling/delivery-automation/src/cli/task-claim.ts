@@ -147,6 +147,11 @@ async function main(): Promise<void> {
   const repositoryToken = process.env["GITHUB_TOKEN"]?.trim() || projectsToken;
 
   const manifest = await readActivationManifest();
+  if (manifest.mappings.taskClaim.status === "inactive") {
+    blocked("TASK_CLAIM_OWNER_INACTIVE");
+    return;
+  }
+
   const inventory = await readGitHubInventory({
     repository,
     projectsToken,
@@ -161,11 +166,6 @@ async function main(): Promise<void> {
     blocked("DELIVERY_ACTIVATION_UNAVAILABLE", activation.blockers);
     return;
   }
-  if (!activation.activation.taskClaim) {
-    blocked("TASK_CLAIM_OWNER_INACTIVE");
-    return;
-  }
-
   if (args.action === "acquire") {
     validateAcquisitionArguments(args);
 

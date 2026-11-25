@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { selectNextWork } from "../control/eligibility.js";
 import {
   taskClaimFields,
   type TaskClaimRecord,
@@ -137,7 +138,6 @@ describe("readProjectWorkItems", () => {
         projectItemId: "PVTI_9",
         issueNumber: 9,
         issueOpen: true,
-        labels: ["agent:codex"],
         fields: {
           Status: "Implementing",
           Priority: "P2 — Normal",
@@ -148,7 +148,50 @@ describe("readProjectWorkItems", () => {
 });
 
 describe("readWorkPullCandidates", () => {
-  it("derives native dependency and Work WIP state before executor selection", async () => {
+  it.each([
+    { labels: [] },
+    { labels: ["agent:human"] },
+    { labels: ["agent:human", "agent:codex"] },
+  ])("selects the same Work with legacy labels %j", async ({ labels }) => {
+    const candidates = await readWorkPullCandidates({
+      repository: "Oxelio/Architecture-Web",
+      projectId: "PVT_1",
+      projectsToken: "project-token",
+      repositoryToken: "repo-token",
+      activation: { ...activeOwners, routes: false, taskClaim: false },
+      fetchImpl: async (url, options) => {
+        if (String(url) === "https://api.github.com/graphql") {
+          expect(options?.body).not.toContain("labels(first:");
+          return jsonResponse(
+            projectResponse([
+              projectItem({
+                number: 21,
+                workState: "Ready",
+                priority: "P2 — Normal",
+              }),
+              projectItem({
+                number: 20,
+                workState: "Ready",
+                priority: "P1 — High",
+                labels,
+              }),
+            ]),
+          );
+        }
+        expect(String(url)).toContain("/dependencies/blocked_by");
+        return jsonResponse([]);
+      },
+    });
+
+    const decision = selectNextWork(candidates);
+    expect(decision.selectedWorkNumber).toBe(20);
+    expect(decision.candidates.map((candidate) => candidate.decision)).toEqual([
+      { eligible: true, blockers: [], route: null, targetRef: null },
+      { eligible: true, blockers: [], route: null, targetRef: null },
+    ]);
+  });
+
+  it("derives native dependency and WIP state for Work selection", async () => {
     const fetchImpl: FetchLike = async (input) => {
       const url = String(input);
       if (url === "https://api.github.com/graphql") {
@@ -195,7 +238,6 @@ describe("readWorkPullCandidates", () => {
         workState: "Ready",
         dependencyState: "resolved",
         wipState: "blocked",
-        route: { mappingActive: true, labels: ["agent:codex"] },
         priorityAvailable: true,
         priority: "P1 — High",
       },
@@ -206,7 +248,6 @@ describe("readWorkPullCandidates", () => {
         workState: "Implementing",
         dependencyState: "blocked",
         wipState: "available",
-        route: { mappingActive: true, labels: ["agent:human"] },
         priorityAvailable: true,
         priority: "P2 — Normal",
       },
