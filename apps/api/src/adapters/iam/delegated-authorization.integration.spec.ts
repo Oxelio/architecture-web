@@ -62,6 +62,7 @@ describe.skipIf(!databaseUrl)(
       });
       const migrator = new Migrator({
         db: database,
+        migrationTableSchema: schema,
         provider: { getMigrations: async () => getAllMigrations() },
       });
       const { error } = await migrator.migrateToLatest();
