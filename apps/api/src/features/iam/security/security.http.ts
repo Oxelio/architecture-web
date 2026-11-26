@@ -187,6 +187,10 @@ export const GetSecurityConfigurationHttpErrors = {
 
 export const PreviewSecurityConfigurationHttpErrors = {
   ...GetSecurityConfigurationHttpErrors,
+  "security_configuration.revision_not_found": {
+    code: "security_configuration.revision_not_found",
+    status: 404,
+  },
   "security_configuration.invalid": {
     code: "security_configuration.invalid",
     status: 400,
@@ -196,8 +200,19 @@ export const PreviewSecurityConfigurationHttpErrors = {
 >;
 
 export const PublishSecurityConfigurationHttpErrors = {
-  ...strongAuthenticationErrors,
   ...GetSecurityConfigurationHttpErrors,
+  "authentication.unauthorized": {
+    code: "authentication.unauthorized",
+    status: 401,
+  },
+  "security_configuration.confirmation_refused": {
+    code: "security_configuration.confirmation_refused",
+    status: 403,
+  },
+  "security_configuration.confirmation_attempts_exhausted": {
+    code: "security_configuration.confirmation_attempts_exhausted",
+    status: 429,
+  },
   "security_configuration.invalid": {
     code: "security_configuration.invalid",
     status: 400,

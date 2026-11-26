@@ -3,17 +3,19 @@ import type { Result } from "@architecture/foundation";
 import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
 import type { SecurityPolicyError } from "#domain/security-policy";
 
-export interface PreviewSecurityConfigurationInput {
-  actorId: string;
-  values: unknown;
-}
+export type PreviewSecurityConfigurationInput = { actorId: string } & (
+  { values: unknown } | { revisionId: string }
+);
 
 export type PreviewSecurityConfigurationError =
-  AdministratorAuthorizationError | SecurityPolicyError;
+  | AdministratorAuthorizationError
+  | SecurityPolicyError
+  | { code: "security_configuration.revision_not_found" };
 
 export type PreviewSecurityConfigurationOutput = Result<
   {
     valid: boolean;
+    expectedVersion: number;
     changedKeys: string[];
     affectedAccounts: { administratorsRequiringEnrollment: number };
     impact: "critical" | "standard";

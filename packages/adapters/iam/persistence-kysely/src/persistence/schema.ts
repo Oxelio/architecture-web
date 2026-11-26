@@ -12,6 +12,7 @@ export interface IamDatabase {
   iam_mfa_backup_codes: IamMfaBackupCodeTable;
   iam_mfa_challenges: IamMfaChallengeTable;
   iam_security_config_revisions: IamSecurityConfigRevisionTable;
+  iam_critical_configuration_attempts: { user_id: string; timestamps: Date[] };
   iam_account_exports: IamAccountExportTable;
   iam_account_deletions: IamAccountDeletionTable;
   iam_account_erasure_evidence: { subject_key: Buffer };

@@ -33,5 +33,6 @@ export type RestoreSecurityConfigurationOutput = Result<
 export interface RestoreSecurityConfiguration {
   execute(
     input: RestoreSecurityConfigurationInput,
+    executionStartedAt?: number,
   ): Promise<RestoreSecurityConfigurationOutput>;
 }

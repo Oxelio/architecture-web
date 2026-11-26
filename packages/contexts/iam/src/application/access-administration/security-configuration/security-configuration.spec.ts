@@ -100,7 +100,7 @@ describe("security configuration administration", () => {
     const result = await new PublishSecurityConfigurationUseCase(
       f.authorization,
       f.store,
-      { strong: async () => ({ success: true as const, value: 1 }) },
+      { verify: async () => ({ success: true as const, value: 1 }) },
       { record: async () => undefined },
     ).execute({
       actorId: f.actorId,
@@ -120,7 +120,7 @@ describe("security configuration administration", () => {
     const result = await new PublishSecurityConfigurationUseCase(
       f.authorization,
       f.store,
-      { strong: async () => ({ success: true as const, value: 1 }) },
+      { verify: async () => ({ success: true as const, value: 1 }) },
       { record: async () => undefined },
     ).execute({
       actorId: f.actorId,
@@ -142,7 +142,7 @@ describe("security configuration administration", () => {
       new PublishSecurityConfigurationUseCase(
         f.authorization,
         f.store,
-        { strong: async () => ({ success: true as const, value: 1 }) },
+        { verify: async () => ({ success: true as const, value: 1 }) },
         { record: async () => undefined },
       ).execute({
         actorId: f.actorId,
@@ -174,14 +174,14 @@ describe("security configuration administration", () => {
     const f = await fixture();
     const values = structuredClone(DEFAULT_SECURITY_POLICY);
     values.passwords.privilegedMinLength++;
-    const strong = vi.fn(async () => ({
+    const verify = vi.fn(async () => ({
       success: false as const,
-      error: { code: "authentication.recent_proof_required" as const },
+      error: "confirmation_refused" as const,
     }));
     const result = await new PublishSecurityConfigurationUseCase(
       f.authorization,
       f.store,
-      { strong },
+      { verify },
       { record: async () => undefined },
     ).execute({
       actorId: f.actorId,
@@ -192,9 +192,9 @@ describe("security configuration administration", () => {
     });
     expect(result).toEqual({
       success: false,
-      error: { code: "authentication.recent_proof_required" },
+      error: { code: "security_configuration.confirmation_refused" },
     });
-    expect(strong).toHaveBeenCalledOnce();
+    expect(verify).toHaveBeenCalledOnce();
     expect(f.store.publish).not.toHaveBeenCalled();
   });
 });

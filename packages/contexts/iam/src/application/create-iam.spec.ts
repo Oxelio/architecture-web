@@ -1,3 +1,4 @@
+import { Result } from "@architecture/foundation";
 import { describe, expect, it, vi } from "vitest";
 
 import { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
@@ -19,6 +20,7 @@ import {
 import { InMemoryIamUnitOfWork } from "#test/in-memory-unit-of-work";
 import { testPasswordHash } from "#test/test-policies";
 import { LoginIdentifierValueObject } from "#value-objects/login-identifier.value-object";
+import { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 import { UserRoleValueObject } from "#value-objects/user-role.value-object";
 
 import {
@@ -197,6 +199,23 @@ function fixture() {
     ),
     outbox,
     configuration,
+    criticalConfigurationConfirmation: {
+      admit: async ({ actorId }, check) => {
+        const id = UserIdentifierValueObject.create(actorId);
+        const user = id.success ? await users.findById(id.value) : null;
+        if (!user) {
+          return Result.failure("unauthorized");
+        }
+        const state = {
+          comparison: "test account state",
+          sessionVersion: user.sessionVersion,
+          mfaEnabled: Boolean((await mfa.credential(actorId))?.enabledAt),
+        };
+        const refusal = check(state);
+        return refusal ? Result.failure(refusal) : Result.success(state);
+      },
+      authorize: async (_actorId, _state, checkSession) => checkSession(),
+    },
     recovery,
     mfa,
     exports,
@@ -765,7 +784,12 @@ describe("createIam", () => {
               });
       expect(result).toEqual({
         success: false,
-        error: { code: "authentication.invalid_credentials" },
+        error: {
+          code:
+            capability === "administration"
+              ? "security_configuration.confirmation_refused"
+              : "authentication.invalid_credentials",
+        },
       });
       expect(f.passwordHasher.verify).toHaveBeenCalledOnce();
       expect(f.exports.reserve).not.toHaveBeenCalled();
@@ -822,16 +846,20 @@ describe("createIam", () => {
       f.iam.administration.publishConfiguration,
       "execute",
     );
-    const result = await f.iam.administration.restoreConfiguration.execute({
-      actorId: user.identifier.value,
-      revisionId: "d0af72cd-e3e8-41bf-bfe1-ff37b54c8bf3",
-      expectedVersion: 2,
-      justification: "restore policy",
-      confirmedCritical: true,
-      sessionId: session.identifier.value,
-      password: "current password",
-      mfaCode: "123456",
-    });
+    const startedAt = performance.now();
+    const result = await f.iam.administration.restoreConfiguration.execute(
+      {
+        actorId: user.identifier.value,
+        revisionId: "d0af72cd-e3e8-41bf-bfe1-ff37b54c8bf3",
+        expectedVersion: 2,
+        justification: "restore policy",
+        confirmedCritical: true,
+        sessionId: session.identifier.value,
+        password: "current password",
+        mfaCode: "123456",
+      },
+      startedAt,
+    );
     expect(result.success).toBe(true);
     expect(publish).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -839,6 +867,7 @@ describe("createIam", () => {
         restoredFromRevisionId: "d0af72cd-e3e8-41bf-bfe1-ff37b54c8bf3",
         values: target,
       }),
+      startedAt,
     );
     expect(f.configuration.publish).toHaveBeenCalledWith(
       expect.objectContaining({

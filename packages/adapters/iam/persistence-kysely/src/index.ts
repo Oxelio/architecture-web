@@ -2,6 +2,7 @@
 
 export { KyselyAccountDeletionAdapter } from "./adapters/kysely-account-deletion.adapter.js";
 export { KyselyAccountExportAdapter } from "./adapters/kysely-account-export.adapter.js";
+export { KyselyCriticalConfigurationConfirmationAdapter } from "./adapters/kysely-critical-configuration-confirmation.adapter.js";
 export { KyselyEmailVerificationAdapter } from "./adapters/kysely-email-verification.adapter.js";
 export { KyselyIamUnitOfWorkAdapter } from "./adapters/kysely-iam-unit-of-work.adapter.js";
 export { KyselyLoginIdentityAdapter } from "./adapters/kysely-login-identity.adapter.js";
@@ -19,4 +20,5 @@ export { iamSecurityInvariantMigrations } from "./persistence/migrations/006_enf
 export { iamAuthenticationProofMigrations } from "./persistence/migrations/007_bind_authentication_proofs.js";
 export { iamConfigurationVersionMigrations } from "./persistence/migrations/008_version_configuration.js";
 export { iamErasureEvidenceMigrations } from "./persistence/migrations/009_add_iam_erasure_evidence.js";
+export { iamCriticalConfigurationAttemptMigrations } from "./persistence/migrations/011_add_iam_critical_configuration_attempts.js";
 export type { IamDatabase } from "./persistence/schema.js";

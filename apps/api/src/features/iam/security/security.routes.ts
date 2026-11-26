@@ -60,6 +60,16 @@ export function applicationResponse<T, E extends { readonly code: string }>(
     ? reply.status(204).send()
     : reply.status(status).send({ data: result.value });
 }
+const confirmationStarts = new WeakMap<FastifyRequest, number>();
+function captureConfirmationStart(
+  request: FastifyRequest,
+  _reply: FastifyReply,
+  done: () => void,
+) {
+  confirmationStarts.set(request, performance.now());
+  done();
+}
+
 const authentication = Type.Object({
   password: Type.String({ maxLength: 1024 }),
   mfaCode: Type.Optional(Type.String()),
@@ -119,6 +129,7 @@ export function buildSecurityRoutes(
           403: errorEnvelope,
           404: errorEnvelope,
           409: errorEnvelope,
+          429: errorEnvelope,
           500: errorEnvelope,
           ...(typeof options.schema?.response === "object"
             ? options.schema.response
@@ -650,7 +661,10 @@ export function buildSecurityRoutes(
         });
         admin.put<{ Body: Static<typeof publication> }>(
           "/admin/security/config",
-          { schema: { body: publication } },
+          {
+            onRequest: captureConfirmationStart,
+            schema: { body: publication },
+          },
           async (request, reply) => {
             const auth = actor(request, reply);
             if (!auth) {
@@ -658,25 +672,31 @@ export function buildSecurityRoutes(
             }
             return applicationResponse(
               reply,
-              await iam.administration.publishConfiguration.execute({
-                actorId: auth.userId,
-                values: request.body.values,
-                expectedVersion: request.body.expectedVersion,
-                justification: request.body.justification,
-                confirmedCritical: request.body.confirmedCritical === true,
-                sessionId: auth.sessionId,
-                ...(request.body.password !== undefined
-                  ? { password: request.body.password }
-                  : {}),
-                ...(request.body.mfaCode !== undefined
-                  ? { mfaCode: request.body.mfaCode }
-                  : {}),
-              }),
+              await iam.administration.publishConfiguration.execute(
+                {
+                  actorId: auth.userId,
+                  values: request.body.values,
+                  expectedVersion: request.body.expectedVersion,
+                  justification: request.body.justification,
+                  confirmedCritical: request.body.confirmedCritical === true,
+                  sessionId: auth.sessionId,
+                  ...(request.body.password !== undefined
+                    ? { password: request.body.password }
+                    : {}),
+                  ...(request.body.mfaCode !== undefined
+                    ? { mfaCode: request.body.mfaCode }
+                    : {}),
+                },
+                confirmationStarts.get(request),
+              ),
               PublishSecurityConfigurationHttpErrors,
             );
           },
         );
-        const preview = Type.Object({ values: Type.Unknown() });
+        const preview = Type.Union([
+          Type.Object({ values: Type.Unknown() }),
+          Type.Object({ revisionId: Type.String() }),
+        ]);
         admin.post<{ Body: Static<typeof preview> }>(
           "/admin/security/config/preview",
           { schema: { body: preview } },
@@ -688,7 +708,9 @@ export function buildSecurityRoutes(
             const result =
               await iam.administration.previewConfiguration.execute({
                 actorId: auth.userId,
-                values: request.body.values,
+                ...("values" in request.body
+                  ? { values: request.body.values }
+                  : { revisionId: request.body.revisionId }),
               });
             return applicationResponse(
               reply,
@@ -704,6 +726,7 @@ export function buildSecurityRoutes(
         }>(
           "/admin/security/config/:revisionId/rollback",
           {
+            onRequest: captureConfirmationStart,
             schema: {
               params: revision,
               body: Type.Omit(publication, ["values"]),
@@ -716,20 +739,23 @@ export function buildSecurityRoutes(
             }
             return applicationResponse(
               reply,
-              await iam.administration.restoreConfiguration.execute({
-                actorId: auth.userId,
-                revisionId: request.params.revisionId,
-                expectedVersion: request.body.expectedVersion,
-                justification: request.body.justification,
-                confirmedCritical: request.body.confirmedCritical === true,
-                sessionId: auth.sessionId,
-                ...(request.body.password !== undefined
-                  ? { password: request.body.password }
-                  : {}),
-                ...(request.body.mfaCode !== undefined
-                  ? { mfaCode: request.body.mfaCode }
-                  : {}),
-              }),
+              await iam.administration.restoreConfiguration.execute(
+                {
+                  actorId: auth.userId,
+                  revisionId: request.params.revisionId,
+                  expectedVersion: request.body.expectedVersion,
+                  justification: request.body.justification,
+                  confirmedCritical: request.body.confirmedCritical === true,
+                  sessionId: auth.sessionId,
+                  ...(request.body.password !== undefined
+                    ? { password: request.body.password }
+                    : {}),
+                  ...(request.body.mfaCode !== undefined
+                    ? { mfaCode: request.body.mfaCode }
+                    : {}),
+                },
+                confirmationStarts.get(request),
+              ),
               RestoreSecurityConfigurationHttpErrors,
             );
           },

@@ -27,6 +27,7 @@ async function server(
   role: "user" | "admin" = "user",
   audit: Partial<AuditRetention> = {},
   queries: Partial<AuditQueriesApplication> = {},
+  beforeAuthentication?: () => Promise<void>,
 ) {
   const app = Fastify();
   instances.push(app);
@@ -34,6 +35,7 @@ async function server(
   await app.register(fastifyCookie);
   app.decorateRequest("auth", null);
   app.decorate("authenticate", async (request) => {
+    await beforeAuthentication?.();
     if (authenticated) {
       request.auth = {
         userId: "authoritative-actor",
@@ -58,6 +60,101 @@ async function server(
   return app;
 }
 describe("security HTTP application boundary", () => {
+  it.each([
+    ["PUT", "/admin/security/config", "publishConfiguration"],
+    [
+      "POST",
+      "/admin/security/config/revision-id/rollback",
+      "restoreConfiguration",
+    ],
+  ] as const)(
+    "captures trusted ingress time for %s %s",
+    async (method, url, operation) => {
+      let clock = 100;
+      const time = vi.spyOn(performance, "now").mockImplementation(() => clock);
+      try {
+        const execute = vi.fn(async () => {
+          throw new Error(
+            "sensitive fixture password and Redis command payload",
+          );
+        });
+        const app = await server(
+          { administration: { [operation]: { execute } } },
+          true,
+          "admin",
+          {},
+          {},
+          async () => {
+            clock = 120_100;
+          },
+        );
+        const response = await app.inject({
+          method,
+          url,
+          payload: {
+            ...(method === "PUT" ? { values: {} } : {}),
+            expectedVersion: 3,
+            justification: "Review the change",
+            confirmedCritical: true,
+            password: "sensitive fixture password",
+            mfaCode: "TEST-RECOVERY-CODE",
+            executionStartedAt: 120_100,
+            actorId: "untrusted actor",
+            sessionId: "untrusted session",
+          },
+        });
+        expect(execute).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            actorId: "authoritative-actor",
+            sessionId: "session",
+            expectedVersion: 3,
+            confirmedCritical: true,
+          }),
+          100,
+        );
+        expect(response.statusCode).toBe(500);
+        expect(response.json()).toEqual({
+          error: {
+            code: "internal.unexpected_error",
+            message: "Internal server error",
+          },
+        });
+      } finally {
+        time.mockRestore();
+      }
+    },
+  );
+
+  it("previews an immutable restoration target using the same administrator route", async () => {
+    const execute = vi.fn(async () =>
+      Result.success({
+        valid: true,
+        expectedVersion: 3,
+        changedKeys: [],
+        impact: "standard" as const,
+        warnings: [],
+        changes: [],
+        affectedAccounts: { administratorsRequiringEnrollment: 0 },
+      }),
+    );
+    const app = await server(
+      { administration: { previewConfiguration: { execute } } },
+      true,
+      "admin",
+    );
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/security/config/preview",
+      payload: { revisionId: "historical-revision" },
+    });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({
+      actorId: "authoritative-actor",
+      revisionId: "historical-revision",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ data: { expectedVersion: 3 } });
+  });
+
   it("returns only the personal Audit projection and binds the authenticated actor", async () => {
     const execute = vi
       .fn<AuditQueriesApplication["listOwn"]["execute"]>()
@@ -320,15 +417,12 @@ describe("security HTTP application boundary", () => {
       url: "/admin/security/config",
       payload: { values: {}, expectedVersion: 1, justification: "test" },
       errors: [
-        ["mfa.code_required", 400],
         ["security_configuration.invalid", 400],
         ["security_configuration.justification_required", 400],
-        ["authentication.invalid_credentials", 401],
-        ["authentication.recent_proof_required", 401],
-        ["mfa.invalid_challenge", 401],
-        ["mfa.invalid_code", 401],
+        ["authentication.unauthorized", 401],
+        ["security_configuration.confirmation_refused", 403],
+        ["security_configuration.confirmation_attempts_exhausted", 429],
         ["administrator.unauthorized", 403],
-        ["mfa.not_enabled", 409],
         ["administrator.last_active_access", 409],
         ["security_configuration.critical_confirmation_required", 409],
         ["security_configuration.version_conflict", 409],
@@ -341,16 +435,13 @@ describe("security HTTP application boundary", () => {
       url: "/admin/security/config/revision-id/rollback",
       payload: { expectedVersion: 1, justification: "test" },
       errors: [
-        ["mfa.code_required", 400],
         ["security_configuration.invalid", 400],
         ["security_configuration.justification_required", 400],
-        ["authentication.invalid_credentials", 401],
-        ["authentication.recent_proof_required", 401],
-        ["mfa.invalid_challenge", 401],
-        ["mfa.invalid_code", 401],
+        ["authentication.unauthorized", 401],
+        ["security_configuration.confirmation_refused", 403],
+        ["security_configuration.confirmation_attempts_exhausted", 429],
         ["administrator.unauthorized", 403],
         ["security_configuration.revision_not_found", 404],
-        ["mfa.not_enabled", 409],
         ["administrator.last_active_access", 409],
         ["security_configuration.critical_confirmation_required", 409],
         ["security_configuration.version_conflict", 409],

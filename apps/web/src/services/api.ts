@@ -496,9 +496,12 @@ export function publishSecurityConfig(
   });
 }
 
-export function previewSecurityConfig(values: Record<string, unknown>) {
+export function previewSecurityConfig(
+  input: { values: Record<string, unknown> } | { revisionId: string },
+) {
   return request<{
     valid: boolean;
+    expectedVersion: number;
     changedKeys: string[];
     impact: string;
     affectedAccounts: { administratorsRequiringEnrollment: number };
@@ -506,7 +509,7 @@ export function previewSecurityConfig(values: Record<string, unknown>) {
     warnings: string[];
   }>("/iam/admin/security/config/preview", {
     method: "POST",
-    body: JSON.stringify({ values }),
+    body: JSON.stringify(input),
   });
 }
 
@@ -516,14 +519,17 @@ export function rollbackSecurityConfig(
     expectedVersion: number;
     justification: string;
     confirmedCritical: boolean;
-    password: string;
-    mfaCode: string;
+    password?: string;
+    mfaCode?: string;
   },
 ) {
-  return request(`/iam/admin/security/config/${revisionId}/rollback`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return request(
+    `/iam/admin/security/config/${encodeURIComponent(revisionId)}/rollback`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function listAdminSecurityEvents() {

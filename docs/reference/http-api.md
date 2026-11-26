@@ -85,6 +85,31 @@ by [SF-SECURITY-AUDIT-001](../specifications/SF-SECURITY-AUDIT-001.md).
 | `GET`    | `/admin/security-events`                      | search audit events             |
 | `POST`   | `/admin/security/maintenance`                 | run retention and due deletions |
 
+### Critical configuration confirmation
+
+The preview route accepts `{ "values": ... }` for a proposed snapshot or
+`{ "revisionId": "..." }` for the restoration of a historical snapshot. It
+returns the diff and `expectedVersion` for the published revision used in the
+comparison. A missing historical revision returns
+`404 security_configuration.revision_not_found`.
+
+Publication and restoration take the reviewed `expectedVersion` and
+`justification`. For a critical change send `confirmedCritical: true`, the
+current `password`, and `mfaCode` when the account has MFA enabled. The code
+may be from the authenticator or an unused recovery code. Confirmation is
+valid for this request only and uses the existing session cookie.
+
+| Status | Code                                                     | Meaning                                                                                                         |
+| ------ | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 401    | `authentication.unauthorized`                            | The originating session is missing, expired, revoked or invalid.                                                |
+| 403    | `security_configuration.confirmation_refused`            | The current proof was refused or the attempt expired. This includes required MFA without enrollment.            |
+| 403    | `administrator.unauthorized`                             | The actor lacks current administrator authorization.                                                            |
+| 409    | `security_configuration.critical_confirmation_required`  | The critical operation needs explicit confirmation.                                                             |
+| 409    | `security_configuration.version_conflict`                | Refresh and reconcile the draft before submitting a new confirmation.                                           |
+| 409    | `administrator.last_active_access`                       | Publication would remove the last usable administrator access path.                                             |
+| 429    | `security_configuration.confirmation_attempts_exhausted` | Wait for allowance to return. The limit is shared across the account's sessions, instances and both operations. |
+| 500    | `internal.unexpected_error`                              | A technical failure interrupted the operation.                                                                  |
+
 ## Envelopes
 
 The web client expects JSON successes as `{ "data": ... }`. The paginated

@@ -18,6 +18,7 @@ import {
   type IamDatabase,
   KyselyAccountDeletionAdapter,
   KyselyAccountExportAdapter,
+  KyselyCriticalConfigurationConfirmationAdapter,
   KyselyEmailVerificationAdapter,
   KyselyIamUnitOfWorkAdapter,
   KyselyLoginIdentityAdapter,
@@ -119,6 +120,8 @@ export async function buildIamModule(
       new Sha256EmailVerificationTokenHasherAdapter(),
     unitOfWork: new KyselyIamUnitOfWorkAdapter(db, createOutbox),
     configuration,
+    criticalConfigurationConfirmation:
+      new KyselyCriticalConfigurationConfirmationAdapter(db),
     recovery: new KyselyPasswordRecoveryAdapter(db, createOutbox),
     mfa: new KyselyMfaAdapter(db, createOutbox),
     exports: new KyselyAccountExportAdapter(db, createOutbox),
