@@ -53,12 +53,12 @@ when operations are performed through delegated access.
 
 ## 3. Actors and authorization
 
-| Actor | Responsibility |
-| --- | --- |
-| User | Grants and manages authorizations for their own account. |
-| Administrator | Manages client applications and platform permission policies. |
-| Client Application | Requests and uses explicitly authorized delegated access. |
-| System | Evaluates authorization, enforces policies and invalidates access. |
+| Actor              | Responsibility                                                     |
+| ------------------ | ------------------------------------------------------------------ |
+| User               | Grants and manages authorizations for their own account.           |
+| Administrator      | Manages client applications and platform permission policies.      |
+| Client Application | Requests and uses explicitly authorized delegated access.          |
+| System             | Evaluates authorization, enforces policies and invalidates access. |
 
 Administrative privileges do not implicitly authorize a client to perform
 administrative operations on behalf of an administrator. Delegated administrative
