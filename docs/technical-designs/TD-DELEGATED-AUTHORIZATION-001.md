@@ -306,6 +306,116 @@ References:
 [OpenAI authentication](https://developers.openai.com/plugins/build/auth).
 Documentation evidence only, consulted 2026-11-26.
 
+
+### Version-pinned feasibility findings (static inspection)
+
+Candidate: oidc-provider 9.15.1 (MIT; release 2026-11-20). Reviewed the
+tagged source, not only main or generic feature documentation. The package
+is ESM JavaScript; confirm TypeScript declarations and the project's Node
+runtime compatibility in the isolated experiment. Do not add a runtime
+dependency before the structural decision.
+
+| Boundary | Observed source capability | Required project-specific proof |
+| --- | --- | --- |
+| Consent | Custom interactions, findAccount, loadExistingGrant; provider Grant has per-resource accepted/rejected scopes. | Mandatory/optional classification, final consent check, account binding, no stale remembered consent, repeated optional-scope request. |
+| Client admission | Client adapter lookup; CIMD allowFetch and allowClient (including cached metadata). | Reject unknown/disabled clients at all relevant endpoints, even cached; no metadata-based self-approval. |
+| Resource | resourceIndicators.getResourceServerInfo, defaultResource, useGrantedResource; PKCE policy. | Single intended resource, enforce S256 and scope policy, no cross-resource credential reuse. |
+| Issuance | Authorization-code and refresh handlers load provider Grant and validate account. | Every code/refresh issue and persistence path subordinate to current IAM authorization; concurrent invalidation cannot return a usable credential. |
+| Storage | Adapter contract includes upsert, find, consume, destroy, revokeByGrantId and lookup methods. | Atomic consume rejects reuse by throwing, not returning false; hashed bearer lookup keys where compatible; expiry, erasure, replica/race behavior. |
+| Introspection | Valid token and provider grant checks plus allowedPolicy; opaque token format supports extra claims. | Authenticated resource-server caller, safe projection, current IAM admission with precise lifecycle/resource/scope binding. |
+| Session | Default expiresWithSession and initial refresh issuance depend on offline_access. | First-party sign-out preserves business grant and valid delegated credentials; consent still requires live first-party session. |
+
+Tagged evidence:
+[package manifest](https://github.com/panva/node-oidc-provider/blob/v9.15.1/package.json),
+[configuration hooks](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/helpers/defaults.js),
+[grant model](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/models/grant.js),
+[authorization code](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/actions/grants/authorization_code.js),
+[refresh](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/actions/grants/refresh_token.js),
+[grant source checks](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/helpers/grant_source.js),
+[opaque format](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/models/formats/opaque.js),
+[introspection](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/actions/introspection.js),
+[adapter contract](https://github.com/panva/node-oidc-provider/blob/v9.15.1/example/my_adapter.js),
+[revocation helper](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/helpers/revoke.js).
+
+### Grant authority and credential epochs
+
+The provider Grant can contain scopes for several resources and the default
+loadExistingGrant may reuse a grant referenced by its own session. Neither
+matches the IAM invariant automatically. Candidate mapping: explicit provider
+grant/credential-family reference to a single IAM authorization lifecycle and
+resource; no provider grant spanning several IAM authorization lifecycles.
+Provider consent and cached client metadata are not product authorization
+decisions. Use custom interactions and authoritative lookups, disable
+development interactions and unneeded flows/endpoints, and prove that
+automatic consent reuse cannot bypass FR-15.
+
+The provider's refresh handler checks requested scopes against the old refresh
+token and builds a rotated token carrying the original refresh scope. Current
+provider-grant scope filtering does not by itself prove that a removed and
+regranted permission cannot reappear through an old credential. A revision
+claim on an access token alone is insufficient: extraTokenClaims in the opaque
+format applies to access tokens and client credentials, not refresh tokens.
+
+Prefer an immutable issuance entitlement snapshot bound to credential-family
+or token lineage, including the IAM grant lifecycle, resource and permission
+generations. A refresh derives only the intersection of its original
+entitlements with the still-current generations and policy; it must never
+acquire a regranted generation from the current grant. Renewals for unaffected
+permissions should remain possible when supported. Compare a simpler
+whole-family invalidation on scope withdrawal; it may force reconnection and
+must be reviewed for functional/UX implications rather than silently selected.
+Use explicit non-reused grant identity after complete revocation.
+
+The provider's grant validation verifies existence, expiry and client match;
+it is not sufficient for current IAM grant/account/policy checks. findAccount
+is invoked on code/refresh issuance but cannot alone serialize against a
+concurrent invalidation. Evaluate supported hooks plus a guarded storage
+boundary for code/token persistence and renewal; final resource admission
+must check the authoritative state regardless of provider cleanup timing.
+Do not patch undocumented internals or infer a cross-call transaction from
+adapter method calls. Opaque bearer values are used as provider lookup keys
+by default; assess keyed hashing of storage identifiers and safe indexing
+without persisting raw tokens in logs, export or audit.
+
+Provider revocation and replay protection can destroy protocol grants or
+credential families. Distinguish credential/family invalidation from explicit
+IAM business grant revocation. Define mapping and reconcile security events;
+provider events are not the synchronous enforcement boundary. Test provider
+session expiry/logout independently from first-party session logout. The
+provider defaults tying expiry and initial refresh issuance to offline_access
+must be deliberately configured and verified, not assumed compatible.
+
+### Bounded executable feasibility experiment
+
+Use an isolated disposable workspace with exact oidc-provider 9.15.1,
+synthetic account/client/resource data, a minimal protocol host and a
+PostgreSQL-backed adapter experiment. Keep product dependency manifests,
+runtime and approved behavior unchanged. Record Node/pnpm versions, dependency
+lock, commands, expected and observed outcomes. Use direct OAuth requests or
+an OAuth client harness, plus a mocked resource-server admission boundary
+using the same authoritative data; do not require real account data or
+ChatGPT credentials.
+
+| Case | Required evidence |
+| --- | --- |
+| F01 | Custom first-party login/consent binds actual authenticated account; read accepted, optional write declined; returned scopes and admission match. |
+| F02 | Code exchange requires correct S256 verifier, client and redirect URI; concurrent redemption admits at most one exchange. |
+| F03 | Reject unapproved/disabled client, wrong resource, unknown/disallowed scopes; cached client cannot bypass disablement. |
+| F04 | Declined extension leaves existing grant unchanged; new consent can extend it; stale consent after revocation cannot recreate access. |
+| F05 | Revoke after authorization code issue, before exchange; old code/refresh and access admission fail after effective invalidation. |
+| F06 | Remove write then regrant it; old access and refresh lineage cannot recover write; test unaffected read continuity and new consent. |
+| F07 | Concurrent refresh/revocation and refresh replay, including two processes; no usable credential issued from invalidated lifecycle. |
+| F08 | Re-enable client or reactivate account; old credentials remain unusable; new authorization has distinct identity. |
+| F09 | Sign out or expire first-party session; independently valid grant/credentials continue; stale pending consent fails. |
+| F10 | Storage failure, restart, expiry/erasure and guarded persistence; fail closed, no raw credentials in outputs. |
+
+Gate recommendation: if F01-F10 demonstrate required protocol and authority
+boundaries using supported hooks, prefer embedded provider subject to
+structural acceptance; otherwise evaluate independent authorization server
+or a narrower supported integration, escalating any required functional
+deviation. Static inspection alone is not a pass. No executable cases have
+been run in this activity; no proof of full compatibility is claimed.
+
 ## 17. ADR candidates / referenced ADRs
 
 One structural decision candidate: protocol server integration and
@@ -316,8 +426,8 @@ alternatives and rationale. No structural acceptance has been granted.
 
 ## 18. Risks and unresolved technical decisions
 
-Blocking design work: select exact provider version and verify extension
-points, controlled client identity, mandatory/optional partial consent,
+Blocking design work: validate the pinned 9.15.1 candidate in an executable
+experiment, verify extension points, controlled client identity, mandatory/optional partial consent,
 resource/audience binding, refresh and revocation consistency, opaque
 credential support and persistence/erasure. Resolve lock order and fan-out,
 credential permission generations, lifecycle binding and failure recovery.
