@@ -197,16 +197,6 @@ function normalizeRepository(repository: string): string {
   return repository.trim().toLowerCase();
 }
 
-function repositoryParts(repository: string): { owner: string; name: string } {
-  const [owner, name, ...rest] = repository.split("/");
-  if (!owner || !name || rest.length > 0) {
-    throw new Error(
-      `Invalid GitHub repository '${repository}', expected owner/name`,
-    );
-  }
-  return { owner, name };
-}
-
 function headers(token: string): Record<string, string> {
   return {
     accept: "application/vnd.github+json",
@@ -669,13 +659,6 @@ export async function readTaskDispatchCandidate(input: {
     claimState: claimState(work, input.activation.taskClaim),
     targetRef: targetRefState(integrationPr),
   };
-}
-
-export function repositoryCoordinates(repository: string): {
-  readonly owner: string;
-  readonly name: string;
-} {
-  return repositoryParts(repository);
 }
 
 async function readProjectItemsPage(

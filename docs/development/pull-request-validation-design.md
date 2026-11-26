@@ -99,8 +99,9 @@ if freshness fails, synchronize the PR branch rather than rerun that obsolete SH
 
 The external SonarCloud Code Analysis check remains independent and is never
 fabricated or republished. Fork and Dependabot credential exclusions remain.
-The Work Merge Gate still requires established reviews, sufficient current
-validation, applicable authorities, and its existing operational prerequisites.
+The [delivery profile](../project/delivery-pipeline.md#native-work-integration)
+requires established reviews, sufficient current validation and applicable
+authority before native integration.
 
 ## Validation and acceptance
 

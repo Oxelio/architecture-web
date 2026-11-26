@@ -250,7 +250,7 @@ replayed fact, between an available fallback and a production caller, and
 between a reachable diagnostic sink and an observed disclosure. The brief
 remains a non-normative Exploration, and its recommendations are proposals.
 
-## Publication and Work Merge Gate
+## Publication
 
 The brief was prepared on `codex/work-107-discovery` while Work #107 was in
 `Exploring`. Publication planning considered the following two routes.
@@ -269,7 +269,7 @@ The brief was prepared on `codex/work-107-discovery` while Work #107 was in
   audit Exploration used this approach. [Work #116](https://github.com/Oxelio/architecture-web/issues/116) · [PR #117](https://github.com/Oxelio/architecture-web/pull/117)
 
 Either option requires a PR to `main`, candidate-bound validation, applicable
-review and authority results, repository-required checks, and a passing Work
-Merge Gate while the PR's owning Work is in `Validating`. Integration requires
-its own authorization. Any later closure is a separate evidence decision.
-[Delivery profile](../../project/delivery-pipeline.md#work-merge-gate)
+review and authority results, and repository-required checks for the owning
+Work's candidate in `Validating`. Native integration requires its own
+authorization. Any later closure requires separate completion evidence.
+[Delivery profile](../../project/delivery-pipeline.md#native-work-integration)

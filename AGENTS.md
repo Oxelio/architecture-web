@@ -54,10 +54,17 @@ current environment exposes the required operations. Inspect the tools available
 in the current ChatGPT or Codex session. Before writing, verify the Project, Work
 Issue, Project item, field and current value. Re-read the field after writing.
 Follow the active Method Role, applicable gates and the permission matrix in
-the [delivery profile](docs/project/delivery-pipeline.md), including its trusted
-path for privileged writes. Connector access does not grant decision authority.
+the [delivery profile](docs/project/delivery-pipeline.md). Use authorized native
+Project and Issue operations for established lifecycle results. Follow the
+[completion evidence and read-back requirements](docs/project/delivery-pipeline.md#completed-work)
+before recording `Done` and closing a completed Work.
 If the connector is unavailable, use another authorized and verified path when
 available or report that the operation is unavailable.
+
+Agent merges require explicit maintainer authorization for one native squash
+merge of the identified Work, PR, exact head and current base. Verify all
+[integration prerequisites](docs/project/delivery-pipeline.md#native-work-integration)
+before acting.
 
 ## Architecture
 

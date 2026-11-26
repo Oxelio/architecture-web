@@ -2,7 +2,7 @@ import { verifyDeliveryActivation } from "../config/activation-verification.js";
 import { readGitHubInventory } from "../github/github-project-inventory.js";
 import { probeNativeDeliveryCapabilities } from "../github/native-capability-probe.js";
 import type { ExplicitProjectLocator } from "../inventory/project-inventory.js";
-import { readActivationManifest } from "./gate-publication-support.js";
+import { readActivationManifest } from "./read-activation-manifest.js";
 
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
