@@ -19,6 +19,12 @@ commit.
 
 ## Entry points and shared validation
 
+The repository has three workflow files. `delivery-automation-validation.yml`
+runs CI, `repository-validation.yml` provides shared candidate validation, and
+`release.yml` plans, validates and publishes source releases. The
+[delivery profile](../project/delivery-pipeline.md#6-planning-model) governs
+human-directed Work coordination through native Project and Issue operations.
+
 `delivery-automation-validation.yml` runs on all PRs into `main`, including drafts,
 on pushes to `main`, and on manual dispatch. Edits containing only title/body
 changes use lightweight metadata validation: no builds, tests, coverage,

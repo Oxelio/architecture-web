@@ -149,10 +149,9 @@ requires separate delivery/governance implementation and verification. That step
 MUST verify at least the configured field names and values, applicable
 labels/relationships, the native `Status` Work State mapping, required checks,
 and the intended Project views before an external owner or
-enforcement mechanism is treated as effective. Project lifecycle settings that
-cannot be
-proved through the available inventory API require explicit operator evidence
-rather than an implicit machine-verification claim.
+enforcement mechanism is treated as effective. Use authorized native GitHub
+reads to verify live configuration. Project lifecycle settings that cannot be
+verified through those reads require explicit operator evidence.
 
 If an activated external owner later becomes unreadable or unusable, surface a
 synchronization/availability problem. Do not silently create a competing owner.
@@ -449,11 +448,11 @@ Delivery selection policy:
 5. Initial **implementation WIP limit**: at most **1 Work in `Implementing`**
    unless a human explicitly accepts a temporary exception.
 
-The Ready Queue observer applies these criteria independently of executor or
-legacy labels. Observation grants no execution or mutation authority. An
-authorized handoff selects the executor and must respect Readiness and the
-selection constraints. Inside an eligible `Implementing` Work, Task selection
-follows the authorized Task plan and Task dependencies.
+The human or Workflow Coordinator uses authorized native GitHub Project and
+Issue reads to apply these criteria. An authorized maintainer-directed handoff
+selects the executor and must respect Readiness and the selection constraints.
+Inside an eligible `Implementing` Work, Task selection follows the authorized
+Task plan and Task dependencies.
 
 The implementation WIP limit is an Architecture Web policy, not a generic Method
 invariant. Work in `Reviewing` or `Validating` is not counted by this initial
@@ -729,12 +728,12 @@ credential, and other protected project files MUST NOT be modified by ordinary
 feature execution unless the authorized Work explicitly includes them and
 applicable policy permits it.
 
-Delivery tooling deterministically applies the established Ready Queue,
-dependency, WIP, target-ref and release publication rules at their respective
-boundaries. Ready Queue observation is read-only. Human-directed Task selection
-follows the authorized Task plan and Task dependencies. Legacy autonomous
-dispatch and claim paths MUST fail closed while their required mappings are
-inactive.
+[Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires the
+automated Ready Queue observer, autonomous dispatch, Task Claim publisher and
+their supporting tooling. Work and Task selection follow the human-directed
+process in [Planning model](#6-planning-model) and
+[Authorized execution handoff](#authorized-execution-handoff). Repository
+workflows provide CI, shared candidate validation and automatic source releases.
 
 Workflow and agent tooling may act on results already established by the
 responsible Role or authority. Work State, review acceptance, approvals,
@@ -852,12 +851,11 @@ and verification. This includes, where applicable:
 - least-privilege Project access and release publisher credentials;
 - runtime adapters explicitly authorized for activation.
 
-The [activation manifest](../../.github/delivery-automation.json) retains inactive
-`routes` and `taskClaim` entries in schema version 1. Inventory and activation
-verification do not require their primitives while inactive. Verification of live
-configuration preserves inactive entries. Activating a mapping requires a
-separate, authorized change and verification. Verify live operational compatibility
-after integrating the retirement.
+The delivery profile owns the external mappings and their activation obligations.
+Verify them against live GitHub primitives under
+[External-owner activation](#external-owner-activation). Work #207 retires the
+coordination-specific manifest and its inventory and verification commands.
+Verify live compatibility of the retained mappings after integration.
 
 Until each mechanism is verified, tooling MUST treat it as unavailable rather
 than inventing a parallel substitute owner or enforcement path.

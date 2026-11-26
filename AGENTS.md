@@ -43,6 +43,10 @@ permission matrix in the project delivery profile before creating/updating Work
 records, moving `Work State`, closing Work, or performing other workflow
 mutations.
 
+Work selection is human-directed. Use authorized native GitHub Project and
+Issue reads to apply the [Ready Queue selection policy](docs/project/delivery-pipeline.md#6-planning-model)
+and record the maintainer-directed handoff before execution.
+
 A merged PR is not automatically `Done`. Native GitHub Project `Status` is the
 operational Work State owner only when the mapping assigned by
 `docs/project/delivery-pipeline.md` is effectively activated and readable;

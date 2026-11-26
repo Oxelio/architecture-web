@@ -1,11 +1,11 @@
 # Technical Design — Human-directed delivery transition
 
-> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes references below to preserving the Work Merge Gate. Human-directed execution, inactive claim and route mappings, and read-only observation continue under the [delivery profile](../project/delivery-pipeline.md).
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes references below to preserving the Work Merge Gate. [Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires read-only observation, automated dispatch, Task Claim, and the coordination manifest and tooling. The [pre-retirement design](https://github.com/Oxelio/architecture-web/blob/5a31d1a7c1efd8ad3f5b3b62e54a87c74a6363dc/docs/architecture/human-directed-delivery-transition.md) records the original transition rationale.
 >
-> Current applicability: Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination described here. This document retains historical rationale only for those subjects; current policy is owned by the delivery profile. Non-release Work/Task semantics remain applicable where consistent with current policy.
+> Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination. The [delivery profile](../project/delivery-pipeline.md) owns current policy, including human-directed execution and native Work and Task mappings.
 
-**Artifact status:** Proposed  
-**Content status:** Approved governance target / proposed technical migration  
+**Artifact status:** Superseded\
+**Content status:** Historical rationale\
 **Document type:** Technical Design / Governance Migration Design  
 **Domain:** Delivery automation / GitHub operations
 
