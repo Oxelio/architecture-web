@@ -230,17 +230,17 @@ coordination. Workflow Depth alone does not require Sub-issues. Use the
 
 #### Project membership and visibility
 
-[Work #181](https://github.com/Oxelio/architecture-web/issues/181) establishes
-the following target for native Task visibility. The Project mapping becomes
-effective after this policy is integrated and live activation is verified
-under [External-owner activation](#external-owner-activation).
+The Task Project membership and visibility mapping becomes effective after
+this policy is integrated and live activation is verified under
+[External-owner activation](#external-owner-activation).
 
 - Each Task Sub-issue of a Work in GitHub Project #3 MUST belong to the same
-  Project. Use native inheritance where available; verify membership and add
-  missing Tasks through authorized native operations.
+  Project. When creating or attaching a Task, verify membership after native
+  inheritance and add the Task through an authorized native operation if it
+  is missing.
 - The Work-only fields `Status`, `Work Type`, `Workflow Depth`, and `Priority`
-  MUST remain unset on Task items, whether open or closed. No `Task Phase` or
-  other independent Task lifecycle field is required.
+  MUST remain unset on Task items, whether open or closed. Task items MUST
+  have no separate lifecycle field.
 - Native parent relationships, Issue state and closure reason, dependencies,
   assignees and relevant PR links provide Task execution context and evidence.
   The parent Work exposes derived Sub-issues progress. Project membership does
@@ -252,16 +252,17 @@ under [External-owner activation](#external-owner-activation).
 #### Task closure
 
 Record a Task as closed with reason `completed` only after its authorized
-scope and applicable Task-level verification are satisfied. If a Task is
-abandoned or superseded, record its authorized non-completion disposition and
-rationale instead; do not fabricate successful completion.
+scope and applicable Task-level verification are satisfied. Record the
+applicable native closure reason for an authorized non-completion disposition
+and document the rationale on the Task. Use `not planned` for abandoned scope
+or the native duplicate disposition with a reference to the surviving Issue.
 
-Before the parent Work becomes `Done`, verify that all its execution Tasks
-have acceptable terminal Issue dispositions against the authorized Task plan.
-An open Task blocks Work completion until it is resolved or an authorized
-scope disposition is recorded and the Task is closed. Native Sub-issues
-progress alone is not proof of satisfactory Task completion. Do not close
-Tasks blindly when closing their parent.
+Before the parent Work becomes `Done`, reconcile its execution Tasks against
+the authorized Task plan. Read back each Task's Issue state and closure
+reason, check its completion evidence or authorized non-completion rationale,
+and verify the native Sub-issues progress on the parent. An open execution
+Task blocks Work completion until it has a justified terminal disposition.
+Closing the parent MUST NOT automatically close any Task.
 
 ### Authorized execution handoff
 
@@ -490,11 +491,11 @@ limit unless a future project policy explicitly broadens it.
 
 ## 7. Recommended Project views
 
-All Work-level views below MUST exclude Task Sub-issues and non-Issue items
-using the verified native Project filter `is:issue no:parent-issue`. Backlog,
-Ready Queue, Active and Waiting also filter to `is:open`. Preserve the
-existing Work State and historical disposition rules in the Workflow and Done
-views. These filters govern Work selection, not Task membership.
+All Work-level views below MUST use the native Project filter
+`is:issue no:parent-issue`. Backlog, Ready Queue, Active and Waiting also
+require `is:open`. Workflow and Done retain closed Works that match their
+criteria. During activation, verify that Work-only views show only top-level
+Issues, including when hierarchy display is available.
 
 ### Backlog
 
@@ -556,11 +557,11 @@ Status = Done
 
 ### Hierarchy
 
-Table showing Work and Task Issues in the same Project with native
-`Show hierarchy` enabled. Expose the title, parent relationship, native
-Issue state, assignees, Sub-issues progress and linked PRs where supported.
-The table MUST permit inspection of closed as well as open Tasks. It is a
-visibility view, not a Work State board or a second Task workflow.
+Use a table for Work and Task Issues in the same Project with native
+`Show hierarchy` enabled. Keep both open and closed Tasks visible and omit
+Work-only filters that would hide children. Expose the title, parent
+relationship, native Issue state, assignees, Sub-issues progress and linked PRs
+where supported. The table provides visibility into execution under each Work.
 
 Verify actual expanded hierarchy rendering and Work-only view membership
 during activation. A stored view filter alone does not prove display behavior.
@@ -695,6 +696,13 @@ that alter accepted Work scope require the responsible human authority.
 Read back the native Issue state and reason; do not infer successful
 completion from Project fields or a PR merge.
 
+Once the Task Project mapping is active, the Workflow Coordinator MAY add a
+missing authorized Task to its parent's Project and clear invalid Work-only
+field values on Task items. Verify the parent relation, Project membership
+and existing values before writing, and read back the result. Initial
+reconciliation follows the activation checks in
+[GitHub automation constraints](#11-github-automation-constraints).
+
 The default Architecture Web policy is:
 
 | Tool operation                                                                                                    | Operational Permission                                                                            | Required Role / authority                                                                                                        | Gate / precondition                                                                                                                                                                                                                                                      |
@@ -766,16 +774,25 @@ Automation MUST NOT blindly:
 - accept a target ref solely from untrusted agent output;
 - treat required check or automatic publication success as merge authority.
 
-Before activating the Task Project mapping, inspect native auto-add,
-item-added, reopened, closed, PR-linked or merged, status-driven closure,
-field defaults and Issue-status synchronization settings where applicable.
-Keep native membership inheritance or auto-add when compatible with these
-rules. Disable or safely constrain incompatible automatic field/closure
-writes; do not introduce a replacement coordination workflow. Reconcile
-existing Task membership and invalid Work-only fields after policy integration
-and safe settings verification, preserving Issue state/reason, relationships
-and history. Record actual administrator evidence when connector reads cannot
-verify settings.
+After integration and before reconciling Task items, verify the effective
+native Project workflows and field settings. Inspect auto-add and inheritance,
+item-added, reopened, closed and PR-triggered status changes, status-driven
+closure, automatic archiving, field defaults and Issue-status synchronization
+where applicable. Keep membership automation that respects the authorized
+scope. Disable or safely constrain each setting that can populate Work-only
+fields on Tasks, bypass lifecycle gates, change Issue dispositions or hide
+Tasks that must remain visible. Verify built-in workflows separately from
+Issue-status synchronization because they can still run with sync disabled.
+Record administrator evidence for settings that the available reads cannot
+verify.
+
+Once safe settings are verified, enumerate Task Sub-issues of Works in the
+Project and compare them with actual Project membership. Preserve existing
+Task items, add missing Tasks and clear any invalid values in the four
+Work-only fields. Read back membership, parent relationships, empty Work-only
+fields, unchanged Issue states and closure reasons, and native progress.
+Verify the Work-only views and the expanded Hierarchy table, including closed
+Tasks, before declaring the mapping active.
 
 ## 12. Agent execution security and delivery tooling
 
