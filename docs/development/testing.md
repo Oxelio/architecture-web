@@ -135,11 +135,13 @@ missing or stale results are insufficient. Skipped optional integration tests
 provide no evidence for their boundaries; changes requiring database or other
 external-system validation still need that evidence, automated or human.
 
-The responsible review and validation activities assess scope and unresolved
-findings before the Work Merge Gate records validation sufficiency. Automation
-does not supply product/governance approvals, accept reviews, grant merge
-authority, establish Project Status or imply Work completion. These remain
-governed by the [delivery profile](../project/delivery-pipeline.md).
+The responsible review and validation activities assess scope, findings and
+candidate-bound evidence before native integration. Record established results
+in the owning Work or PR. Approvals, review acceptance, merge authority, Work
+State and completion are governed by the
+[delivery profile](../project/delivery-pipeline.md#native-work-integration).
+After integration, assess required post-integration evidence against the
+integrated SHA under the [completion policy](../project/delivery-pipeline.md#completed-work).
 
 ## Markdown links
 

@@ -247,8 +247,7 @@ The change must demonstrate, on the actual candidate:
   reports, Sonar sees the migrated TypeScript sources, and coverage artifacts
   survive the existing upload/download round trip.
 - Existing PR metadata/full routing, title verification, immutable candidate
-  evidence, checked provider/job identities, and Work Merge Gate behavior
-  are unchanged. Exercise the applicable real PR regression scenarios from
+  evidence and checked provider/job identities are preserved. Exercise the applicable real PR regression scenarios from
   [the existing PR validation design](pull-request-validation-design.md#validation-and-acceptance)
   on the migrated candidate, including title failure/correction, metadata
   reuse and candidate freshness; unit mocks cannot prove GitHub's actual

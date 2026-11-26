@@ -16,7 +16,7 @@ import {
 } from "../github/task-claim-publisher.js";
 import { resolveTaskClaimTarget } from "../github/task-claim-target.js";
 import { readAuthorizedWorkIntegrationTarget } from "../github/work-integration-target.js";
-import { readActivationManifest } from "./gate-publication-support.js";
+import { readActivationManifest } from "./read-activation-manifest.js";
 
 type ClaimExecutionKind = TaskClaimExecution["kind"];
 

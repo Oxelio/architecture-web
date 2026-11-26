@@ -1,5 +1,7 @@
 # Technical Design — Human-directed delivery transition
 
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes references below to preserving the Work Merge Gate. Human-directed execution, inactive claim and route mappings, and read-only observation continue under the [delivery profile](../project/delivery-pipeline.md).
+>
 > Current applicability: Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination described here. This document retains historical rationale only for those subjects; current policy is owned by the delivery profile. Non-release Work/Task semantics remain applicable where consistent with current policy.
 
 **Artifact status:** Proposed  

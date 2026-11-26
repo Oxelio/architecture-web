@@ -30,7 +30,11 @@ human maintainer request bound to an exact source SHA.
 The maintainer also explicitly accepted automated pre-merge validation. Successful
 candidate-bound checks may supply sufficient validation evidence without human
 re-execution under the [testing policy](../../development/testing.md). Applicable
-reviews, Work Merge Gate requirements and merge authority remain separate.
+reviews and merge authority remain separate. [Work #205](https://github.com/Oxelio/architecture-web/issues/205)
+supersedes the former custom Work Merge Gate while preserving native protections,
+coordinated source releases and first-stable authority. The
+[delivery profile](../../project/delivery-pipeline.md#native-work-integration)
+owns the current integration policy.
 
 Version the project as one coordinated unit. Published `vX.Y.Z` tags own released
 versions. Tracked manifests are development declarations; generate coordinated

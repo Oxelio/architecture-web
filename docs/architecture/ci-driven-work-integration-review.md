@@ -1,5 +1,7 @@
 # Work #91 — Increment review
 
+> Historical review of Work #91 candidates. [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the integration controls reviewed here. Current integration policy is in the [delivery profile](../project/delivery-pipeline.md#native-work-integration).
+
 **Work:** [#91](https://github.com/Oxelio/architecture-web/issues/91)
 
 **Reviewer:** Codex, acting as Code Reviewer and then as Software Architect

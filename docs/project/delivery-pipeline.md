@@ -62,9 +62,11 @@ Ordinary Work uses temporary branches from `main` and integrates through a Work
 Integration Pull Request. Delete a completed branch after its work is conserved.
 No permanent `development`, staged `release/*` or environment branch is required.
 
-The Work Merge Gate, repository merge permissions, reviews and pre-merge
-validation remain applicable. A merge is not Work completion. Source integration
-is distinct from automatic source release publication and from deployment.
+Work Integration Pull Requests use GitHub-native squash merge on protected
+`main`. Follow the [integration policy](#native-work-integration) for merge
+authority, independent reviews and candidate-bound validation. Work integration,
+Work completion, source release publication and deployment each require their
+own evidence.
 
 Do not force-update or replace `main` or discard unique commits during transition.
 A history rewrite still requires separate explicit human governance authority.
@@ -73,16 +75,16 @@ same branch; their activation does not require adding permanent branches.
 
 #### Required checks on `main`
 
-The maintainer activated the CI requirements under Work #58 and the evaluated
-Work Merge Gate under Work #91. The active
+The active
 [`protected` ruleset](https://github.com/Oxelio/architecture-web/rules/21839336)
-confirmed that it targets the default branch (`main`) and requires:
+targets the default branch and enforces PR-only squash integration, with no
+bypass and with ref creation, deletion and non-fast-forward protections. It
+requires the following checks:
 
-| Required check                       | Expected provider                    | Integration ID |
-| ------------------------------------ | ------------------------------------ | -------------- |
-| `Quality checks`                     | GitHub Actions                       | `15368`        |
-| `SonarCloud Code Analysis`           | SonarQube Cloud                      | `12526`        |
-| `Architecture Web / Work Merge Gate` | Dedicated Work Merge Gate GitHub App | `5625775`      |
+| Required check             | Expected provider | Integration ID |
+| -------------------------- | ----------------- | -------------- |
+| `Quality checks`           | GitHub Actions    | `15368`        |
+| `SonarCloud Code Analysis` | SonarQube Cloud   | `12526`        |
 
 Strict required-status-check policy is enabled. The PR branch must be up to date
 with `main`, and required results must apply to the current candidate under that
@@ -104,11 +106,11 @@ accepted and activated. Do not expose secrets, weaken checks or infer a bypass
 from this limitation. The [CI guide](../development/continuous-integration.md)
 owns analysis diagnostics and configuration instructions.
 
-The two CI results are inputs to the evaluated [Work Merge Gate](#work-merge-gate).
-They do not accept reviews, establish validation sufficiency, grant merge
-authority or complete the Work. Verification of this ruleset does not activate
-other external mappings or approve other governance decisions. Source-release
-publication retains its separate policy in section 13.
+These results provide candidate-bound evidence for the applicable review and
+validation activities. The authority for accepting reviews, establishing
+validation sufficiency, authorizing merge and recording completion stays with
+the responsible Roles and authorities. Source release publication follows
+[its own policy](#13-automatic-coordinated-source-releases).
 
 #### Accepted transition from the previous topology
 
@@ -523,55 +525,50 @@ A Pull Request is the implementation/review vehicle for repository changes. It
 MUST reference the owning Work Issue when applicable and when that operational
 mapping is available.
 
-A merged PR does not by itself imply `Done`. After merge, the Work may still
-require review resolution, validation acceptance, migration/operational work,
-or synchronization of durable owners.
+After merge, the Work may still require post-integration validation,
+migration or operational work, and synchronization of durable owners before
+the Workflow Coordinator can record completion.
 
-Automatic merge authority is not granted by this delivery policy. Merge remains
-subject to repository/project permissions and any explicitly established human
-or AI authority policy.
+Use a non-closing Work reference such as `Refs #205` in the PR. Keep closing
+keywords out of the PR and squash commit so that the Work Issue can be closed
+after completion evidence is established.
 
-#### Effective native auto-merge and delegation
+### Native Work integration
 
-GitHub-native squash auto-merge is active for explicitly authorized Work
-Integration candidates. Work #91 verified it on
-[PR #94](https://github.com/Oxelio/architecture-web/pull/94) and
-[PR #103](https://github.com/Oxelio/architecture-web/pull/103). The exact
-candidate must satisfy the required checks, Method gates and repository
-protections.
+Use GitHub's native squash merge for an ordinary Work Integration Pull Request.
+[Work #205](https://github.com/Oxelio/architecture-web/issues/205) retires the
+custom Work Merge Gate, its check and evidence publication, and the prior
+gate-mediated auto-merge and standing-delegation paths. No replacement composite
+integration gate or gate-specific evidence bundle is required. Applicable Method
+Authority, Readiness, Quality and Evidence Gates still govern their respective
+transitions. Record their results in the existing attributable Work, PR and
+validation records.
 
-The maintainer [accepted the standing-delegation target in Work #91](https://github.com/Oxelio/architecture-web/issues/91#issuecomment-6633272317).
-The approved target delegates only native squash auto-merge requests for
-ordinary eligible Work to an authenticated control workflow running on
-protected main in repository 1336937640. The workflow must use a restricted
-credential and verify the delegation is still effective before arming
-auto-merge. The delegation must be revocable. Human Functional Approval and
-material governance decisions
-remain with their assigned authorities. Custom delegated direct squash was
-closed as `not planned` in [Work #102](https://github.com/Oxelio/architecture-web/issues/102).
+A maintainer with merge authority may perform the squash merge directly or
+explicitly authorize an agent to perform it once. An attributable instruction
+must identify the Work, PR, exact reviewed and validated head SHA and current
+`main` base SHA. Standing delegation and autonomous auto-merge arming are
+outside this authorization.
 
-The [accepted #115/#91 amendment](https://github.com/Oxelio/architecture-web/issues/115#issuecomment-6927632751)
-requires a current delegation for each reservation, native arm and durable
-admission of the final required-check publication. Order admission and
-ordinary revocation through the same verified controller boundary. An
-admission is single-use and binds one exact candidate, evidence, reservation
-and check. An already-started publication admitted under valid authority may
-finish for that candidate after expiry or revocation. Authority must still
-be current to start publication. Recover uncertain operations by positive
-observation while the reservation remains quarantined.
+Before integration, verify that:
 
-The [accepted mode in Work #156](https://github.com/Oxelio/architecture-web/issues/156)
-uses final verified observations of mutable Issue, Project and PR metadata
-for the exact candidate. Changes after the last verified observation may race
-an already engaged native merge. The controller still checks current scoped
-delegation and exact evidence before each new admission, arm and final release.
-GitHub still enforces the existing current-base rule and required CI, SonarCloud
-and Work Merge Gate checks from their configured issuers.
+- the owning Work and its PR are unambiguous and the Work is in `Validating`;
+- required in-scope Tasks have acceptable terminal dispositions and dependency
+  blockers are resolved;
+- applicable independent reviews have been accepted, pre-merge validation
+  evidence is sufficient for this candidate, and applicable prior authority
+  gates are satisfied;
+- no unresolved Working Decision blocks integration or exceeds delegated scope;
+- the exact head and base are current and the required checks from their
+  configured providers and native mergeability requirements pass.
 
-This is an Approved Target. Candidate-specific protected integration remains
-the effective path while standing operation is inactive. The
-[Technical Design](../architecture/ci-driven-work-integration.md#final-release-admission)
-defines the serialization, recovery and validation obligations.
+An authorized agent MUST pass the exact head SHA as the native merge
+precondition and reread the base immediately before the request. A changed head
+or base voids the authorization. Re-establish current evidence and obtain
+explicit authorization for the new candidate before acting. If any prerequisite
+is unavailable, GitHub refuses the request, or the result is uncertain, stop and
+reconcile the authoritative PR and base state before any further action.
+GitHub's strict current-base rule remains mandatory.
 
 ### Work Integration Branch and Pull Request
 
@@ -585,53 +582,32 @@ validation, or merge requirements by merging partial governed Work directly to
 
 The Work Integration Pull Request MAY remain Draft during `Implementing`.
 
-### Work Merge Gate
-
-A Work Integration Pull Request MUST NOT merge into its governed integration
-target until the Work Merge Gate passes. In V1, that gate is evaluated only
-while the owning Work is in `Validating`.
-
-The Work Merge Gate is composite enforcement over results already established by
-their proper Roles/Authorities. It MUST NOT manufacture review acceptance,
-validation sufficiency, human approval, Priority, or merge authority.
-
-It may pass only when:
-
-- the owning Work is identifiable and its Method Work State is `Validating`
-  (`Status = Validating`);
-- required in-scope Tasks have acceptable terminal dispositions;
-- required dependency blockers are resolved;
-- applicable review results have already been accepted;
-- required pre-merge validation evidence is sufficient;
-- applicable prior authority gates are satisfied;
-- no unresolved Working Decision invalidates integration or exceeds delegated
-  implementation authority;
-- repository-required checks and mergeability requirements pass.
-
-A passing Work Merge Gate does not grant automatic merge authority and does not
-imply `Done`. Post-merge synchronization or validation evidence may remain.
-
-The Work Merge Gate governs Work Integration Pull Requests into `main`. Automatic release publication has its own candidate-bound checks described in section 13.
-
 ## 9. Work closure and non-completion dispositions
 
 ### Completed Work
 
-Closing a Work Issue as completed SHOULD be the consequence of Method Work State
-`Done` (`Status = Done`), not a replacement for the Done invariants.
+The Workflow Coordinator records established completion through authorized
+native GitHub Project and Issue operations. Before recording `Done`, verify:
 
-Before moving to `Done` and closing as completed, verify:
+- the exact integrated commit on `main` and its identity as the authorized
+  Work candidate, for Work with repository integration;
+- the agreed scope is concluded, required Tasks have acceptable terminal
+  dispositions, and required dependencies are resolved;
+- applicable reviews are accepted, required validation is sufficient, and
+  required post-integration obligations are complete;
+- required Repository CI and source-release processing succeeded for the
+  integrated SHA, including a successful no-release plan when applicable;
+- affected durable owners are synchronized and all Working Decisions are
+  resolved for the completed scope.
 
-- agreed scope is concluded;
-- applicable reviews are sufficiently accepted;
-- required validation evidence is sufficient;
-- affected durable owners are synchronized with the truth they own;
-- no unresolved Working Decision remains for the completed scope.
-
-The trusted workflow requires attributable completion evidence and successful
-CI and source-release processing for the integrated SHA. It verifies Project
-`Status = Done` before closing the owning Issue as `completed`. See the
-[implementation controls](../architecture/ci-driven-work-integration.md#conditional-work-completion).
+Record attributable evidence in the owning Work or PR. Set Project `Status` to
+`Done` and read it back before closing the Work Issue as `completed`. If native
+Project automation has already closed the Issue after the authorized transition,
+verify that disposition. Otherwise close it as `completed` under the
+[operational permission policy](#10-ai-operational-permission-policy) and read
+back the Issue state and closure reason. Reconcile partial or uncertain writes
+against both live owners before any retry. Escalate conflicting dispositions
+without reopening, reclassifying or closing unrelated Work.
 
 ### Cancelled / abandoned Work
 
@@ -651,7 +627,10 @@ State list casually.
 
 Tool Capability, Operational Permission, Role Authority, and Gate requirements
 are evaluated independently. An allowed tool mutation never creates the semantic
-authority needed to decide the value being recorded.
+authority needed to decide the value being recorded. Use authorized native
+Project and Issue operations to record lifecycle results. Resolve the Project,
+Issue, item, field and current value before a Project write and read back the
+result from the operational owner.
 
 The Method `Workflow Coordinator` owns narrow method-level classification and
 workflow-recording authority. It may record results established by another
@@ -682,7 +661,7 @@ The default Architecture Web policy is:
 | Write Code / Architecture / Functional review output                                                              | Allowed                                                                                           | Corresponding review Role with refreshed context                                                                                 | Applicable review context resolved                                                                                                                                                                                                                                       |
 | Mutate `Work State` to `Done` / close completed Work                                                              | Allowed only to record an established completion result and when the backing owners are activated | Workflow Coordinator records closure; it MUST NOT manufacture missing review/validation acceptance                               | Done invariants, applicable Quality Gate, and Evidence Gate satisfied                                                                                                                                                                                                    |
 | Close Work as `not planned` / `duplicate`                                                                         | Not granted to AI by default                                                                      | Human or Workflow Coordinator explicitly delegated delivery-disposition authority                                                | Must preserve last valid Work State; disposition is not `Done`                                                                                                                                                                                                           |
-| Merge PR                                                                                                          | Not granted by this policy                                                                        | Separate project/repository merge authority required                                                                             | Applicable project/repository merge requirements satisfied                                                                                                                                                                                                               |
+| Merge a Work Integration PR                                                                                       | Allowed only for an individually authorized native squash merge                                   | Maintainer with merge authority, or agent explicitly authorized by that maintainer for the exact Work, PR, head and base         | Verify the prerequisites and enforce the preconditions in [Native Work integration](#native-work-integration)                                                                                                                                                            |
 
 Entering `Awaiting Approval` records that an external authority decision is
 pending; it does not execute that authority gate. Leaving `Awaiting Approval`
@@ -728,19 +707,21 @@ Automation MUST NOT blindly:
 - let an executor take unrelated Work, broaden its scope, or substitute an
   executor outside the authorized handoff;
 - accept a target ref solely from untrusted agent output;
-- treat Work Merge Gate or automatic publication check success as automatic merge
-  authority.
+- treat required check or automatic publication success as merge authority.
 
-## 12. Agent execution security and deterministic control plane
+## 12. Agent execution security and delivery tooling
 
 Ordinary agent execution MUST NOT receive credentials granting privileged
 repository, Project, merge, release, or governance mutations beyond the
 operations explicitly delegated to that execution scope.
 
-Privileged GitHub writes MUST pass through a trusted publisher, safe-output
-mechanism, or equivalent separated component that validates the requested
-operation, enforces least privilege and protected-file restrictions, preserves
-auditability, and refuses unauthorized owner/gate mutations.
+Use established, least-privilege access for each GitHub operation. Direct
+Project and Issue writes use the authority, prerequisites and read-back
+requirements in section 10. An agent's native squash merge is subject to the
+candidate-specific restrictions in section 8. Retained privileged automation
+must use a trusted, separated publisher or an equivalent boundary that validates
+the operation, enforces least privilege, preserves auditability and refuses
+unauthorized mutations.
 
 Workspace write access within authorized implementation scope does not by itself
 grant GitHub platform mutation authority. Governance, agent-control, CI/CD,
@@ -748,24 +729,20 @@ credential, and other protected project files MUST NOT be modified by ordinary
 feature execution unless the authorized Work explicitly includes them and
 applicable policy permits it.
 
-The delivery control plane MUST deterministically apply established policy for
-Ready Queue eligibility, dependencies, WIP, target-ref validation,
-lifecycle-transition validity, Work Merge Gate evaluation, and automatic release
-publication prerequisites. Human-directed Task selection follows the authorized
-Task plan and Task dependencies. Legacy autonomous dispatch and claim paths
-MUST fail closed while their required mappings are inactive.
+Delivery tooling deterministically applies the established Ready Queue,
+dependency, WIP, target-ref and release publication rules at their respective
+boundaries. Ready Queue observation is read-only. Human-directed Task selection
+follows the authorized Task plan and Task dependencies. Legacy autonomous
+dispatch and claim paths MUST fail closed while their required mappings are
+inactive.
 
-The control plane MAY record or act on semantic results established by the Role
-or Authority responsible for the underlying Activity. It MUST NOT manufacture
-review acceptance, functional approval, architecture authority, validation
-sufficiency, Priority, release approval, or another semantic result merely from
-agent confidence, prose, or tool capability.
+Workflow and agent tooling may act on results already established by the
+responsible Role or authority. Work State, review acceptance, approvals,
+validation sufficiency and Priority come from their designated owners.
 
-The branch owning a scheduled workflow does not own application branch semantics.
-The control plane MUST validate an explicit authorized target ref for operations
-that require one, and MUST NOT accept the target ref solely from untrusted agent
-output. A stable default-branch control plane may coordinate authorized
-operations on `main` or an authorized temporary Work branch.
+A workflow must verify an explicit authorized target ref for operations that
+require one. The workflow's own ref and untrusted agent output cannot establish
+the authorized target.
 
 Exact runtime, secret storage, token issuance, model, reasoning effort, sandbox,
 workflow syntax, and publisher implementation belong to Technical Design.
@@ -824,7 +801,7 @@ links and whitespace checks before artifact generation and publication.
 These automated checks are sufficient release-boundary evidence under this
 accepted policy. Pre-merge Work validation may also rely on sufficient automated
 candidate-bound evidence under [Testing and verification](../development/testing.md);
-the Work Merge Gate and applicable reviews/authority gates remain independent.
+applicable reviews and authority decisions remain independent of release publication.
 
 Generate a deterministic versioned source archive, notes, source/version manifest
 and SHA256 checksums. Include the pinned Method sources. These are source
@@ -859,7 +836,7 @@ accepted scope and activation; they are not prerequisites for source releases.
 
 Durable delivery governance MUST remain independent from a specific agent runtime
 or AI model. Runtime implementation MAY change without redefining Work State,
-Method Roles, Work Merge Gate semantics, human-directed execution policy, or
+Method Roles, native integration authority, human-directed execution policy, or
 release authority.
 
 External mappings/enforcement become effective only after separate implementation
@@ -867,12 +844,12 @@ and verification. This includes, where applicable:
 
 - native `Status` Work State mapping and its lifecycle-safe Project settings;
 - Task dependency mappings;
-- Work Merge Gate required checks/rulesets;
+- native repository rulesets and required checks;
 - GitHub Release / release-manifest operational mapping;
 - `alpha`, `beta`, and `production` environment configuration;
 - first-stable human dispatch recording;
 - automatic release publication enforcement;
-- privileged publisher / Project credentials;
+- least-privilege Project access and release publisher credentials;
 - runtime adapters explicitly authorized for activation.
 
 The [activation manifest](../../.github/delivery-automation.json) retains inactive

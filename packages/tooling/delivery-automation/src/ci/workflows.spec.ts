@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
@@ -15,7 +15,6 @@ interface Step {
   "continue-on-error"?: boolean;
 }
 interface Job {
-  environment?: string;
   uses?: string;
   needs?: string | string[];
   if?: string;
@@ -78,33 +77,48 @@ describe("CI trust and failure boundaries", () => {
     });
   });
 
-  it("wires integration observation to a fresh protected dispatch with read-only permissions", () => {
-    const observation = workflow("delivery-work-integration-observation");
-    expect(Object.keys(observation.on)).toEqual(["workflow_dispatch"]);
-    expect(Object.values(observation.permissions)).toEqual([
-      "read",
-      "read",
-      "read",
-      "read",
-    ]);
-    const job = observation.jobs["observe"];
-    expect(job?.if).toBe(
-      "github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == github.repository_owner",
-    );
-    expect(job?.environment).toBe("delivery-integration-observation");
-    expect(job?.permissions).toBeUndefined();
-    expect(job?.steps?.[0]?.with).toMatchObject({
+  it.each([
+    "delivery-work-merge-gate",
+    "delivery-work-evaluated-gate",
+    "delivery-work-integration-observation",
+    "delivery-work-integration-request",
+    "delivery-work-controller-identity",
+    "delivery-project-status",
+    "delivery-work-completion-pilot",
+  ])("has no retired %s workflow", (name) => {
+    expect(
+      existsSync(
+        new URL(
+          `../../../../../.github/workflows/${name}.yml`,
+          import.meta.url,
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps Task Claim behind a trusted main dispatch", () => {
+    const claim = workflow("delivery-task-claim");
+    expect(Object.keys(claim.on)).toEqual(["workflow_dispatch"]);
+    expect(claim.permissions).toEqual({
+      contents: "read",
+      issues: "read",
+      "pull-requests": "read",
+    });
+
+    const steps = claim.jobs["publish"]?.steps ?? [];
+    expect(steps[0]?.run).toContain('"${GITHUB_REF}" != "refs/heads/main"');
+    expect(steps[1]?.with).toMatchObject({
       ref: "${{ github.workflow_sha }}",
       "persist-credentials": false,
     });
-    const evaluator = job?.steps?.find((step) =>
-      step.run?.includes("work-merge-observe.ts"),
+    const publisher = steps.find(
+      (step) => step.name === "Publish claim mutation",
     );
-    expect(evaluator?.env?.["DELIVERY_OBSERVATION_GRANT"]).toBe(
-      "${{ vars.DELIVERY_OBSERVATION_GRANT }}",
+    expect(publisher?.run).toContain(
+      "pnpm --filter @architecture/delivery-automation claim",
     );
-    expect(JSON.stringify(observation)).not.toMatch(
-      /contents: write|issues: write|pull-requests: write|checks: write/,
+    expect(publisher?.env?.["ARCHITECTURE_WEB_PROJECTS_TOKEN"]).toBe(
+      "${{ secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN }}",
     );
   });
 
