@@ -2,9 +2,15 @@
 
 > **Identifier:** SF-SECURITY-CONFIG-001
 >
-> **Lifecycle:** Approved
+> **Artifact status:** Proposed amendment — Work #184
 >
-> **Content status:** Canonical
+> **Content status:** Proposed
+>
+> The existing approved specification on `main` remains authoritative.
+> Only the changes proposed by
+> [Work #184](https://github.com/Oxelio/architecture-web/issues/184)
+> await explicit Human Functional Approval. This draft neither withdraws
+> previously approved behavior nor establishes an effective new policy.
 >
 > **Document type:** Functional Specification
 >
@@ -138,9 +144,93 @@ administrator supplies a reason and performs step-up confirmation for critical
 changes. All changes are published atomically, effective configuration is
 refreshed, and application status is displayed.
 
-Step-up confirmation requires at least recent authentication and may require the
-password and MFA when available. A concurrent publication cannot be overwritten;
-the administrator must reconcile the conflict.
+### Operation-bound step-up confirmation
+
+Critical publication and restoration require explicit confirmation of the
+exact intended change, including the expected configuration revision and the
+administrator's reason. This applies to every change classified as critical,
+including protection increases and reductions; this amendment does not
+reclassify settings.
+
+An active, authorized administrator with a valid session may confirm a
+critical operation without signing out or signing in again merely because
+the session is old. The administrator must verify the current non-revoked
+password. If MFA is enabled for the account, a valid authenticator code or
+an unused recovery code is additionally required. When the effective policy
+requires MFA but the account has no enrolled factor, the operation is
+refused. No grace period or implicit recovery bypass is introduced.
+
+The confirmation is bound to the actor, originating session, submitted
+operation and expected revision. It authorizes at most that attempt; it
+cannot authorize another operation or another session. The attempt must
+reach final authorization within two minutes of the server receiving the
+submitted confirmation and before the session expires. At the expiry
+boundary the proof is no longer valid. A new attempt requires fresh proof.
+The system neither creates a new session nor extends or resets the
+existing session's lifetime or creation time as a consequence of
+confirmation. Normal session activity tracking is unaffected.
+
+The existing recent-authentication window continues to apply unchanged
+to other journeys that require recent authentication. It no longer imposes
+a session-age limit on critical configuration publication or restoration.
+Non-critical publication and other sensitive IAM operations retain their
+existing rules.
+
+### Attempt limits
+
+For critical publication and restoration together, an administrator account
+may initiate at most five credential-verification attempts in any rolling
+five-minute window. The allowance is shared across all sessions and
+application instances. An admitted attempt counts before credential
+verification, including successful or failed verification and concurrent
+attempts. An admitted attempt interrupted by technical failure may still
+consume allowance. A request rejected before credential verification for
+invalid input, known revision conflict or missing authorization does not
+consume allowance. Requests refused for exhausted allowance do not add
+attempts to the window.
+
+A successful proof, new session, or change of operation does not reset the
+allowance. The restriction applies to these critical operations only; it
+does not lock the account or change sign-in limits. When the allowance is
+exhausted, refuse the attempt and tell the administrator to retry when the
+allowance returns. If the system cannot establish the allowance, it refuses
+the operation as a technical failure rather than bypassing the safeguard.
+
+### Final authorization and concurrency
+
+The system must establish final authorization for the exact operation,
+using the effective configuration captured for that execution rather than
+the proposed replacement policy. At final authorization the originating
+session must still belong to the actor, be valid and unrevoked, and the
+attempt must not have expired. The actor must still be active and
+authorized, and the password and required second factor proofs must
+correspond to the current account security state.
+
+A session revocation, expiration, credential replacement or change in MFA
+state that takes effect before final authorization invalidates the
+attempt. An operation already admitted at final authorization may finish
+if a session is revoked afterward, subject to the existing independent
+authorization, account security, revision and last-administrator safeguards
+at publication. This does not cancel an already admitted operation
+retroactively. The final authorization rule does not weaken these
+existing safeguards.
+
+A concurrent publication cannot be overwritten. Reject a revision known
+to be stale before requesting verification of credentials. If a conflict
+is discovered after factor consumption, the administrator must reconcile
+the change and submit a new confirmation. A consumed authenticator proof
+or recovery code remains consumed under the MFA rules; do not replay it
+automatically. A refused operation creates no configuration revision.
+
+Distinguish missing or expired authentication, refused confirmation,
+exhausted attempt allowance, revision conflict and technical failure
+without disclosing secret values or whether a factor was replayed.
+Preserve the draft and justification on refusal or conflict. Clear
+submitted password and factor input after each attempt. Retain existing
+publication/restoration traceability and the audit failure policy in
+[SF-SECURITY-AUDIT-001](SF-SECURITY-AUDIT-001.md); no passwords, second-factor
+values, recovery codes, bearer session identifiers or unfiltered request
+bodies appear in audit records or diagnostic output.
 
 ## Dependency validation
 
@@ -184,7 +274,9 @@ effective, the application keeps the latest known valid revision, reports the
 discrepancy, and never silently falls back to environment variables.
 
 Restoring an older revision creates a new revision and preserves history. It is
-validated against the current application version.
+validated against the current application version. A restoration affecting a
+critical setting follows the same operation-bound confirmation, attempt-limit
+and final-authorization rules as a critical publication.
 
 A documented operational procedure must restore safe configuration when the UI
 is inaccessible, and its use is recorded when storage becomes available.
@@ -238,10 +330,13 @@ shows dependencies before confirmation, and presents before/after values,
 affected features, and effect mode in a preview step.
 
 A non-empty reason is required before publication. The journey requests
-explicit step-up confirmation for critical reductions, distinguishes version
-conflicts from validation and application failures, prevents duplicate
-submission, supports keyboard and assistive technologies, and shows the last
-refresh time and viewed revision.
+explicit step-up confirmation for every critical change, distinguishes proof
+refusals, temporary attempt limits, version conflicts and technical failures,
+prevents duplicate submission, supports keyboard and assistive technologies,
+and shows the last refresh time and viewed revision. It does not require a
+new sign-in solely because a still-valid session was created long ago.
+The authentication-window setting's description identifies the journeys
+that still use it.
 
 A `recommended` indicator guides choices without blocking deployments with
 different constraints.
@@ -282,7 +377,7 @@ Tests cover at least:
 3. a valid change without restart;
 4. invalid type, bound, or combination;
 5. dependencies and unavailable capabilities;
-6. step-up confirmation for critical reduction;
+6. step-up confirmation for critical changes, including restoration;
 7. atomic multi-option publication;
 8. concurrent administrator conflict;
 9. multi-instance convergence;
@@ -296,7 +391,21 @@ Tests cover at least:
 17. complete immutable history;
 18. recovery after loss of administration access;
 19. unknown or obsolete options;
-20. administrative journey accessibility.
+20. administrative journey accessibility;
+21. critical publication and restoration from a valid old session, with
+    unchanged session creation and expiry;
+22. missing, invalid, expired or mismatched authentication, incorrect password,
+    missing or invalid required MFA and one-use factor protection;
+23. mandatory MFA without enrollment, with no implicit bypass;
+24. attempt validity at the two-minute and session-expiry boundaries;
+25. shared five-attempt rolling limit, concurrency, multiple sessions and
+    instances, and technical unavailability of the allowance;
+26. revocation, credential/MFA change, authorization and revision races on
+    either side of final authorization, including preserved transaction guards;
+27. conflict reconciliation without automatic replay, draft preservation,
+    localized accessible feedback and secret exclusion;
+28. unchanged non-critical configuration and other recent-authentication
+    journeys.
 
 ## Acceptance criteria
 
@@ -307,7 +416,11 @@ recorded; all instances use a consistent revision within the stated delay;
 failure retains the latest valid revision; secrets and operational settings stay
 outside the center; baseline controls cannot be disabled; the server refuses
 disabled features; the existing password policy is controllable after migration;
-and critical changes are confirmed, traceable, and restorable.
+and critical changes are confirmed, traceable, and restorable. For Work #184,
+critical publication and restoration must satisfy the operation-bound proof,
+shared attempt limit, final authorization and failure rules above without
+forcing sign-out based solely on session age or weakening the existing
+independent safeguards.
 
 ## Out of scope
 
