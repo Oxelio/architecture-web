@@ -370,6 +370,10 @@ export { GetSecurityConfigurationUseCase } from "./access-administration/get-sec
 export { PreviewSecurityConfigurationUseCase } from "./access-administration/preview-security-configuration/preview-security-configuration.use-case.js";
 export { PublishSecurityConfigurationUseCase } from "./access-administration/publish-security-configuration/publish-security-configuration.use-case.js";
 export { RestoreSecurityConfigurationUseCase } from "./access-administration/restore-security-configuration/restore-security-configuration.use-case.js";
+export type {
+  CriticalConfigurationConfirmationStore,
+  CriticalConfigurationSecurityState,
+} from "./access-administration/security-configuration/critical-configuration-confirmation.store.js";
 export { PublishedIamPolicies } from "./access-administration/security-configuration/published-iam-policies.js";
 export { CancelAccountDeletionUseCase } from "./accounts/cancel-account-deletion/cancel-account-deletion.use-case.js";
 export { DownloadAccountExportUseCase } from "./accounts/download-account-export/download-account-export.use-case.js";

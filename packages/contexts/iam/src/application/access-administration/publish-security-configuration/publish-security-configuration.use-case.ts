@@ -2,6 +2,7 @@ import { Result } from "@architecture/foundation";
 
 import type { AdministratorAuthorizer } from "#access-administration/administrator-authorizer";
 import type { ConfigurationStore } from "#access-administration/security-configuration/configuration.store";
+import type { CriticalConfigurationConfirmation } from "#access-administration/security-configuration/critical-configuration-confirmation";
 import {
   changedPolicyKeys,
   CRITICAL_SECURITY_POLICY_KEYS,
@@ -19,40 +20,47 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
   constructor(
     private readonly authorization: AdministratorAuthorizer,
     private readonly store: ConfigurationStore,
-    private readonly reauthentication: Pick<
-      import("#authentication/reauthentication").Reauthentication,
-      "strong"
+    private readonly confirmation: Pick<
+      CriticalConfigurationConfirmation,
+      "verify"
     >,
     private readonly events: import("#accounts/security-effects").SecurityEventRecorder,
   ) {}
   async execute(
-    input: PublishSecurityConfigurationInput,
+    submitted: PublishSecurityConfigurationInput,
+    executionStartedAt = performance.now(),
   ): Promise<PublishSecurityConfigurationOutput> {
-    const result = await this.perform(input).catch(async (error_: unknown) => {
-      const operationError = error_;
-      try {
-        await this.events.record(
-          "security.config.publication-attempt",
-          "technical_failure",
-          {
-            actorType: "administrator",
-            actorId: input.actorId,
-            subjectId: input.actorId,
-          },
-          {
-            expectedVersion: input.expectedVersion,
-            origin: input.origin ?? "administration",
-            result: "technical_failure",
-          },
-        );
-      } catch (error_) {
-        throw new AggregateError(
-          [operationError, error_],
-          "Configuration operation and failure recording failed",
-        );
-      }
-      throw operationError;
-    });
+    const input = {
+      ...submitted,
+      justification: submitted.justification.trim().slice(0, 500),
+    };
+    const result = await this.perform(input, executionStartedAt).catch(
+      async (error_: unknown) => {
+        const operationError = error_;
+        try {
+          await this.events.record(
+            "security.config.publication-attempt",
+            "technical_failure",
+            {
+              actorType: "administrator",
+              actorId: input.actorId,
+              subjectId: input.actorId,
+            },
+            {
+              expectedVersion: input.expectedVersion,
+              origin: input.origin ?? "administration",
+              result: "technical_failure",
+            },
+          );
+        } catch (error_) {
+          throw new AggregateError(
+            [operationError, error_],
+            "Configuration operation and failure recording failed",
+          );
+        }
+        throw operationError;
+      },
+    );
     await this.events.record(
       "security.config.publication-attempt",
       result.success ? "success" : "denied",
@@ -64,7 +72,7 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
       {
         expectedVersion: input.expectedVersion,
         origin: input.origin ?? "administration",
-        justification: input.justification.trim().slice(0, 500),
+        justification: input.justification,
         ...(input.restoredFromRevisionId
           ? { restoredFromRevisionId: input.restoredFromRevisionId }
           : {}),
@@ -75,6 +83,7 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
   }
   private async perform(
     input: PublishSecurityConfigurationInput,
+    executionStartedAt: number,
   ): Promise<PublishSecurityConfigurationOutput> {
     const authorized = await this.authorization.authorize(input.actorId);
     if (!authorized.success) {
@@ -84,34 +93,45 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
     if (!parsed.success) {
       return parsed;
     }
-    if (!input.justification.trim()) {
+    if (!input.justification) {
       return Result.failure(
         PublishSecurityConfigurationErrors.justificationRequired,
       );
     }
     const previous = await this.store.readPublished();
     const changedKeys = changedPolicyKeys(previous.values, parsed.value);
-    if (
-      changedKeys.some((key) => CRITICAL_SECURITY_POLICY_KEYS.includes(key)) &&
-      !input.confirmedCritical
-    ) {
+    const critical = changedKeys.some((key) =>
+      CRITICAL_SECURITY_POLICY_KEYS.includes(key),
+    );
+    if (critical && previous.version !== input.expectedVersion) {
+      return Result.failure(PublishSecurityConfigurationErrors.versionConflict);
+    }
+    if (critical && !input.confirmedCritical) {
       return Result.failure(
         PublishSecurityConfigurationErrors.criticalConfirmationRequired,
       );
     }
     let expectedActorSessionVersion: number | undefined;
-    if (
-      changedKeys.some((key) => CRITICAL_SECURITY_POLICY_KEYS.includes(key))
-    ) {
-      const proof = await this.reauthentication.strong(
-        input.actorId,
-        input.sessionId ?? "",
-        input.password ?? "",
-        input.mfaCode,
-        previous.values.authentication,
-      );
+    if (critical) {
+      const proof = await this.confirmation.verify({
+        actorId: input.actorId,
+        expectedVersion: input.expectedVersion,
+        sessionId: input.sessionId ?? "",
+        password: input.password ?? "",
+        ...(input.mfaCode !== undefined ? { mfaCode: input.mfaCode } : {}),
+        authentication: previous.values.authentication,
+        startedAt: executionStartedAt,
+      });
       if (!proof.success) {
-        return proof;
+        const errors = PublishSecurityConfigurationErrors;
+        const failures = {
+          session_invalid: errors.sessionInvalid,
+          confirmation_refused: errors.confirmationRefused,
+          attempts_exhausted: errors.attemptsExhausted,
+          unauthorized: errors.unauthorized,
+          version_conflict: errors.versionConflict,
+        } as const;
+        return Result.failure(failures[proof.error]);
       }
       expectedActorSessionVersion = proof.value;
     }
@@ -119,7 +139,7 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
       actorId: input.actorId,
       values: parsed.value,
       expectedVersion: input.expectedVersion,
-      justification: input.justification.trim().slice(0, 500),
+      justification: input.justification,
       changedKeys,
       ...(expectedActorSessionVersion !== undefined
         ? { expectedActorSessionVersion }
@@ -130,9 +150,7 @@ export class PublishSecurityConfigurationUseCase implements PublishSecurityConfi
         : {}),
     });
     if (revision === "reauthentication_required") {
-      return Result.failure(
-        PublishSecurityConfigurationErrors.recentProofRequired,
-      );
+      return Result.failure(PublishSecurityConfigurationErrors.sessionInvalid);
     }
     if (revision === "last_administrator") {
       return Result.failure(

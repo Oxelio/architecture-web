@@ -138,6 +138,11 @@ const apiFeedback: Record<
   securityConfig: {
     fallback: "securityConfig.error",
     codes: {
+      "authentication.unauthorized": "securityConfig.sessionExpired",
+      "security_configuration.confirmation_refused":
+        "securityConfig.confirmationRefused",
+      "security_configuration.confirmation_attempts_exhausted":
+        "securityConfig.confirmationAttemptsExhausted",
       "security_configuration.invalid": "securityConfig.invalid",
       "security_configuration.justification_required":
         "securityConfig.justificationRequired",

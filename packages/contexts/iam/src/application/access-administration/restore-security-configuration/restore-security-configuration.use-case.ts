@@ -21,6 +21,7 @@ export class RestoreSecurityConfigurationUseCase implements RestoreSecurityConfi
   ) {}
   async execute(
     input: RestoreSecurityConfigurationInput,
+    executionStartedAt = performance.now(),
   ): Promise<RestoreSecurityConfigurationOutput> {
     const context = {
       actorType: "administrator" as const,
@@ -35,23 +36,25 @@ export class RestoreSecurityConfigurationUseCase implements RestoreSecurityConfi
         ? { restoredFromRevisionId: input.revisionId }
         : {}),
     };
-    const result = await this.perform(input).catch(async (error_: unknown) => {
-      const operationError = error_;
-      try {
-        await this.events.record(
-          "security.config.restoration-attempt",
-          "technical_failure",
-          context,
-          { ...metadata, result: "technical_failure" },
-        );
-      } catch (error_) {
-        throw new AggregateError(
-          [operationError, error_],
-          "Configuration restoration and failure recording failed",
-        );
-      }
-      throw operationError;
-    });
+    const result = await this.perform({ ...input }, executionStartedAt).catch(
+      async (error_: unknown) => {
+        const operationError = error_;
+        try {
+          await this.events.record(
+            "security.config.restoration-attempt",
+            "technical_failure",
+            context,
+            { ...metadata, result: "technical_failure" },
+          );
+        } catch (error_) {
+          throw new AggregateError(
+            [operationError, error_],
+            "Configuration restoration and failure recording failed",
+          );
+        }
+        throw operationError;
+      },
+    );
     await this.events.record(
       "security.config.restoration-attempt",
       result.success ? "success" : "denied",
@@ -62,6 +65,7 @@ export class RestoreSecurityConfigurationUseCase implements RestoreSecurityConfi
   }
   private async perform(
     input: RestoreSecurityConfigurationInput,
+    executionStartedAt: number,
   ): Promise<RestoreSecurityConfigurationOutput> {
     if (!isSecurityOperationId(input.revisionId)) {
       return Result.failure(
@@ -79,15 +83,18 @@ export class RestoreSecurityConfigurationUseCase implements RestoreSecurityConfi
         RestoreSecurityConfigurationErrors.revisionNotFound,
       );
     }
-    return this.publish.execute({
-      ...input,
-      origin: "restoration",
-      restoredFromRevisionId: input.revisionId,
-      actorId: input.actorId,
-      values: target.values,
-      expectedVersion: input.expectedVersion,
-      justification: input.justification,
-      confirmedCritical: input.confirmedCritical,
-    });
+    return this.publish.execute(
+      {
+        ...input,
+        origin: "restoration",
+        restoredFromRevisionId: input.revisionId,
+        actorId: input.actorId,
+        values: target.values,
+        expectedVersion: input.expectedVersion,
+        justification: input.justification,
+        confirmedCritical: input.confirmedCritical,
+      },
+      executionStartedAt,
+    );
   }
 }

@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
@@ -31,6 +37,15 @@ const PREVIEW_WARNING_KEYS: Record<string, string> = {
     "securityConfig.previewWarnings.auditRetention",
 };
 
+type ConfigurationTarget =
+  | { values: Draft; expectedVersion: number }
+  | {
+      revision: SecurityConfigCenter["revisions"][number];
+      expectedVersion: number;
+    };
+
+type Preview = Awaited<ReturnType<typeof previewSecurityConfig>>;
+
 export function AdminSecurityCenter() {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -45,122 +60,306 @@ export function AdminSecurityCenter() {
   const [view, setView] = useState<"configuration" | "history" | "audit">(
     "configuration",
   );
-  const [draft, setDraft] = useState<{ values: Draft; version: number } | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<{
+    values: Draft;
+    base: Draft;
+    version: number;
+  } | null>(null);
   const [justification, setJustification] = useState("");
   const [confirmedCritical, setConfirmedCritical] = useState(false);
   const [password, setPassword] = useState("");
   const [mfaCode, setMfaCode] = useState("");
+  const [pending, setPending] = useState(false);
+  const [operationError, setOperationError] = useState<unknown>();
+  const submitting = useRef(false);
 
   const effectiveDraft = draft?.values ?? config.data?.effective ?? null;
-
-  const changed = useMemo(
-    () =>
-      effectiveDraft !== null &&
-      config.data !== undefined &&
-      JSON.stringify(effectiveDraft) !== JSON.stringify(config.data.effective),
-    [config.data, effectiveDraft],
-  );
+  const version = currentVersion(config.data);
+  const draftStale = draft !== null && draft.version !== version;
+  const changed =
+    effectiveDraft !== null &&
+    config.data !== undefined &&
+    JSON.stringify(effectiveDraft) !== JSON.stringify(config.data.effective);
 
   const preview = useMutation({
-    mutationFn: () => previewSecurityConfig(effectiveDraft ?? {}),
-  });
-  const publish = useMutation({
-    mutationFn: () =>
-      publishSecurityConfig(
-        effectiveDraft ?? {},
-        draft?.version ?? currentVersion(config.data),
-        justification,
-        confirmedCritical,
-        { password, mfaCode },
+    mutationFn: async (target: ConfigurationTarget) => ({
+      target,
+      details: await previewSecurityConfig(
+        "revision" in target
+          ? { revisionId: target.revision.id }
+          : { values: target.values },
       ),
-    onSuccess: async () => {
-      setPassword("");
-      setMfaCode("");
-      setJustification("");
-      setConfirmedCritical(false);
-      setDraft(null);
-      preview.reset();
-      await client.invalidateQueries({ queryKey: ["admin-security-config"] });
-    },
+    }),
   });
-  const rollback = useMutation({
-    mutationFn: (revisionId: string) =>
-      rollbackSecurityConfig(revisionId, {
-        expectedVersion: currentVersion(config.data),
-        justification,
-        confirmedCritical,
-        password,
-        mfaCode,
-      }),
-    onSuccess: async () => {
-      setPassword("");
-      setMfaCode("");
-      setDraft(null);
-      await client.invalidateQueries({ queryKey: ["admin-security-config"] });
-    },
-  });
+  const reviewed = preview.data;
+  const stale =
+    reviewed !== undefined &&
+    (version !== reviewed.target.expectedVersion ||
+      reviewed.details.expectedVersion !== reviewed.target.expectedVersion);
+  const critical = reviewed?.details.impact === "critical";
+  const revisionConflict =
+    operationError !== undefined &&
+    apiErrorKey(operationError, "securityConfig") ===
+      "securityConfig.versionConflict";
 
-  const resetDraft = () => {
-    if (config.data) {
-      setDraft({
-        values: structuredClone(config.data.effective),
-        version: currentVersion(config.data),
-      });
-      preview.reset();
+  function clearConfirmation() {
+    setPassword("");
+    setMfaCode("");
+    setConfirmedCritical(false);
+  }
+
+  function invalidatePreview() {
+    preview.reset();
+    setOperationError(undefined);
+    clearConfirmation();
+  }
+
+  function requestPreview(target: ConfigurationTarget) {
+    if (submitting.current) {
+      return;
     }
-  };
+    invalidatePreview();
+    preview.mutate(target);
+  }
 
-  return (
-    <section className="mt-7 space-y-5">
-      {view !== "audit" ? (
-        <fieldset className="grid gap-3 rounded-xl border border-slate-700 p-4">
-          <legend>{t("securityConfig.stepUp")}</legend>
-          {view === "history" ? (
+  function previewDraftAgainstLatest() {
+    if (!draft || !draftStale || !config.data) {
+      return;
+    }
+    const base = config.data.effective;
+    let values = base;
+    for (const { key } of config.data.catalog) {
+      const intended = getValue(draft.values, key);
+      if (
+        JSON.stringify(intended) !== JSON.stringify(getValue(draft.base, key))
+      ) {
+        values = setValue(values, key, intended);
+      }
+    }
+    setDraft({ values, base, version });
+    requestPreview({ values, expectedVersion: version });
+  }
+
+  const [previousVersion, setPreviousVersion] = useState(version);
+  if (previousVersion !== version) {
+    setPreviousVersion(version);
+    clearConfirmation();
+  }
+
+  const confirmationPanel = useRef<HTMLFieldSetElement>(null);
+  useEffect(() => {
+    if (reviewed && !stale) {
+      confirmationPanel.current?.focus();
+    }
+  }, [reviewed, stale]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      submitting.current ||
+      !reviewed ||
+      stale ||
+      revisionConflict ||
+      preview.isError ||
+      !justification.trim() ||
+      (critical && (!confirmedCritical || !password))
+    ) {
+      return;
+    }
+    const { target } = reviewed;
+    const proof = critical ? { password, mfaCode } : undefined;
+    const reason = justification.trim();
+    submitting.current = true;
+    setPending(true);
+    setOperationError(undefined);
+    try {
+      if ("revision" in target) {
+        await rollbackSecurityConfig(target.revision.id, {
+          expectedVersion: target.expectedVersion,
+          justification: reason,
+          confirmedCritical,
+          ...proof,
+        });
+      } else {
+        await publishSecurityConfig(
+          target.values,
+          target.expectedVersion,
+          reason,
+          confirmedCritical,
+          proof,
+        );
+        setDraft(null);
+      }
+      setJustification("");
+      preview.reset();
+      await client.invalidateQueries({ queryKey: ["admin-security-config"] });
+    } catch (error) {
+      setOperationError(error);
+    } finally {
+      clearConfirmation();
+      submitting.current = false;
+      setPending(false);
+    }
+  }
+
+  const errorKey =
+    preview.isError || operationError !== undefined
+      ? apiErrorKey(preview.error ?? operationError, "securityConfig")
+      : stale || (view === "configuration" && draftStale)
+        ? "securityConfig.versionConflict"
+        : undefined;
+
+  const confirmation = (
+    <form onSubmit={(event) => void submit(event)}>
+      <fieldset
+        ref={confirmationPanel}
+        tabIndex={-1}
+        disabled={pending}
+        className="grid gap-3 rounded-xl border border-slate-700 p-4"
+      >
+        <legend>{t("securityConfig.stepUp")}</legend>
+        {reviewed && !stale ? (
+          <>
+            <p>
+              {t("securityConfig.confirmAgainstVersion", {
+                version: reviewed.target.expectedVersion,
+              })}
+              {"revision" in reviewed.target
+                ? " · " +
+                  t("securityConfig.restoreTarget", {
+                    version: reviewed.target.revision.version,
+                  })
+                : null}
+            </p>
+            <ConfigurationPreview preview={reviewed.details} />
+          </>
+        ) : null}
+        <label>
+          {t("securityConfig.justification")}
+          <textarea
+            value={justification}
+            onChange={(event) => {
+              setJustification(event.target.value);
+              clearConfirmation();
+            }}
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white"
+            rows={3}
+          />
+        </label>
+        {reviewed && !stale && critical ? (
+          <>
             <label>
-              {t("securityConfig.justification")}
+              {t("securityConfig.password")}
               <input
-                value={justification}
-                onChange={(event) => setJustification(event.target.value)}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
               />
             </label>
-          ) : null}
-          <label>
-            {t("securityConfig.password")}
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          <label>
-            {t("securityConfig.mfaCode")}
-            <input
-              autoComplete="one-time-code"
-              value={mfaCode}
-              onChange={(event) => setMfaCode(event.target.value)}
-            />
-          </label>
-          {view === "history" ? (
+            <label>
+              {t("securityConfig.mfaCode")}
+              <input
+                type="password"
+                autoComplete="one-time-code"
+                value={mfaCode}
+                onChange={(event) => setMfaCode(event.target.value)}
+              />
+            </label>
             <label>
               <input
                 type="checkbox"
                 checked={confirmedCritical}
                 onChange={(event) => setConfirmedCritical(event.target.checked)}
               />
-              {t("securityConfig.confirm")}
+              {t("securityConfig.confirmCritical")}
             </label>
-          ) : null}
-          {rollback.isError ? (
-            <p role="alert">
-              {errorMessage(t, apiErrorKey(rollback.error, "securityConfig"))}
-            </p>
-          ) : null}
-        </fieldset>
+          </>
+        ) : null}
+        {view === "configuration" ? (
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={!changed && !draftStale}
+              onClick={() => {
+                setDraft(null);
+                invalidatePreview();
+              }}
+            >
+              {t("securityConfig.reset")}
+            </button>
+            <button
+              type="button"
+              disabled={
+                !effectiveDraft || !changed || draftStale || preview.isPending
+              }
+              onClick={() => {
+                if (effectiveDraft) {
+                  requestPreview({
+                    values: effectiveDraft,
+                    expectedVersion: draft?.version ?? version,
+                  });
+                }
+              }}
+            >
+              {t("securityConfig.preview")}
+            </button>
+            {draftStale ? (
+              <button
+                type="button"
+                disabled={config.isFetching || preview.isPending}
+                onClick={previewDraftAgainstLatest}
+              >
+                {t("securityConfig.previewAgainstLatest")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {view === "configuration" || reviewed ? (
+          <button
+            type="submit"
+            disabled={
+              !reviewed ||
+              stale ||
+              revisionConflict ||
+              !justification.trim() ||
+              (critical && (!confirmedCritical || !password))
+            }
+            className="mt-2 w-fit rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-white disabled:opacity-50"
+          >
+            {t(
+              view === "configuration"
+                ? "securityConfig.publish"
+                : "securityConfig.applyRestoration",
+            )}
+          </button>
+        ) : null}
+      </fieldset>
+      {errorKey ? (
+        <p role="alert" className="mt-3 text-sm text-rose-300">
+          {errorMessage(t, errorKey)}
+        </p>
       ) : null}
+      {errorKey === "securityConfig.versionConflict" ? (
+        <button
+          type="button"
+          disabled={pending || config.isFetching}
+          onClick={() => {
+            invalidatePreview();
+            void client.invalidateQueries({
+              queryKey: ["admin-security-config"],
+            });
+          }}
+        >
+          {t("securityConfig.refreshRevision")}
+        </button>
+      ) : null}
+      {pending ? <output>{t("securityConfig.applying")}</output> : null}
+    </form>
+  );
 
+  return (
+    <section className="mt-7 space-y-5">
       <nav
         className="flex flex-wrap gap-2"
         aria-label={t("securityConfig.navigation")}
@@ -169,8 +368,14 @@ export function AdminSecurityCenter() {
           <button
             key={item}
             type="button"
+            disabled={pending}
             aria-current={view === item ? "page" : undefined}
-            onClick={() => setView(item)}
+            onClick={() => {
+              if (!submitting.current && view !== item) {
+                setView(item);
+                invalidatePreview();
+              }
+            }}
             className={`rounded-xl px-4 py-2 text-sm font-semibold ${
               view === item
                 ? "bg-sky-500 text-white"
@@ -186,34 +391,35 @@ export function AdminSecurityCenter() {
         <ConfigurationEditor
           catalog={config.data?.catalog ?? []}
           draft={effectiveDraft}
-          onChange={(key, value) =>
+          disabled={pending}
+          onChange={(key, value) => {
+            invalidatePreview();
             setDraft((current) => ({
               values: setPolicyValue(
                 current?.values ?? effectiveDraft ?? {},
                 key,
                 value,
               ),
-              version: current?.version ?? currentVersion(config.data),
-            }))
-          }
-          onReset={resetDraft}
-          changed={changed}
-          justification={justification}
-          onJustificationChange={setJustification}
-          confirmedCritical={confirmedCritical}
-          onCriticalConfirmationChange={setConfirmedCritical}
-          preview={preview}
-          publish={publish}
+              base: current?.base ?? config.data?.effective ?? {},
+              version: current?.version ?? version,
+            }));
+          }}
+          confirmation={confirmation}
         />
       ) : null}
 
       {view === "history" ? (
-        <History
-          revisions={config.data?.revisions ?? []}
-          currentVersion={currentVersion(config.data)}
-          pending={rollback.isPending}
-          onRollback={(id) => rollback.mutate(id)}
-        />
+        <>
+          <History
+            revisions={config.data?.revisions ?? []}
+            currentVersion={version}
+            pending={pending || preview.isPending}
+            onRollback={(revision) =>
+              requestPreview({ revision, expectedVersion: version })
+            }
+          />
+          {confirmation}
+        </>
       ) : null}
 
       {view === "audit" ? <Audit events={events.data ?? []} /> : null}
@@ -225,35 +431,16 @@ function ConfigurationEditor({
   catalog,
   draft,
   onChange,
-  onReset,
-  changed,
-  justification,
-  onJustificationChange,
-  confirmedCritical,
-  onCriticalConfirmationChange,
-  preview,
-  publish,
+  disabled,
+  confirmation,
 }: Readonly<{
   catalog: SecurityConfigCenter["catalog"];
   draft: Draft | null;
   onChange: (key: string, value: unknown) => void;
-  onReset: () => void;
-  changed: boolean;
-  justification: string;
-  onJustificationChange: (value: string) => void;
-  confirmedCritical: boolean;
-  onCriticalConfirmationChange: (value: boolean) => void;
-  preview: ReturnType<
-    typeof useMutation<
-      Awaited<ReturnType<typeof previewSecurityConfig>>,
-      Error,
-      void
-    >
-  >;
-  publish: ReturnType<typeof useMutation<unknown, Error, void>>;
+  disabled: boolean;
+  confirmation: ReactNode;
 }>) {
   const { t } = useTranslation();
-  const critical = preview.data?.impact === "critical";
 
   return (
     <div className="space-y-5">
@@ -265,12 +452,12 @@ function ConfigurationEditor({
           {t("securityConfig.description")}
         </p>
       </header>
-
       {CATEGORY_ORDER.map((category) => {
         const entries = catalog.filter((item) => item.category === category);
         return entries.length > 0 ? (
           <fieldset
             key={category}
+            disabled={disabled}
             className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6"
           >
             <legend className="px-2 text-lg font-semibold text-white">
@@ -291,108 +478,43 @@ function ConfigurationEditor({
           </fieldset>
         ) : null;
       })}
-
       <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
-        <label
-          htmlFor="security-config-justification"
-          className="text-sm font-semibold text-white"
-        >
-          {t("securityConfig.justification")}
-        </label>
-        <textarea
-          id="security-config-justification"
-          value={justification}
-          onChange={(event) => onJustificationChange(event.target.value)}
-          rows={3}
-          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white"
-        />
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onReset}
-            disabled={!changed}
-            className="rounded-xl border border-slate-700 px-4 py-2 font-semibold text-slate-200 disabled:opacity-50"
-          >
-            {t("securityConfig.reset")}
-          </button>
-          <button
-            type="button"
-            onClick={() => preview.mutate()}
-            disabled={!changed || preview.isPending}
-            className="rounded-xl border border-sky-500/50 px-4 py-2 font-semibold text-sky-200 disabled:opacity-50"
-          >
-            {t("securityConfig.preview")}
-          </button>
-        </div>
-
-        {preview.data ? (
-          <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-            <p className="font-semibold">
-              {t("securityConfig.previewSummary", {
-                count: preview.data.changedKeys.length,
-                impact: t(`securityConfig.impact.${preview.data.impact}`, {
-                  defaultValue: preview.data.impact,
-                }),
-              })}
-            </p>
-            <ul className="mt-2 space-y-1">
-              {preview.data.changes.map((change) => (
-                <li key={change.key}>
-                  {t(`securityConfig.fields.${change.key}`, {
-                    defaultValue: change.key,
-                  })}{" "}
-                  : <code>{formatValue(change.before)}</code> →{" "}
-                  <code>{formatValue(change.after)}</code>
-                </li>
-              ))}
-            </ul>
-            {preview.data.warnings.map((warning) => (
-              <p key={warning} className="mt-2">
-                {PREVIEW_WARNING_KEYS[warning]
-                  ? t(PREVIEW_WARNING_KEYS[warning])
-                  : warning}
-              </p>
-            ))}
-          </div>
-        ) : null}
-
-        {critical ? (
-          <label className="mt-4 flex gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-100">
-            <input
-              type="checkbox"
-              checked={confirmedCritical}
-              onChange={(event) =>
-                onCriticalConfirmationChange(event.target.checked)
-              }
-              className="mt-1"
-            />{" "}
-            {t("securityConfig.confirmCritical")}
-          </label>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={() => publish.mutate()}
-          disabled={
-            !preview.data ||
-            !justification.trim() ||
-            (critical && !confirmedCritical) ||
-            publish.isPending
-          }
-          className="mt-4 rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-white disabled:opacity-50"
-        >
-          {t("securityConfig.publish")}
-        </button>
-        {preview.isError || publish.isError ? (
-          <p role="alert" className="mt-3 text-sm text-rose-300">
-            {errorMessage(
-              t,
-              // Publication requires a successful preview, so a retained preview error is later.
-              apiErrorKey(preview.error ?? publish.error, "securityConfig"),
-            )}
-          </p>
-        ) : null}
+        {confirmation}
       </article>
+    </div>
+  );
+}
+
+function ConfigurationPreview({ preview }: Readonly<{ preview: Preview }>) {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+      <p className="font-semibold">
+        {t("securityConfig.previewSummary", {
+          count: preview.changedKeys.length,
+          impact: t(`securityConfig.impact.${preview.impact}`, {
+            defaultValue: preview.impact,
+          }),
+        })}
+      </p>
+      <ul className="mt-2 space-y-1">
+        {preview.changes.map((change) => (
+          <li key={change.key}>
+            {t(`securityConfig.fields.${change.key}`, {
+              defaultValue: change.key,
+            })}{" "}
+            <code>{formatValue(change.before)}</code> →{" "}
+            <code>{formatValue(change.after)}</code>
+          </li>
+        ))}
+      </ul>
+      {preview.warnings.map((warning) => (
+        <p key={warning} className="mt-2">
+          {PREVIEW_WARNING_KEYS[warning]
+            ? t(PREVIEW_WARNING_KEYS[warning])
+            : warning}
+        </p>
+      ))}
     </div>
   );
 }
@@ -443,7 +565,9 @@ function ConfigField({
             {label}
           </label>
           <p className="mt-1 text-xs text-slate-400">
-            {t("securityConfig.fieldDescription", { label })}
+            {entry.key === "authentication.recentAuthenticationMinutes"
+              ? t("securityConfig.recentAuthenticationDescription")
+              : t("securityConfig.fieldDescription", { label })}
           </p>
         </div>
         <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase text-slate-400">
@@ -567,7 +691,7 @@ function History({
   revisions: SecurityConfigCenter["revisions"];
   currentVersion: number;
   pending: boolean;
-  onRollback: (id: string) => void;
+  onRollback: (revision: SecurityConfigCenter["revisions"][number]) => void;
 }>) {
   const { t, i18n } = useTranslation();
   return (
@@ -621,7 +745,7 @@ function History({
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => onRollback(revision.id)}
+                onClick={() => onRollback(revision)}
                 className="rounded-xl border border-slate-700 px-3 py-2 text-slate-200 disabled:opacity-50"
               >
                 {t("securityConfig.restore")}

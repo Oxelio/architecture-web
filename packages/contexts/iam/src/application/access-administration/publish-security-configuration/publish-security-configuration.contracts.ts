@@ -1,7 +1,6 @@
 import type { Result, ValueOf } from "@architecture/foundation";
 
 import type { AdministratorAuthorizationError } from "#access-administration/administrator-authorizer";
-import type { StrongAuthenticationError } from "#authentication/reauthentication.contracts";
 import type { SecurityPolicyError } from "#domain/security-policy";
 
 export const PublishSecurityConfigurationErrors = {
@@ -11,7 +10,11 @@ export const PublishSecurityConfigurationErrors = {
   criticalConfirmationRequired: {
     code: "security_configuration.critical_confirmation_required",
   },
-  recentProofRequired: { code: "authentication.recent_proof_required" },
+  sessionInvalid: { code: "authentication.unauthorized" },
+  confirmationRefused: { code: "security_configuration.confirmation_refused" },
+  attemptsExhausted: {
+    code: "security_configuration.confirmation_attempts_exhausted",
+  },
   lastActiveAccess: { code: "administrator.last_active_access" },
   unauthorized: { code: "administrator.unauthorized" },
   versionConflict: { code: "security_configuration.version_conflict" },
@@ -33,8 +36,7 @@ export interface PublishSecurityConfigurationInput {
 export type PublishSecurityConfigurationError =
   | ValueOf<typeof PublishSecurityConfigurationErrors>
   | AdministratorAuthorizationError
-  | SecurityPolicyError
-  | StrongAuthenticationError;
+  | SecurityPolicyError;
 
 export type PublishSecurityConfigurationOutput = Result<
   {
@@ -48,5 +50,6 @@ export type PublishSecurityConfigurationOutput = Result<
 export interface PublishSecurityConfiguration {
   execute(
     input: PublishSecurityConfigurationInput,
+    executionStartedAt?: number,
   ): Promise<PublishSecurityConfigurationOutput>;
 }

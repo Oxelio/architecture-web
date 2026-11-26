@@ -28,6 +28,7 @@ import {
   type IamDatabase,
   KyselyAccountDeletionAdapter,
   KyselyAccountExportAdapter,
+  KyselyCriticalConfigurationConfirmationAdapter,
   KyselyIamUnitOfWorkAdapter,
   KyselyLoginIdentityAdapter,
   KyselyMfaAdapter,
@@ -399,9 +400,667 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       .where("status", "=", "published")
       .execute();
   });
+  async function oldSession(user: UserEntity, duration = 60_000) {
+    const session = SessionEntity.rehydrate({
+      identifier: SessionEntity.createForUser({
+        userId: user.identifier,
+        userSessionVersion: user.sessionVersion,
+        expiresAt: new Date(Date.now() + duration),
+      }).identifier,
+      userId: user.identifier,
+      userSessionVersion: user.sessionVersion,
+      createdAt: new Date(Date.now() - 3_600_000),
+      lastActivityAt: new Date(),
+      expiresAt: new Date(Date.now() + duration),
+    });
+    await new RedisSessionAdapter(redis).saveEnforcingMaximum(session, 10);
+    return session;
+  }
+  async function criticalCommand(user: UserEntity, session: SessionEntity) {
+    const current = await module.configuration.readPublished();
+    const values = structuredClone(current.values);
+    values.accounts.deletionGraceDays++;
+    return {
+      actorId: user.identifier.value,
+      sessionId: session.identifier.value,
+      expectedVersion: current.version,
+      values,
+      justification: "Review deletion grace period",
+      confirmedCritical: true,
+      password: "initial long account password",
+    };
+  }
+  async function enableStepUpMfa(user: UserEntity, codes: string[]) {
+    const store = new KyselyMfaAdapter(iamDb, outbox);
+    const now = new Date();
+    const sealedSecret = "fixture for backup-code verification";
+    const confirmationId = randomUUID();
+    expect(
+      await store.beginEnrollment(
+        {
+          userId: user.identifier.value,
+          sealedSecret,
+          enrollmentExpiresAt: new Date(now.getTime() + 60_000),
+          enabledAt: null,
+          lastCounter: null,
+        },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      await store.confirmEnrollment({
+        userId: user.identifier.value,
+        sealedSecret,
+        counter: Math.floor(now.getTime() / 30_000),
+        backupHashes: codes.map((code) => tokens.hash(code)),
+        confirmationId,
+        now,
+      }),
+    ).toBe(true);
+    user.invalidateSessions();
+    expect(await store.activate({ user, confirmationId, now })).toBe(true);
+    return store;
+  }
+  it("publishes and restores critical configuration from the same old session and consumes each recovery code once", async () => {
+    const { user } = await account(true);
+    await enableStepUpMfa(user, ["EXAMPLEBACKUP001", "EXAMPLEBACKUP002"]);
+    const session = await oldSession(user);
+    const key = `session:${session.identifier.value}`;
+    const originalSession = await redis.get(key);
+    const before = await module.configuration.readPublished();
+    const command = await criticalCommand(user, session);
+    const publish = module.iam.administration.publishConfiguration;
+    const restore = module.iam.administration.restoreConfiguration;
+    expect(await publish.execute(command)).toMatchObject({
+      success: false,
+      error: { code: "security_configuration.confirmation_refused" },
+    });
+    const published = await publish.execute({
+      ...command,
+      mfaCode: "EXAMPLEBACKUP001",
+    });
+    expect(published.success).toBe(true);
+    if (!published.success) {
+      throw new Error("Expected critical publication to succeed");
+    }
+    const restoreCommand = {
+      ...command,
+      revisionId: before.id,
+      expectedVersion: published.value.version,
+    };
+    expect(
+      await restore.execute({ ...restoreCommand, mfaCode: "EXAMPLEBACKUP001" }),
+    ).toMatchObject({
+      success: false,
+      error: { code: "security_configuration.confirmation_refused" },
+    });
+    expect(
+      await restore.execute({ ...restoreCommand, mfaCode: "EXAMPLEBACKUP002" }),
+    ).toMatchObject({
+      success: true,
+      value: { effective: before.values },
+    });
+    expect(await redis.get(key)).toBe(originalSession);
+    expect(await module.configuration.readPublished()).toMatchObject({
+      origin: "restoration",
+      restoredFromRevisionId: before.id,
+    });
+    const ledger = await db
+      .selectFrom("iam_critical_configuration_attempts")
+      .select("timestamps")
+      .where("user_id", "=", command.actorId)
+      .executeTakeFirstOrThrow();
+    expect(ledger.timestamps).toHaveLength(3);
+    const events = await db
+      .selectFrom("messaging_outbox")
+      .selectAll()
+      .execute();
+    const recorded = JSON.stringify(events);
+    for (const secret of [
+      command.password,
+      session.identifier.value,
+      "EXAMPLEBACKUP001",
+      "EXAMPLEBACKUP002",
+    ]) {
+      expect(recorded).not.toContain(secret);
+    }
+  });
+  it("shares five admissions across sessions, publication and restoration, and two instances", async () => {
+    const { user } = await account(true);
+    const sessions = await Promise.all([oldSession(user), oldSession(user)]);
+    const first = await criticalCommand(user, sessions[0]);
+    const alternateDb = new Kysely<AppDatabase>({
+      dialect: new PostgresDialect({
+        pool: new Pool({
+          connectionString: databaseUrl,
+          options: `-c search_path=${schema}`,
+        }),
+      }),
+    });
+    const alternateRedis = redis.duplicate();
+    try {
+      const another = await buildIamModule(
+        alternateDb,
+        alternateRedis,
+        new NodemailerEmailSenderAdapter(
+          "localhost",
+          1025,
+          "",
+          "",
+          "test@example.test",
+          "http://localhost/verify",
+        ),
+        outbox(alternateDb.$pickTables<keyof IamDatabase>()),
+        createAuditAccountExporter(
+          new KyselyAuditRepositoryAdapter(alternateDb as never),
+        ),
+        new AcceptAuditEntryUseCase(
+          outbox(alternateDb.$pickTables<keyof IamDatabase>()),
+          new Sha256AuditPseudonymizerAdapter(),
+        ),
+        {
+          encryptionKey: "integration-test-key",
+          recoveryUrl: "http://localhost/recovery",
+          deletionCancellationUrl: "http://localhost/cancellation",
+        },
+      );
+      const current = await module.configuration.readPublished();
+      const revision = await module.configuration.publish({
+        ...first,
+        changedKeys: ["accounts.deletionGraceDays"],
+      });
+      if (!revision || typeof revision === "string") {
+        throw new Error("Could not seed restoration target");
+      }
+      const rejected = await Promise.all(
+        Array.from({ length: 6 }, (_, index) => {
+          const input = {
+            ...first,
+            expectedVersion: revision.version,
+            password: "incorrect password",
+          };
+          return index % 2 === 0
+            ? module.iam.administration.restoreConfiguration.execute({
+                ...input,
+                revisionId: current.id,
+              })
+            : another.iam.administration.publishConfiguration.execute({
+                ...input,
+                values: current.values,
+                sessionId: sessions[1].identifier.value,
+              });
+        }),
+      );
+      const codes = rejected.flatMap((result) =>
+        result.success ? [] : [result.error.code],
+      );
+      expect(
+        codes.filter(
+          (code) => code === "security_configuration.confirmation_refused",
+        ),
+      ).toHaveLength(5);
+      expect(
+        codes.filter(
+          (code) =>
+            code === "security_configuration.confirmation_attempts_exhausted",
+        ),
+      ).toHaveLength(1);
+      const retry = {
+        ...first,
+        values: current.values,
+        expectedVersion: revision.version,
+      };
+      expect(
+        await another.iam.administration.publishConfiguration.execute(retry),
+      ).toMatchObject({
+        success: false,
+        error: {
+          code: "security_configuration.confirmation_attempts_exhausted",
+        },
+      });
+      await sql`update iam_critical_configuration_attempts
+        set timestamps = array[
+          clock_timestamp() - interval '5 minutes',
+          clock_timestamp(), clock_timestamp(), clock_timestamp(), clock_timestamp()
+        ]
+        where user_id = ${first.actorId}`.execute(db);
+      expect(
+        await another.iam.administration.publishConfiguration.execute(retry),
+      ).toMatchObject({ success: true });
+      const ledger = await alternateDb
+        .selectFrom("iam_critical_configuration_attempts")
+        .select("timestamps")
+        .where("user_id", "=", first.actorId)
+        .executeTakeFirstOrThrow();
+      expect(ledger.timestamps).toHaveLength(5);
+      await new RedisSessionAdapter(redis).deleteAllForUser(user.identifier);
+      await db
+        .deleteFrom("iam_users")
+        .where("id", "=", first.actorId)
+        .execute();
+      expect(
+        await db
+          .selectFrom("iam_critical_configuration_attempts")
+          .select("user_id")
+          .where("user_id", "=", first.actorId)
+          .executeTakeFirst(),
+      ).toBeUndefined();
+    } finally {
+      await alternateRedis.quit();
+      await alternateDb.destroy();
+    }
+  }, 15_000);
+  it("rejects missing authorization, known conflicts, unenrolled required MFA and expired attempts without reserving allowance", async () => {
+    const { user } = await account(true);
+    const session = await oldSession(user);
+    const command = await criticalCommand(user, session);
+    const publish = module.iam.administration.publishConfiguration;
+    expect(
+      await publish.execute({
+        ...command,
+        expectedVersion: command.expectedVersion + 1,
+      }),
+    ).toMatchObject({
+      error: { code: "security_configuration.version_conflict" },
+    });
+    expect(await publish.execute({ ...command, sessionId: "" })).toMatchObject({
+      error: { code: "authentication.unauthorized" },
+    });
+    expect(
+      await publish.execute(command, performance.now() - 120_000),
+    ).toMatchObject({
+      error: { code: "security_configuration.confirmation_refused" },
+    });
+    const current = await module.configuration.readPublished();
+    const values = structuredClone(current.values);
+    values.authentication.mfaRequiredRoles = ["admin"];
+    await db
+      .updateTable("iam_security_config_revisions")
+      .set({ values: JSON.stringify(values) })
+      .where("id", "=", current.id)
+      .execute();
+    const proposed = structuredClone(command.values);
+    proposed.authentication.mfaRequiredRoles = [];
+    expect(
+      await publish.execute({ ...command, values: proposed }),
+    ).toMatchObject({
+      error: { code: "security_configuration.confirmation_refused" },
+    });
+    expect(
+      await db
+        .selectFrom("iam_critical_configuration_attempts")
+        .select("user_id")
+        .where("user_id", "=", command.actorId)
+        .executeTakeFirst(),
+    ).toBeUndefined();
+  });
+  it.each([
+    "revoked-before-read",
+    "revoked-after-read",
+    "expired-before-read",
+    "expired-after-read",
+  ] as const)(
+    "checks the Redis boundary for a session %s",
+    async (transition) => {
+      const { user } = await account(true);
+      const session = await oldSession(user);
+      const command = await criticalCommand(user, session);
+      const reached = Promise.withResolvers<undefined>();
+      const resume = Promise.withResolvers<undefined>();
+      const read = RedisSessionAdapter.prototype.findById;
+      let lookups = 0;
+      const spy = vi
+        .spyOn(RedisSessionAdapter.prototype, "findById")
+        .mockImplementation(async function (this: RedisSessionAdapter, id) {
+          if (id.value !== session.identifier.value || ++lookups !== 2) {
+            return read.call(this, id);
+          }
+          const snapshot = transition.endsWith("after-read")
+            ? await read.call(this, id)
+            : undefined;
+          reached.resolve(undefined);
+          await resume.promise;
+          return snapshot === undefined ? read.call(this, id) : snapshot;
+        });
+      const attempt =
+        module.iam.administration.publishConfiguration.execute(command);
+      try {
+        await Promise.race([
+          reached.promise,
+          attempt.then((outcome) => {
+            throw new Error(
+              "Confirmation finished before the test barrier: " +
+                JSON.stringify(outcome),
+            );
+          }),
+        ]);
+        const key = `session:${session.identifier.value}`;
+        if (transition === "expired-before-read") {
+          await redis.pexpire(key, 1);
+          await vi.waitFor(async () => expect(await redis.pttl(key)).toBe(-2));
+        } else if (transition === "expired-after-read") {
+          vi.spyOn(Date, "now").mockReturnValue(session.expiresAt.getTime());
+        } else {
+          await redis.del(key);
+        }
+        resume.resolve(undefined);
+        const result = await attempt;
+        expect(result).toMatchObject(
+          transition === "revoked-after-read"
+            ? { success: true }
+            : {
+                success: false,
+                error: { code: "authentication.unauthorized" },
+              },
+        );
+      } finally {
+        resume.resolve(undefined);
+        spy.mockRestore();
+        vi.restoreAllMocks();
+        await attempt.catch(() => undefined);
+      }
+    },
+  );
+  it.each([
+    "password",
+    "backup regeneration",
+    "disable MFA",
+    "activate MFA",
+    "role change",
+    "revision conflict",
+  ] as const)(
+    "rechecks %s after credential verification and before final authorization",
+    async (mutation) => {
+      const backupCode = "EXAMPLEBACKUP003";
+      const { user } = await account(true);
+      const other = await account(true);
+      const mfa =
+        mutation === "password" ||
+        mutation === "activate MFA" ||
+        mutation === "role change"
+          ? undefined
+          : await enableStepUpMfa(user, [backupCode]);
+      const session = await oldSession(user);
+      const command = await criticalCommand(user, session);
+      const guard =
+        KyselyCriticalConfigurationConfirmationAdapter.prototype.authorize;
+      const reached = Promise.withResolvers<undefined>();
+      const resume = Promise.withResolvers<undefined>();
+      const spy = vi
+        .spyOn(
+          KyselyCriticalConfigurationConfirmationAdapter.prototype,
+          "authorize",
+        )
+        .mockImplementation(async function (
+          this: KyselyCriticalConfigurationConfirmationAdapter,
+          ...args
+        ) {
+          reached.resolve(undefined);
+          await resume.promise;
+          return guard.apply(this, args);
+        });
+      const attempt = module.iam.administration.publishConfiguration.execute({
+        ...command,
+        ...(mfa ? { mfaCode: backupCode } : {}),
+      });
+      try {
+        await Promise.race([
+          reached.promise,
+          attempt.then((outcome) => {
+            throw new Error(
+              "Confirmation finished before the test barrier: " +
+                JSON.stringify(outcome),
+            );
+          }),
+        ]);
+        if (mutation === "password") {
+          const replacement = "Cactus mirrors a quiet July sunrise 24!";
+          expect(
+            await module.iam.accounts.changePassword.execute({
+              userId: command.actorId,
+              currentPassword: command.password,
+              password: replacement,
+              passwordConfirmation: replacement,
+            }),
+          ).toMatchObject({ success: true });
+        } else if (mutation === "backup regeneration") {
+          expect(
+            await mfa?.replaceBackupCodes(
+              command.actorId,
+              [tokens.hash("NEWBACKUP")],
+              new Date(),
+            ),
+          ).toBe(true);
+        } else if (mutation === "disable MFA") {
+          user.invalidateSessions();
+          expect(await mfa?.disable(user)).toBe(true);
+        } else if (mutation === "activate MFA") {
+          await enableStepUpMfa(user, [backupCode]);
+        } else if (mutation === "role change") {
+          expect(
+            await module.iam.administration.assignUserRole.execute({
+              userId: command.actorId,
+              actorUserId: other.user.identifier.value,
+              role: "user",
+            }),
+          ).toMatchObject({ success: true });
+        } else {
+          expect(
+            await module.configuration.publish({
+              actorId: other.user.identifier.value,
+              values: DEFAULT_SECURITY_POLICY,
+              expectedVersion: command.expectedVersion,
+              justification: "Concurrent revision",
+              changedKeys: [],
+            }),
+          ).toHaveProperty("id");
+        }
+        resume.resolve(undefined);
+        const expected = {
+          password: "authentication.unauthorized",
+          "backup regeneration": "security_configuration.confirmation_refused",
+          "disable MFA": "authentication.unauthorized",
+          "activate MFA": "authentication.unauthorized",
+          "role change": "administrator.unauthorized",
+          "revision conflict": "security_configuration.version_conflict",
+        }[mutation];
+        expect(await attempt).toMatchObject({
+          success: false,
+          error: { code: expected },
+        });
+        if (mutation === "revision conflict") {
+          const backup = await db
+            .selectFrom("iam_mfa_backup_codes")
+            .select("consumed_at")
+            .where("user_id", "=", command.actorId)
+            .executeTakeFirstOrThrow();
+          expect(backup.consumed_at).toBeInstanceOf(Date);
+        }
+      } finally {
+        resume.resolve(undefined);
+        spy.mockRestore();
+        await attempt.catch(() => undefined);
+      }
+    },
+  );
+  it.each(["storage failure", "technical timeout"] as const)(
+    "releases SQL locks when the final Redis check has a %s and ignores late reads",
+    async (failure) => {
+      const { user } = await account(true);
+      const session = await oldSession(user);
+      const command = await criticalCommand(user, session);
+      const reached = Promise.withResolvers<undefined>();
+      const resume = Promise.withResolvers<undefined>();
+      const lateRead = Promise.withResolvers<undefined>();
+      const read = RedisSessionAdapter.prototype.findById;
+      const technicalFailure = new Error("fixture Redis command failure");
+      let lookups = 0;
+      const spy = vi
+        .spyOn(RedisSessionAdapter.prototype, "findById")
+        .mockImplementation(async function (this: RedisSessionAdapter, id) {
+          if (id.value !== session.identifier.value || ++lookups !== 2) {
+            return read.call(this, id);
+          }
+          reached.resolve(undefined);
+          if (failure === "storage failure") {
+            throw technicalFailure;
+          }
+          await resume.promise;
+          try {
+            return await read.call(this, id);
+          } finally {
+            lateRead.resolve(undefined);
+          }
+        });
+      const attempt =
+        module.iam.administration.publishConfiguration.execute(command);
+      const result = attempt.catch((error: unknown) => error);
+      try {
+        await Promise.race([
+          reached.promise,
+          attempt.then((outcome) => {
+            throw new Error(
+              "Confirmation finished before the test barrier: " +
+                JSON.stringify(outcome),
+            );
+          }),
+        ]);
+        if (failure === "storage failure") {
+          expect(await result).toBe(technicalFailure);
+        } else {
+          const locked = await sql<{ acquired: boolean }>`
+            select pg_try_advisory_xact_lock(728194002) as acquired
+          `.execute(db);
+          expect(locked.rows[0]?.acquired).toBe(false);
+          expect(await result).toMatchObject({
+            message: "Critical configuration session lookup timed out",
+          });
+        }
+        await db.transaction().execute(async (trx) => {
+          await sql`set local lock_timeout = '500ms'`.execute(trx);
+          await sql`select pg_advisory_xact_lock(728194002)`.execute(trx);
+          await trx
+            .selectFrom("iam_users")
+            .select("id")
+            .where("id", "=", command.actorId)
+            .forUpdate()
+            .executeTakeFirstOrThrow();
+        });
+        resume.resolve(undefined);
+        if (failure === "technical timeout") {
+          await lateRead.promise;
+        }
+        expect((await module.configuration.readPublished()).version).toBe(
+          command.expectedVersion,
+        );
+      } finally {
+        resume.resolve(undefined);
+        spy.mockRestore();
+        await result;
+      }
+    },
+  );
+  it("fails closed before credential verification if the attempt ledger is unavailable", async () => {
+    const { user } = await account(true);
+    const command = await criticalCommand(user, await oldSession(user));
+    const password = vi.spyOn(Argon2PasswordHasherAdapter.prototype, "verify");
+    await db.schema
+      .alterTable("iam_critical_configuration_attempts")
+      .renameTo("iam_critical_configuration_attempts_unavailable")
+      .execute();
+    try {
+      await expect(
+        module.iam.administration.publishConfiguration.execute(command),
+      ).rejects.toMatchObject({ code: "42P01" });
+      expect(password).not.toHaveBeenCalled();
+      expect((await module.configuration.readPublished()).version).toBe(
+        command.expectedVersion,
+      );
+    } finally {
+      password.mockRestore();
+      await db.schema
+        .alterTable("iam_critical_configuration_attempts_unavailable")
+        .renameTo("iam_critical_configuration_attempts")
+        .execute();
+    }
+  });
+  it.each(["password", "revision"] as const)(
+    "preserves the independent publication guard after final authorization for %s changes",
+    async (mutation) => {
+      const { user } = await account(true);
+      const command = await criticalCommand(user, await oldSession(user));
+      const authorize =
+        KyselyCriticalConfigurationConfirmationAdapter.prototype.authorize;
+      const authorized = Promise.withResolvers<undefined>();
+      const resume = Promise.withResolvers<undefined>();
+      const spy = vi
+        .spyOn(
+          KyselyCriticalConfigurationConfirmationAdapter.prototype,
+          "authorize",
+        )
+        .mockImplementation(async function (
+          this: KyselyCriticalConfigurationConfirmationAdapter,
+          ...args
+        ) {
+          const refusal = await authorize.apply(this, args);
+          authorized.resolve(undefined);
+          await resume.promise;
+          return refusal;
+        });
+      const attempt =
+        module.iam.administration.publishConfiguration.execute(command);
+      try {
+        await Promise.race([
+          authorized.promise,
+          attempt.then((result) => {
+            throw new Error(
+              "Expected confirmation to wait after authorization: " +
+                JSON.stringify(result),
+            );
+          }),
+        ]);
+        if (mutation === "password") {
+          const replacement = "Violets by the wooden bridge at sunrise 42!";
+          expect(
+            await module.iam.accounts.changePassword.execute({
+              userId: command.actorId,
+              currentPassword: command.password,
+              password: replacement,
+              passwordConfirmation: replacement,
+            }),
+          ).toMatchObject({ success: true });
+        } else {
+          expect(
+            await module.configuration.publish({
+              actorId: command.actorId,
+              expectedVersion: command.expectedVersion,
+              values: DEFAULT_SECURITY_POLICY,
+              justification: "A newer revision",
+              changedKeys: [],
+            }),
+          ).toHaveProperty("id");
+        }
+        resume.resolve(undefined);
+        expect(await attempt).toMatchObject({
+          success: false,
+          error: {
+            code:
+              mutation === "password"
+                ? "authentication.unauthorized"
+                : "security_configuration.version_conflict",
+          },
+        });
+      } finally {
+        resume.resolve(undefined);
+        spy.mockRestore();
+        await attempt.catch(() => undefined);
+      }
+    },
+  );
   it("publishes exactly one winner for concurrent administrators", async () => {
     const actor = await account(true);
     const store = new KyselySecurityConfigurationAdapter(iamDb, outbox);
+    const historyLength = (await store.history()).length;
     await store.initialize();
     const current = await store.readPublished();
     const results = await Promise.all(
@@ -419,7 +1078,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       ),
     );
     expect(results.filter(Boolean)).toHaveLength(1);
-    expect(await store.history()).toHaveLength(2);
+    expect(await store.history()).toHaveLength(historyLength + 1);
     const published = await db
       .selectFrom("iam_security_config_revisions")
       .selectAll()
@@ -1819,6 +2478,12 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       if (migrated.error) {
         throw migrated.error;
       }
+      expect(
+        await upgrade
+          .selectFrom("iam_critical_configuration_attempts")
+          .selectAll()
+          .execute(),
+      ).toEqual([]);
       const config = new KyselySecurityConfigurationAdapter(
         upgrade as unknown as Kysely<IamDatabase>,
         outbox,
@@ -2071,7 +2736,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       }),
     ).toMatchObject({
       success: false,
-      error: { code: "authentication.recent_proof_required" },
+      error: { code: "authentication.unauthorized" },
     });
     const session = SessionEntity.createForUser({
       userId: f.user.identifier,

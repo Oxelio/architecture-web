@@ -826,9 +826,9 @@ it("announces a successful user-administration action in an output element", asy
   expect(container.querySelector("output")).toBeNull();
 });
 
-const recentAuthenticationFeedback = {
-  en: "Recent authentication is required. Sign in again before retrying.",
-  fr: "Une authentification récente est requise. Reconnectez-vous avant de réessayer.",
+const configurationConfirmationFeedback = {
+  en: "Confirmation was refused. Check your password and, if required, enter a new MFA code or an unused recovery code.",
+  fr: "La confirmation a été refusée. Vérifiez votre mot de passe et, si nécessaire, saisissez un nouveau code MFA ou un code de récupération inutilisé.",
 };
 
 it.each([
@@ -839,9 +839,9 @@ it.each([
     fr: "La configuration a changé. Actualisez-la avant de réessayer.",
   },
   {
-    code: "authentication.recent_proof_required",
-    status: 401,
-    ...recentAuthenticationFeedback,
+    code: "security_configuration.confirmation_refused",
+    status: 403,
+    ...configurationConfirmationFeedback,
   },
 ])(
   "localizes a configuration restoration failure for $code without resubmitting",
@@ -862,10 +862,28 @@ it.each([
     client.setQueryData(["admin-security-events"], []);
     await render(<AdminSecurityCenter />);
     await clickButton("History");
-    const reason = "fieldset input:not([type], [autocomplete])";
+    const reason = "textarea";
     await enter(reason, "Restore the previous settings");
-    fetchApi.mockResolvedValueOnce(failure(code, status));
+    fetchApi.mockResolvedValueOnce(
+      Response.json({
+        data: {
+          expectedVersion: 2,
+          impact: "critical",
+          changes: [
+            { key: "accounts.deletionGraceDays", before: 14, after: 30 },
+          ],
+          changedKeys: ["accounts.deletionGraceDays"],
+          warnings: [],
+        },
+      }),
+    );
     await clickButton("Restore");
+    await expectFeedback("form", "Restore version 1");
+    await enter('input[autocomplete="current-password"]', loginPassword);
+    await enter('input[autocomplete="one-time-code"]', "EXAMPLEBACKUP");
+    await click('form input[type="checkbox"]');
+    fetchApi.mockResolvedValueOnce(failure(code, status));
+    await clickButton("Apply restoration");
     await expectFeedback('[role="alert"]', en);
     expect(element('[role="alert"]').textContent).toBe(en);
 
@@ -876,8 +894,14 @@ it.each([
     );
     expect(container.textContent).not.toContain(code);
     expect(container.textContent).not.toContain(privateDetail);
-    expect(fetchApi).toHaveBeenCalledOnce();
-    expect(fetchApi).toHaveBeenCalledWith(
+    expect(
+      element<HTMLInputElement>('input[autocomplete="current-password"]').value,
+    ).toBe("");
+    expect(
+      element<HTMLInputElement>('input[autocomplete="one-time-code"]').value,
+    ).toBe("");
+    expect(fetchApi).toHaveBeenCalledTimes(2);
+    expect(fetchApi).toHaveBeenLastCalledWith(
       expect.stringMatching(
         /\/iam\/admin\/security\/config\/previous\/rollback$/u,
       ),
@@ -886,7 +910,7 @@ it.each([
   },
 );
 
-it("asks for a new sign-in after a critical configuration publication fails", async () => {
+it("clears credentials and preserves the critical publication draft after a refused attempt", async () => {
   const deletionGraceDays = "#security-accounts-deletionGraceDays";
   const confirmation = 'input[type="checkbox"]';
   client.setQueryData(["admin-security-config"], {
@@ -911,6 +935,7 @@ it("asks for a new sign-in after a critical configuration publication fails", as
     Response.json({
       data: {
         valid: true,
+        expectedVersion: 2,
         impact: "critical",
         changedKeys: ["accounts.deletionGraceDays"],
         changes: [{ key: "accounts.deletionGraceDays", before: 14, after: 30 }],
@@ -920,31 +945,131 @@ it("asks for a new sign-in after a critical configuration publication fails", as
   );
   await clickButton("Preview impact");
   await expectFeedback("article", "1 option changed · Critical impact");
+  await enter('input[autocomplete="current-password"]', loginPassword);
+  await enter('input[autocomplete="one-time-code"]', "EXAMPLEBACKUP");
+  await click(confirmation);
+  expect(document.activeElement).toBe(element("form fieldset"));
+  await enter("textarea", "Review the deletion grace period");
+  expect(element<HTMLInputElement>(confirmation).checked).toBe(false);
+  expect(
+    element<HTMLInputElement>('input[autocomplete="current-password"]').value,
+  ).toBe("");
+  await enter("textarea", "Update the deletion grace period");
+  await enter('input[autocomplete="current-password"]', loginPassword);
+  await enter('input[autocomplete="one-time-code"]', "EXAMPLEBACKUP");
   await click(confirmation);
 
-  const code = "authentication.recent_proof_required";
-  fetchApi.mockResolvedValueOnce(failure(code, 401));
-  await clickButton("Publish without restart");
-  await expectFeedback('[role="alert"]', recentAuthenticationFeedback.en);
+  const code = "security_configuration.confirmation_refused";
+  let completeRequest: ((response: Response) => void) | undefined;
+  fetchApi.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        completeRequest = resolve;
+      }),
+  );
+  await submit();
+  await submit();
+  expect(element<HTMLFieldSetElement>("form fieldset").disabled).toBe(true);
+  expect(fetchApi).toHaveBeenCalledTimes(2);
+  await act(() => completeRequest?.(failure(code, 403)));
+  await expectFeedback('[role="alert"]', configurationConfirmationFeedback.en);
   expect(element('[role="alert"]').textContent).toBe(
-    recentAuthenticationFeedback.en,
+    configurationConfirmationFeedback.en,
   );
 
   await changeLocale("fr");
   expect(element('[role="alert"]').textContent).toBe(
-    recentAuthenticationFeedback.fr,
+    configurationConfirmationFeedback.fr,
   );
   expect(element<HTMLInputElement>(deletionGraceDays).value).toBe("30");
   expect(element<HTMLTextAreaElement>("textarea").value).toBe(
     "Update the deletion grace period",
   );
-  expect(element<HTMLInputElement>(confirmation).checked).toBe(true);
+  expect(element<HTMLInputElement>(confirmation).checked).toBe(false);
+  expect(
+    element<HTMLInputElement>('input[autocomplete="current-password"]').value,
+  ).toBe("");
+  expect(
+    element<HTMLInputElement>('input[autocomplete="one-time-code"]').value,
+  ).toBe("");
   expect(container.textContent).not.toContain(code);
   expect(container.textContent).not.toContain(privateDetail);
   expect(fetchApi).toHaveBeenCalledTimes(2);
   expect(fetchApi).toHaveBeenLastCalledWith(
     expect.stringMatching(/\/iam\/admin\/security\/config$/u),
     expect.objectContaining({ method: "PUT" }),
+  );
+});
+
+it("previews only intended edits against a newer version after explicit reconciliation", async () => {
+  const catalog = [
+    {
+      key: "accounts.deletionGraceDays",
+      category: "accounts",
+      control: "number",
+      impact: "critical",
+      availability: { available: true, readOnly: false },
+    },
+    {
+      key: "accounts.publicRegistration",
+      category: "accounts",
+      control: "switch",
+      impact: "medium",
+      availability: { available: true, readOnly: false },
+    },
+  ];
+  client.setQueryData(["admin-security-config"], {
+    effectiveRevision: { version: 2 },
+    effective: {
+      accounts: { deletionGraceDays: 14, publicRegistration: true },
+    },
+    catalog,
+    revisions: [],
+  });
+  client.setQueryData(["admin-security-events"], []);
+  await render(<AdminSecurityCenter />);
+  await enter("#security-accounts-deletionGraceDays", "30");
+  await enter("textarea", "Preserve my reason");
+  await act(() => {
+    client.setQueryData(["admin-security-config"], {
+      effectiveRevision: { version: 3 },
+      effective: {
+        accounts: { deletionGraceDays: 14, publicRegistration: false },
+      },
+      catalog,
+      revisions: [],
+    });
+  });
+  await expectFeedback('[role="alert"]', "The configuration has changed.");
+  expect(fetchApi).not.toHaveBeenCalled();
+  expect(
+    element<HTMLInputElement>("#security-accounts-deletionGraceDays").value,
+  ).toBe("30");
+  fetchApi.mockResolvedValueOnce(
+    Response.json({
+      data: {
+        expectedVersion: 3,
+        impact: "critical",
+        changedKeys: ["accounts.deletionGraceDays"],
+        changes: [{ key: "accounts.deletionGraceDays", before: 14, after: 30 }],
+        warnings: [],
+      },
+    }),
+  );
+  await clickButton("Preview my edits on the latest version");
+  await expectFeedback("form", "Reviewed published version 3");
+  expect(fetchApi).toHaveBeenCalledExactlyOnceWith(
+    expect.stringMatching(/\/admin\/security\/config\/preview$/u),
+    expect.objectContaining({
+      body: JSON.stringify({
+        values: {
+          accounts: { deletionGraceDays: 30, publicRegistration: false },
+        },
+      }),
+    }),
+  );
+  expect(element<HTMLTextAreaElement>("textarea").value).toBe(
+    "Preserve my reason",
   );
 });
 
@@ -970,6 +1095,7 @@ it("shows a failed configuration preview after an earlier publication failure", 
   fetchApi.mockResolvedValueOnce(
     Response.json({
       data: {
+        expectedVersion: 2,
         impact: "medium",
         changedKeys: ["accounts.publicRegistration"],
         changes: [],
@@ -1520,6 +1646,7 @@ it("preserves unknown security preview warnings without translating investigativ
     Response.json({
       data: {
         impact: "standard",
+        expectedVersion: 2,
         changedKeys: ["accounts.publicRegistration"],
         changes: [],
         warnings: [

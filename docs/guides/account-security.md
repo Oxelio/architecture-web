@@ -26,7 +26,9 @@ The application reads complete published PostgreSQL revisions without local cach
 
 The catalog describes executable sign-up, identity-verification, email-change, session, recovery, MFA, export, deletion and password settings. Password settings affect creation/replacement, not existing-password sign-in. Session duration is applied by the shared session issuance flow.
 
-The editor retains its typed fields, reason, confirmation, history and restoration. Critical confirmation is an explicit confirmation rather than step-up authentication. Per-instance propagation telemetry is not added; new backend reads observe the current database revision.
+Preview the change or historical restoration against the displayed published version and enter a reason. Critical changes require explicit confirmation with the current password and an authenticator or unused recovery code when MFA is enabled. Administrators can use any still-valid session. A confirmation expires after two minutes and the account can start five credential checks in a rolling five-minute period across its sessions.
+
+After a refusal the editor clears credentials and keeps the draft and reason. On a revision conflict, refresh the published version and preview your edits against it. The editor carries over the settings you changed, and the new diff lets you reconcile them before confirming again. A factor consumed by the previous request stays consumed. The recent-authentication setting continues to apply to MFA management, account export and account deletion.
 
 ## Evidence limits
 

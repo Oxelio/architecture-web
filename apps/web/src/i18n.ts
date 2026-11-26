@@ -435,6 +435,40 @@ const localizedCopy = {
       "Cette version n’est plus disponible. Actualisez l’historique.",
       "This version is no longer available. Refresh the history.",
     ],
+    confirmationRefused: [
+      "La confirmation a été refusée. Vérifiez votre mot de passe et, si nécessaire, saisissez un nouveau code MFA ou un code de récupération inutilisé.",
+      "Confirmation was refused. Check your password and, if required, enter a new MFA code or an unused recovery code.",
+    ],
+    confirmationAttemptsExhausted: [
+      "Vous avez atteint la limite de tentatives. Patientez quelques minutes avant de confirmer à nouveau.",
+      "You reached the confirmation attempt limit. Wait a few minutes before trying again.",
+    ],
+    sessionExpired: [
+      "Votre session n’est plus valide. Reconnectez-vous pour continuer.",
+      "Your session is no longer valid. Sign in again to continue.",
+    ],
+    recentAuthenticationDescription: [
+      "Âge maximal de la session pour la gestion du MFA, l’export et la suppression du compte.",
+      "Maximum session age for MFA management, account export, and account deletion.",
+    ],
+    confirmAgainstVersion: [
+      "Version publiée examinée : {{version}}",
+      "Reviewed published version {{version}}",
+    ],
+    restoreTarget: [
+      "Version à restaurer : {{version}}",
+      "Restore version {{version}}",
+    ],
+    applyRestoration: ["Appliquer la restauration", "Apply restoration"],
+    refreshRevision: [
+      "Actualiser la version publiée",
+      "Refresh published version",
+    ],
+    previewAgainstLatest: [
+      "Prévisualiser mes modifications sur la dernière version",
+      "Preview my edits on the latest version",
+    ],
+    applying: ["Application en cours…", "Applying…"],
     authenticationFailed: [
       "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez.",
       "Could not verify your identity. Check your credentials and try again.",
@@ -449,7 +483,10 @@ const localizedCopy = {
     ],
     justification: ["Motif", "Reason"],
     password: ["Mot de passe actuel", "Current password"],
-    mfaCode: ["Code MFA, si activé", "MFA code, when enabled"],
+    mfaCode: [
+      "Code MFA ou de récupération, si activé",
+      "MFA or recovery code, when enabled",
+    ],
     confirm: [
       "Confirmer la modification critique",
       "Confirm the critical change",

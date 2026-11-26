@@ -14,6 +14,8 @@ import { PublishSecurityConfigurationUseCase } from "#access-administration/publ
 import { RestoreSecurityConfigurationUseCase } from "#access-administration/restore-security-configuration/restore-security-configuration.use-case";
 import { RevokeUserSessionUseCase } from "#access-administration/revoke-user-session/revoke-user-session.use-case";
 import type { ConfigurationStore } from "#access-administration/security-configuration/configuration.store";
+import { CriticalConfigurationConfirmation } from "#access-administration/security-configuration/critical-configuration-confirmation";
+import type { CriticalConfigurationConfirmationStore } from "#access-administration/security-configuration/critical-configuration-confirmation.store";
 import { SuspendUserUseCase } from "#access-administration/suspend-user/suspend-user.use-case";
 import type {
   AccountArchiveBuilder,
@@ -122,6 +124,7 @@ export interface IamDependencies {
   emailVerificationTokenHasher: EmailVerificationTokenHasher;
   unitOfWork: IamUnitOfWork;
   outbox: OutboxWriter;
+  criticalConfigurationConfirmation: CriticalConfigurationConfirmationStore;
   configuration: ConfigurationStore;
   recovery: PasswordRecoveryStore;
   mfa: MfaStore;
@@ -179,7 +182,12 @@ export function createIam(dependencies: IamDependencies): IamApplication {
   const publish = new PublishSecurityConfigurationUseCase(
     authorization,
     dependencies.configuration,
-    reauthentication,
+    new CriticalConfigurationConfirmation(
+      dependencies.criticalConfigurationConfirmation,
+      dependencies.sessionRepository,
+      reauthentication,
+      factor,
+    ),
     dependencies.events,
   );
   return {
