@@ -204,8 +204,8 @@ describes shared validation and same-run artifact transfer. The Actions job
 Verify the current candidate's external result as well as `Quality checks`;
 a tolerated job failure, skipped analysis or missing result does not satisfy
 that merge requirement. The CI guide documents failure handling and the current
-fork/Dependabot analysis limitation. These checks do not replace the Work Merge
-Gate or applicable review and authority gates.
+fork/Dependabot analysis limitation. Applicable reviews and authority gates
+retain their own evidence requirements under the native integration policy.
 
 ## Pull request validation tooling
 
@@ -217,6 +217,11 @@ contract tests verify their pipeline inclusion and credential boundaries.
 The [CI guide](continuous-integration.md#metadata-evidence-and-recovery) specifies
 the mandatory real GitHub concurrency scenario and recovery procedure; local
 mocks alone do not satisfy that acceptance criterion.
+
+Run `pnpm --filter @architecture/delivery-automation test` to verify the three
+retained workflows, candidate routing, credential boundaries and release behavior
+locally. Live CI and SonarCloud evidence remain subject to the current candidate
+requirements above.
 
 ## Isolated IAM PostgreSQL/Redis integration
 

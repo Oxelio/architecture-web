@@ -1,12 +1,12 @@
 # Technical Design — Delivery automation complexity reduction
 
-> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the refactoring targets for the retired integration control plane (B1 and B3–B5). Those units and source paths are historical. B2 concerns retained read-only operational state and PR identity. The [delivery profile](../project/delivery-pipeline.md) owns current integration policy.
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the refactoring targets for the retired integration control plane (B1 and B3–B5). [Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires the remaining coordination modules, including the operational-state reader in B2. The [pre-retirement design](https://github.com/Oxelio/architecture-web/blob/5a31d1a7c1efd8ad3f5b3b62e54a87c74a6363dc/docs/technical-designs/TD-SONAR-DELIVERY-AUTOMATION-001.md) records the refactoring rationale. The [delivery profile](../project/delivery-pipeline.md) owns current integration policy.
 >
 > **Identifier:** TD-SONAR-DELIVERY-AUTOMATION-001
 >
-> **Artifact status:** Prepared for implementation
+> **Artifact status:** Superseded
 >
-> **Content status:** Approved Target for Work #187 / Task #189 (not effective Current Truth)
+> **Content status:** Historical rationale
 >
 > **Document type:** Technical Design
 >

@@ -1,11 +1,11 @@
 # Technical Design — Activate deterministic agent-aware delivery control plane
 
-> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the Work Merge Gate and gate-dependent integration described below. Those sections retain historical rationale. The [delivery profile](../project/delivery-pipeline.md) owns current integration and activation policy.
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the Work Merge Gate and gate-dependent integration described below. [Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires Ready Queue observation, automated dispatch and claim, and the coordination-specific manifest, inventory and verification tooling. The [pre-retirement design](https://github.com/Oxelio/architecture-web/blob/5a31d1a7c1efd8ad3f5b3b62e54a87c74a6363dc/docs/architecture/agent-aware-delivery-activation.md) records the original activation rationale.
 >
-> Current applicability: Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination described here. This document retains historical rationale only for those subjects; current policy is owned by the delivery profile. Non-release Work/Task semantics remain applicable where consistent with current policy.
+> Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination. The [delivery profile](../project/delivery-pipeline.md) owns current integration and external-owner activation policy.
 
-**Artifact status:** Implemented\
-**Content status:** Proposed  
+**Artifact status:** Superseded\
+**Content status:** Historical rationale\
 **Document type:** Technical Design  
 **Domain:** Delivery automation / GitHub operations
 

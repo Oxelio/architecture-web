@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
@@ -48,78 +48,15 @@ describe("CI trust and failure boundaries", () => {
   const shared = workflow("repository-validation");
   const release = workflow("release");
 
-  it("observes the Ready Queue without route inputs or write permissions", () => {
-    const coordinator = workflow("delivery-coordinator-dry-run");
-    expect(Object.keys(coordinator.on)).toEqual([
-      "workflow_dispatch",
-      "pull_request",
+  it("contains only CI, shared validation, and source release workflows", () => {
+    const workflows = readdirSync(
+      new URL("../../../../../.github/workflows/", import.meta.url),
+    ).filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"));
+    expect(workflows.sort()).toEqual([
+      "delivery-automation-validation.yml",
+      "release.yml",
+      "repository-validation.yml",
     ]);
-    expect(coordinator.on["workflow_dispatch"]).toBeNull();
-    expect(coordinator.on["pull_request"]).toMatchObject({
-      branches: ["main"],
-      types: ["ready_for_review"],
-    });
-    expect(coordinator.permissions).toEqual({
-      contents: "read",
-      issues: "read",
-      "pull-requests": "read",
-    });
-
-    const observe = coordinator.jobs["observe"];
-    expect(observe?.permissions).toBeUndefined();
-    const entrypoint = observe?.steps?.find((step) =>
-      step.run?.includes("src/cli/coordinator-dry-run.ts"),
-    );
-    expect(entrypoint?.env).toEqual({
-      ARCHITECTURE_WEB_PROJECTS_TOKEN:
-        "${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN || '' }}",
-      GITHUB_TOKEN: "${{ github.token }}",
-    });
-  });
-
-  it.each([
-    "delivery-work-merge-gate",
-    "delivery-work-evaluated-gate",
-    "delivery-work-integration-observation",
-    "delivery-work-integration-request",
-    "delivery-work-controller-identity",
-    "delivery-project-status",
-    "delivery-work-completion-pilot",
-  ])("has no retired %s workflow", (name) => {
-    expect(
-      existsSync(
-        new URL(
-          `../../../../../.github/workflows/${name}.yml`,
-          import.meta.url,
-        ),
-      ),
-    ).toBe(false);
-  });
-
-  it("keeps Task Claim behind a trusted main dispatch", () => {
-    const claim = workflow("delivery-task-claim");
-    expect(Object.keys(claim.on)).toEqual(["workflow_dispatch"]);
-    expect(claim.permissions).toEqual({
-      contents: "read",
-      issues: "read",
-      "pull-requests": "read",
-    });
-
-    const steps = claim.jobs["publish"]?.steps ?? [];
-    expect(steps[0]?.run).toContain('"${GITHUB_REF}" != "refs/heads/main"');
-    expect(steps[1]?.with).toMatchObject({
-      ref: "${{ github.workflow_sha }}",
-      "persist-credentials": false,
-    });
-    const publisher = steps.find(
-      (step) => step.name === "Publish claim mutation",
-    );
-    expect(publisher?.run).toContain(
-      "pnpm --filter @architecture/delivery-automation claim",
-    );
-    expect(publisher?.env?.["ARCHITECTURE_WEB_PROJECTS_TOKEN"]).toBe(
-      "${{ secrets.ARCHITECTURE_WEB_PROJECTS_TOKEN }}",
-    );
   });
 
   it("imports the validated type context without installing or building in the credential-bearing job", () => {
