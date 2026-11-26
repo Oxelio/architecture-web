@@ -63,7 +63,8 @@ control, for 12 tests covering F01–F10.
 
 ## Fastify preparation and fan-out
 
-The isolated lockfile also pins Fastify `5.10.0`, matching the API lock.
+The isolated lockfile also pins patched Fastify `5.12.8`. The Technical
+Design records the initial comparison with the API's `5.10.0` pin.
 Use the same disposable database and `npm ci` setup above. Replace the
 `npm test` line in the `try` block with the following to execute the full
 preparation suite and export LCOV. Keep the database URL set throughout.

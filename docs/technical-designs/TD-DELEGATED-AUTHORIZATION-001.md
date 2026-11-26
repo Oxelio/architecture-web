@@ -176,7 +176,7 @@ parsing and response emission; the separate interaction route owns its
 bounded JSON. Keep first-party controllers and parsers outside this boundary.
 Fastify lifecycle security hooks bypassed by hijacking must be applied before
 handoff or in the protocol boundary. [P01–P04](#technical-preparation-experiments)
-exercise this mechanism using Fastify 5.10.0 and oidc-provider 9.15.1.
+exercise this mechanism using Fastify 5.12.8 and oidc-provider 9.15.1.
 
 Fastify's normal body-size limit is bypassed by the raw bridge. The provider
 limits its form parser to 56 KiB. The spike enforces a one-second body
@@ -901,8 +901,10 @@ existing project runtime settings during this preparation.
 ### Technical preparation experiments
 
 The follow-up at baseline `4d7e9ec0d1b75d3e7dc6c41b7165abde41700d59` used
-Fastify 5.10.0 (the API's locked version), oidc-provider 9.15.1, pg 8.16.3,
-Node 26.13.1 LTS and the same digest-pinned PostgreSQL 18.6 primary. The
+oidc-provider 9.15.1, pg 8.16.3, Node 26.13.1 LTS and the same digest-pinned
+PostgreSQL 18.6 primary. It first exercised Fastify 5.10.0, the API's locked
+version at that baseline. The final isolated lock and rerun use Fastify
+5.12.8. The
 [reproduction commands](../../scripts/spikes/delegated-authorization/README.md#fastify-preparation-and-fan-out)
 run the unmodified protocol regression cases through both hosts. The raw
 Node host passed 12/12. The Fastify host and bulk SQL tests passed 21/21.
@@ -918,7 +920,7 @@ Tests exercise synthetic IAM and first-party sessions on loopback.
 | P07     | Opposite lock order produces a real database deadlock.                                                | PostgreSQL returned 40P01 for one of two transactions attempting account-before-fence and fence-before-account in parallel. The synthetic test establishes the hazard, while the source inventory identifies the production seams to change.                                                                                                                                                                                                                                                                                                                                |
 | P08     | Cookie key rotation preserves the independent token authority.                                        | A second Fastify issuer with active-plus-previous cookie keys completed an old interaction. An issuer with only the active key rejected an old pending interaction. The existing opaque refresh credential still rotated.                                                                                                                                                                                                                                                                                                                                                   |
 
-One measured fan-out run, with three grants per affected account and an
+The Fastify 5.12.8 rerun, with three grants per affected account and an
 unrelated control population, is recorded below. Wall-clock values are from
 a disposable workstation PostgreSQL instance. Rows model group counts and
 operation/account deduplication, without production outbox JSON serialization
@@ -926,11 +928,12 @@ or downstream delivery. The hold interval includes the contention probe.
 
 | Affected accounts | Revoked grants | Grouped facts | Mutation SQL | Exclusive fence held | Competing shared admission waited |
 | ----------------: | -------------: | ------------: | -----------: | -------------------: | --------------------------------: |
-|             1,000 |          3,000 |         1,000 |      26.0 ms |              50.0 ms |                           41.4 ms |
-|            10,000 |         30,000 |        10,000 |     180.3 ms |             240.2 ms |                          233.0 ms |
+|             1,000 |          3,000 |         1,000 |      17.6 ms |              41.6 ms |                           33.6 ms |
+|            10,000 |         30,000 |        10,000 |     150.1 ms |             191.9 ms |                          185.6 ms |
 
-The account-wide sample took 8.4 ms for 53 grants and one fact. The 10,000
-account run shows why fence wait time belongs in the operational budget.
+The account-wide sample took 8.9 ms for 53 grants and one fact. The earlier
+5.10.0 run recorded a 233.0 ms admission wait for 10,000 accounts, illustrating
+why fence wait time belongs in the operational budget.
 Benchmark the real outbox schema and actual IAM writer mix with repeated
 runs, larger sets, queue backlog and latency distributions. Choose the
 bounded V1 operating envelope from those measurements before relying on
@@ -953,7 +956,7 @@ and reviewed hotspot conditions passed in that snapshot.
 
 The fixture now compares the consent POST origin to the configured loopback
 listener origin. The latest local Fastify/SQL run produced real native LCOV
-for all four spike source modules, with 97.36% line and 93.85% branch coverage
+for all four spike source modules, with 97.13% line and 93.85% branch coverage
 in the Node report. These figures are local native coverage, distinct from
 SonarCloud's new-code metric. Repository CI's existing LCOV aggregate did
 not run/import the isolated suite. Bring the portable repository-relative
@@ -963,6 +966,25 @@ import on the exact PR head. Keep source scope, thresholds, external check
 requirements and Sonar policy in force. This preparation supplies the
 reproducer, diagnosis and coverage producer, while CI ingestion remains
 open.
+
+### Fastify dependency review
+
+[Dependency review on the first preparation push](https://github.com/Oxelio/architecture-web/actions/runs/45892925518/job/140159817497)
+rejected the fixture's Fastify 5.10.0 pin for four high-severity advisories.
+Fastify identifies 5.12.2 as the first patched version for those reports.
+The isolated npm lock was updated to 5.12.8. The isolated
+`npm audit --audit-level=high --omit=dev` reported zero vulnerabilities.
+The fixture lockfile Git blob changed from
+`fa611ee949b72647265ac0cd4a41cac3b1f8d7cb` to
+`a9afeeff88d1ef0696e07078dae193817f160121`.
+The root pnpm lock and API manifest still resolve Fastify 5.10.0 at the
+preparation baseline (lockfile blob `6a46ef977b5fe3edc186511dbf6ab9d16bc0cb2e`).
+Verify and upgrade the actual API dependency before
+integrating the production bridge. The fixture patch supplies compatibility
+evidence for the newer version. [GHSA-9q9j-q6p8-xq58](https://github.com/fastify/fastify/security/advisories/GHSA-9q9j-q6p8-xq58),
+[GHSA-hwr6-493r-vm6h](https://github.com/fastify/fastify/security/advisories/GHSA-hwr6-493r-vm6h),
+[GHSA-p68q-wchp-6fh7](https://github.com/fastify/fastify/security/advisories/GHSA-p68q-wchp-6fh7),
+[GHSA-667r-xxjv-c9mm](https://github.com/fastify/fastify/security/advisories/GHSA-667r-xxjv-c9mm).
 
 ### Remaining integration boundaries
 
@@ -1028,7 +1050,8 @@ Recommended ordering for the later Task Planning activity:
    artifact contracts. Establish the transaction/fence rules and migrate the
    recovery, cancellation and erasure writers. Verify mixed-writer races
    before exposing delegated admission.
-2. Fit the tested Fastify bridge to the real host, session resolver and
+2. Update and verify the actual API's Fastify dependency. Fit the tested
+   Fastify bridge to the real host, session resolver and
    transaction-bound adapter. Carry the failure, replay, deadline, cookie,
    endpoint/TTL and key-rotation cases into API integration.
 3. Implement the synchronous affected-set/outbox operation and the established
