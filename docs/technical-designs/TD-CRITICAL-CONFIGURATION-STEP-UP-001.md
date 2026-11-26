@@ -129,9 +129,10 @@ adapter owns transaction/lock/state mechanics and must not depend on a
 concrete Redis adapter or application use case. No SQL transaction spans
 password hashing or MFA consumption, and no cross-resource write transaction
 is attempted. Bound the Redis check by the remaining attempt deadline and
-a short technical timeout (initial maximum two seconds); timeout or storage
-failure is a technical exception, rolls back/releases locks, and cannot
-permit late admission. The callback is read-only, cannot publish, and a late
+a short technical timeout (initial maximum two seconds). If the attempt
+deadline is reached first, refuse the expired confirmation; an independent
+storage timeout or storage failure is a technical exception. Both paths
+release locks and cannot permit late admission. The callback is read-only, cannot publish, and a late
 read result is ignored. The Developer must verify all account-security mutation
 paths use compatible locks; if an uncovered writer or a lock-order conflict
 is found, stop and return to Software Architect rather than weakening the
