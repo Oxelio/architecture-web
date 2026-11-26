@@ -956,7 +956,15 @@ it("clears credentials and preserves the critical publication draft after a refu
     }),
   );
   await clickButton("Preview impact");
-  await expectFeedback("article", "1 option changed · Critical impact");
+  await expectFeedback("form", "1 option changed · Critical impact");
+  const confirmationGroup = element("form fieldset");
+  const confirmationHeading = element("form h2");
+  expect(confirmationGroup.getAttribute("aria-labelledby")).toBe(
+    confirmationHeading.id,
+  );
+  expect(confirmationHeading.textContent).toBe(
+    "Critical changes and restoration",
+  );
   await enter('input[autocomplete="current-password"]', loginPassword);
   await enter('input[autocomplete="one-time-code"]', "EXAMPLEBACKUP");
   await click(confirmation);
@@ -1196,7 +1204,7 @@ it("shows a failed configuration preview after an earlier publication failure", 
     }),
   );
   await clickButton("Preview impact");
-  await expectFeedback("article", "1 option changed · Medium impact");
+  await expectFeedback("form", "1 option changed · Medium impact");
   await changeLocale("fr");
   expect(container.textContent).toContain(
     "Désactiver la disponibilité du MFA ne supprime pas les paramètres MFA",
@@ -1747,7 +1755,7 @@ it("preserves unknown security preview warnings without translating investigativ
     }),
   );
   await clickButton("Preview impact");
-  await expectFeedback("article", "1 option changed · Standard impact");
+  await expectFeedback("form", "1 option changed · Standard impact");
   expect(container.textContent).toContain(
     "The next maintenance run may purge older audit events.",
   );
