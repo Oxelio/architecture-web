@@ -88,6 +88,30 @@ One active grant per user/client/resource is a persistence-backed invariant.
 A new grant after revocation has a different lifecycle identity. Permission
 withdrawal and restoration must also prevent old credential scope revival.
 
+### Initial resource catalog boundary
+
+A platform-defined resource descriptor and its permission definitions are
+registered through trusted application composition, not by OAuth client
+metadata or administrator input. Each descriptor binds a stable resource
+identifier, its canonical URI, recognized permission codes and user-facing
+descriptions to the owning product capability. Client policy selects only
+recognized codes and their required/optional classification. An unknown
+resource or code fails closed, including when a stored client policy becomes
+incompatible. No runtime generic permission-definition UI is introduced.
+
+Work #215 delivers the authorization capability, administration and consent,
+including a test-only synthetic resource with required read and optional
+write to prove the complete generic contract. No synthetic test resource is
+enabled in production. Work #214 remains the owner of the proposed concrete
+MCP tool scope; its approved Functional Specification will determine the
+actual resource URI and permission catalog/mapping for its account operations.
+The proposed account summary and notification preference capabilities in
+#214 are not approved by this document. Do not invent or expose a new
+production product permission merely to demonstrate #215; consuming
+capabilities must supply explicitly owned descriptors and enforce their
+operation mapping. Any need for a real initial resource beyond the approved
+delegated authorization scope returns to the functional owner.
+
 ## 4. Application responsibilities / use cases
 
 Extend createIam and IamApplication via a focused capability contract, not a
@@ -575,8 +599,90 @@ or credential values in persistence or response.
 | Export        | IAM's account export read contract returns only the caller's eligible non-secret authorization projection from a coherent snapshot. Candidate fields are client identity/display name, resource, retained grant status and dates, and granted permission codes. Project or serialize this data explicitly rather than copying provider tables. Keep credentials, secrets, provider payloads, bindings and other accounts out of the archive. Extend the existing reserve/read/complete/download lifecycle and test export racing with erasure.                                                                        |
 | Final erasure | The authoritative account transaction removes grants, families, linked provider interaction/session/code/token rows and consent revisions, and commits the existing pseudonymous erasure witness and final erasure fact. Use explicit subject linkage for all provider record kinds and clean up anonymous pending data by expiry. Existing Audit and Notifications consumers handle erasure and late facts under their own policies. The final-erasure fact creates no additional notification. Deletion cancellation leaves prior revocation in force.                                                              |
 
-Align concrete event topic/version selection with the existing IAM outbox
-and the frozen Audit/Notifications intake contracts during Task Planning.
+### Versioned integration facts
+
+The proposed new IAM-owned topics below use version 1 of the existing
+Messaging integration envelope (eventId, topic, version, aggregateId,
+occurredAt, payload and context). Keep existing event topics/versions intact.
+Inspect the current
+[IAM security fact factory](../../packages/contexts/iam/src/application/events/iam-security-event.ts)
+and
+[IAM domain-event projection](../../packages/contexts/iam/src/application/events/iam-integration-event.ts).
+Do not funnel client-wide facts through the existing domain-event mapper,
+which assumes an account subject. Extend the explicit IAM application
+fact projection with the needed discriminated contracts.
+
+| Topic (v1)                         | Subject and additional payload                                                                                                          | Consumers            |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| iam.delegated-client-changed       | Administrator actor as subject; clientId, change kind, revision, operationId                                                            | Audit                |
+| iam.delegated-grant-created        | Affected userId; grantId, clientId, resourceId, operationId                                                                             | Audit, Notifications |
+| iam.delegated-grant-extended       | Affected userId; grantId, clientId, resourceId, operationId, newly granted permission codes                                             | Audit, Notifications |
+| iam.delegated-permission-withdrawn | Affected userId; grantId, clientId, resourceId, operationId, withdrawn permission codes                                                 | Audit                |
+| iam.delegated-grants-revoked       | Affected userId; operationId, reason code, positive affectedGrantCount, optional clientId/resourceId/grantId when the scope is singular | Audit, Notifications |
+
+These are technical names and explicit projections of the approved behavior,
+not new product events. Client change kind distinguishes registration,
+activation, disablement and actual metadata or policy change. An unchanged
+command does not publish a change. Revocation reason identifies the actual
+approved trigger, including required-permission withdrawal, client
+disablement, policy invalidation, explicit user revocation and FR-11
+security transitions. Never encode a credential, permission generation,
+other affected user's identifier, raw protocol error or redirect in metadata.
+Context carries the actual actor category and actorId when known, and the
+subjectId; payload userId equals subjectId for the account-subject facts.
+Use the affected account as aggregateId for the grouped revocation fact,
+the business grant ID for individual grant facts, and the stable internal
+client ID for the client fact. The client administration fact does not
+pretend that the administrator's own grant was changed.
+
+Publish one grouped revocation fact for each account with an actual revoked
+grant in a logical operation, even when several grants, clients or resources
+are involved. Advancing consent freshness with no revoked grant does not
+create a revocation notification. A repeated request affecting no new grant
+publishes none. Use stable event identities and a unique operation/subject
+record for committed group facts. Do not reuse an operation identity for a
+later independent revocation. Explicitly distinguish a notification-triggering
+full revocation from optional permission restriction; do not add a second
+revocation fact for the same transition. Existing password, MFA and other
+security facts retain their original meaning and delivery policies.
+
+Extend the existing
+[Audit handler](../../packages/contexts/audit/src/application/events/audit-integration-event.handler.ts)
+to validate these versions, required fields, actor/subject consistency and
+bounded reason codes before effects. Use the existing personal projection
+and privacy-marker rules; do not add client details to personal Audit merely
+because the source fact contains them. Extend
+[Notifications intake](../../packages/contexts/notifications/src/application/intake/notification-event-handler.use-case.ts)
+and its [policy owner](../../packages/contexts/notifications/src/application/policies/notification.policies.ts)
+for the three approved notification-triggering topics. Use affected-user
+Web inbox creation plus mandatory eligible email (the existing Web inbox
+is a notification record, not a separate email-like delivery channel).
+Reuse atomic createForEvent consumption and delivery-time erasure eligibility;
+no generic inbox, additional administrator audience or new delivery channel.
+No late replay may restore a directly identifying Audit reference or an
+ineligible affected-user delivery. Consumers validate their local versioned
+contracts without importing IAM internals or sharing a domain model.
+
+### Export and erasure projection
+
+Extend the existing versioned IAM archive with an explicit
+delegated-authorizations collection. Include only the owner's retained
+grant records: non-secret application identity/display information,
+resource identifier, grant state, grant/revocation dates and applicable
+permission codes. Do not export permission generations, technical family
+or provider identifiers, protocol payloads, session bindings, keys or lookup
+hashes. Use one coherent owner-bound read snapshot for the IAM authorization
+projection; do not claim an atomic cross-context archive snapshot.
+Recheck current owner, export reservation and account erasure eligibility
+when completing the archive; use account-before-export lock order and no
+new connection inside the authoritative fence. If the reservation/account
+was erased, discard assembled bytes and do not recreate the reservation
+or generated fact. Preserve existing one-time download and expiry behavior.
+Final erasure removes every account-linked grant and protocol record in the
+existing transaction, keeping only independently justified retained Audit
+evidence under its owner. Replay and queued delivery tests exercise the
+existing privacy marker and erasure witness, not a competing tombstone.
+
 Production proof must include duplicate publication, failed delivery,
 account deletion with queued delivery, and replay of facts after erasure.
 The synthetic grouped outbox assertion and F10 fixture erasure are evidence
@@ -648,9 +754,49 @@ silent destructive reset.
 Measure client-wide and account-wide invalidation fan-out, lock contention,
 grant admission lookup latency, token lookup and expiry cleanup, outbox size
 and notification grouping. Index active grant tuple and lookup by account and
-client. Set operational token/interaction lifetime, throttling, and storage
-limits after compatibility and security evidence; do not invent approved
-business limits. Fail closed on unavailable authorization decisions.
+client. The credential lifetimes are defined in section 11. The following
+are initial engineering guardrails and validation targets, not product
+limits, availability guarantees or measured production SLOs.
+
+- Keep the tested 56 KiB provider-form cap, 2 KiB consent body cap and one
+  second raw-body read deadline. Configure ingress size, rate and concurrency
+  protection before requests can occupy the shared IAM fence; do not trust
+  the framework's bypassed parser limit.
+- Use transaction-local PostgreSQL timeouts and one monotonic request
+  deadline. As initial integration-test settings, use a 500 ms lock-wait
+  cap, 2 s statement cap, 4 s transaction cap and 6 s request budget for the
+  delegated protocol and final mutation transaction paths, bounded further
+  by the applicable confirmation/interaction deadline. Keep the existing
+  bounded session read at no more than 2 s and the remaining request budget.
+  Tune these settings against the actual ingress, pool and deployment
+  constraints; do not override unrelated existing IAM confirmation policy.
+  Start no additional SQL work after budget exhaustion. Enforce total
+  transaction lifetime, not only per-statement timeout; avoid application
+  timeout races that leave an unchecked transaction running.
+- On a known timeout/failed transaction, fail closed with no success or
+  credentials and no partial revocation. A commit whose result is unknown
+  is handled by the ambiguous-commit contract, never assumed rolled back.
+  Bound and clean up connections; do not automatically repeat spent codes.
+- Re-run the 1,000- and 10,000-account/three-grants-per-account cases with
+  actual IAM repositories and outbox schema, representative concurrent IAM
+  writers and admissions, multiple issuer processes, and repeated runs.
+  Record p50/p95/p99 latency, lock wait, timeout/deadlock counts, affected
+  facts and rollback behavior. Verify set-based or parameter-bounded writes
+  in one transaction and exact grouping. Verify admitted operations respect
+  the effective invalidation order. Do not claim that a single 150.1 ms
+  fixture SQL run establishes production capacity.
+- Before activation, establish the measured operating envelope and
+  configured ingress/concurrency budgets from those results. If expected
+  authorized bulk operations cannot fit a bounded transaction with
+  acceptable contention, return to Technical Design for the alternative
+  invalidation representation described in section 9. Do not silently
+  impose a business account/grant quota, split a revocation into partially
+  committed batches or replace synchronous authority with eventual delivery.
+
+These initial settings are subject to integration measurement and focused
+design review; exact tuning is a local implementation/operations decision
+within the same security and atomicity guarantees. Changing those guarantees
+requires upstream review. Fail closed on unavailable authorization decisions.
 
 ## 14. Error and failure handling
 
@@ -1022,8 +1168,9 @@ see the [acceptance record](https://github.com/Oxelio/architecture-web/issues/21
 The accepted structural decision is resolved. This amendment proposes the
 production boundaries, contract responsibilities, conservative lock order,
 initial endpoint profile and state/credential policy. The design remains
-Proposed pending focused technical review and the remaining preparation
-decisions; do not infer Readiness from ADR acceptance.
+Proposed pending focused technical review and execution planning. The
+integration-fact contracts, resource catalog ownership and initial operational
+guardrails are specified above; do not infer Readiness from ADR acceptance.
 
 | Finding                                                                                                                          | Owner / disposition                                                                                                                                                               |
 | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
