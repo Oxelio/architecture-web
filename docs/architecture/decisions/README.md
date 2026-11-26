@@ -61,10 +61,11 @@ IAM-owned erasure evidence for delivery eligibility.
 [ADR-0011](0011-iam-recipient-directory-queries.md) records IAM ownership of
 recipient directory queries and the API composition adapter.
 
-## Open decisions
-
 [ADR-0012](0012-oauth-authorization-server-integration-and-grant-authority.md)
-proposes an embedded OAuth protocol adapter with IAM as the grant authority.
+records the accepted target for an embedded OAuth protocol adapter with IAM as
+the grant authority. It is not yet effective current architecture.
+
+## Open decisions
 
 The following topics are not established decisions merely because they are
 listed here. Explore them first and create an ADR if/when an explicit structural
