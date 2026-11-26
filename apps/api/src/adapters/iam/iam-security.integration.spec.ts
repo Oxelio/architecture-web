@@ -19,6 +19,7 @@ import {
   PasswordAuthenticatorEntity,
   SessionEntity,
   UserEntity,
+  UserIdentifierValueObject,
   UserRoleValueObject,
 } from "@architecture/iam/domain";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
@@ -82,6 +83,152 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     hasher = new Argon2PasswordHasherAdapter();
   const outbox = (trx: Kysely<IamDatabase>) =>
     new KyselyOutboxWriterAdapter(trx as never);
+  it.each(["revocation", "expiration"] as const)(
+    "does not recreate a session when %s interleaves with activity tracking",
+    async (invalidation) => {
+      const userId = UserIdentifierValueObject.generate();
+      const session = SessionEntity.createForUser({
+        userId,
+        userSessionVersion: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const key = `session:${session.identifier.value}`;
+      const index = `user-sessions:${userId.value}`;
+      const adapter = new RedisSessionAdapter(redis);
+      const concurrent = redis.duplicate();
+      let releaseRead!: () => void;
+      let signalRead!: () => void;
+      const resumeRead = new Promise<void>((resolve) => {
+        releaseRead = resolve;
+      });
+      const readReached = new Promise<void>((resolve) => {
+        signalRead = resolve;
+      });
+      try {
+        await concurrent.ping();
+        await adapter.save(session);
+        const initialScore = await concurrent.zscore(
+          index,
+          session.identifier.value,
+        );
+        expect(initialScore).toBe(String(session.expiresAt.getTime()));
+
+        // Pause the activity update after Redis returns the old record.
+        const get = redis.get.bind(redis);
+        const read = vi
+          .spyOn(redis, "get")
+          .mockImplementationOnce(async (sessionKey) => {
+            const snapshot = await get(sessionKey);
+            signalRead();
+            await resumeRead;
+            return snapshot;
+          });
+        const activity = adapter.updateLastActivity(
+          session.identifier,
+          new Date(session.lastActivityAt.getTime() + 1_000),
+        );
+        try {
+          expect(
+            await Promise.race([
+              readReached.then(() => true),
+              activity.then(() => false),
+            ]),
+          ).toBe(true);
+          if (invalidation === "revocation") {
+            await new RedisSessionAdapter(concurrent).delete(
+              session.identifier,
+            );
+          } else {
+            // Force Redis expiration, without waiting on wall-clock timing.
+            await concurrent.pexpireat(key, 1);
+          }
+          expect(await concurrent.get(key)).toBeNull();
+          releaseRead();
+          await activity;
+
+          expect(await concurrent.get(key)).toBeNull();
+          expect(await concurrent.pttl(key)).toBe(-2);
+          expect(await concurrent.zscore(index, session.identifier.value)).toBe(
+            invalidation === "revocation" ? null : initialScore,
+          );
+        } finally {
+          releaseRead();
+          await activity.catch(() => undefined);
+          read.mockRestore();
+        }
+      } finally {
+        await concurrent.del(key, index);
+        await concurrent.quit();
+      }
+    },
+  );
+
+  it.each(["older", "newer"] as const)(
+    "preserves the latest activity, expiry, metadata and index when the paused update is %s",
+    async (pausedUpdate) => {
+      const userId = UserIdentifierValueObject.generate();
+      const session = SessionEntity.createForUser({
+        userId,
+        userSessionVersion: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+        client: { type: "browser", name: "test", deviceType: "desktop" },
+        network: { ipAddress: "192.0.2.1" },
+      });
+      const key = `session:${session.identifier.value}`;
+      const index = `user-sessions:${userId.value}`;
+      const adapter = new RedisSessionAdapter(redis);
+      const concurrent = redis.duplicate();
+      try {
+        await concurrent.ping();
+        await adapter.save(session);
+        const initial = await redis.get(key);
+        const initialExpiry = await redis.pexpiretime(key);
+        const initialScore = await redis.zscore(
+          index,
+          session.identifier.value,
+        );
+        const older = new Date(session.lastActivityAt.getTime() + 1_000);
+        const newer = new Date(session.lastActivityAt.getTime() + 2_000);
+        const [paused, competing] =
+          pausedUpdate === "older" ? [older, newer] : [newer, older];
+
+        const get = redis.get.bind(redis);
+        const read = vi
+          .spyOn(redis, "get")
+          .mockImplementationOnce(async (sessionKey) => {
+            const snapshot = await get(sessionKey);
+            await new RedisSessionAdapter(concurrent).updateLastActivity(
+              session.identifier,
+              competing,
+            );
+            return snapshot;
+          });
+        try {
+          await adapter.updateLastActivity(session.identifier, paused);
+        } finally {
+          read.mockRestore();
+        }
+
+        expect(initial).not.toBeNull();
+        expect(initialScore).not.toBeNull();
+        const updated = await redis.get(key);
+        expect(updated).not.toBeNull();
+        expect(JSON.parse(updated ?? "{}")).toEqual({
+          ...JSON.parse(initial ?? "{}"),
+          lastActivityAt: newer.toISOString(),
+        });
+        expect(initialExpiry).toBeGreaterThan(Date.now());
+        expect(await redis.pexpiretime(key)).toBe(initialExpiry);
+        expect(await redis.zscore(index, session.identifier.value)).toBe(
+          initialScore,
+        );
+      } finally {
+        await concurrent.del(key, index);
+        await concurrent.quit();
+      }
+    },
+  );
+
   it("counts recovery attempts atomically without relying on Audit delivery", async () => {
     const fingerprint = randomUUID(),
       key = `iam:recovery-origin:${fingerprint}`;
