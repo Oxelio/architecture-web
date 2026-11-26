@@ -19,6 +19,7 @@ import {
   KyselyAccountDeletionAdapter,
   KyselyAccountExportAdapter,
   KyselyCriticalConfigurationConfirmationAdapter,
+  KyselyDelegatedAuthorizationAdapter,
   KyselyEmailVerificationAdapter,
   KyselyIamUnitOfWorkAdapter,
   KyselyLoginIdentityAdapter,
@@ -103,6 +104,10 @@ export async function buildIamModule(
     compromised = new LocalCompromisedPasswordChecker();
   const deletions = new KyselyAccountDeletionAdapter(db, createOutbox);
   const iam = createIam({
+    delegatedAuthorization: {
+      store: new KyselyDelegatedAuthorizationAdapter(db),
+      resources: [],
+    },
     userRepository: users,
     userQueryRepository: users,
     loginIdentityRepository: identities,

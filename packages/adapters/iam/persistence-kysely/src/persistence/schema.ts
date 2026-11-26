@@ -1,6 +1,10 @@
 // @file infrastructure/iam/persitence/kysely/src/persistence/schema.ts
 
-import type { Generated, Insertable, Selectable } from "kysely";
+import type {
+  ClientResourcePolicy,
+  PermissionGeneration,
+} from "@architecture/iam/domain";
+import type { ColumnType, Generated, Insertable, Selectable } from "kysely";
 
 export interface IamDatabase {
   iam_users: IamUserTable;
@@ -16,6 +20,38 @@ export interface IamDatabase {
   iam_account_exports: IamAccountExportTable;
   iam_account_deletions: IamAccountDeletionTable;
   iam_account_erasure_evidence: { subject_key: Buffer };
+  iam_delegated_clients: IamDelegatedClientTable;
+  iam_delegated_grants: IamDelegatedGrantTable;
+  iam_delegated_account_epochs: {
+    account_id: string;
+    epoch: Generated<string>;
+  };
+  iam_delegated_tuple_epochs: {
+    account_id: string;
+    client_id: string;
+    resource_id: string;
+    epoch: Generated<string>;
+  };
+}
+
+export interface IamDelegatedClientTable {
+  id: string;
+  public_id: string;
+  display_name: string;
+  redirect_uris: readonly string[];
+  enabled: boolean;
+  revision: number;
+  policies: ColumnType<readonly ClientResourcePolicy[], string, string>;
+}
+
+export interface IamDelegatedGrantTable {
+  id: string;
+  account_id: string;
+  client_id: string;
+  resource_id: string;
+  authorized_at: Date;
+  revoked_at: Date | null;
+  permissions: ColumnType<readonly PermissionGeneration[], string, string>;
 }
 
 export interface IamUserTable {

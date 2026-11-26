@@ -1,5 +1,7 @@
 // @file bounded-contexts/iam/domain/index.ts
 
+export * from "./delegated-authorization/authorization-grant.entity.js";
+export * from "./delegated-authorization/client-application.entity.js";
 export {
   LoginIdentityChanged,
   LoginIdentityVerified,

@@ -100,6 +100,12 @@ import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
 import type { UserQueryRepository } from "#ports/user-query.repository";
 
+import type {
+  DelegatedAuthorizationApplication,
+  DelegatedAuthorizationDependencies,
+} from "./delegated-authorization/delegated-authorization.contracts.js";
+import { delegatedAuthorizationApplication } from "./delegated-authorization/delegated-authorization.js";
+
 export interface IamDependencies {
   userRepository: UserRepository;
   userQueryRepository: UserQueryRepository;
@@ -137,12 +143,14 @@ export interface IamDependencies {
   origins: RecoveryOriginLimiter;
   audit: AccountAuditData;
   archive: AccountArchiveBuilder;
+  delegatedAuthorization: DelegatedAuthorizationDependencies;
 }
 
 export interface IamApplication {
   accounts: AccountsApplication;
   authentication: AuthenticationApplication;
   administration: AdministrationApplication;
+  delegatedAuthorization: DelegatedAuthorizationApplication;
 }
 
 export function createIam(dependencies: IamDependencies): IamApplication {
@@ -191,6 +199,9 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     dependencies.events,
   );
   return {
+    delegatedAuthorization: delegatedAuthorizationApplication(
+      dependencies.delegatedAuthorization,
+    ),
     accounts: {
       changeEmail: new ChangeEmailUseCase(
         dependencies.userRepository,

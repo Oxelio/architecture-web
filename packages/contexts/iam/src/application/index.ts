@@ -407,6 +407,16 @@ export {
   Reauthentication,
 } from "./authentication/reauthentication.js";
 export { RegenerateMfaBackupCodesUseCase } from "./authentication/regenerate-mfa-backup-codes/regenerate-mfa-backup-codes.use-case.js";
+export type {
+  DelegatedAuthorizationApplication,
+  DelegatedAuthorizationDependencies,
+  DelegatedAuthorizationReader,
+  DelegatedAuthorizationStore,
+  DelegatedAuthorizationWriter,
+  DelegatedCredentialAuthority,
+  FinalizeConsentInput,
+} from "./delegated-authorization/delegated-authorization.contracts.js";
+export { DelegatedAuthorization } from "./delegated-authorization/delegated-authorization.js";
 export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 export {
   createIamSecurityEvent,
