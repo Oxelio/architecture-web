@@ -61,6 +61,33 @@ processes. The harness expects the synthetic `spike` role and database on
 loopback. The default `npm test` runs both F06 models and the F02
 control, for 12 tests covering F01–F10.
 
+## Fastify preparation and fan-out
+
+The isolated lockfile also pins Fastify `5.10.0`, matching the API lock.
+Use the same disposable database and `npm ci` setup above. Replace the
+`npm test` line in the `try` block with the following to execute the full
+preparation suite and export LCOV. Keep the database URL set throughout.
+
+```powershell
+$env:SPIKE_HOST = 'fastify'
+Push-Location ../../..
+try {
+  New-Item -ItemType Directory -Force dist | Out-Null
+  node --test --experimental-test-coverage --test-coverage-include='scripts/spikes/delegated-authorization/*.mjs' --test-coverage-exclude='scripts/spikes/delegated-authorization/*.test.mjs' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=dist/work215-prep.lcov scripts/spikes/delegated-authorization/feasibility.test.mjs scripts/spikes/delegated-authorization/revocation.test.mjs
+  if ($LASTEXITCODE -ne 0) { throw 'Fastify preparation tests failed' }
+} finally {
+  Pop-Location
+  Remove-Item Env:SPIKE_HOST -ErrorAction SilentlyContinue
+}
+```
+
+The run executes 21 tests and prints timing diagnostics for the 1,000- and
+10,000-account fan-out cases and the 53-grant account case. It writes an
+ignored native LCOV report from the repository root for all four source
+modules, including the child issuer processes. Use a Linux CI runner for
+portable slash-separated paths in the candidate LCOV aggregate. Running
+`npm test` without `SPIKE_HOST` still runs the 12 raw-host regression cases.
+
 ## Files and scope
 
 - [`database.mjs`](database.mjs) holds the experimental IAM decisions, DDL and
@@ -69,8 +96,13 @@ control, for 12 tests covering F01–F10.
   frozen family entitlements during provider lookups and writes.
 - [`issuer.mjs`](issuer.mjs) wires the provider, custom interactions and the
   mock resource admission endpoint.
+- [`fastify-host.mjs`](fastify-host.mjs) supplies the encapsulated raw bridge,
+  allowlist and OAuth discovery projection.
 - [`feasibility.test.mjs`](feasibility.test.mjs) drives HTTP, coordinates independent
   issuer processes, injects PostgreSQL failures and checks persisted effects.
+- [`revocation.test.mjs`](revocation.test.mjs) measures set-based bulk mutation,
+  grouped outbox inserts and shared-fence contention, and checks a reversed
+  lock order against PostgreSQL deadlock detection.
 
 The harness uses loopback HTTP, static synthetic client metadata, an existing
 synthetic first-party session, one resource and two permissions. The resource

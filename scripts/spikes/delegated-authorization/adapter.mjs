@@ -44,12 +44,12 @@ export function postgresAdapter(db, iam, key, beforeSave, requireRedirect) {
         ) {
           throw new errors.InvalidGrant("issuance no longer authorized");
         }
-        await beforeSave(model);
         // Opaque bearer values are also present inside the provider payload.
         // Rehydrate this field at lookup from the credential presented.
         payload = { ...payload };
         delete payload.jti;
       }
+      await beforeSave(model);
       if (
         model === "Interaction" &&
         payload.prompt?.name === "login" &&

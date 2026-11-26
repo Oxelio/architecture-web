@@ -1,4 +1,7 @@
 import { createServer } from "node:http";
+import { once } from "node:events";
+import { takeCoverage } from "node:v8";
+import { fastifyHost } from "./fastify-host.mjs";
 import Provider, { errors, interactionPolicy } from "oidc-provider";
 import { postgresAdapter } from "./adapter.mjs";
 import {
@@ -9,10 +12,13 @@ import {
   resource,
 } from "./database.mjs";
 
-const { schema, url, mode, key, jwk, requireRedirect } = JSON.parse(
+const { schema, url, mode, key, cookieKeys, jwk, requireRedirect } = JSON.parse(
   process.env.SPIKE_FIXTURE,
 );
 const db = openDatabase(schema);
+const fastify = process.env.SPIKE_HOST === "fastify";
+const day = 86400;
+let browserOrigin;
 const iam = createIam(db, mode);
 const { one, query, state, transaction } = db;
 const { Check, base } = interactionPolicy;
@@ -43,7 +49,9 @@ policy
 let fault;
 let unblock;
 process.on("message", (message) => {
-  if (message === "release") {
+  if (message === "shutdown") {
+    void shutdown();
+  } else if (message === "release") {
     unblock?.();
   } else {
     fault = message;
@@ -51,8 +59,30 @@ process.on("message", (message) => {
   }
 });
 
+async function pause() {
+  await new Promise((resolve) => {
+    const watchdog = setTimeout(resolve, 4000);
+    unblock = () => {
+      clearTimeout(watchdog);
+      resolve();
+    };
+    process.send("paused");
+  });
+  unblock = undefined;
+}
+
 async function beforeSave(model) {
+  if (
+    (model === "AuthorizationCode" && fault === "code-commit-error") ||
+    (model === "Grant" && fault === "consent-commit-error")
+  ) {
+    fault = undefined;
+    await query(
+      "INSERT INTO commit_probe VALUES ('missing-synthetic-account')",
+    );
+  }
   if (model !== "AccessToken" || !fault) return;
+  if (fault === "pause-after-commit") return;
   const action = fault;
   fault = undefined;
   if (action === "sql-error") {
@@ -62,15 +92,7 @@ async function beforeSave(model) {
       "INSERT INTO commit_probe VALUES ('missing-synthetic-account')",
     );
   } else if (action === "pause") {
-    await new Promise((resolve) => {
-      const watchdog = setTimeout(resolve, 4000);
-      unblock = () => {
-        clearTimeout(watchdog);
-        resolve();
-      };
-      process.send("paused");
-    });
-    unblock = undefined;
+    await pause();
   }
 }
 
@@ -78,7 +100,11 @@ const adapter = postgresAdapter(db, iam, key, beforeSave, requireRedirect);
 const provider = new Provider(url, {
   adapter,
   jwks: { keys: [jwk] },
-  cookies: { keys: [key], long: { signed: true }, short: { signed: true } },
+  cookies: {
+    keys: cookieKeys,
+    long: { signed: true },
+    short: { signed: true },
+  },
   clients: ["synthetic-app", "other-app"].map((id) => ({
     client_id: id,
     redirect_uris: [redirect],
@@ -90,11 +116,12 @@ const provider = new Provider(url, {
   responseTypes: ["code"],
   pkce: { required: () => true },
   ttl: {
-    AccessToken: 300,
-    AuthorizationCode: 60,
-    RefreshToken: 600,
-    Grant: 900,
-    Interaction: 180,
+    AccessToken: 600,
+    AuthorizationCode: 300,
+    RefreshToken: (_ctx, token) =>
+      Math.max(1, Math.min(30 * day, 90 * day - token.totalLifetime())),
+    Grant: 90 * day,
+    Interaction: 600,
   },
   features: {
     devInteractions: { enabled: false },
@@ -107,11 +134,25 @@ const provider = new Provider(url, {
       enabled: true,
       defaultResource: ({ oidc }) => {
         if (["authorization", "resume"].includes(oidc.route)) {
+          if (
+            fastify &&
+            oidc.params.response_mode &&
+            oidc.params.response_mode !== "query"
+          ) {
+            throw new errors.InvalidRequest(
+              "the spike only accepts query response mode",
+            );
+          }
           throw new errors.InvalidTarget("an explicit resource is required");
         }
       },
       useGrantedResource: () => true,
       async getResourceServerInfo({ oidc }, identifier, client) {
+        if (fastify && oidc.params.resource !== resource) {
+          throw new errors.InvalidTarget(
+            "an explicit approved resource is required",
+          );
+        }
         const admitted = await iam.client(client.clientId);
         if (!admitted) throw new errors.InvalidClient("client unavailable");
         if (identifier !== resource || Array.isArray(oidc.params.resource)) {
@@ -184,7 +225,7 @@ function json(res, status, body) {
 async function interaction(req, res, path) {
   let body;
   if (req.method === "POST") {
-    if (req.headers.origin !== new URL("http://" + req.headers.host).origin) {
+    if (req.headers.origin !== browserOrigin) {
       return json(res, 403, { error: "origin" });
     }
     const chunks = [];
@@ -340,12 +381,22 @@ provider.on("server_error", () => {
   state().rollback = true;
 });
 provider.use(async (ctx, next) => {
+  if (fastify && ctx.path === "/token") {
+    ctx.res.once("close", () => {
+      if (!ctx.res.writableFinished) process.send("disconnect");
+    });
+  }
   try {
     await transaction(async (tx) => {
       tx.actor = await iam.session(cookie(ctx.req, "first_party"));
       await next();
-      if (ctx.status >= 400 && !tx.replay) tx.rollback = true;
+      if ((ctx.res.destroyed || ctx.status >= 400) && !tx.replay)
+        tx.rollback = true;
     });
+    if (ctx.path === "/token" && fault === "pause-after-commit") {
+      fault = undefined;
+      await pause();
+    }
   } catch {
     ctx.remove("Location");
     ctx.remove("Set-Cookie");
@@ -355,7 +406,7 @@ provider.use(async (ctx, next) => {
 });
 
 const protocol = provider.callback();
-const server = createServer(async (req, res) => {
+async function handle(req, res) {
   const requestUrl = new URL(req.url, url);
   const { pathname } = requestUrl;
   try {
@@ -369,9 +420,36 @@ const server = createServer(async (req, res) => {
       await protocol(req, res);
     }
   } catch {
-    json(res, 503, { error: "server_error" });
+    if (!res.destroyed && !res.headersSent) {
+      res.removeHeader("Location");
+      res.removeHeader("Set-Cookie");
+      json(res, 503, { error: "server_error" });
+    }
   }
-});
-server.listen(0, "127.0.0.1", () =>
-  process.send({ port: server.address().port }),
-);
+}
+
+const app = fastify ? fastifyHost(handle, url) : undefined;
+const server = app?.server ?? createServer(handle);
+if (app) {
+  await app.listen({ port: 0, host: "127.0.0.1" });
+} else {
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+}
+const { port } = server.address();
+const boundOrigin = new URL(url);
+boundOrigin.port = String(port);
+browserOrigin = boundOrigin.origin;
+process.send({ port });
+
+async function shutdown() {
+  server.closeAllConnections();
+  if (app) await app.close();
+  else {
+    server.close();
+    await once(server, "close");
+  }
+  await db.pool.end();
+  if (process.env.NODE_V8_COVERAGE) takeCoverage();
+  process.disconnect();
+}

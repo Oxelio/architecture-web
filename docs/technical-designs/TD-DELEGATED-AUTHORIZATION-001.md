@@ -109,14 +109,14 @@ boundaries; the Developer may choose idiomatic local names and signatures.
 Use explicit commands, queries and expected-failure results. The following
 names describe responsibilities rather than a required class per row.
 
-| Contract group | Trusted input and responsibility |
-| --- | --- |
-| Client administration | Authenticated administrator; register, edit, enable/disable, inspect and change platform-recognized policies. Mutations use expected revision and operation-bound confirmation when critical. |
-| Consent preparation/finalization | Verified first-party account/session plus server-resolved interaction; return safe consent projection or record explicit selection, rejecting stale state. Never accept an actor ID from form input. |
-| Connected applications | Authenticated account; list/details, withdraw permission, revoke the selected grant lifecycle, revoke all. No provider credentials or bearer IDs in outputs. |
-| Issuance/renewal decision | Trusted protocol adapter resolves the credential or pending authorization, client, resource, lifecycle and frozen entitlements. IAM evaluates current authority within the shared transaction; protocol adapter owns protocol verification and artifact writes. |
-| Final resource admission | Verified credential provenance, intended resource, required permission and actual scope, family/lifecycle identity and entitlements. Return minimal authorized account identity and authorized operation context or refusal. No browser session ID or synthetic session. |
-| Security invalidation | IAM-internal operation on affected account/client/grant within the owning mutation transaction. Not a public transport endpoint and not an asynchronous subscriber. |
+| Contract group                   | Trusted input and responsibility                                                                                                                                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Client administration            | Authenticated administrator; register, edit, enable/disable, inspect and change platform-recognized policies. Mutations use expected revision and operation-bound confirmation when critical.                                                                            |
+| Consent preparation/finalization | Verified first-party account/session plus server-resolved interaction; return safe consent projection or record explicit selection, rejecting stale state. Never accept an actor ID from form input.                                                                     |
+| Connected applications           | Authenticated account; list/details, withdraw permission, revoke the selected grant lifecycle, revoke all. No provider credentials or bearer IDs in outputs.                                                                                                             |
+| Issuance/renewal decision        | Trusted protocol adapter resolves the credential or pending authorization, client, resource, lifecycle and frozen entitlements. IAM evaluates current authority within the shared transaction; protocol adapter owns protocol verification and artifact writes.          |
+| Final resource admission         | Verified credential provenance, intended resource, required permission and actual scope, family/lifecycle identity and entitlements. Return minimal authorized account identity and authorized operation context or refusal. No browser session ID or synthetic session. |
+| Security invalidation            | IAM-internal operation on affected account/client/grant within the owning mutation transaction. Not a public transport endpoint and not an asynchronous subscriber.                                                                                                      |
 
 The application owns permission policy and resource admission; a protocol
 adapter maps its persisted credential provenance to a narrow trusted
@@ -169,29 +169,34 @@ and the real first-party authentication bridge in the integration tests.
 
 ### Fastify protocol bridge and response ownership
 
-Use a dedicated encapsulated protocol route/plugin and an adapter at the
-composition boundary. Keep first-party HTTP authentication and existing
-controllers unchanged outside the delegated feature. One component owns
-request parsing and response emission for each OAuth path. For the provider
-callback, hand over the raw Node request before Fastify consumes its form
-body; verify the supported integration mechanism with an isolated Fastify
-test. Do not attach an ordinary JSON body parser to the same stream or allow
-both Fastify and the provider to write the response.
+Use an encapsulated Fastify plugin with an explicit route allowlist. In its
+route-level `onRequest` hook, call `reply.hijack()` before parsing and pass
+the Node request/response to the provider callback. The provider owns form
+parsing and response emission; the separate interaction route owns its
+bounded JSON. Keep first-party controllers and parsers outside this boundary.
+Fastify lifecycle security hooks bypassed by hijacking must be applied before
+handoff or in the protocol boundary. [P01–P04](#technical-preparation-experiments)
+exercise this mechanism using Fastify 5.10.0 and oidc-provider 9.15.1.
 
-Capture a validated, bounded request outside the SQL transaction where the
-bridge permits it; if the provider must parse the stream itself, enforce
-request size and read deadline before/during that parsing and prove the
-transaction does not wait on an unbounded client stream. No remote metadata
-fetch, password hashing, SMTP, UI interaction or user wait under the
-transaction fence. Resolve configured client metadata locally.
+Fastify's normal body-size limit is bypassed by the raw bridge. The provider
+limits its form parser to 56 KiB. The spike enforces a one-second body
+deadline in the raw bridge, including incomplete chunked input, and uses an
+explicit 2 KiB cap for consent JSON. Koa's outer transaction can already
+hold the fence during the form read. Bound and rate-limit ingress before
+that fence in deployment, including authenticated and anonymous traffic,
+and test the combined request, lock and SQL budget under contention. Ingress
+buffering may reduce the time spent holding the fence, provided the buffered
+form still has one parser and the response contract is retested. Resolve
+metadata locally. Keep password hashing, external I/O and UI waits outside
+the transaction.
 
 The OAuth adapter's request coordinator owns the outer transaction for
-protocol changes. The spike's public middleware wraps provider processing
-and defers normal Koa response emission until commit. Preserve that ordering
-in Fastify; prove there is no direct writeHead/end, streaming, redirect or
-Set-Cookie escape path. Prefer deferred provider responses rather than
-intercepting arbitrary low-level response writes. Custom consent routes use
-interactionResult to obtain a redirect and emit it only after commit.
+protocol changes. Use public `provider.use` to wrap provider/Koa processing
+while its normal response is still pending. Bind adapter and IAM calls to
+the one transaction and reject calls that lack it. Custom consent routes use
+`interactionResult` to obtain a redirect and emit it only after commit.
+Retest this boundary when adding any provider route with a different
+response mode. The spike enabled and tested query redirects and JSON only.
 Provider session/interaction cookie headers also remain pending until the
 relevant durable state is committed. If public hooks cannot provide this
 guarantee with Fastify, stop and return to design; do not patch private
@@ -199,7 +204,8 @@ library internals or use an early response as a workaround.
 
 On a known failed commit discard staged success status, headers, cookies,
 Location and body; return a technical error (503 where appropriate).
-A lost connection after commit does not roll back committed security state.
+An observed disconnect before the commit decision rolls back a normal
+issuance. A lost connection after commit leaves committed state intact.
 For an ambiguous commit, disclose no credentials, record non-secret
 correlation and use authoritative persisted state on a subsequent request.
 Never automatically retry a credential exchange after uncertain commit.
@@ -310,10 +316,15 @@ SF FR-16, not a promise of retroactive cancellation.
 
 ### Initial endpoint profile and first-party interaction
 
-Initial #215 profile: configured issuer URI, OAuth authorization-server
-metadata, authorization endpoint and token endpoint, authorization code
-response type, S256 PKCE required, and refresh token grant. Use opaque access
-tokens; issue refresh credentials independent of first-party logout.
+Initial #215 profile: configured issuer URI,
+`/.well-known/oauth-authorization-server`, `GET /auth`, its provider-managed
+resume route and `POST /token`, plus first-party consent routes. Use query
+redirects, authorization code with S256 PKCE and public-client
+`token_endpoint_auth_method=none`, refresh grant with rotation and opaque
+access tokens. The adapter owns the discovery projection so it advertises
+the exact enabled grants, query response mode and public-client
+authentication method. Keep provider OIDC discovery and JWKS outside this
+opaque OAuth profile. Refresh credentials survive first-party logout.
 Select and register the exact redirect URI and resource identifier server-side.
 Require exactly one explicit protected resource at authorization and token
 exchange/renewal for this profile; reject ambiguity, unknown resource and
@@ -358,9 +369,16 @@ read under the authoritative account fence, with the same ordering principle
 as existing operation-bound confirmation. No distributed transaction is
 claimed. Consume consent once; denial/cancellation cannot mutate the grant.
 Use same-origin/CSRF protection, safe return URLs, secure separate interaction
-cookies, TLS and configured trusted origin (not untrusted Host headers).
+cookies, TLS and a configured trusted origin independent of request Host.
 Do not persist raw first-party bearer session IDs in new protocol state;
 use a server-only non-reversible session binding where correlation is needed.
+Bind the pending authorization to issuer, client policy revision, registered
+redirect, resource, required/requested-optional scope set, one-use nonce and
+account/grant invalidation revisions. At authenticated consent entry bind the
+account and keyed session identity. Consume the pending decision atomically
+with grant mutation after comparing the binding to a bounded current session
+read. Re-fetching a prompt cannot establish a new freshness checkpoint.
+A lost or changed first-party session requires a fresh interaction and consent.
 
 ## 9. Transactions, consistency, concurrency and idempotency
 
@@ -452,17 +470,57 @@ Stricter operation-specific rules may require a different boundary in their
 own functional/technical owner.
 
 For V1 bulk revocation, use indexed set-based mutation of affected active
-grants/permissions in the same transaction, with RETURNING or equivalent
+grants/permissions in the same transaction, with `RETURNING` or equivalent
 durable affected-set capture. Group facts by affected account and logical
-operation; append to the transactional outbox before commit. Never report
-success after only queuing asynchronous invalidation. Avoid per-grant
-network calls and unbounded application-level loops while holding locks.
+operation. Insert the group rows into the transactional outbox before commit.
+The [current outbox appender](../../packages/adapters/messaging/persistence-kysely/src/kysely-outbox.adapter.ts)
+expands a multi-column parameterized values list. At 10,000 facts even seven
+binds per fact exceed PostgreSQL's 65,535-parameter limit. Prefer the
+set-based `INSERT ... SELECT` over the affected set, or bound each batch
+inside the same transaction. PostgreSQL's documented limit applies to one
+statement. [PostgreSQL 18 limits](https://www.postgresql.org/docs/18/limits.html)
 A timeout or rollback leaves no partially successful revocation. Measure
 representative fan-out and lock wait under concurrent account/issuer traffic;
 define explicit bounded transaction and request deadlines. If the coarse
 fence is inadequate, return to design for an epoch/fan-out alternative
 that preserves immediate authority and durable notification evidence. No
 unreviewed weakening to eventual invalidation.
+
+### Existing lock paths and required changes
+
+Audit baseline: `4d7e9ec0d1b75d3e7dc6c41b7165abde41700d59`. Below,
+the administrative fence is the advisory transaction lock `728194002` and
+the configuration fence is `728194001`. Target IDs can be discovered by
+unlocked reads and must be checked again after taking the required locks.
+
+| Existing path                                                                                                                                                                                                                                                                                                                                                                                                    | Observed order                                                                                                                                                                                                                       | Preparation consequence                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [IAM unit of work](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-iam-unit-of-work.adapter.ts#L38)                                                                                                                                                                                                                                                                                           | Administrative fence, optional user row, then transaction-bound repositories. Used by authenticated password change, suspension, reactivation, role/identity writes and verification.                                                | Invalidate only actual FR-11 transitions inside this transaction. The login identity replacement helper reacquires the same fence on the already-bound transaction. Keep that path on the existing connection.                                                                            |
+| [MFA adapter](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-mfa.adapter.ts#L73)                                                                                                                                                                                                                                                                                                             | Administrative fence, user row, then enrollment/settings/backup code or challenge rows.                                                                                                                                              | Extend activation, deactivation and backup-code replacement. Leave ordinary challenge/passcode consumption outside FR-11. The MFA disable path reacquires the fence on the same transaction.                                                                                              |
+| [Configuration publication](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-security-configuration.adapter.ts#L178), [step-up confirmation](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-critical-configuration-confirmation.adapter.ts#L68) and [deletion request](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-account-deletion.adapter.ts#L77) | Publication and deletion request take administrative, configuration, then relevant user rows. Step-up takes administrative then actor row. Configuration initialization takes only configuration and never waits for administrative. | Preserve those orders. Initialization may finish independently. Any future path needing both advisory locks takes administrative first. Reuse the bounded session check pattern from confirmation.                                                                                        |
+| [Recovery issue and completion](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-password-recovery.adapter.ts#L40)                                                                                                                                                                                                                                                                             | Issue takes the user row. Completion discovers the user, takes the user row then the recovery row, and consumes the token in the same transaction as authenticator/user writes.                                                      | Take the administrative fence before the user row in successful recovery completion. Keep password verification and hashing before this transaction as today. Issuing a recovery token can retain its current order while it performs no delegated operation and acquires no fence later. |
+| [Deletion cancellation and final erasure](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-account-deletion.adapter.ts#L171)                                                                                                                                                                                                                                                                   | Cancellation takes the user row then updates the deletion row. Erasure discovers the user, takes the user row then locks the deletion row before deleting the user and writing the witness and event.                                | Both paths must take administrative first if participating in shared-fence eligibility/cleanup. In particular, fence cancellation as an eligibility writer even though it revokes no new grant. Keep user-before-deletion-row order and never restore old lifecycles.                     |
+| [Export adapter](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-account-export.adapter.ts#L14)                                                                                                                                                                                                                                                                                               | Reservation takes the user row. Reads use independent queries. Completion and download mutate or lock the export row. They take no administrative fence.                                                                             | Use an owner-bound snapshot for delegated export. If completion adds a final user/erasure guard, take the user row before the export row. Never lock user after export, because erasure deletes account-owned exports while holding user. Keep archive assembly outside locks.            |
+
+The inversion to avoid is an account-first recovery/erase/cancellation
+extension that asks for the advisory fence later while the OAuth transaction
+holds the fence and waits for that account. P07 reproduced PostgreSQL
+`40P01` when these two lock orders were deliberately combined. This
+demonstrates the candidate integration hazard, not a claim of an existing
+production deadlock. A protocol callback that opens a second connection
+while the first connection holds the fence can also self-block. Thread the
+transaction to all writes, including outbox, and avoid nested pool
+transactions. Sort affected account IDs before row locks, then client,
+grant, family and artifact IDs where required.
+
+Use primary `READ COMMITTED` admission reads after obtaining the shared
+fence in a separate statement. A snapshot captured before a fence wait
+could miss the revocation just committed. Keep each statement and the
+transaction within its request budget. Roll back on a known lock or
+statement timeout. Retry only an operation with a known failed transaction
+and applicable retry policy, never a protocol exchange after an ambiguous
+commit. Verify mixed real IAM writes, concurrent creates and account-wide
+erasures before using this as the production lock contract.
 
 ### FR-11 integration points and transactional authority
 
@@ -473,17 +531,17 @@ capability applies that effect and durable facts. No hidden rule on every
 UserRepository.save, no blanket dependence on sessionVersion, no event
 subscriber as the security boundary.
 
-| Approved transition | Current transaction seam to extend |
-| --- | --- |
-| Authenticated password replacement | ChangePasswordUseCase / IamUnitOfWork.executeForUser |
-| Recovery password replacement | ResetRecoveredPasswordUseCase / PasswordRecoveryStore.withUsableToken; add fence before account lock |
+| Approved transition                  | Current transaction seam to extend                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Authenticated password replacement   | ChangePasswordUseCase / IamUnitOfWork.executeForUser                                                                           |
+| Recovery password replacement        | ResetRecoveredPasswordUseCase / PasswordRecoveryStore.withUsableToken; add fence before account lock                           |
 | Effective login identity replacement | ChangeEmailUseCase / transactional replacePreservingAdministrativeAccess; distinguish replacement from no-op/verification-only |
-| MFA activation | MfaStore.activate atomic account/credential mutation |
-| MFA deactivation | MfaStore.disable atomic account/credential mutation |
-| Backup-code regeneration | MfaStore.replaceBackupCodes; does not change sessionVersion |
-| Account suspension | SuspendUserUseCase / IamUnitOfWork.executeForUser; only actual transition |
-| Accepted deletion request | AccountDeletionStore.request transaction |
-| Final erasure | AccountDeletionStore.eraseIfDue; extend fence and delete all linked authorization/protocol state with account erasure evidence |
+| MFA activation                       | MfaStore.activate atomic account/credential mutation                                                                           |
+| MFA deactivation                     | MfaStore.disable atomic account/credential mutation                                                                            |
+| Backup-code regeneration             | MfaStore.replaceBackupCodes; does not change sessionVersion                                                                    |
+| Account suspension                   | SuspendUserUseCase / IamUnitOfWork.executeForUser; only actual transition                                                      |
+| Accepted deletion request            | AccountDeletionStore.request transaction                                                                                       |
+| Final erasure                        | AccountDeletionStore.eraseIfDue; extend fence and delete all linked authorization/protocol state with account erasure evidence |
 
 Verify relevant future login-identity mutation paths also use the authorized
 rule. Role change, ordinary sign-out, session expiry, individual session
@@ -510,18 +568,19 @@ or credential values in persistence or response.
 
 ## 10. Messaging / cross-context integration
 
-Record durable integration facts for actual authorization and permission
-transitions and client administration. The producer supplies stable event
-identity, actor/subject references and logical operation identity; never
-secrets or bearer identifiers. Produce one logically grouped revocation fact
-per affected user and operation, or a durable equivalent that proves the
-grouping and replay invariant. Audit may preserve more granular attributable
-evidence under its own policy.
+| Contract      | Producer and consumer boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Audit         | IAM emits versioned, attributable facts for approved client administration, grant creation/extension, permission changes and revocation in the mutation transaction. Supply event ID, operation ID, timestamp, actor/affected-account references and minimal client/resource/action/outcome fields as appropriate. Use the existing security-denial Audit boundary for relevant denied requests with bounded reason codes. Audit controls projection, access, retention and erasure. Leave redirect queries, raw protocol errors, cookies, codes, tokens, session bindings and credential lookup hashes out of facts. |
+| Notifications | Use grant creation, expansion and revocation as approved triggers. For bulk revocation, persist one source fact per `(operationId, affectedAccountId)` with a stable event ID, reason class and affected grant count. Keep unique operation/subject identity alongside event-ID deduplication so command retries and message redelivery cannot produce duplicate visible notices. Notifications resolves recipients, Web and eligible email using existing policies. It rechecks affected-user eligibility before delivery. A delivery failure has no effect on grant authority.                                      |
+| Export        | IAM's account export read contract returns only the caller's eligible non-secret authorization projection from a coherent snapshot. Candidate fields are client identity/display name, resource, retained grant status and dates, and granted permission codes. Project or serialize this data explicitly rather than copying provider tables. Keep credentials, secrets, provider payloads, bindings and other accounts out of the archive. Extend the existing reserve/read/complete/download lifecycle and test export racing with erasure.                                                                        |
+| Final erasure | The authoritative account transaction removes grants, families, linked provider interaction/session/code/token rows and consent revisions, and commits the existing pseudonymous erasure witness and final erasure fact. Use explicit subject linkage for all provider record kinds and clean up anonymous pending data by expiry. Existing Audit and Notifications consumers handle erasure and late facts under their own policies. The final-erasure fact creates no additional notification. Deletion cancellation leaves prior revocation in force.                                                              |
 
-Notifications owns channels, recipients and delivery eligibility. Do not
-select email destinations in IAM or add a separate notification subsystem.
-Extend existing cross-context projections, export and erasure routes without
-sharing domain models. Apply account-erasure handling to delayed/replayed facts.
+Align concrete event topic/version selection with the existing IAM outbox
+and the frozen Audit/Notifications intake contracts during Task Planning.
+Production proof must include duplicate publication, failed delivery,
+account deletion with queued delivery, and replay of facts after erasure.
+The synthetic grouped outbox assertion and F10 fixture erasure are evidence
+for the proposed boundaries. They do not exercise these production consumers.
 
 ## 11. Security and privacy
 
@@ -540,20 +599,41 @@ protection, issuer/resource binding, controlled metadata retrieval, secret
 redaction, least privilege, token rotation/reuse handling and bounded abuse
 controls. Do not rely on JWT expiry alone for immediate revocation.
 
-### Operational credential policy candidate
+### Initial credential and key policy
 
-Use explicit finite technical lifetimes, independent of the indefinite
-business grant. Proposed initial defaults for integration review: authorization
-code 5 minutes, consent interaction 10 minutes, opaque access token 10 minutes,
-refresh idle expiry 30 days and absolute family credential lifetime 90 days.
-Treat these as technical configuration, not functional grant expiry. Enforce
-absolute lifetime across rotation and prevent sliding renewal from exceeding
-it. A fresh eligible authorization flow may create a new family without
-restoring old credentials. Confirm exact provider TTL/rotation hooks, abuse
-limits and client behavior before implementation readiness; do not rely on
-unreviewed library defaults. Keep signing/lookup keys and rotation policy,
-session and protocol state, credential redaction and proxy TLS origin
-configuration under deployment review.
+The tested technical defaults are code 5 minutes, consent 10 minutes,
+opaque access 10 minutes, refresh idle 30 days and absolute credential
+family 90 days. The IAM business grant remains valid under the approved
+functional lifecycle. Provider TTL hooks set the per-artifact defaults.
+Preserve the refresh token's original issue time across rotation, cap renewal
+at the remaining absolute family lifetime, and check the persisted family
+deadline at final admission and lookup. At family expiry, require fresh
+eligible consent to create a new family. P04 verified the per-artifact TTLs,
+renewal cap and independent IAM grant. Test shorter remaining deadlines in
+production response metadata as well as admission.
+
+Use deployment-managed, versioned key material, shared across issuer
+replicas. Keep independent keys for provider signing, provider cookie
+signatures, opaque credential HMAC lookup and first-party consent binding.
+Reload all instances before switching the active write/signing key. Keep
+prior verification keys only through the bounded window of affected
+artifacts, or deliberately invalidate the affected technical credentials
+when incident policy requires it. Use a provider cookie key ring with the
+active key first. P08 exercised overlap and old-key retirement without
+interrupting valid opaque credentials. Keyed token indexes need an explicit
+current/previous lookup plan because a new HMAC cannot be derived from an
+old index entry alone. Use bounded version-specific lookups, write with the
+active key and retire the old key after the last usable family and replay
+window have drained. Keep signing key IDs stable across replicas. Keep
+private JWKs and HMAC secrets out of responses and logs. The OAuth-only
+profile issues no OIDC ID token and exposes no public JWKS endpoint.
+
+Use distinct scoped, HttpOnly, SameSite provider cookies and require Secure
+under the configured TLS origin in production. Confirm rotation overlap and
+rollback in the deployed topology, lookup-HMAC rotation, network proxy
+trust, SameSite behavior on actual navigation and emergency key revocation.
+The loopback test verifies signed interaction cookies and path ownership.
+TLS termination and secret-manager integration need separate evidence.
 
 ## 12. Migration and compatibility
 
@@ -627,8 +707,8 @@ typecheck:test, lint, ci:test, ci:test:integration, format:check, docs:links
 and applicable targeted workspace tests). Required Quality checks and the
 external SonarCloud Code Analysis check must pass for the current candidate
 before merge. The tolerated Actions Sonar job is not an exception to that
-policy. Re-run candidate-bound evidence after changes; no new test evidence
-is claimed by this design amendment.
+policy. Re-run candidate-bound evidence after changes. The synthetic evidence
+in section 16 covers the fixtures and candidate profile.
 
 ## 16. Provider feasibility
 
@@ -818,26 +898,94 @@ Use a supported LTS build whenever the provider runs in production. If the
 OAuth host will use 26.8.1, select an LTS build before deployment. Keep the
 existing project runtime settings during this preparation.
 
+### Technical preparation experiments
+
+The follow-up at baseline `4d7e9ec0d1b75d3e7dc6c41b7165abde41700d59` used
+Fastify 5.10.0 (the API's locked version), oidc-provider 9.15.1, pg 8.16.3,
+Node 26.13.1 LTS and the same digest-pinned PostgreSQL 18.6 primary. The
+[reproduction commands](../../scripts/spikes/delegated-authorization/README.md#fastify-preparation-and-fan-out)
+run the unmodified protocol regression cases through both hosts. The raw
+Node host passed 12/12. The Fastify host and bulk SQL tests passed 21/21.
+Tests exercise synthetic IAM and first-party sessions on loopback.
+
+| Case    | Expected boundary                                                                                     | Observed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P01     | Single parser and response owner, exact endpoint profile, transactional redirect and cookie emission. | Real URL-encoded exchange and query redirect succeeded. The token endpoint refused JSON, a 57 KiB form and omitted resource, with the code/refresh still usable on a correct retry. The allowlist hid OIDC, registration, introspection, logout and revocation routes. Signed, path-scoped HttpOnly cookies accompanied authorization. A deferred failure during consent rolled back IAM grant, provider Grant, family and the one-use decision. A subsequent successful consent followed by a failed code commit yielded 503 with no Location, Set-Cookie or durable code. |
+| P02     | No early response and explicit connection-loss outcomes.                                              | Pausing before commit produced no response headers and no externally visible credential row. Disconnect before the commit decision allowed the same code to be redeemed after rollback. After a known commit, an intentionally dropped response produced no client headers but left one durable credential. Retrying the spent code returned invalid_grant and applied replay cleanup. F07/F10 also ran through Fastify and exercised rotation, replay and SQL/commit rollback.                                                                                             |
+| P03     | A partial form read cannot hold the request fence indefinitely.                                       | The raw one-second deadline cut off a partial chunked form and a subsequent credential exchange succeeded. This is a bounded, single-connection test with no ingress proxy.                                                                                                                                                                                                                                                                                                                                                                                                 |
+| P04     | Technical expiry applies independently of IAM.                                                        | Code and interaction persistence reflected 300/600 seconds; access reported 600 seconds; refresh idle was 30 days and rotation respected the original issue-time cap. An expired family denied access and renewal while the business grant remained active.                                                                                                                                                                                                                                                                                                                 |
+| P05–P06 | Synchronous invalidation and one grouped durable fact per affected account.                           | Set-based update/RETURNING/grouped insert rolled back both grant mutation and outbox effects when an outbox constraint failed. After commit the shared-fence reader saw zero affected active grants and unrelated rows survived. Retrying the same completed operation inserted no new rows. One account with 53 grants across clients/resources yielded one grouped fact.                                                                                                                                                                                                  |
+| P07     | Opposite lock order produces a real database deadlock.                                                | PostgreSQL returned 40P01 for one of two transactions attempting account-before-fence and fence-before-account in parallel. The synthetic test establishes the hazard, while the source inventory identifies the production seams to change.                                                                                                                                                                                                                                                                                                                                |
+| P08     | Cookie key rotation preserves the independent token authority.                                        | A second Fastify issuer with active-plus-previous cookie keys completed an old interaction. An issuer with only the active key rejected an old pending interaction. The existing opaque refresh credential still rotated.                                                                                                                                                                                                                                                                                                                                                   |
+
+One measured fan-out run, with three grants per affected account and an
+unrelated control population, is recorded below. Wall-clock values are from
+a disposable workstation PostgreSQL instance. Rows model group counts and
+operation/account deduplication, without production outbox JSON serialization
+or downstream delivery. The hold interval includes the contention probe.
+
+| Affected accounts | Revoked grants | Grouped facts | Mutation SQL | Exclusive fence held | Competing shared admission waited |
+| ----------------: | -------------: | ------------: | -----------: | -------------------: | --------------------------------: |
+|             1,000 |          3,000 |         1,000 |      26.0 ms |              50.0 ms |                           41.4 ms |
+|            10,000 |         30,000 |        10,000 |     180.3 ms |             240.2 ms |                          233.0 ms |
+
+The account-wide sample took 8.4 ms for 53 grants and one fact. The 10,000
+account run shows why fence wait time belongs in the operational budget.
+Benchmark the real outbox schema and actual IAM writer mix with repeated
+runs, larger sets, queue backlog and latency distributions. Choose the
+bounded V1 operating envelope from those measurements before relying on
+the coarse fence for a deployment.
+
+### External SonarCloud analysis
+
+The [original informational job](https://github.com/Oxelio/architecture-web/actions/runs/45888724424/job/140147089969)
+at `fca0d8f92a12f5c87e50dfcff8a8404705d3e514` reported a failed gate even
+though Repository CI concluded successfully. The external PR 216
+[gate](https://sonarcloud.io/dashboard?id=Oxelio_architecture-web&pullRequest=216)
+and its `qualitygates/project_status`, `measures/component_tree` and
+`issues/search` APIs were read during this preparation. The returned gate was
+ERROR. New coverage was 0.0% against 80%, with 43, 75 and 156 uncovered
+executable new lines in adapter, database and issuer (274 total).
+New security rating was 2 against a maximum of 1. The API returned one
+vulnerability, `javascript:S5332`, on the issuer's original origin comparison
+built from the raw Host header. Reliability, maintainability, duplication
+and reviewed hotspot conditions passed in that snapshot.
+
+The fixture now compares the consent POST origin to the configured loopback
+listener origin. The latest local Fastify/SQL run produced real native LCOV
+for all four spike source modules, with 97.36% line and 93.85% branch coverage
+in the Node report. These figures are local native coverage, distinct from
+SonarCloud's new-code metric. Repository CI's existing LCOV aggregate did
+not run/import the isolated suite. Bring the portable repository-relative
+LCOV from a controlled PostgreSQL/Fastify validation job into the candidate
+aggregate and re-run the external analyzer. Verify issue closure and actual
+import on the exact PR head. Keep source scope, thresholds, external check
+requirements and Sonar policy in force. This preparation supplies the
+reproducer, diagnosis and coverage producer, while CI ingestion remains
+open.
+
 ### Remaining integration boundaries
 
-The experiment established race ordering on a single PostgreSQL primary under
-a fixture-wide transaction lock. Production lock order, deadlocks, fan-out
-and read replicas require separate evidence. The resource endpoint is a mock.
-Issuer restart used the same database and keys.
+The experiments established ordering under fixture locks on one PostgreSQL
+primary, reported a real reversed-order deadlock and measured synthetic
+fan-out. Production IAM transaction combinations, performance budgets,
+read replicas and the lock duration under deployed ingress require separate
+evidence. The resource endpoint is a mock. Issuer restart used the same
+database and keys.
 Database failover, ambiguous commits, backup/restore, key rotation, and
 production TTL/purge policies require separate evidence. Erasure covers the
 fixture's linked rows and outputs. Production Audit, Notifications, export,
 backup retention and the erasure witness remain with their existing owners.
 
-The fixture starts from synthetic first-party sessions and static public OAuth
-clients, with one resource and two permissions. Integration remains open for
-Fastify/Web session wiring, cross-account provider session switching,
-production CSRF/TLS controls and endpoint choices such as authenticated resource-server
-introspection, DCR/CIMD, RP-initiated logout and RFC 7009 revocation. Decide
-the exposed protocol endpoint profile and error mapping for rejected redirects
-and write-only renewal after withdrawal. Test #214 client interoperability
-against that profile. Full SF acceptance remains a separate validation
-activity. Production transaction integration for every FR-11 event remains open.
+The tested profile starts from synthetic first-party sessions, static public
+OAuth clients, one resource and two permissions. The real Fastify/Web
+composition needs its existing session resolver, trusted proxy/TLS wiring,
+CSRF protection, cross-account provider-session transitions and production
+Kysely transaction propagation. Validate the chosen error mapping against
+#214 clients. Review any proposed DCR/CIMD, introspection, RP logout or
+RFC 7009 addition as a separate endpoint profile extension with its own
+authority and tests. Full SF acceptance and production proof for every
+FR-11 transition remain downstream validation activities.
 
 ## 17. Accepted architecture decision
 
@@ -855,15 +1003,15 @@ initial endpoint profile and state/credential policy. The design remains
 Proposed pending focused technical review and the remaining preparation
 decisions; do not infer Readiness from ADR acceptance.
 
-| Finding | Owner / disposition |
-| --- | --- |
-| Fastify bridge: verify public hook and body/response/cookie ownership; confirm no bytes before commit or unbounded stream under fence | Software Architect / bounded integration experiment before freezing bridge design |
-| Existing lock inventory, including recovery, cancel/erase, configuration and account writers; confirm no opposite acquisition path; fan-out and deadlines | Software Architect / focused transaction design review; carry actual contention and race evidence into validation |
-| IAM session freshness and multi-resource consent revision binding; exact storage and key-rotation/TTL policy; provider types and runtime compatibility | Software Architect / settle material contracts and operational defaults before Readiness |
-| Actual audit/notification/export/erasure projections and affected existing functional owners | Product/Domain Analyst and Software Architect / synchronize approved scope without inventing a new business rule; prove via implementation validation |
-| Exact deployed LTS image and production failure/latency evidence | Validation / before activation; no project-wide runtime change currently justified |
-| Actual ChatGPT and second MCP client interoperability | #214 / downstream; #215 owns declared OAuth profile and compatibility contract |
-| External SonarCloud check failed on fca0d8f92a12f5c87e50dfcff8a8404705d3e514 | Review/Validation / diagnose actual metric, satisfy required check on current candidate before integration |
+| Finding                                                                                                                          | Owner / disposition                                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production Fastify composition, real first-party session and Kysely transaction, ingress and client/server failure boundaries    | Software Architect / carry the tested public bridge and commit/failure assertions into production validation                                                                      |
+| Production lock inventory integration, bounded ingress and database budgets, outbox parameter limits and large-client contention | Software Architect / implement only after authorized planning; verify the real adapter paths against the recorded acquisition order and measure the operating envelope            |
+| Consent revision/session binding, deployed key rings and provider API typing                                                     | Software Architect / apply the tested technical lifetime and endpoint settings, verify TLS and versioned lookup key rotation, and exercise real session and client policy changes |
+| Actual Audit, Notifications, export and erasure projections                                                                      | Product/Domain Analyst and Software Architect / confirm the versioned contracts within approved scope; prove consumer replay, delivery eligibility and the export/erasure race    |
+| Exact deployed LTS image and production failure/latency evidence                                                                 | Validation / before activation; no project-wide runtime change currently justified                                                                                                |
+| Actual ChatGPT and second MCP client interoperability                                                                            | #214 / downstream; #215 owns declared OAuth profile and compatibility contract                                                                                                    |
+| External SonarCloud PR check                                                                                                     | Review/Validation / integrate the spike LCOV report into candidate-bound CI and verify the external gate and the S5332 result for the current head                                |
 
 Full implementation proof is not a prerequisite to choosing a structural
 direction, but material unresolved decisions cannot be delegated silently to
@@ -874,12 +1022,23 @@ Task authorization, implementation, merge or Readiness is established here.
 
 ## 19. Task-planning inputs
 
-After remaining technical decisions are resolved, plan
-focused execution units around authoritative grant state and transactions,
-security transition integration, protocol adapter, administration/consent/
-connected application UI, audit/notifications/export/erasure, and integrated
-validation. Sequence against approved contracts and consistency guarantees.
-These are candidate implementation boundaries, not authorized Tasks.
+Recommended ordering for the later Task Planning activity:
+
+1. Define persisted IAM grant, generation, pending consent and protocol
+   artifact contracts. Establish the transaction/fence rules and migrate the
+   recovery, cancellation and erasure writers. Verify mixed-writer races
+   before exposing delegated admission.
+2. Fit the tested Fastify bridge to the real host, session resolver and
+   transaction-bound adapter. Carry the failure, replay, deadline, cookie,
+   endpoint/TTL and key-rotation cases into API integration.
+3. Implement the synchronous affected-set/outbox operation and the established
+   audit, notification, export and erasure projections. Exercise retries,
+   grouped facts, parameter limits and realistic competing traffic.
+4. Add candidate-bound isolated-suite coverage to CI and require the external
+   SonarCloud result. Validate the production runtime profile and confirm the
+   downstream client handoff with #214.
+
+These boundaries are recommendations for planning. Work #215 is Preparing.
 
 Work #214 consumes the resulting approved and validated authorization
 capability. No MCP product implementation belongs to #215.

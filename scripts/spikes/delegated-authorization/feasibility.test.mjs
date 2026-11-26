@@ -7,6 +7,7 @@ import {
   randomUUID,
 } from "node:crypto";
 import { once } from "node:events";
+import { request as rawRequest } from "node:http";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
@@ -28,11 +29,35 @@ const sessionA = "synthetic-web-session-a";
 const sessionB = "synthetic-web-session-b";
 const workerFile = fileURLToPath(new URL("./issuer.mjs", import.meta.url));
 
+if (process.env.SPIKE_HOST === "fastify") {
+  test("P08 cookie-key overlap and retirement are independent of opaque credentials", async (t) => {
+    const f = await fixture(t);
+    const browser = new Browser(f.primary);
+    const initial = await issue(f, browser);
+    const fromOld = await pending(browser);
+    const staleBrowser = new Browser(f.primary);
+    const stale = await pending(staleBrowser);
+    const nextCookieKey = randomBytes(32).toString("hex");
+    browser.worker = await f.start([nextCookieKey, f.cookieKey]);
+    const issued = await finish(browser, fromOld, ["read"]);
+    assert.ok(issued.has("code"));
+
+    const currentOnly = await f.start([nextCookieKey]);
+    staleBrowser.worker = currentOnly;
+    assert.equal((await staleBrowser.request(stale.consent)).status, 400);
+    assert.ok(
+      (await json(await refresh(currentOnly, initial.refresh_token), 200))
+        .access_token,
+    );
+  });
+}
+
 async function fixture(t, mode = "generations", requireRedirect = true) {
   const schema = "spike215_" + randomUUID().replaceAll("-", "");
   const db = openDatabase(schema);
   const iam = createIam(db, mode);
   const key = randomBytes(32).toString("hex");
+  const cookieKey = randomBytes(32).toString("hex");
   const jwk = generateKeyPairSync("ec", {
     namedCurve: "P-256",
   }).privateKey.export({ format: "jwk" });
@@ -60,7 +85,7 @@ async function fixture(t, mode = "generations", requireRedirect = true) {
     [sessionA, account, sessionB, otherAccount],
   );
 
-  async function start() {
+  async function start(cookieKeys = [cookieKey]) {
     const child = fork(workerFile, {
       env: {
         ...process.env,
@@ -70,6 +95,7 @@ async function fixture(t, mode = "generations", requireRedirect = true) {
           url: issuer,
           mode,
           key,
+          cookieKeys,
           jwk,
           requireRedirect,
         }),
@@ -88,8 +114,13 @@ async function fixture(t, mode = "generations", requireRedirect = true) {
       async stop() {
         if (child.exitCode !== null || child.signalCode !== null) return;
         const exited = once(child, "exit");
-        child.kill();
-        await exited;
+        const watchdog = setTimeout(() => child.kill(), 4000);
+        try {
+          child.send("shutdown");
+          await exited;
+        } finally {
+          clearTimeout(watchdog);
+        }
       },
       async arm(fault) {
         const armed = waitMessage(child);
@@ -108,7 +139,7 @@ async function fixture(t, mode = "generations", requireRedirect = true) {
   const primary = await start();
   const sql = (sql, parameters) => db.pool.query(sql, parameters);
   const mutate = (change) => db.transaction(() => change(iam));
-  return { db, key, iam, start, primary, sql, mutate };
+  return { db, key, cookieKey, iam, start, primary, sql, mutate };
 }
 
 function waitMessage(child) {
@@ -263,10 +294,18 @@ async function code(browser, selected = ["read", "write"], overrides) {
 }
 
 function token(worker, fields) {
+  const parameters = new URLSearchParams({
+    client_id: client,
+    resource,
+    ...fields,
+  });
+  if (Object.hasOwn(fields, "resource") && fields.resource === undefined) {
+    parameters.delete("resource");
+  }
   return http(worker, "/token", {
     method: "POST",
     headers: { Accept: "application/json" },
-    body: new URLSearchParams({ client_id: client, resource, ...fields }),
+    body: parameters,
   });
 }
 
@@ -360,6 +399,255 @@ test("F01 custom login, required read, declined optional write and subject bindi
   );
   assert.deepEqual(Object.keys(entitlements), ["read"]);
 });
+
+if (process.env.SPIKE_HOST === "fastify") {
+  test("P01 Fastify body ownership, OAuth discovery, cookies and commit-failed code redirect", async (t) => {
+    const f = await fixture(t);
+    const browser = new Browser(f.primary);
+    const metadata = await json(
+      await http(f.primary, "/.well-known/oauth-authorization-server"),
+      200,
+    );
+    assert.deepEqual(metadata.grant_types_supported, [
+      "authorization_code",
+      "refresh_token",
+    ]);
+    assert.deepEqual(metadata.response_modes_supported, ["query"]);
+    assert.deepEqual(metadata.code_challenge_methods_supported, ["S256"]);
+    assert.equal(metadata.issuer, issuer);
+    for (const path of [
+      "/.well-known/openid-configuration",
+      "/me",
+      "/session/end",
+      "/jwks",
+    ]) {
+      assert.equal((await http(f.primary, path)).status, 404);
+    }
+    for (const path of [
+      "/reg",
+      "/token/introspection",
+      "/token/revocation",
+      "/session/end/confirm",
+    ]) {
+      assert.equal(
+        (await http(f.primary, path, { method: "POST" })).status,
+        404,
+      );
+    }
+    await oauthError(
+      await http(f.primary, "/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: "{}",
+      }),
+      "invalid_request",
+    );
+    await oauthError(
+      await http(f.primary, "/token", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: new URLSearchParams({ padding: "x".repeat(57 * 1024) }),
+      }),
+      "invalid_request",
+    );
+
+    const authorization = await browser.request(authRequest().path);
+    assert.equal(authorization.status, 303);
+    const cookies = authorization.headers.getSetCookie();
+    assert.ok(cookies.some((cookie) => /\.sig=/.test(cookie)));
+    assert.ok(
+      cookies
+        .filter((cookie) => /(?:resume|interaction)/.test(cookie))
+        .every(
+          (cookie) =>
+            /HttpOnly/i.test(cookie) &&
+            /Path=\/(?:auth|consent)\//i.test(cookie),
+        ),
+    );
+    assert.equal(
+      (await new Browser(f.primary).request(location(authorization))).status,
+      400,
+    );
+
+    const consent = await pending(browser);
+    await f.primary.arm("consent-commit-error");
+    const failedConsent = await browser.request(consent.consent, {
+      selected: ["read"],
+    });
+    await oauthError(failedConsent, "server_error", 503);
+    assert.equal(failedConsent.headers.get("location"), null);
+    assert.deepEqual(failedConsent.headers.getSetCookie(), []);
+    assert.equal(
+      (
+        await f.sql(`SELECT
+      (SELECT count(*) FROM iam_grant) + (SELECT count(*) FROM family) +
+      (SELECT count(*) FROM artifact WHERE model = 'Grant') AS count`)
+      ).rows[0].count,
+      "0",
+    );
+    const resume = location(
+      await browser.request(consent.consent, { selected: ["read"] }),
+    );
+    await f.primary.arm("code-commit-error");
+    const failed = await browser.request(resume);
+    await oauthError(failed, "server_error", 503);
+    assert.equal(failed.headers.get("location"), null);
+    assert.deepEqual(failed.headers.getSetCookie(), []);
+    assert.equal(
+      (
+        await f.sql(
+          "SELECT count(*)::int AS count FROM artifact WHERE model='AuthorizationCode'",
+        )
+      ).rows[0].count,
+      0,
+    );
+
+    const issued = await code(browser);
+    const missing = await token(f.primary, {
+      grant_type: "authorization_code",
+      code: issued.value,
+      code_verifier: issued.verifier,
+      redirect_uri: redirect,
+      resource: undefined,
+    });
+    await oauthError(missing, "invalid_target");
+    const tokens = await json(await exchange(f.primary, issued), 200);
+    assert.equal(tokens.expires_in, 600);
+    assert.ok(!tokens.id_token);
+    const absent = await token(f.primary, {
+      grant_type: "refresh_token",
+      refresh_token: tokens.refresh_token,
+      resource: undefined,
+    });
+    await oauthError(absent, "invalid_target");
+    await json(await refresh(f.primary, tokens.refresh_token), 200);
+  });
+
+  function beginExchange(worker, issued) {
+    let headersSeen = false;
+    const request = rawRequest(worker.base + "/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+    });
+    request.on("response", (response) => {
+      headersSeen = true;
+      response.resume();
+    });
+    const closed = once(request, "close").catch(() => undefined);
+    request.end(
+      new URLSearchParams({
+        grant_type: "authorization_code",
+        resource,
+        client_id: client,
+        code: issued.value,
+        code_verifier: issued.verifier,
+        redirect_uri: redirect,
+      }).toString(),
+    );
+    return { request, closed, sawHeaders: () => headersSeen };
+  }
+
+  test("P02 Fastify disconnect before and after commit and retry effects", async (t) => {
+    const f = await fixture(t);
+    const browser = new Browser(f.primary);
+    const storedCount = async () =>
+      (
+        await f.sql(
+          "SELECT count(*)::int AS count FROM artifact WHERE model = 'AccessToken'",
+        )
+      ).rows[0].count;
+
+    for (const phase of ["pause", "pause-after-commit"]) {
+      const issued = await code(browser);
+      const before = await storedCount();
+      await f.primary.arm(phase);
+      const paused = f.primary.paused();
+      const clientRequest = beginExchange(f.primary, issued);
+      assert.equal(await paused, "paused");
+      const committed = phase === "pause-after-commit";
+      assert.equal(await storedCount(), before + Number(committed));
+      assert.equal(clientRequest.sawHeaders(), false);
+      const disconnected = f.primary.paused();
+      clientRequest.request.destroy();
+      await Promise.all([
+        clientRequest.closed,
+        disconnected.then((event) => assert.equal(event, "disconnect")),
+      ]);
+      f.primary.release();
+      if (committed) {
+        await oauthError(await exchange(f.primary, issued), "invalid_grant");
+        assert.equal(await storedCount(), before);
+      } else {
+        await json(await exchange(f.primary, issued), 200);
+        assert.equal(await storedCount(), before + 1);
+      }
+    }
+  });
+
+  test("P03 Fastify bounded partial form read releases the request transaction", async (t) => {
+    const f = await fixture(t);
+    const slow = rawRequest(f.primary.base + "/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(4500),
+    });
+    const closed = once(slow, "close").catch(() => undefined);
+    const disconnected = f.primary.paused();
+    slow.write("grant_type=authorization_");
+    assert.equal(await disconnected, "disconnect");
+    await closed;
+    const result = await issue(f);
+    assert.ok(result.access_token);
+  });
+
+  test("P04 exact technical lifetimes, refresh cap, and family expiry independent of IAM", async (t) => {
+    const f = await fixture(t);
+    const browser = new Browser(f.primary);
+    const initial = await issue(f, browser);
+    const getTtl = async (model) =>
+      (
+        await f.sql(
+          "SELECT (payload->>'exp')::int - (payload->>'iat')::int AS seconds FROM artifact WHERE model=$1",
+          [model],
+        )
+      ).rows[0].seconds;
+    assert.equal(await getTtl("AuthorizationCode"), 300);
+    assert.equal(await getTtl("AccessToken"), 600);
+    assert.ok(Math.abs((await getTtl("RefreshToken")) - 30 * 86400) < 2);
+    const pendingConsent = await pending(browser);
+    const expiry = await f.sql(
+      "SELECT count(*)::int AS count FROM artifact WHERE model='Interaction' AND (payload->>'exp')::int - (payload->>'iat')::int = 600",
+    );
+    assert.ok(expiry.rows[0].count > 0);
+    await f.sql(`UPDATE artifact SET payload = jsonb_set(payload, '{iiat}',
+      to_jsonb(extract(epoch FROM now())::int - 89 * 86400)) WHERE model='RefreshToken'`);
+    await f.sql("UPDATE family SET issued_at = now() - interval '89 days'");
+    const rolled = await json(
+      await refresh(f.primary, initial.refresh_token),
+      200,
+    );
+    const capped =
+      await f.sql(`SELECT (payload->>'exp')::int <= (payload->>'iiat')::int + 90 * 86400 AS capped
+      FROM artifact WHERE model='RefreshToken' AND consumed IS NULL`);
+    assert.equal(capped.rows[0].capped, true);
+    await f.sql(
+      "UPDATE family SET issued_at = now() - interval '90 days 1 second'",
+    );
+    await admission(f.primary, rolled.access_token, "read", false);
+    await oauthError(
+      await refresh(f.primary, rolled.refresh_token),
+      "invalid_grant",
+    );
+    assert.ok(await f.mutate((iam) => iam.activeGrant(account, client)));
+    assert.ok((await finish(browser, pendingConsent, ["read"])).has("code"));
+  });
+}
 
 test("F02 S256, verifier/client/redirect binding, one HTTP exchange and standalone atomic consume", async (t) => {
   const f = await fixture(t);

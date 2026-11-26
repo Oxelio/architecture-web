@@ -30,12 +30,13 @@ export const schemaSql = `
   CREATE UNIQUE INDEX one_active_grant ON iam_grant(account_id, client_id, resource) WHERE active;
   CREATE TABLE family (
     id text PRIMARY KEY, grant_id uuid NOT NULL REFERENCES iam_grant ON DELETE CASCADE,
-    entitlements jsonb NOT NULL, active boolean NOT NULL DEFAULT true
+    entitlements jsonb NOT NULL, active boolean NOT NULL DEFAULT true,
+    issued_at timestamptz NOT NULL DEFAULT now()
   );
   CREATE TABLE pending (
     id text PRIMARY KEY, account_id text NOT NULL REFERENCES account ON DELETE CASCADE,
     client_id text NOT NULL REFERENCES client, session_id text NOT NULL,
-    revision bigint NOT NULL, expires_at timestamptz NOT NULL DEFAULT now() + interval '3 minutes'
+    revision bigint NOT NULL, expires_at timestamptz NOT NULL DEFAULT now() + interval '10 minutes'
   );
   CREATE TABLE artifact (
     model text NOT NULL, id text NOT NULL, payload jsonb NOT NULL,
@@ -162,11 +163,10 @@ export function createIam(db, mode) {
   }
 
   async function invalidate(grants) {
-    for (const grant of grants) {
-      await query("UPDATE iam_grant SET active = false WHERE id = $1", [
-        grant.id,
-      ]);
-    }
+    await query(
+      "UPDATE iam_grant SET active = false WHERE id = ANY($1::uuid[])",
+      [grants.map((grant) => grant.id)],
+    );
   }
 
   async function revoke(accountId, clientId) {
@@ -266,7 +266,8 @@ export function createIam(db, mode) {
          g.entitlements AS current, f.entitlements AS original
        FROM family f JOIN iam_grant g ON g.id = f.grant_id
        JOIN client c ON c.id = g.client_id JOIN account a ON a.id = g.account_id
-       WHERE f.id = $1 AND f.active AND g.active AND c.enabled AND a.eligible`,
+       WHERE f.id = $1 AND f.active AND g.active AND c.enabled AND a.eligible
+         AND f.issued_at + interval '90 days' > now()`,
       [id],
     );
     if (!row) return;

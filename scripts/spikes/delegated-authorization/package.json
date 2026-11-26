@@ -6,6 +6,7 @@
     "test": "node --test feasibility.test.mjs"
   },
   "dependencies": {
+    "fastify": "5.10.0",
     "oidc-provider": "9.15.1",
     "pg": "8.16.3"
   }
