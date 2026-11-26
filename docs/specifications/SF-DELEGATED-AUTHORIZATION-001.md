@@ -2,9 +2,9 @@
 
 > **Identifier:** SF-DELEGATED-AUTHORIZATION-001
 >
-> **Artifact status:** Proposed
+> **Artifact status:** Approved
 >
-> **Content status:** Proposed
+> **Content status:** Canonical
 >
 > **Document type:** Functional Specification
 >
@@ -18,16 +18,16 @@
 
 **Workflow Depth:** Complex
 
-**Approval:** Pending Human Functional Approval
+**Approval:** Human Functional Approval granted for the identified candidate
 
 **Source Exploration:** [Work #215 exploration and scenarios](https://github.com/Oxelio/architecture-web/issues/215#issuecomment-7199671279)
 and [pre-approval review](https://github.com/Oxelio/architecture-web/issues/215#issuecomment-7199915990).
 
 **Downstream Work:** [#214 — MCP Account Management](https://github.com/Oxelio/architecture-web/issues/214).
 
-The maintainer confirmed the exploration directions and final functional
-refinements. This document is the complete proposed target for explicit human
-review; those confirmations do not constitute approval of this artifact.
+The maintainer explicitly approved the complete functional target at the
+candidate identified in section 14. This is approved target behavior, not a
+statement of current implementation.
 
 ## 1. Business context
 
@@ -442,7 +442,7 @@ periodic consent renewal.
 ## 12. Open functional decisions
 
 No unresolved functional decision is identified within the confirmed V1 scope.
-Human Functional Approval of this complete proposed artifact is still required.
+Human Functional Approval has been granted for the complete scope in section 14.
 
 Technical Design must establish protocol and partial-consent interoperability,
 credential lifecycle, consistency mechanisms, and architecture. If feasibility
@@ -520,12 +520,13 @@ operation-specific admission or confirmation rules.
 
 ## 14. Human approval
 
-**Decision:** Pending
+**Decision:** Approved — 2026-11-26.
 
-**Approved scope:** None yet.
+**Approved scope:** The complete V1 functional scope, FR-01–FR-16 and
+acceptance criteria at [candidate commit d992b51bb6530d257212fd98b46d24640aa2be68](https://github.com/Oxelio/architecture-web/blob/d992b51bb6530d257212fd98b46d24640aa2be68/docs/specifications/SF-DELEGATED-AUTHORIZATION-001.md), PR #216.
 
-**Authority / record:** Architecture Web maintainer, Work #215.
+**Authority / record:** Architecture Web maintainer, [explicit approval recorded in Work #215](https://github.com/Oxelio/architecture-web/issues/215#issuecomment-7200073282).
 
-This document is a proposed functional target. It does not establish current
+This document is an approved functional target. It does not establish current
 implementation behavior, approve structural decisions or authorize
 implementation before applicable preparation and readiness activities.
