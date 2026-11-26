@@ -461,7 +461,7 @@ operation-specific admission or confirmation rules.
 - [ ] Critical changes require valid operation-bound confirmation.
 - [ ] Expired, replayed or stale confirmations are rejected.
 - [ ] The two-minute deadline and separate account-wide five-attempt rolling
-  allowance are enforced.
+      allowance are enforced.
 - [ ] Disabled clients cannot obtain or use delegated authorization.
 - [ ] Re-enabling a client does not restore revoked authorizations.
 
@@ -485,36 +485,36 @@ operation-specific admission or confirmation rules.
 ### Delegated access and lifecycle
 
 - [ ] Users can consult and revoke their own authorizations individually and
-  collectively.
+      collectively.
 - [ ] Access to another user's resources is denied.
 - [ ] Invalid or insufficiently authorized credentials are rejected.
 - [ ] Credentials cannot authorize access to an unintended resource.
 - [ ] Revocation invalidates associated access and renewal capabilities.
 - [ ] Previous credentials remain invalid after reauthorization.
 - [ ] Ordinary web sign-out, expiration and individual session revocation
-  preserve independent authorizations.
+      preserve independent authorizations.
 - [ ] Delegated revocation does not revoke ordinary first-party sessions.
 - [ ] Every security transition listed in FR-11 invalidates account
-  authorizations.
+      authorizations.
 - [ ] Account reactivation and deletion cancellation do not restore access.
 - [ ] Delegated access preserves existing product and security policies.
 - [ ] Authorization dependency failure does not grant access.
 - [ ] Concurrent authorization and revocation preserve FR-15 and FR-16,
-  including denial of every new authorization decision after invalidation.
+      including denial of every new authorization decision after invalidation.
 
 ### Audit, notifications and privacy
 
 - [ ] Administrative changes and authorization lifecycle events produce the
-  expected audit evidence without credentials.
+      expected audit evidence without credentials.
 - [ ] New grants, permission expansions and revocations generate the expected
-  notifications.
+      notifications.
 - [ ] Bulk revocation produces one grouped notification per affected user and
-  logical operation.
+      logical operation.
 - [ ] Web and mandatory email policy applies when eligible.
 - [ ] Repeated processing does not duplicate visible notifications.
 - [ ] Notification failure does not restore revoked access.
 - [ ] Account export includes the user's eligible authorization data without
-  credentials.
+      credentials.
 - [ ] Final erasure removes authorization data under applicable policies.
 - [ ] Final erasure does not generate an additional notification.
 
