@@ -33,7 +33,7 @@ Architecture owners:
 
 Design baseline: focused reads of current main and the Work branch, plus the
 [executable feasibility evidence](#executable-feasibility-evidence).
-Work #215 includes the OAuth authorization server integration. The proposed
+Work #215 includes the OAuth authorization server integration. The accepted
 structural rationale is in
 [ADR-0012](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md).
 
@@ -47,7 +47,7 @@ boundary. MCP adapters, tools, UI and distribution belong to #214.
 
 ## 2. Bounded-context / responsibility ownership
 
-Propose a fourth IAM application capability, delegatedAuthorization, alongside
+Add a fourth IAM application capability, delegatedAuthorization, alongside
 accounts, authentication and administration. Existing administration remains
 responsible for administrator eligibility; delegatedAuthorization owns the
 client policy and grant lifecycle. No independent bounded context or shared
@@ -64,7 +64,7 @@ The composition root wires public contracts and concrete adapters.
 
 ## 3. Domain responsibilities and consistency boundaries
 
-Candidate separate aggregate roots:
+Separate aggregate roots:
 
 - ClientApplication: stable application identity, enabled state, revision and
   allowed/required permissions per protected resource.
@@ -101,7 +101,42 @@ invalidation and provider issuance/renewal authorization.
 Use existing Result conventions for expected denials. Callers obtain the
 actor from trusted authentication, not a supplied user ID. Separate safe
 administrative/user projections from protocol storage and secret material.
-Application contract names and signatures remain to be finalized.
+The operation responsibilities below are the proposed application contract
+boundaries; the Developer may choose idiomatic local names and signatures.
+
+### Application contract boundaries
+
+Use explicit commands, queries and expected-failure results. The following
+names describe responsibilities rather than a required class per row.
+
+| Contract group | Trusted input and responsibility |
+| --- | --- |
+| Client administration | Authenticated administrator; register, edit, enable/disable, inspect and change platform-recognized policies. Mutations use expected revision and operation-bound confirmation when critical. |
+| Consent preparation/finalization | Verified first-party account/session plus server-resolved interaction; return safe consent projection or record explicit selection, rejecting stale state. Never accept an actor ID from form input. |
+| Connected applications | Authenticated account; list/details, withdraw permission, revoke the selected grant lifecycle, revoke all. No provider credentials or bearer IDs in outputs. |
+| Issuance/renewal decision | Trusted protocol adapter resolves the credential or pending authorization, client, resource, lifecycle and frozen entitlements. IAM evaluates current authority within the shared transaction; protocol adapter owns protocol verification and artifact writes. |
+| Final resource admission | Verified credential provenance, intended resource, required permission and actual scope, family/lifecycle identity and entitlements. Return minimal authorized account identity and authorized operation context or refusal. No browser session ID or synthetic session. |
+| Security invalidation | IAM-internal operation on affected account/client/grant within the owning mutation transaction. Not a public transport endpoint and not an asynchronous subscriber. |
+
+The application owns permission policy and resource admission; a protocol
+adapter maps its persisted credential provenance to a narrow trusted
+application input. A controller must not construct an admitted actor from
+unverified input. Admission does not replace the invoked use case's own
+business policy; no delegated administrator contract. Do not pass arbitrary
+actor identifiers from MCP tool arguments. For #214, define the trusted
+resource adapter integration through these public contracts; its concrete
+deployment boundary remains downstream.
+
+Use an explicit transaction-bound application entry point for issuance and
+consent, with the necessary transaction-bound ports supplied at composition.
+Keep transaction-aware provider callback plumbing in infrastructure (a
+request-local context such as the spike's AsyncLocalStorage is acceptable
+there). IAM receives explicit ports/capabilities, not an ambient global
+database or a provider object. Reuse application logic for both regular
+commands and composed transaction-scoped calls, not a second IAM model or
+duplicate authority implementation. A nested adapter transaction on a new
+connection is forbidden in the issuance path. A missing required scope must
+fail closed; no fallback to a global database connection.
 
 ## 5. Ports and external capabilities
 
@@ -117,7 +152,7 @@ deliberately where account security and grant invalidation must commit together.
 
 ## 6. Adapters and composition
 
-Prefer an embedded `oidc-provider` protocol adapter composed in the
+Use an embedded `oidc-provider` protocol adapter composed in the
 existing Fastify host, with `9.15.1` as the evaluated baseline.
 Provider-specific handlers, serialization and metadata mapping stay in
 infrastructure. Existing Web handles first-party login, consent, connected
@@ -131,6 +166,46 @@ provider adapter calls. Prove that neither Fastify nor the provider sends
 success headers, a code redirect or a token body before the applicable
 transaction commits. Include commit failure, handled replay, connection loss
 and the real first-party authentication bridge in the integration tests.
+
+### Fastify protocol bridge and response ownership
+
+Use a dedicated encapsulated protocol route/plugin and an adapter at the
+composition boundary. Keep first-party HTTP authentication and existing
+controllers unchanged outside the delegated feature. One component owns
+request parsing and response emission for each OAuth path. For the provider
+callback, hand over the raw Node request before Fastify consumes its form
+body; verify the supported integration mechanism with an isolated Fastify
+test. Do not attach an ordinary JSON body parser to the same stream or allow
+both Fastify and the provider to write the response.
+
+Capture a validated, bounded request outside the SQL transaction where the
+bridge permits it; if the provider must parse the stream itself, enforce
+request size and read deadline before/during that parsing and prove the
+transaction does not wait on an unbounded client stream. No remote metadata
+fetch, password hashing, SMTP, UI interaction or user wait under the
+transaction fence. Resolve configured client metadata locally.
+
+The OAuth adapter's request coordinator owns the outer transaction for
+protocol changes. The spike's public middleware wraps provider processing
+and defers normal Koa response emission until commit. Preserve that ordering
+in Fastify; prove there is no direct writeHead/end, streaming, redirect or
+Set-Cookie escape path. Prefer deferred provider responses rather than
+intercepting arbitrary low-level response writes. Custom consent routes use
+interactionResult to obtain a redirect and emit it only after commit.
+Provider session/interaction cookie headers also remain pending until the
+relevant durable state is committed. If public hooks cannot provide this
+guarantee with Fastify, stop and return to design; do not patch private
+library internals or use an early response as a workaround.
+
+On a known failed commit discard staged success status, headers, cookies,
+Location and body; return a technical error (503 where appropriate).
+A lost connection after commit does not roll back committed security state.
+For an ambiguous commit, disclose no credentials, record non-secret
+correlation and use authoritative persisted state on a subsequent request.
+Never automatically retry a credential exchange after uncertain commit.
+Expected replay invalidation is a deliberately committed security effect,
+not a technical rollback. Only the explicitly identified replay path may
+commit such an error; do not commit all provider 4xx results indiscriminately.
 
 ## 7. Data and state
 
@@ -154,6 +229,56 @@ the original snapshot with the generations still current under IAM policy.
 Final admission also checks the credential's scope against this intersection.
 A regranted permission has a different generation, so old credentials retain
 only still-current permissions.
+
+### State and identity decisions
+
+Keep business and protocol records distinguishable. The following are logical
+records, not a requirement for a new repository per table or exact SQL names:
+
+- Client and resource permission policy: stable internal client identity,
+  unique public OAuth client identifier, status, optimistic revision, trusted
+  redirect URIs and platform-owned resource/required/optional permission
+  catalog references. Public client ID is not proof of user or client trust.
+- Grant: non-reused lifecycle ID, account/client/resource tuple, status and
+  timestamps. A partial unique index on the active tuple prevents duplicates.
+  Each currently granted permission has a non-reused generation identity.
+  Removing a permission removes its current generation; regrant creates a
+  fresh identity. Do not derive the generation solely from the permission name.
+- Consent freshness: capture account authorization epoch, client security
+  policy revision and tuple invalidation epoch, plus exact authenticated
+  session, request/resource/selection binding and expiry. Account-wide
+  invalidation advances its epoch even without active grants. Client disable
+  or security-relevant policy mutation advances its revision; no re-enable
+  resets it. Grant/permission revocation invalidates matching pending consent.
+  Keep epoch state long enough to reject all still-valid interactions. Never
+  reuse a stale lifecycle or let a stale individual grant-ID command revoke
+  a later grant. Repeat of an already applied targeted revocation is a no-op.
+- Provider family: binds one provider Grant ID to one business lifecycle and
+  one resource; immutable map of selected permission-generation identities.
+  Provider artifact rows refer to family and account and have expiry,
+  consumption and relevant lookup metadata. The adapter must not treat
+  provider Grant scopes as an independent authorization source.
+- Separate critical-client confirmation allowance: account reference and
+  admitted timestamps; no password, factor, raw session ID or proof material.
+
+Store opaque bearer lookup identifiers using keyed hashing, with domain
+separation by artifact type and appropriate key management. Strip bearer
+fields from payloads as established by the spike; test all persisted fields
+and emitted diagnostics rather than assuming hashing the row key is enough.
+Provider session and interaction identifiers also require secret-safe storage
+and logging treatment. Keep keys outside database records, separate from
+public issuer signing keys; design expiry and key rotation before deployment.
+Use foreign keys/indexes for account, client, lifecycle and family lookup,
+with explicit erasure semantics. Expiration of protocol records must not
+delete the durable business grant.
+
+A fresh authorization-code flow with a new explicit consent decision may
+create a new credential family for an existing active grant. Rotation never
+adds a permission generation not originally authorized for its family.
+If current required permissions cannot be satisfied or no permitted scope
+remains, deny renewal; otherwise preserve unaffected authorized scopes.
+A scope-reduced access token carries its actually issued scope; old tokens
+may remain technically present but cannot authorize invalidated entitlements.
 
 ## 8. Flows, interfaces and contracts
 
@@ -182,6 +307,60 @@ expiry and scope; evaluate IAM client, account, grant, permission and
 business policy at final operation admission. Never pass an MCP access token
 through to a different API audience. An already admitted operation follows
 SF FR-16, not a promise of retroactive cancellation.
+
+### Initial endpoint profile and first-party interaction
+
+Initial #215 profile: configured issuer URI, OAuth authorization-server
+metadata, authorization endpoint and token endpoint, authorization code
+response type, S256 PKCE required, and refresh token grant. Use opaque access
+tokens; issue refresh credentials independent of first-party logout.
+Select and register the exact redirect URI and resource identifier server-side.
+Require exactly one explicit protected resource at authorization and token
+exchange/renewal for this profile; reject ambiguity, unknown resource and
+unapproved scopes. Require explicit matching redirect_uri on code exchange
+before consumption. Keep error mapping protocol-correct and avoid redirects
+to unverified client destinations.
+
+Initially expose pre-registered approved public clients using PKCE; do not
+enable public DCR, CIMD fetching, implicit/password/client-credentials grants,
+OIDC UserInfo or RP-initiated logout merely because the provider supports
+them. Confidential-client support, if needed, requires an explicit supported
+client-authentication profile and test. Do not advertise an unimplemented
+capability. Client admission is rechecked on every relevant request even when
+provider metadata is cached. Token/family replay invalidation is distinct
+from business grant revocation. First-party account settings own business
+revocation. Do not expose a public RFC 7009 revocation endpoint in the initial
+profile without defining its credential-versus-business scope and effects.
+Use a trusted in-process credential-resolution/admission bridge initially;
+if a separate resource server needs RFC 7662 introspection, restrict it to
+authenticated authorized resource servers and the intended resource, without
+granting those callers authority over IAM grants.
+
+Work #214 verifies the profile with its chosen client(s) before real-user
+distribution. If a client requires CIMD, DCR or a different endpoint profile,
+review the secure admission and metadata-trust design explicitly, keeping
+the approved functional rules. Do not treat client convenience as authority
+to broaden eligibility. #215 must still verify its declared generic OAuth
+profile using a synthetic conforming client.
+
+First-party identity comes from the existing sid session resolution contract,
+never from a provider account claim or submitted account field. Unauthenticated
+users go through the existing login path with a validated local continuation;
+bind a fresh eligible interaction to the actual authenticated account and
+session. Capture client revision when the authorization request starts,
+and account/tuple freshness on the first authenticated interaction, before
+displaying consent. Restart rather than attach an old consent to a newly
+authenticated session after session loss. A provider session never substitutes
+for a live first-party session. Recheck session ownership, current generation,
+expiry, account eligibility, client revision and pending interaction freshness
+at final consent. For the cross-store session decision, use a bounded Redis
+read under the authoritative account fence, with the same ordering principle
+as existing operation-bound confirmation. No distributed transaction is
+claimed. Consume consent once; denial/cancellation cannot mutate the grant.
+Use same-origin/CSRF protection, safe return URLs, secure separate interaction
+cookies, TLS and configured trusted origin (not untrusted Host headers).
+Do not persist raw first-party bearer session IDs in new protocol state;
+use a server-only non-reversible session binding where correlation is needed.
 
 ## 9. Transactions, consistency, concurrency and idempotency
 
@@ -227,6 +406,108 @@ permanent no-restoration semantics and grouped notification evidence; obtain
 design review before changing the mechanism. Avoid eventual revocation via
 outbox delivery.
 
+### Initial production lock strategy
+
+Choose conservative serialization for V1, deliberately based on the existing
+IAM administrative-access transaction fence rather than introducing a second
+uncoordinated global lock. The current
+[administrative-access adapter](../../packages/adapters/iam/persistence-kysely/src/adapters/administrative-access.ts)
+acquires PostgreSQL advisory transaction lock 728194002 before participating
+account/configuration/credential writers. The existing
+[IAM unit of work](../../packages/adapters/iam/persistence-kysely/src/adapters/kysely-iam-unit-of-work.adapter.ts)
+takes that fence before the account row. The spike's fixture-wide lock is
+evidence for serialization, not a production lock-order implementation.
+
+For delegated mutations, code/refresh issuance, consent finalization and
+account/client invalidation, acquire the existing fence exclusively as the
+first authoritative lock. Extend participating existing security writers that
+currently do not take it, notably password recovery completion and final
+deletion; do not acquire it after an account row. Review deletion cancellation
+and other account eligibility writers as part of the same lock inventory.
+Keep existing administrative-access invariants and the existing configuration
+lock order (administrative fence, configuration fence when applicable,
+account). Do not create a new global lock in the reverse order.
+
+Within the fence, acquire affected account rows in stable ID order where
+required, then client rows, grant rows, provider family rows and credential
+rows, each ordered by stable ID for multi-row mutation. Existing account
+security operations keep their own established credential/identity ordering
+under the account lock; complete account mutation and delegated invalidation
+without acquiring an earlier-order lock afterwards. Provider callback writes
+reuse the transaction and must not reacquire an account on another
+connection. Resolve target IDs via preliminary reads only; re-read
+authoritative state under the fence. Every participating path, including
+cleanup/erase and administrative updates, must obey the order. Audit remaining
+lock paths against the actual implementation before freezing readiness.
+
+For read-only final delegated admission, use a short authoritative transaction
+with the same fence in shared mode and current primary reads, conditional on
+all relevant writers taking it exclusively. This provides an explicit
+decision boundary ordered with revocation; do not upgrade a shared lock to
+exclusive or hold it across the invoked business operation. If an admission
+path needs writes, acquire exclusive at entry instead. Ordinary business
+operations keep their own transaction and approved consistency boundaries.
+Do not use asynchronous projections or lagging replicas for final decisions.
+Stricter operation-specific rules may require a different boundary in their
+own functional/technical owner.
+
+For V1 bulk revocation, use indexed set-based mutation of affected active
+grants/permissions in the same transaction, with RETURNING or equivalent
+durable affected-set capture. Group facts by affected account and logical
+operation; append to the transactional outbox before commit. Never report
+success after only queuing asynchronous invalidation. Avoid per-grant
+network calls and unbounded application-level loops while holding locks.
+A timeout or rollback leaves no partially successful revocation. Measure
+representative fan-out and lock wait under concurrent account/issuer traffic;
+define explicit bounded transaction and request deadlines. If the coarse
+fence is inadequate, return to design for an epoch/fan-out alternative
+that preserves immediate authority and durable notification evidence. No
+unreviewed weakening to eventual invalidation.
+
+### FR-11 integration points and transactional authority
+
+The following identifies the current code seams, not mandatory file-level
+Task prescriptions. The application operation decides whether a real
+successful security transition occurred; a transaction-bound invalidation
+capability applies that effect and durable facts. No hidden rule on every
+UserRepository.save, no blanket dependence on sessionVersion, no event
+subscriber as the security boundary.
+
+| Approved transition | Current transaction seam to extend |
+| --- | --- |
+| Authenticated password replacement | ChangePasswordUseCase / IamUnitOfWork.executeForUser |
+| Recovery password replacement | ResetRecoveredPasswordUseCase / PasswordRecoveryStore.withUsableToken; add fence before account lock |
+| Effective login identity replacement | ChangeEmailUseCase / transactional replacePreservingAdministrativeAccess; distinguish replacement from no-op/verification-only |
+| MFA activation | MfaStore.activate atomic account/credential mutation |
+| MFA deactivation | MfaStore.disable atomic account/credential mutation |
+| Backup-code regeneration | MfaStore.replaceBackupCodes; does not change sessionVersion |
+| Account suspension | SuspendUserUseCase / IamUnitOfWork.executeForUser; only actual transition |
+| Accepted deletion request | AccountDeletionStore.request transaction |
+| Final erasure | AccountDeletionStore.eraseIfDue; extend fence and delete all linked authorization/protocol state with account erasure evidence |
+
+Verify relevant future login-identity mutation paths also use the authorized
+rule. Role change, ordinary sign-out, session expiry, individual session
+revocation, failed commands and no-op operations are not additional FR-11
+triggers; current policy/eligibility still constrains each access decision.
+Cancellation/reactivation must never restore old grants. Keep existing Redis
+session cleanup after commit and do not equate it with delegated revocation.
+
+Critical client administration follows the existing step-up architecture:
+reserve the separate account allowance in a short committed transaction;
+verify current password and applicable MFA outside the final mutation
+transaction; bind immutable operation, actor, session, expected client
+revision, captured current security policy, monotonic deadline and security
+state. Final mutation acquires the fence, checks current administrator,
+session generation, authenticator and MFA identity snapshot, allowance proof,
+current policy and expected revision, and performs the client mutation plus
+grant invalidation/outbox within the same authoritative transaction.
+Recheck the live session with a bounded Redis read; no recent-session-age
+requirement beyond the SF. The two-minute deadline is exclusive, five admitted
+attempts per rolling five minutes shared across sessions and client critical
+operations, separate from configuration confirmation. A consumed factor or
+reserved attempt is never restored after a later conflict. No reusable proof
+or credential values in persistence or response.
+
 ## 10. Messaging / cross-context integration
 
 Record durable integration facts for actual authorization and permission
@@ -258,6 +539,21 @@ Require TLS, exact redirect URI validation, PKCE, CSRF and interaction replay
 protection, issuer/resource binding, controlled metadata retrieval, secret
 redaction, least privilege, token rotation/reuse handling and bounded abuse
 controls. Do not rely on JWT expiry alone for immediate revocation.
+
+### Operational credential policy candidate
+
+Use explicit finite technical lifetimes, independent of the indefinite
+business grant. Proposed initial defaults for integration review: authorization
+code 5 minutes, consent interaction 10 minutes, opaque access token 10 minutes,
+refresh idle expiry 30 days and absolute family credential lifetime 90 days.
+Treat these as technical configuration, not functional grant expiry. Enforce
+absolute lifetime across rotation and prevent sliding renewal from exceeding
+it. A fresh eligible authorization flow may create a new family without
+restoring old credentials. Confirm exact provider TTL/rotation hooks, abuse
+limits and client behavior before implementation readiness; do not rely on
+unreviewed library defaults. Keep signing/lookup keys and rotation policy,
+session and protocol state, credential redaction and proxy TLS origin
+configuration under deployment review.
 
 ## 12. Migration and compatibility
 
@@ -303,9 +599,40 @@ compatible MCP client when #214 integration is available; use synthetic test
 accounts before real user exposure. The isolated protocol results appear in
 [executable feasibility evidence](#executable-feasibility-evidence).
 
+### Integration evidence boundaries
+
+Map FR-01–FR-16 and the 43 approved criteria to focused domain, application,
+API/Web and PostgreSQL/Redis integration tests; record actual execution, not
+only coverage percentages. Add a provider/Fastify compatibility test for the
+exact pinned version, request body ownership, normal success, code redirect,
+headers/cookies, rollback and commit failure, response disconnect and replay
+error commit. Prove all protocol and IAM writes share one connection and that
+no success bytes escape before commit. Exercise at least two independent
+processes for code redemption, refresh, revocation and consent races.
+
+Use the real production persistence paths for every FR-11 trigger, including
+backup-code regeneration, no-op/failure cases, final erasure and concurrent
+consent with account/client invalidation. Exercise lock order with existing
+configuration, recovery, deletion, account administration and MFA writers.
+Verify fan-out with representative synthetic volume, grouped notifications and
+outbox rollback; retain a recorded latency/lock-wait baseline rather than
+claiming unmeasured scalability. Test security and privacy boundaries,
+account isolation, stale consent, no credential leakage and export/erasure
+including provider records and replayed facts. Validate the declared OAuth
+profile with a synthetic client; actual MCP interop is #214. Verify exact
+deployed LTS image before OAuth activation.
+
+Use repository-owned commands (including pnpm build, typecheck,
+typecheck:test, lint, ci:test, ci:test:integration, format:check, docs:links
+and applicable targeted workspace tests). Required Quality checks and the
+external SonarCloud Code Analysis check must pass for the current candidate
+before merge. The tolerated Actions Sonar job is not an exception to that
+policy. Re-run candidate-bound evidence after changes; no new test evidence
+is claimed by this design amendment.
+
 ## 16. Provider feasibility
 
-The [proposed ADR](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md)
+The [accepted ADR](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md)
 compares the preferred embedded integration with alternatives. Re-evaluate
 the chosen provider/version at integration against the exact endpoint profile
 needed for #214.
@@ -512,27 +839,42 @@ and write-only renewal after withdrawal. Test #214 client interoperability
 against that profile. Full SF acceptance remains a separate validation
 activity. Production transaction integration for every FR-11 event remains open.
 
-## 17. Proposed architecture decision
+## 17. Accepted architecture decision
 
 [ADR-0012 — OAuth Authorization Server Integration and Grant Authority](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md)
-records the proposed structural decision and the current-state owners to
-synchronize when an accepted target becomes effective.
+records the accepted structural decision and the current-state owners to
+synchronize when the target becomes effective. The maintainer accepted the
+exact ADR candidate in PR #216 at fca0d8f92a12f5c87e50dfcff8a8404705d3e514;
+see the [acceptance record](https://github.com/Oxelio/architecture-web/issues/215#issuecomment-7202625547).
 
 ## 18. Risks and unresolved technical decisions
 
-Blocking design work remains in the
-[integration boundaries](#remaining-integration-boundaries). Verify the
-Fastify response boundary, production lock ordering, lineage storage and
-recovery, exact hosting runtime, endpoint interoperability, and integration
-with account security and erasure.
-Confirm protocol/user experience can preserve the approved functional target.
-If not, escalate to Functional Specification authority before any deviation.
+The accepted structural decision is resolved. This amendment proposes the
+production boundaries, contract responsibilities, conservative lock order,
+initial endpoint profile and state/credential policy. The design remains
+Proposed pending focused technical review and the remaining preparation
+decisions; do not infer Readiness from ADR acceptance.
 
-The candidate remains proposed and awaits the applicable structural decision.
+| Finding | Owner / disposition |
+| --- | --- |
+| Fastify bridge: verify public hook and body/response/cookie ownership; confirm no bytes before commit or unbounded stream under fence | Software Architect / bounded integration experiment before freezing bridge design |
+| Existing lock inventory, including recovery, cancel/erase, configuration and account writers; confirm no opposite acquisition path; fan-out and deadlines | Software Architect / focused transaction design review; carry actual contention and race evidence into validation |
+| IAM session freshness and multi-resource consent revision binding; exact storage and key-rotation/TTL policy; provider types and runtime compatibility | Software Architect / settle material contracts and operational defaults before Readiness |
+| Actual audit/notification/export/erasure projections and affected existing functional owners | Product/Domain Analyst and Software Architect / synchronize approved scope without inventing a new business rule; prove via implementation validation |
+| Exact deployed LTS image and production failure/latency evidence | Validation / before activation; no project-wide runtime change currently justified |
+| Actual ChatGPT and second MCP client interoperability | #214 / downstream; #215 owns declared OAuth profile and compatibility contract |
+| External SonarCloud check failed on fca0d8f92a12f5c87e50dfcff8a8404705d3e514 | Review/Validation / diagnose actual metric, satisfy required check on current candidate before integration |
+
+Full implementation proof is not a prerequisite to choosing a structural
+direction, but material unresolved decisions cannot be delegated silently to
+the Developer. If bounded integration evidence contradicts the accepted
+architecture, escalate to its structural owner; if it requires different
+observable behavior, escalate to the approved functional owner. No new Work,
+Task authorization, implementation, merge or Readiness is established here.
 
 ## 19. Task-planning inputs
 
-After technical decisions and structural acceptance where triggered, plan
+After remaining technical decisions are resolved, plan
 focused execution units around authoritative grant state and transactions,
 security transition integration, protocol adapter, administration/consent/
 connected application UI, audit/notifications/export/erasure, and integrated
