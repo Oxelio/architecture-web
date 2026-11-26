@@ -157,6 +157,59 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     },
   );
 
+  it("preserves newer concurrent activity, expiry, metadata and index", async () => {
+    const userId = UserIdentifierValueObject.generate();
+    const session = SessionEntity.createForUser({
+      userId,
+      userSessionVersion: 1,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const key = `session:${session.identifier.value}`;
+    const index = `user-sessions:${userId.value}`;
+    const adapter = new RedisSessionAdapter(redis);
+    const concurrent = redis.duplicate();
+    try {
+      await concurrent.ping();
+      await adapter.save(session);
+      const initial = await redis.get(key);
+      const initialExpiry = await redis.pexpiretime(key);
+      const initialScore = await redis.zscore(index, session.identifier.value);
+      const older = new Date(session.lastActivityAt.getTime() + 1_000);
+      const newer = new Date(session.lastActivityAt.getTime() + 2_000);
+
+      const get = redis.get.bind(redis);
+      const read = vi.spyOn(redis, "get").mockImplementationOnce(
+        async (sessionKey) => {
+          const snapshot = await get(sessionKey);
+          await new RedisSessionAdapter(concurrent).updateLastActivity(
+            session.identifier,
+            newer,
+          );
+          return snapshot;
+        },
+      );
+      try {
+        await adapter.updateLastActivity(session.identifier, older);
+      } finally {
+        read.mockRestore();
+      }
+
+      expect(initial).not.toBeNull();
+      expect(JSON.parse((await redis.get(key))!)).toEqual({
+        ...JSON.parse(initial!),
+        lastActivityAt: newer.toISOString(),
+      });
+      expect(initialExpiry).toBeGreaterThan(Date.now());
+      expect(await redis.pexpiretime(key)).toBe(initialExpiry);
+      expect(await redis.zscore(index, session.identifier.value)).toBe(
+        initialScore,
+      );
+    } finally {
+      await concurrent.del(key, index);
+      await concurrent.quit();
+    }
+  });
+
   it("counts recovery attempts atomically without relying on Audit delivery", async () => {
     const fingerprint = randomUUID(),
       key = `iam:recovery-origin:${fingerprint}`;
