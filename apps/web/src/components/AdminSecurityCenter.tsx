@@ -3,6 +3,7 @@ import {
   type FormEvent,
   type ReactNode,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -157,6 +158,7 @@ export function AdminSecurityCenter() {
     clearConfirmation();
   }
 
+  const confirmationTitleId = useId();
   const confirmationPanel = useRef<HTMLFieldSetElement>(null);
   useEffect(() => {
     if (reviewed && !stale) {
@@ -224,17 +226,24 @@ export function AdminSecurityCenter() {
         : undefined;
 
   const confirmation = (
-    <form onSubmit={(event) => void submit(event)}>
+    <form
+      onSubmit={(event) => void submit(event)}
+      className="min-w-0 rounded-[2rem] border border-slate-800 bg-slate-900/90 p-4 has-[fieldset:focus-visible]:outline-2 has-[fieldset:focus-visible]:outline-offset-2 has-[fieldset:focus-visible]:outline-sky-400 sm:p-6"
+    >
+      <h2
+        id={confirmationTitleId}
+        className="mb-5 text-xl font-semibold text-white"
+      >
+        {t("securityConfig.stepUp")}
+      </h2>
       <fieldset
         ref={confirmationPanel}
         tabIndex={-1}
         disabled={pending}
         aria-busy={pending}
-        className="min-w-0 space-y-5 rounded-2xl border border-slate-700 bg-slate-900/70 p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 sm:p-6"
+        aria-labelledby={confirmationTitleId}
+        className="min-w-0 space-y-5 focus-visible:outline-none"
       >
-        <legend className="px-2 text-base font-semibold text-slate-100">
-          {t("securityConfig.stepUp")}
-        </legend>
         {reviewed && !stale ? (
           <>
             <p className="text-sm font-medium text-slate-300">
@@ -266,7 +275,7 @@ export function AdminSecurityCenter() {
           />
         </label>
         {reviewed && !stale && critical ? (
-          <div className="space-y-4 border-t border-slate-700 pt-5">
+          <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block min-w-0 space-y-2">
                 <span className="block text-sm font-medium text-slate-200">
@@ -529,9 +538,7 @@ function ConfigurationEditor({
           </fieldset>
         ) : null;
       })}
-      <article className="rounded-[2rem] border border-slate-800 bg-slate-900/90 p-6">
-        {confirmation}
-      </article>
+      {confirmation}
     </div>
   );
 }
