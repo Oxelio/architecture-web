@@ -38,6 +38,20 @@ end
 return 1
 `;
 
+const UPDATE_ACTIVITY_SCRIPT = `
+local current = redis.call("GET", KEYS[1])
+if not current then
+  return 0
+end
+if current ~= ARGV[1] then
+  return 2
+end
+if redis.call("SET", KEYS[1], ARGV[2], "XX", "KEEPTTL") then
+  return 1
+end
+return 0
+`;
+
 export class RedisSessionAdapter implements SessionRepository {
   constructor(private readonly redis: Redis) {}
 
@@ -99,23 +113,19 @@ export class RedisSessionAdapter implements SessionRepository {
       return null;
     }
 
-    const record = this.parseRecord(data);
-    if (!record) {
+    const parsed = this.parseRecord(data);
+    if (!parsed) {
       return null;
     }
 
-    const userId = UserIdentifierValueObject.create(record.userId);
-    if (!userId.success) {
-      return null;
-    }
-
+    const { record, userId } = parsed;
     const expiresAt = new Date(record.expiresAt);
     const createdAt = new Date(record.createdAt);
     const lastActivityAt = new Date(record.lastActivityAt);
 
     return SessionEntity.rehydrate({
       identifier: id,
-      userId: userId.value,
+      userId,
       userSessionVersion: record.userSessionVersion,
       expiresAt,
       createdAt,
@@ -130,24 +140,40 @@ export class RedisSessionAdapter implements SessionRepository {
     lastActivityAt: Date,
   ): Promise<void> {
     const key = `session:${id.value}`;
-    const data = await this.redis.get(key);
-    if (!data) {
-      return;
-    }
+    for (;;) {
+      const data = await this.redis.get(key);
+      if (!data) {
+        return;
+      }
 
-    const record = this.parseRecord(data);
-    if (!record) {
-      return;
-    }
+      const parsed = this.parseRecord(data);
+      if (!parsed) {
+        return;
+      }
 
-    await this.redis.set(
-      key,
-      JSON.stringify({
-        ...record,
-        lastActivityAt: lastActivityAt.toISOString(),
-      }),
-      "KEEPTTL",
-    );
+      const { record } = parsed;
+      if (lastActivityAt.getTime() <= Date.parse(record.lastActivityAt)) {
+        return;
+      }
+
+      const result = await this.redis.eval(
+        UPDATE_ACTIVITY_SCRIPT,
+        1,
+        key,
+        data,
+        JSON.stringify({
+          ...record,
+          lastActivityAt: lastActivityAt.toISOString(),
+        }),
+      );
+      if (result === 0 || result === 1) {
+        return;
+      }
+      if (result !== 2) {
+        throw new Error("Unexpected session activity update result");
+      }
+      // Activity only moves forward, so an equal or newer snapshot ends the retry.
+    }
   }
 
   async delete(id: SessionIdentifierValueObject): Promise<void> {
@@ -197,7 +223,9 @@ export class RedisSessionAdapter implements SessionRepository {
     return `user-sessions:${userId.value}`;
   }
 
-  private parseRecord(data: string): SessionRecord | null {
+  private parseRecord(
+    data: string,
+  ): { record: SessionRecord; userId: UserIdentifierValueObject } | null {
     try {
       const record = JSON.parse(data) as Partial<SessionRecord>;
       if (
@@ -215,7 +243,10 @@ export class RedisSessionAdapter implements SessionRepository {
         return null;
       }
 
-      return record as SessionRecord;
+      const userId = UserIdentifierValueObject.create(record.userId);
+      return userId.success
+        ? { record: record as SessionRecord, userId: userId.value }
+        : null;
     } catch {
       return null;
     }
