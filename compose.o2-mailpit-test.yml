@@ -54,7 +54,7 @@ services:
     command:
       - sh
       - -ec
-      - test ! -e .env && node --import tsx src/scripts/migrate-up.ts && exec node dist/main.mjs
+      - test ! -e .env && node dist/scripts/migrate-up.mjs && exec node dist/main.mjs
     depends_on:
       postgres:
         condition: service_healthy

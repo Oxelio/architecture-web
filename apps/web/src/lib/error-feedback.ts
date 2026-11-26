@@ -138,7 +138,9 @@ const apiFeedback: Record<
   securityConfig: {
     fallback: "securityConfig.error",
     codes: {
+      "administrator.unauthorized": "securityConfig.administratorRequired",
       "authentication.unauthorized": "securityConfig.sessionExpired",
+      "authorization.forbidden": "securityConfig.administratorRequired",
       "security_configuration.confirmation_refused":
         "securityConfig.confirmationRefused",
       "security_configuration.confirmation_attempts_exhausted":

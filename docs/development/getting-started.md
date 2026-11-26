@@ -43,6 +43,14 @@ For the complete environment:
 docker compose up --build
 ```
 
+Compose runs the packaged migration command before starting the API. A failed
+migration blocks API startup. When upgrading an existing deployment, stop the
+old API and Web services first with `docker compose stop api web`, then start
+the updated stack. The migration service uses the same API image as the server
+and applies only pending migrations. For deployments outside Compose, run
+`node dist/scripts/migrate-up.mjs` with the API runtime environment before starting
+the new API.
+
 Defaults are web on `http://localhost:5173`, API on
 `http://localhost:3000`, Swagger UI on `http://localhost:3000/docs`, and
 Mailpit on `http://localhost:8025`.
