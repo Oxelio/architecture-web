@@ -1,9 +1,11 @@
 # Technical Design — Human-directed delivery transition
 
-> Current applicability: Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination described here. This document retains historical rationale only for those subjects; current policy is owned by the delivery profile. Non-release Work/Task semantics remain applicable where consistent with current policy.
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes references below to preserving the Work Merge Gate. [Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires read-only observation, automated dispatch, Task Claim, and the coordination manifest and tooling. The [pre-retirement design](https://github.com/Oxelio/architecture-web/blob/5a31d1a7c1efd8ad3f5b3b62e54a87c74a6363dc/docs/architecture/human-directed-delivery-transition.md) records the original transition rationale.
+>
+> Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination. The [delivery profile](../project/delivery-pipeline.md) owns current policy, including human-directed execution and native Work and Task mappings.
 
-**Artifact status:** Proposed  
-**Content status:** Approved governance target / proposed technical migration  
+**Artifact status:** Superseded\
+**Content status:** Historical rationale\
 **Document type:** Technical Design / Governance Migration Design  
 **Domain:** Delivery automation / GitHub operations
 
@@ -31,6 +33,8 @@
 - `.github/delivery-automation.json` — repository-local external-owner activation record;
 - `docs/architecture/agent-aware-delivery-activation.md` — Work #9 Technical Design and historical rationale for the claim implementation;
 - `.github/workflows/` and `packages/delivery-automation` — current implementation evidence.
+
+[Work #202](https://github.com/Oxelio/architecture-web/issues/202) supersedes this design's statements about the continued applicability of route metadata and route mutations. The [delivery profile](../project/delivery-pipeline.md) owns current handoff and Ready Queue rules. This document preserves Work #31's original scope and rationale.
 
 ## 1. Authorized constraints to preserve
 

@@ -22,6 +22,7 @@ export class MaintainIamAccountsUseCase implements MaintainIamAccounts {
     const now = new Date(),
       due = await this.deletions.due(now);
     let deletedAccounts = 0;
+    // Complete erasure and session invalidation before processing another account.
     for (const request of due) {
       const userId = await this.deletions.eraseIfDue(request.id, now);
       if (!userId) {

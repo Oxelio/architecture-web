@@ -32,6 +32,7 @@ export class DeliverPendingNotificationsUseCase implements DeliverPendingNotific
     }
     await this.repository.recoverStaleDeliveries();
     let deliveryCount = 0;
+    // Resolve eligibility and finalize each claim before acquiring the next one.
     while (deliveryCount < limit) {
       const reservation = await this.repository.claimDelivery();
       if (!reservation) {

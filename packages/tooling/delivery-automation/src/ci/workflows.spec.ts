@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
 import { describe, expect, it } from "vitest";
@@ -15,7 +15,6 @@ interface Step {
   "continue-on-error"?: boolean;
 }
 interface Job {
-  environment?: string;
   uses?: string;
   needs?: string | string[];
   if?: string;
@@ -49,34 +48,15 @@ describe("CI trust and failure boundaries", () => {
   const shared = workflow("repository-validation");
   const release = workflow("release");
 
-  it("wires integration observation to a fresh protected dispatch with read-only permissions", () => {
-    const observation = workflow("delivery-work-integration-observation");
-    expect(Object.keys(observation.on)).toEqual(["workflow_dispatch"]);
-    expect(Object.values(observation.permissions)).toEqual([
-      "read",
-      "read",
-      "read",
-      "read",
+  it("contains only CI, shared validation, and source release workflows", () => {
+    const workflows = readdirSync(
+      new URL("../../../../../.github/workflows/", import.meta.url),
+    ).filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"));
+    expect(workflows.sort()).toEqual([
+      "delivery-automation-validation.yml",
+      "release.yml",
+      "repository-validation.yml",
     ]);
-    const job = observation.jobs["observe"];
-    expect(job?.if).toBe(
-      "github.ref == 'refs/heads/main' && github.run_attempt == 1 && github.actor == github.repository_owner",
-    );
-    expect(job?.environment).toBe("delivery-integration-observation");
-    expect(job?.permissions).toBeUndefined();
-    expect(job?.steps?.[0]?.with).toMatchObject({
-      ref: "${{ github.workflow_sha }}",
-      "persist-credentials": false,
-    });
-    const evaluator = job?.steps?.find((step) =>
-      step.run?.includes("work-merge-observe.ts"),
-    );
-    expect(evaluator?.env?.["DELIVERY_OBSERVATION_GRANT"]).toBe(
-      "${{ vars.DELIVERY_OBSERVATION_GRANT }}",
-    );
-    expect(JSON.stringify(observation)).not.toMatch(
-      /contents: write|issues: write|pull-requests: write|checks: write/,
-    );
   });
 
   it("imports the validated type context without installing or building in the credential-bearing job", () => {

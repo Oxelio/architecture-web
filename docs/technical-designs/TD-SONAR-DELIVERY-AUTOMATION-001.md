@@ -1,10 +1,12 @@
 # Technical Design — Delivery automation complexity reduction
 
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the refactoring targets for the retired integration control plane (B1 and B3–B5). [Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires the remaining coordination modules, including the operational-state reader in B2. The [pre-retirement design](https://github.com/Oxelio/architecture-web/blob/5a31d1a7c1efd8ad3f5b3b62e54a87c74a6363dc/docs/technical-designs/TD-SONAR-DELIVERY-AUTOMATION-001.md) records the refactoring rationale. The [delivery profile](../project/delivery-pipeline.md) owns current integration policy.
+>
 > **Identifier:** TD-SONAR-DELIVERY-AUTOMATION-001
 >
-> **Artifact status:** Prepared for implementation
+> **Artifact status:** Superseded
 >
-> **Content status:** Approved Target for Work #187 / Task #189 (not effective Current Truth)
+> **Content status:** Historical rationale
 >
 > **Document type:** Technical Design
 >
@@ -16,7 +18,7 @@
 - **Task:** [#189](https://github.com/Oxelio/architecture-web/issues/189) — reduce cognitive complexity in protected delivery controls.
 - **Classification:** Technical Change / Standard (Work-level classification); behavior-preserving; operationally sensitive.
 - **Technical authority:** Scope-bound technical design accepted by the Software Architect for readiness assessment. No separate human technical gate is required by the Project Method Profile for this behavior-preserving local design. This acceptance does **not** approve a material Governance Change, a new merge policy or a durable structural ADR decision.
-- **Current operational/governance owners:** [Delivery profile](../project/delivery-pipeline.md), [Project Method Profile](../project/project-method-profile.md), and [CI-driven Work integration](../architecture/ci-driven-work-integration.md). The latter identifies current native behavior separately from accepted but inactive delegated/standing targets.
+- **Governance owners:** [Delivery profile](../project/delivery-pipeline.md) and [Project Method Profile](../project/project-method-profile.md). [CI-driven Work integration](../architecture/ci-driven-work-integration.md) records the retired design.
 - **Validation owner:** [Tests and verification](../development/testing.md).
 - **Working Task Plan:** [#189 preparation record](https://github.com/Oxelio/architecture-web/issues/189#issuecomment-7106046839). The plan records exact affected Sonar issue keys, but this Technical Design owns the proposed technical target and its boundaries.
 
@@ -104,10 +106,10 @@ Before accepting implementation:
 2. Run the affected delivery-automation package tests and applicable project checks: `pnpm build`, `pnpm typecheck`, `pnpm typecheck:test`, `pnpm lint`, `pnpm ci:test:tooling`, and required repository CI/Sonar analyses.
 3. Record candidate SHA and CI run IDs; every Sonar issue key must be addressed on the actual candidate or receive an explicitly justified and authorized issue-level disposition.
 4. Complete distinct **Code Review** (complexity, duplication, error handling, tests), **Architecture Review** (ownership and authority boundaries), **Functional Compliance Review** when behavior preservation needs external confirmation, and **Validation** (including gate, concurrency and lost-response evidence).
-5. Do not interpret green checks, a merged PR, or this design as authority to change live governance rules or to skip the protected Work Merge Gate.
+5. Apply the [delivery profile](../project/delivery-pipeline.md#native-work-integration) for live governance and merge authority.
 
 If implementation would change protected remote-write order, authorization ownership, journal state or accepted outcomes, stop and return to Software Architect / appropriate owner for a revised technical target. If a material structural or governance alternative arises, follow the Project Method Profile's explicit acceptance requirements.
 
 ## 6. Readiness and current-truth synchronization
 
-This Technical Design records an **accepted scope-bound technical target**, not effective runtime behavior. The Task #189 Readiness Review assesses whether its technical choices are sufficient; neither this file on a PR branch nor a readiness comment makes the target current. Current integration documentation must be synchronized **only if implementation actually changes effective architecture**. Pure local extraction should not require rewriting the existing CI-driven integration owner.
+This Technical Design records an **accepted scope-bound technical target**, not effective runtime behavior. The Task #189 Readiness Review assesses whether its technical choices are sufficient; neither this file on a PR branch nor a readiness comment makes the target current. Synchronize current integration documentation when effective architecture changes. The former CI-driven integration design now records historical rationale.

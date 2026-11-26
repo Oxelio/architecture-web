@@ -84,4 +84,14 @@ Remote compromise checking, password history and exhaustive product notification
 
 ## Source delivery
 
-[ADR-0008](decisions/0008-main-only-automatic-releases.md) defines the accepted target of coordinated source releases from the sole permanent `main` branch. The repository uses tag-owned versions and stamped source archives. The coordinated source-release workflow runs on `main`; [published releases](https://github.com/Oxelio/architecture-web/releases) record actual publication. The [delivery policy](../project/delivery-pipeline.md) distinguishes automatic publication from Work review and deployment.
+[ADR-0008](decisions/0008-main-only-automatic-releases.md) defines coordinated
+source releases from the sole permanent `main` branch. The repository uses
+tag-owned versions and stamped source archives. The source-release workflow
+runs on `main` and [published releases](https://github.com/Oxelio/architecture-web/releases)
+record actual publication. The [delivery profile](../project/delivery-pipeline.md)
+governs human-directed Work coordination through native GitHub Projects and
+Issues, native Work integration, Work completion, automatic source releases and
+deployment. The [CI guide](../development/continuous-integration.md#entry-points-and-shared-validation)
+describes the workflow boundaries. The
+[former integration control plane](ci-driven-work-integration.md) records historical
+rationale.

@@ -1,9 +1,11 @@
 # Technical Design — Activate deterministic agent-aware delivery control plane
 
-> Current applicability: Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination described here. This document retains historical rationale only for those subjects; current policy is owned by the delivery profile. Non-release Work/Task semantics remain applicable where consistent with current policy.
+> [Work #205](https://github.com/Oxelio/architecture-web/issues/205) supersedes the Work Merge Gate and gate-dependent integration described below. [Work #207](https://github.com/Oxelio/architecture-web/issues/207) retires Ready Queue observation, automated dispatch and claim, and the coordination-specific manifest, inventory and verification tooling. The [pre-retirement design](https://github.com/Oxelio/architecture-web/blob/5a31d1a7c1efd8ad3f5b3b62e54a87c74a6363dc/docs/architecture/agent-aware-delivery-activation.md) records the original activation rationale.
+>
+> Work #58 and [ADR-0008](decisions/0008-main-only-automatic-releases.md) supersede staged branches, beta prerequisites, routine Human Release Approval and per-release Work coordination. The [delivery profile](../project/delivery-pipeline.md) owns current integration and external-owner activation policy.
 
-**Artifact status:** Implemented\
-**Content status:** Proposed  
+**Artifact status:** Superseded\
+**Content status:** Historical rationale\
 **Document type:** Technical Design  
 **Domain:** Delivery automation / GitHub operations
 
@@ -31,7 +33,9 @@ Work #9 remains historical rationale and implementation evidence for the determi
 
 Once Work #31 becomes effective, the claim-specific parts of this design are superseded for current Architecture Web delivery. This includes mandatory Work-scoped Task execution claims, universal Task serialization, claim acquisition/release/recovery, and claim-specific activation requirements.
 
-Non-claim control-plane design remains applicable where it is consistent with the current canonical delivery policy in `docs/project/delivery-pipeline.md`, including Project inventory, Work State activation, Ready Queue observation, Work Integration target verification, gate evaluation/publication, and privilege separation.
+[Work #202](https://github.com/Oxelio/architecture-web/issues/202) supersedes this design's route labels, route-filtered Ready Queue, and autonomous dispatch applicability. The [delivery profile](../project/delivery-pipeline.md) owns executor handoff and activation policy. The observer reports Ready Queue eligibility without dispatch authority. Retained legacy dispatch and claim paths fail closed with inactive mappings.
+
+Project inventory, Work State activation, Work Integration target verification, gate evaluation/publication, and privilege separation remain applicable where consistent with the delivery profile.
 
 ## 1. Scope correction
 

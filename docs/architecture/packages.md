@@ -64,14 +64,15 @@ Workspace packages are grouped under `packages/contexts/*`, `packages/adapters/*
 | `@architecture/iam-email-nodemailer`                 | selected SMTP delivery                | root export                                                                |
 | `@architecture/iam-email-postmark`                   | alternative provider                  | root export                                                                |
 | `@architecture/eslint-config`                        | shared ESLint configurations          | `.`, `node`, `react-vite`, `architecture`, `iam`, `api-boundaries`, `full` |
-| `@architecture/delivery-automation`                  | repository delivery tooling           | private                                                                    |
+| `@architecture/delivery-automation`                  | source releases and CI workflow tests | private                                                                    |
 | `api`                                                | server and composition                | private                                                                    |
 | `web`                                                | React client                          | private                                                                    |
 
 Each package manifest remains the source of truth. Bcrypt and Postmark adapters
 are tested alternatives, but the current composition selects Argon2 and
-Nodemailer. `@architecture/delivery-automation` is private repository tooling;
-it is a workspace package but not a product/runtime public API.
+Nodemailer. `@architecture/delivery-automation` is a private tooling workspace
+with release planning, artifact generation, publication and CI workflow contract
+tests. Its executable commands are the `release:*` scripts in its manifest.
 
 ## Ports and selected implementations
 

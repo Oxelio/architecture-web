@@ -149,7 +149,7 @@ const apiFeedback: Record<
         "securityConfig.revisionMissing",
       "administrator.last_active_access": "errorFeedback.lastAdministrator",
       "authentication.recent_proof_required":
-        "securityConfig.authenticationFailed",
+        "securityConfig.recentAuthenticationRequired",
       "authentication.invalid_credentials":
         "securityConfig.authenticationFailed",
       "mfa.code_required": "securityConfig.authenticationFailed",

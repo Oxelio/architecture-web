@@ -43,6 +43,10 @@ permission matrix in the project delivery profile before creating/updating Work
 records, moving `Work State`, closing Work, or performing other workflow
 mutations.
 
+Work selection is human-directed. Use authorized native GitHub Project and
+Issue reads to apply the [Ready Queue selection policy](docs/project/delivery-pipeline.md#6-planning-model)
+and record the maintainer-directed handoff before execution.
+
 A merged PR is not automatically `Done`. Native GitHub Project `Status` is the
 operational Work State owner only when the mapping assigned by
 `docs/project/delivery-pipeline.md` is effectively activated and readable;
@@ -54,10 +58,17 @@ current environment exposes the required operations. Inspect the tools available
 in the current ChatGPT or Codex session. Before writing, verify the Project, Work
 Issue, Project item, field and current value. Re-read the field after writing.
 Follow the active Method Role, applicable gates and the permission matrix in
-the [delivery profile](docs/project/delivery-pipeline.md), including its trusted
-path for privileged writes. Connector access does not grant decision authority.
+the [delivery profile](docs/project/delivery-pipeline.md). Use authorized native
+Project and Issue operations for established lifecycle results. Follow the
+[completion evidence and read-back requirements](docs/project/delivery-pipeline.md#completed-work)
+before recording `Done` and closing a completed Work.
 If the connector is unavailable, use another authorized and verified path when
 available or report that the operation is unavailable.
+
+Agent merges require explicit maintainer authorization for one native squash
+merge of the identified Work, PR, exact head and current base. Verify all
+[integration prerequisites](docs/project/delivery-pipeline.md#native-work-integration)
+before acting.
 
 ## Architecture
 
@@ -74,6 +85,9 @@ conflict rather than copying the exception.
 
 ## Implementation
 
+- Use the authorized Work or Task handoff to establish executor, active Role,
+  scope, and constraints. The [delivery profile](docs/project/delivery-pipeline.md#authorized-execution-handoff)
+  makes legacy `agent:*` labels irrelevant to normal execution.
 - Implement only the authorized Task/work scope.
 - Use GitHub Sub-issues for Tasks only when Task Planning is triggered and the
   Task/Sub-issue mapping is effectively activated and available; do not create

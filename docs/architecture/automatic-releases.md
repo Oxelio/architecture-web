@@ -22,8 +22,8 @@ validation activities. Project Status is not inferred from this document.
 
 ## Design and execution units
 
-1. Synchronize the policy owners and retire staged-release entry points. Preserve
-   ordinary Work Merge Gate semantics, selecting PRs into `main`.
+1. Synchronize the policy owners and retire staged-release entry points. Keep
+   ordinary Work integration on `main` under the delivery profile.
 2. Implement a pure, parser-backed version policy; read immutable Git history and
    tags; use release-it to generate notes and coordinated manifests in isolation.
    Archive tracked sources and the pinned Method submodule deterministically.
@@ -55,8 +55,8 @@ archives, dependency preservation, tag-only remote pushes, partial publication
 and conflicting assets. Full repository checks and documentation links supplement
 targeted suites. The maintainer explicitly extended Work #58's accepted scope to
 permit sufficient automated pre-merge validation as well as automated release
-validation. Review acceptance, Work Merge Gate results and live Project Status
-must still be established independently.
+validation. Review acceptance, merge authority and live Project Status must
+still be established independently under the delivery profile.
 
 A tag and its immutable publication metadata identify the same candidate across
 reruns. Never move/delete tags or overwrite differing assets. Source/version

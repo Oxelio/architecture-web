@@ -6,8 +6,8 @@ rationale in [ADR-0008](../architecture/decisions/0008-main-only-automatic-relea
 ## Contributing
 
 Create temporary Work branches from `main`, reference the owning Work in the PR,
-and follow the Work Merge Gate. Use a Conventional Commit PR title for squash
-merges. For breaking changes prefer `!` in the title; if using only a
+and follow the [native integration policy](../project/delivery-pipeline.md#native-work-integration).
+Use a Conventional Commit PR title for squash merges. For breaking changes prefer `!` in the title; if using only a
 `BREAKING CHANGE` footer, preserve that footer in the actual squash commit.
 Merge commits are ignored as semantic inputs; their constituent commits remain
 available to the analyzer. Do not rewrite history to fix old commit messages.
