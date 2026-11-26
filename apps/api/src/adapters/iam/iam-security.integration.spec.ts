@@ -163,6 +163,8 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       userId,
       userSessionVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
+      client: { type: "browser", name: "test", deviceType: "desktop" },
+      network: { ipAddress: "192.0.2.1" },
     });
     const key = `session:${session.identifier.value}`;
     const index = `user-sessions:${userId.value}`;
@@ -195,8 +197,11 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       }
 
       expect(initial).not.toBeNull();
-      expect(JSON.parse((await redis.get(key))!)).toEqual({
-        ...JSON.parse(initial!),
+      expect(initialScore).not.toBeNull();
+      const updated = await redis.get(key);
+      expect(updated).not.toBeNull();
+      expect(JSON.parse(updated ?? "{}")).toEqual({
+        ...JSON.parse(initial ?? "{}"),
         lastActivityAt: newer.toISOString(),
       });
       expect(initialExpiry).toBeGreaterThan(Date.now());
