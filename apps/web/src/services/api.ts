@@ -477,6 +477,11 @@ export function getSecurityConfig() {
   });
 }
 
+interface SecurityConfigurationRevision {
+  id: string;
+  version: number;
+}
+
 export function publishSecurityConfig(
   values: Record<string, unknown>,
   expectedVersion: number,
@@ -484,7 +489,7 @@ export function publishSecurityConfig(
   confirmedCritical: boolean,
   proof?: { password: string; mfaCode: string },
 ) {
-  return request("/iam/admin/security/config", {
+  return request<SecurityConfigurationRevision>("/iam/admin/security/config", {
     method: "PUT",
     body: JSON.stringify({
       values,
@@ -523,7 +528,7 @@ export function rollbackSecurityConfig(
     mfaCode?: string;
   },
 ) {
-  return request(
+  return request<SecurityConfigurationRevision>(
     `/iam/admin/security/config/${encodeURIComponent(revisionId)}/rollback`,
     {
       method: "POST",

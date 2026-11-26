@@ -116,12 +116,13 @@ describe.each(["fr", "en"] as const)("error feedback in %s", (locale) => {
 
   it.each([
     new ApiRequestError("authentication.unknown"),
+    new ApiRequestError("internal.unexpected_error"),
     { error: { code: "authentication.recent_proof_required" } },
   ])("preserves the security configuration fallback for %j", (error) => {
     expect(errorMessage(t, apiErrorKey(error, "securityConfig"))).toBe(
       locale === "fr"
-        ? "Impossible d’appliquer cette configuration. Réessayez."
-        : "Unable to apply this configuration. Please try again.",
+        ? "Le service n’a pas pu confirmer le résultat. Actualisez la version publiée avant de réessayer."
+        : "The service could not confirm the outcome. Refresh the published version before trying again.",
     );
   });
 

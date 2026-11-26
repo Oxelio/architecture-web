@@ -843,6 +843,18 @@ it.each([
     status: 403,
     ...configurationConfirmationFeedback,
   },
+  {
+    code: "security_configuration.confirmation_attempts_exhausted",
+    status: 429,
+    en: "You reached the confirmation attempt limit. Wait a few minutes before trying again.",
+    fr: "Vous avez atteint la limite de tentatives. Patientez quelques minutes avant de confirmer à nouveau.",
+  },
+  {
+    code: "internal.unexpected_error",
+    status: 500,
+    en: "The service could not confirm the outcome. Refresh the published version before trying again.",
+    fr: "Le service n’a pas pu confirmer le résultat. Actualisez la version publiée avant de réessayer.",
+  },
 ])(
   "localizes a configuration restoration failure for $code without resubmitting",
   async ({ code, status, en, fr }) => {
@@ -1072,6 +1084,84 @@ it("previews only intended edits against a newer version after explicit reconcil
     "Preserve my reason",
   );
 });
+
+it.each([
+  [
+    "publication",
+    "Configuration published. Version 3.",
+    "Configuration publiée. Version 3.",
+  ],
+  [
+    "restoration",
+    "Configuration restored. Version 3.",
+    "Configuration restaurée. Version 3.",
+  ],
+] as const)(
+  "announces a successful configuration %s",
+  async (operation, en, fr) => {
+    const center = {
+      effectiveRevision: { version: 2 },
+      effective: { accounts: { publicRegistration: true } },
+      catalog: [
+        {
+          key: "accounts.publicRegistration",
+          category: "accounts",
+          control: "switch",
+          impact: "medium",
+          availability: { available: true, readOnly: false },
+        },
+      ],
+      revisions: [
+        {
+          id: "historical",
+          version: 1,
+          status: "superseded",
+          created_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+    client.setQueryData(["admin-security-config"], center);
+    client.setQueryData(["admin-security-events"], []);
+    await render(<AdminSecurityCenter />);
+    fetchApi.mockResolvedValueOnce(
+      Response.json({
+        data: {
+          expectedVersion: 2,
+          impact: "standard",
+          changedKeys: ["accounts.publicRegistration"],
+          changes: [],
+          warnings: [],
+        },
+      }),
+    );
+    if (operation === "publication") {
+      await click('[role="switch"]');
+      await clickButton("Preview impact");
+    } else {
+      await clickButton("History");
+      await clickButton("Restore");
+    }
+    await expectFeedback("form", "Reviewed published version 2");
+    await enter("textarea", "Record this change");
+    fetchApi.mockResolvedValueOnce(
+      Response.json({ data: { id: "published", version: 3 } }),
+    );
+    fetchApi.mockResolvedValueOnce(
+      Response.json({
+        data: { ...center, effectiveRevision: { version: 3 } },
+      }),
+    );
+    await clickButton(
+      operation === "publication"
+        ? "Publish without restart"
+        : "Apply restoration",
+    );
+    await expectFeedback("output", en);
+    await changeLocale("fr");
+    await expectFeedback("output", fr);
+    expect(element<HTMLTextAreaElement>("textarea").value).toBe("");
+  },
+);
 
 it("shows a failed configuration preview after an earlier publication failure", async () => {
   client.setQueryData(["admin-security-config"], {

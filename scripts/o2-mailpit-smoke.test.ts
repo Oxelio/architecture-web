@@ -1,8 +1,11 @@
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { promisify } from "node:util";
 
 const testSignal = AbortSignal.timeout(120_000);
+const execute = promisify(execFile);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -133,9 +136,25 @@ async function smoke(api: string, mailpit: string) {
     throw new Error("Fixture sign-in returned no session");
   }
   await captured("New session");
+  const disclosure = await request(`${iam}/me/deletion`, {
+    headers: { Cookie: session },
+  });
+  const disclosureBody: unknown = await disclosure.json();
+  const deletion = isRecord(disclosureBody) ? disclosureBody["data"] : null;
+  if (
+    !disclosure.ok ||
+    !isRecord(deletion) ||
+    typeof deletion["gracePeriodDays"] !== "number"
+  ) {
+    throw new Error("Fixture did not observe the deletion grace period");
+  }
   await post(
     "/me/deletion",
-    { password, confirmation: "DELETE" },
+    {
+      password,
+      confirmation: "DELETE",
+      confirmedGracePeriodDays: deletion["gracePeriodDays"],
+    },
     202,
     session,
   );
@@ -144,9 +163,78 @@ async function smoke(api: string, mailpit: string) {
     /http:\/\/fixture\.invalid\/cancel-deletion\?token=([A-Za-z0-9_-]+)/u,
   );
   await post("/deletion/cancel", { token: cancellation, password }, 204);
-  await post("/signin", { login, password }, 204);
+  await execute(
+    process.execPath,
+    ["--import", "tsx", "src/scripts/promote-admin.ts", address],
+    {
+      signal: testSignal,
+    },
+  );
+  const signedInAsAdmin = await post("/signin", { login, password }, 204);
+  const adminCookie = signedInAsAdmin.headers
+    .getSetCookie()[0]
+    ?.split(";", 1)[0];
+  if (!adminCookie) {
+    throw new Error("Fixture administrator sign-in returned no session");
+  }
+  async function publishedConfiguration(cookie: string) {
+    const response = await request(`${iam}/admin/security/config`, {
+      headers: { Cookie: cookie },
+    });
+    const envelope: unknown = await response.json();
+    const data = isRecord(envelope) ? envelope["data"] : null;
+    const revision = isRecord(data) ? data["effectiveRevision"] : null;
+    const policy = isRecord(data) ? data["effective"] : null;
+    const accounts = isRecord(policy) ? policy["accounts"] : null;
+    if (
+      !response.ok ||
+      !isRecord(revision) ||
+      typeof revision["version"] !== "number" ||
+      !isRecord(policy) ||
+      !isRecord(accounts) ||
+      typeof accounts["deletionGraceDays"] !== "number"
+    ) {
+      throw new Error("Fixture did not observe the published configuration");
+    }
+    return {
+      version: revision["version"],
+      policy,
+      accounts,
+      graceDays: accounts["deletionGraceDays"],
+    };
+  }
+  const before = await publishedConfiguration(adminCookie);
+  const response = await request(`${iam}/admin/security/config`, {
+    method: "PUT",
+    headers: { Cookie: adminCookie, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      values: {
+        ...before.policy,
+        accounts: {
+          ...before.accounts,
+          deletionGraceDays: before.graceDays + 1,
+        },
+      },
+      expectedVersion: before.version,
+      justification: "Validate the packaged migration and critical publication",
+      confirmedCritical: true,
+      password,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Packaged critical publication returned HTTP ${response.status}`,
+    );
+  }
+  const after = await publishedConfiguration(adminCookie);
+  if (
+    after.version !== before.version + 1 ||
+    after.graceDays !== before.graceDays + 1
+  ) {
+    throw new Error("Fixture did not observe the committed critical revision");
+  }
 }
 
-test("captures IAM and Notifications email and restores access after cancellation", async () => {
+test("captures email, restores access and publishes a critical revision on the migrated package", async () => {
   await smoke("http://127.0.0.1:3000", "http://127.0.0.1:8025");
 });

@@ -46,6 +46,12 @@ type ConfigurationTarget =
 
 type Preview = Awaited<ReturnType<typeof previewSecurityConfig>>;
 
+const confirmationInputClass =
+  "w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2.5 text-base text-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:opacity-60";
+
+const secondaryActionClass =
+  "min-h-11 rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition enabled:hover:border-sky-400/70 enabled:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-50";
+
 export function AdminSecurityCenter() {
   const { t } = useTranslation();
   const client = useQueryClient();
@@ -71,6 +77,10 @@ export function AdminSecurityCenter() {
   const [mfaCode, setMfaCode] = useState("");
   const [pending, setPending] = useState(false);
   const [operationError, setOperationError] = useState<unknown>();
+  const [completed, setCompleted] = useState<{
+    kind: "publication" | "restoration";
+    version: number;
+  }>();
   const submitting = useRef(false);
 
   const effectiveDraft = draft?.values ?? config.data?.effective ?? null;
@@ -111,6 +121,7 @@ export function AdminSecurityCenter() {
   function invalidatePreview() {
     preview.reset();
     setOperationError(undefined);
+    setCompleted(undefined);
     clearConfirmation();
   }
 
@@ -172,22 +183,25 @@ export function AdminSecurityCenter() {
     submitting.current = true;
     setPending(true);
     setOperationError(undefined);
+    setCompleted(undefined);
     try {
       if ("revision" in target) {
-        await rollbackSecurityConfig(target.revision.id, {
+        const revision = await rollbackSecurityConfig(target.revision.id, {
           expectedVersion: target.expectedVersion,
           justification: reason,
           confirmedCritical,
           ...proof,
         });
+        setCompleted({ kind: "restoration", version: revision.version });
       } else {
-        await publishSecurityConfig(
+        const revision = await publishSecurityConfig(
           target.values,
           target.expectedVersion,
           reason,
           confirmedCritical,
           proof,
         );
+        setCompleted({ kind: "publication", version: revision.version });
         setDraft(null);
       }
       setJustification("");
@@ -215,12 +229,15 @@ export function AdminSecurityCenter() {
         ref={confirmationPanel}
         tabIndex={-1}
         disabled={pending}
-        className="grid gap-3 rounded-xl border border-slate-700 p-4"
+        aria-busy={pending}
+        className="min-w-0 space-y-5 rounded-2xl border border-slate-700 bg-slate-900/70 p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 sm:p-6"
       >
-        <legend>{t("securityConfig.stepUp")}</legend>
+        <legend className="px-2 text-base font-semibold text-slate-100">
+          {t("securityConfig.stepUp")}
+        </legend>
         {reviewed && !stale ? (
           <>
-            <p>
+            <p className="text-sm font-medium text-slate-300">
               {t("securityConfig.confirmAgainstVersion", {
                 version: reviewed.target.expectedVersion,
               })}
@@ -234,52 +251,64 @@ export function AdminSecurityCenter() {
             <ConfigurationPreview preview={reviewed.details} />
           </>
         ) : null}
-        <label>
-          {t("securityConfig.justification")}
+        <label className="block space-y-2">
+          <span className="block text-sm font-medium text-slate-200">
+            {t("securityConfig.justification")}
+          </span>
           <textarea
             value={justification}
             onChange={(event) => {
               setJustification(event.target.value);
               clearConfirmation();
             }}
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white"
+            className={confirmationInputClass}
             rows={3}
           />
         </label>
         {reviewed && !stale && critical ? (
-          <>
-            <label>
-              {t("securityConfig.password")}
+          <div className="space-y-4 border-t border-slate-700 pt-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block min-w-0 space-y-2">
+                <span className="block text-sm font-medium text-slate-200">
+                  {t("securityConfig.password")}
+                </span>
+                <input
+                  className={confirmationInputClass}
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </label>
+              <label className="block min-w-0 space-y-2">
+                <span className="block text-sm font-medium text-slate-200">
+                  {t("securityConfig.mfaCode")}
+                </span>
+                <input
+                  className={confirmationInputClass}
+                  type="password"
+                  autoComplete="one-time-code"
+                  value={mfaCode}
+                  onChange={(event) => setMfaCode(event.target.value)}
+                />
+              </label>
+            </div>
+            <label className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-sm leading-6 text-amber-100">
               <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-            <label>
-              {t("securityConfig.mfaCode")}
-              <input
-                type="password"
-                autoComplete="one-time-code"
-                value={mfaCode}
-                onChange={(event) => setMfaCode(event.target.value)}
-              />
-            </label>
-            <label>
-              <input
+                className="mt-1 size-4 shrink-0 accent-sky-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
                 type="checkbox"
                 checked={confirmedCritical}
                 onChange={(event) => setConfirmedCritical(event.target.checked)}
               />
-              {t("securityConfig.confirmCritical")}
+              <span>{t("securityConfig.confirmCritical")}</span>
             </label>
-          </>
+          </div>
         ) : null}
         {view === "configuration" ? (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col flex-wrap gap-2 sm:flex-row">
             <button
               type="button"
+              className={secondaryActionClass}
               disabled={!changed && !draftStale}
               onClick={() => {
                 setDraft(null);
@@ -290,6 +319,7 @@ export function AdminSecurityCenter() {
             </button>
             <button
               type="button"
+              className={secondaryActionClass}
               disabled={
                 !effectiveDraft || !changed || draftStale || preview.isPending
               }
@@ -307,6 +337,7 @@ export function AdminSecurityCenter() {
             {draftStale ? (
               <button
                 type="button"
+                className={secondaryActionClass}
                 disabled={config.isFetching || preview.isPending}
                 onClick={previewDraftAgainstLatest}
               >
@@ -325,7 +356,7 @@ export function AdminSecurityCenter() {
               !justification.trim() ||
               (critical && (!confirmedCritical || !password))
             }
-            className="mt-2 w-fit rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-white disabled:opacity-50"
+            className="min-h-11 w-full rounded-xl bg-sky-500 px-5 py-2.5 font-semibold text-slate-950 transition enabled:hover:bg-sky-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300 sm:w-auto"
           >
             {t(
               view === "configuration"
@@ -336,13 +367,18 @@ export function AdminSecurityCenter() {
         ) : null}
       </fieldset>
       {errorKey ? (
-        <p role="alert" className="mt-3 text-sm text-rose-300">
+        <p
+          role="alert"
+          className="mt-3 rounded-xl border border-rose-500/40 bg-rose-950/30 p-3 text-sm leading-6 text-rose-200"
+        >
           {errorMessage(t, errorKey)}
         </p>
       ) : null}
-      {errorKey === "securityConfig.versionConflict" ? (
+      {errorKey === "securityConfig.versionConflict" ||
+      errorKey === "securityConfig.error" ? (
         <button
           type="button"
+          className={`mt-3 ${secondaryActionClass}`}
           disabled={pending || config.isFetching}
           onClick={() => {
             invalidatePreview();
@@ -354,7 +390,22 @@ export function AdminSecurityCenter() {
           {t("securityConfig.refreshRevision")}
         </button>
       ) : null}
-      {pending ? <output>{t("securityConfig.applying")}</output> : null}
+      {pending || preview.isPending ? (
+        <output className="mt-3 block rounded-xl border border-sky-500/30 bg-sky-950/30 p-3 text-sm text-sky-100">
+          {t(
+            pending
+              ? "securityConfig.applying"
+              : "securityConfig.previewPending",
+          )}
+        </output>
+      ) : null}
+      {completed && !pending ? (
+        <output className="mt-3 block rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-100">
+          {t(`securityConfig.completed.${completed.kind}`, {
+            version: completed.version,
+          })}
+        </output>
+      ) : null}
     </form>
   );
 
@@ -746,7 +797,7 @@ function History({
                 type="button"
                 disabled={pending}
                 onClick={() => onRollback(revision)}
-                className="rounded-xl border border-slate-700 px-3 py-2 text-slate-200 disabled:opacity-50"
+                className={secondaryActionClass}
               >
                 {t("securityConfig.restore")}
               </button>

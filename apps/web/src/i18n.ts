@@ -412,8 +412,8 @@ const localizedCopy = {
       requests: ["demandes", "requests"],
     },
     error: [
-      "Impossible d’appliquer cette configuration. Réessayez.",
-      "Unable to apply this configuration. Please try again.",
+      "Le service n’a pas pu confirmer le résultat. Actualisez la version publiée avant de réessayer.",
+      "The service could not confirm the outcome. Refresh the published version before trying again.",
     ],
     invalid: [
       "Vérifiez les paramètres de la configuration.",
@@ -447,6 +447,10 @@ const localizedCopy = {
       "Votre session n’est plus valide. Reconnectez-vous pour continuer.",
       "Your session is no longer valid. Sign in again to continue.",
     ],
+    administratorRequired: [
+      "Vous n’avez plus l’autorisation de gérer cette configuration.",
+      "You no longer have permission to manage this configuration.",
+    ],
     recentAuthenticationDescription: [
       "Âge maximal de la session pour la gestion du MFA, l’export et la suppression du compte.",
       "Maximum session age for MFA management, account export, and account deletion.",
@@ -469,6 +473,17 @@ const localizedCopy = {
       "Preview my edits on the latest version",
     ],
     applying: ["Application en cours…", "Applying…"],
+    previewPending: ["Prévisualisation en cours…", "Preparing preview…"],
+    completed: {
+      publication: [
+        "Configuration publiée. Version {{version}}.",
+        "Configuration published. Version {{version}}.",
+      ],
+      restoration: [
+        "Configuration restaurée. Version {{version}}.",
+        "Configuration restored. Version {{version}}.",
+      ],
+    },
     authenticationFailed: [
       "La vérification de votre identité a échoué. Vérifiez vos informations et réessayez.",
       "Could not verify your identity. Check your credentials and try again.",
