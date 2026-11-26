@@ -113,23 +113,19 @@ export class RedisSessionAdapter implements SessionRepository {
       return null;
     }
 
-    const record = this.parseRecord(data);
-    if (!record) {
+    const parsed = this.parseRecord(data);
+    if (!parsed) {
       return null;
     }
 
-    const userId = UserIdentifierValueObject.create(record.userId);
-    if (!userId.success) {
-      return null;
-    }
-
+    const { record, userId } = parsed;
     const expiresAt = new Date(record.expiresAt);
     const createdAt = new Date(record.createdAt);
     const lastActivityAt = new Date(record.lastActivityAt);
 
     return SessionEntity.rehydrate({
       identifier: id,
-      userId: userId.value,
+      userId,
       userSessionVersion: record.userSessionVersion,
       expiresAt,
       createdAt,
@@ -150,11 +146,13 @@ export class RedisSessionAdapter implements SessionRepository {
         return;
       }
 
-      const record = this.parseRecord(data);
-      if (
-        !record ||
-        lastActivityAt.getTime() <= Date.parse(record.lastActivityAt)
-      ) {
+      const parsed = this.parseRecord(data);
+      if (!parsed) {
+        return;
+      }
+
+      const { record } = parsed;
+      if (lastActivityAt.getTime() <= Date.parse(record.lastActivityAt)) {
         return;
       }
 
@@ -174,7 +172,7 @@ export class RedisSessionAdapter implements SessionRepository {
       if (result !== 2) {
         throw new Error("Unexpected session activity update result");
       }
-      // A competing update changed the snapshot. Re-evaluate its activity.
+      // Activity only moves forward, so an equal or newer snapshot ends the retry.
     }
   }
 
@@ -225,7 +223,9 @@ export class RedisSessionAdapter implements SessionRepository {
     return `user-sessions:${userId.value}`;
   }
 
-  private parseRecord(data: string): SessionRecord | null {
+  private parseRecord(
+    data: string,
+  ): { record: SessionRecord; userId: UserIdentifierValueObject } | null {
     try {
       const record = JSON.parse(data) as Partial<SessionRecord>;
       if (
@@ -243,7 +243,10 @@ export class RedisSessionAdapter implements SessionRepository {
         return null;
       }
 
-      return record as SessionRecord;
+      const userId = UserIdentifierValueObject.create(record.userId);
+      return userId.success
+        ? { record: record as SessionRecord, userId: userId.value }
+        : null;
     } catch {
       return null;
     }

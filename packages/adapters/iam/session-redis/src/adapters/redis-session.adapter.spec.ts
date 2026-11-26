@@ -156,6 +156,20 @@ describe("RedisSessionAdapter", () => {
       },
     );
 
+    it("does not update a record with an invalid user identifier", async () => {
+      const invalidRecord = record(createdAt).replace(userId.value, "invalid");
+      const redis = {
+        get: vi.fn().mockResolvedValue(invalidRecord),
+        eval: vi.fn().mockResolvedValue(1),
+      };
+      const adapter = new RedisSessionAdapter(redis as never);
+
+      await expect(adapter.findById(id)).resolves.toBeNull();
+      await adapter.updateLastActivity(id, activity);
+
+      expect(redis.eval).not.toHaveBeenCalled();
+    });
+
     it("does not write equal or older activity", async () => {
       const redis = {
         get: vi.fn().mockResolvedValue(record(activity)),
@@ -221,19 +235,24 @@ describe("RedisSessionAdapter", () => {
       expect(redis.eval).toHaveBeenCalledOnce();
     });
 
-    it("propagates technical Redis failures", async () => {
-      const error = new Error("Redis unavailable");
-      const redis = {
-        get: vi.fn().mockResolvedValue(record(createdAt)),
-        eval: vi.fn().mockRejectedValue(error),
-      };
-      await expect(
-        new RedisSessionAdapter(redis as never).updateLastActivity(
-          id,
-          activity,
-        ),
-      ).rejects.toBe(error);
-    });
+    it.each(["get", "eval"] as const)(
+      "propagates a technical Redis failure from %s",
+      async (command) => {
+        const error = new Error("Redis unavailable");
+        const redis = {
+          get: vi.fn().mockResolvedValue(record(createdAt)),
+          eval: vi.fn().mockResolvedValue(1),
+        };
+        redis[command].mockRejectedValueOnce(error);
+
+        await expect(
+          new RedisSessionAdapter(redis as never).updateLastActivity(
+            id,
+            activity,
+          ),
+        ).rejects.toBe(error);
+      },
+    );
   });
 
   it("lists only sessions from the active-session index", async () => {
