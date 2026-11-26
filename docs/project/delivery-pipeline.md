@@ -44,7 +44,7 @@ Work closure disposition         -> GitHub Issue state / state reason
 Task identity                    -> GitHub Sub-issue
 Task parent relationship         -> GitHub native Sub-issue relationship
 Task execution context           -> Task Sub-issue
-Task completion                  -> GitHub Sub-issue open/closed state
+Task completion / disposition    -> GitHub Sub-issue state / state reason
 Release identity / traceability   -> GitHub Release and attached release manifest
 Delivery ordering                -> GitHub Project
 Implementation/review vehicle    -> Pull Request
@@ -219,21 +219,50 @@ A GitHub Sub-issue represents a Method **Task** when Task Planning is triggered
 and that operational mapping is available. It is not a second Work and does not
 own a separate Work State, Work Type, Workflow Depth, or Priority.
 
-For `Quick` work, the top-level Issue MAY be a sufficient execution unit and no
-artificial Sub-issue is required.
+A Work Issue MAY be a sufficient execution unit at any Workflow Depth. A
+short Markdown checklist MAY track local execution steps without establishing
+independent Method Tasks or replacing Task Planning when triggered.
 
-For `Standard` or `Complex` work, create Sub-issues only when implementation
-requires delegation, sequencing, or independently verifiable units. Use the
+Create Sub-issues only when authorized Task Planning requires delegation,
+semantic sequencing, independently verifiable units, or separate execution
+coordination. Workflow Depth alone does not require Sub-issues. Use the
 [Task template](templates/task.md) as body guidance.
 
-Task Sub-issues SHOULD NOT be added to the Architecture Web Project as independent
-Work items by default. Their native parent relationship and open/closed state own
-Task structure and completion, while the parent Work may expose derived
-Sub-issue progress in Project views.
+#### Project membership and visibility
 
-If a future project policy intentionally adds Task Sub-issues as Project items,
-it MUST define dedicated Task field semantics and MUST NOT apply Work State,
-Work Type, Workflow Depth, or Priority as though each Task were a separate Work.
+The Task Project membership and visibility mapping becomes effective after
+this policy is integrated and live activation is verified under
+[External-owner activation](#external-owner-activation).
+
+- Each Task Sub-issue of a Work in GitHub Project #3 MUST belong to the same
+  Project. When creating or attaching a Task, verify membership after native
+  inheritance and add the Task through an authorized native operation if it
+  is missing.
+- The Work-only fields `Status`, `Work Type`, `Workflow Depth`, and `Priority`
+  MUST remain unset on Task items, whether open or closed. Task items MUST
+  have no separate lifecycle field.
+- Native parent relationships, Issue state and closure reason, dependencies,
+  assignees and relevant PR links provide Task execution context and evidence.
+  The parent Work exposes derived Sub-issues progress. Project membership does
+  not grant execution authority.
+- Work-level views, selection and lifecycle operations MUST distinguish
+  top-level Works from Tasks. Use a native hierarchical Project table to
+  display both populations without assigning Work fields to Tasks.
+
+#### Task closure
+
+Record a Task as closed with reason `completed` only after its authorized
+scope and applicable Task-level verification are satisfied. Record the
+applicable native closure reason for an authorized non-completion disposition
+and document the rationale on the Task. Use `not planned` for abandoned scope
+or the native duplicate disposition with a reference to the surviving Issue.
+
+Before the parent Work becomes `Done`, reconcile its execution Tasks against
+the authorized Task plan. Read back each Task's Issue state and closure
+reason, check its completion evidence or authorized non-completion rationale,
+and verify the native Sub-issues progress on the parent. An open execution
+Task blocks Work completion until it has a justified terminal disposition.
+Closing the parent MUST NOT automatically close any Task.
 
 ### Authorized execution handoff
 
@@ -290,8 +319,9 @@ requirements.
 ## 4. Work State
 
 Once effectively activated, the GitHub Project native field `Status` is
-Architecture Web's unique operational owner of the Method Work State. The
-Project MUST NOT maintain a parallel custom `Work State` field.
+Architecture Web's unique operational owner of the Method Work State for
+Work items. It MUST remain unset on Task Sub-issues. The Project MUST NOT
+maintain a parallel custom `Work State` field.
 
 Allowed `Status` values are exactly:
 
@@ -439,14 +469,15 @@ story points, or deadlines.
 
 Delivery selection policy:
 
-1. Only Work whose Method Work State is `Ready`, represented operationally as
-   `Status = Ready`, is eligible for the Ready Queue.
+1. Only an open top-level Work Issue whose Method Work State is `Ready`,
+   represented operationally as `Status = Ready`, is eligible for the Ready
+   Queue. Task Sub-issues and other Project items are not eligible.
 2. Dependencies and WIP policy remove Work that cannot currently execute.
 3. Among the remaining Work, lower Priority number wins (`P0` before `P1`, etc.).
 4. At equivalent dependency and Priority conditions, explicit manual ordering,
    age, or another implementation-defined deterministic tie-break MAY decide.
-5. Initial **implementation WIP limit**: at most **1 Work in `Implementing`**
-   unless a human explicitly accepts a temporary exception.
+5. Initial **implementation WIP limit**: at most **1 open top-level Work in
+   `Implementing`** unless a human explicitly accepts a temporary exception.
 
 The human or Workflow Coordinator uses authorized native GitHub Project and
 Issue reads to apply these criteria. An authorized maintainer-directed handoff
@@ -460,9 +491,15 @@ limit unless a future project policy explicitly broadens it.
 
 ## 7. Recommended Project views
 
+All Work-level views below MUST use the native Project filter
+`is:issue no:parent-issue`. Backlog, Ready Queue, Active and Waiting also
+require `is:open`. Workflow and Done retain closed Works that match their
+criteria. During activation, verify that Work-only views show only top-level
+Issues, including when hierarchy display is available.
+
 ### Backlog
 
-Table showing at least:
+Table of open Works excluding `Status = Done`, showing at least:
 
 ```text
 Title
@@ -517,6 +554,17 @@ Table filtered to:
 ```text
 Status = Done
 ```
+
+### Hierarchy
+
+Use a table for Work and Task Issues in the same Project with native
+`Show hierarchy` enabled. Keep both open and closed Tasks visible and omit
+Work-only filters that would hide children. Expose the title, parent
+relationship, native Issue state, assignees, Sub-issues progress and linked PRs
+where supported. The table provides visibility into execution under each Work.
+
+Verify actual expanded hierarchy rendering and Work-only view membership
+during activation. A stored view filter alone does not prove display behavior.
 
 ## 8. Pull Requests
 
@@ -590,8 +638,9 @@ native GitHub Project and Issue operations. Before recording `Done`, verify:
 
 - the exact integrated commit on `main` and its identity as the authorized
   Work candidate, for Work with repository integration;
-- the agreed scope is concluded, required Tasks have acceptable terminal
-  dispositions, and required dependencies are resolved;
+- the agreed scope is concluded, all execution Task Sub-issues have acceptable
+  terminal Issue dispositions as defined in [Task closure](#task-closure), and
+  required dependencies are resolved;
 - applicable reviews are accepted, required validation is sufficient, and
   required post-integration obligations are complete;
 - required Repository CI and source-release processing succeeded for the
@@ -639,6 +688,20 @@ results.
 For lifecycle fields in particular, the Role or authority responsible for the
 underlying activity establishes the semantic result; the Workflow Coordinator
 may only record that result after applicable gates are satisfied.
+
+For Task Sub-issues, the Workflow Coordinator MAY record the established
+Task disposition through authorized native Issue operations after verifying
+applicable Task evidence and the authorized plan. Non-completion decisions
+that alter accepted Work scope require the responsible human authority.
+Read back the native Issue state and reason; do not infer successful
+completion from Project fields or a PR merge.
+
+Once the Task Project mapping is active, the Workflow Coordinator MAY add a
+missing authorized Task to its parent's Project and clear invalid Work-only
+field values on Task items. Verify the parent relation, Project membership
+and existing values before writing, and read back the result. Initial
+reconciliation follows the activation checks in
+[GitHub automation constraints](#11-github-automation-constraints).
 
 The default Architecture Web policy is:
 
@@ -689,6 +752,7 @@ gates.
 
 Safe candidates include:
 
+- adding Work and Task Issues to their authorized Project for visibility;
 - populating non-authoritative display fields;
 - surfacing linked PRs or Sub-issue progress;
 - creating filtered views;
@@ -698,6 +762,8 @@ Automation MUST NOT blindly:
 
 - assign or transition lifecycle `Status` merely because an item is added, an
   Issue is closed, or a Pull Request is merged;
+- populate Work-only fields on Task Sub-issues or close a Task solely because
+  its parent Work or an associated PR is closed;
 - infer an absent `Status` as `Idea` or another Work State;
 - mark a Work `Ready` without Readiness;
 - mark a Work `Done` when a PR merges;
@@ -707,6 +773,26 @@ Automation MUST NOT blindly:
   executor outside the authorized handoff;
 - accept a target ref solely from untrusted agent output;
 - treat required check or automatic publication success as merge authority.
+
+After integration and before reconciling Task items, verify the effective
+native Project workflows and field settings. Inspect auto-add and inheritance,
+item-added, reopened, closed and PR-triggered status changes, status-driven
+closure, automatic archiving, field defaults and Issue-status synchronization
+where applicable. Keep membership automation that respects the authorized
+scope. Disable or safely constrain each setting that can populate Work-only
+fields on Tasks, bypass lifecycle gates, change Issue dispositions or hide
+Tasks that must remain visible. Verify built-in workflows separately from
+Issue-status synchronization because they can still run with sync disabled.
+Record administrator evidence for settings that the available reads cannot
+verify.
+
+Once safe settings are verified, enumerate Task Sub-issues of Works in the
+Project and compare them with actual Project membership. Preserve existing
+Task items, add missing Tasks and clear any invalid values in the four
+Work-only fields. Read back membership, parent relationships, empty Work-only
+fields, unchanged Issue states and closure reasons, and native progress.
+Verify the Work-only views and the expanded Hierarchy table, including closed
+Tasks, before declaring the mapping active.
 
 ## 12. Agent execution security and delivery tooling
 
