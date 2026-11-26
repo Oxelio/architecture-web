@@ -184,10 +184,10 @@ test("CLI requires native coverage and preserves workspace counters in its final
     resolve(checkout, "apps/app/coverage/lcov.info"),
     "SF:src/index.ts\nDA:1,9\nend_of_record\n",
   );
-  const run = () =>
+  const run = (...args: string[]) =>
     spawnSync(
       process.execPath,
-      [resolve(import.meta.dirname, "merge-coverage.ts")],
+      [resolve(import.meta.dirname, "merge-coverage.ts"), ...args],
       { cwd: checkout, encoding: "utf8" },
     );
   const missing = run();
@@ -218,6 +218,42 @@ test("CLI requires native coverage and preserves workspace counters in its final
     assert.ok(merged.includes(`SF:${source}\nDA:1,2`));
   }
   assert.equal((merged.match(/^SF:/gm) ?? []).length, CI_SOURCES.length + 1);
+
+  const runWithSpike = () => run("--with-delegated-authorization");
+  assert.match(runWithSpike().stderr, /ENOENT.*delegated-authorization/);
+  const spike = "scripts/spikes/delegated-authorization";
+  mkdirSync(resolve(checkout, spike), { recursive: true });
+  mkdirSync(resolve(checkout, "coverage/delegated-authorization"));
+  const spikeReports = [
+    "adapter.mjs",
+    "database.mjs",
+    "fastify-host.mjs",
+    "issuer.mjs",
+  ].map((name) => {
+    const source = `${spike}/${name}`;
+    writeFileSync(resolve(checkout, source), "export {};\n");
+    return `SF:${source}\nDA:1,3\nend_of_record\n`;
+  });
+  const spikeReport = resolve(
+    checkout,
+    "coverage/delegated-authorization/lcov.info",
+  );
+  writeFileSync(spikeReport, spikeReports.slice(1).join(""));
+  assert.match(
+    runWithSpike().stderr,
+    /Missing expected LCOV source.*adapter\.mjs/,
+  );
+  writeFileSync(spikeReport, spikeReports.join(""));
+  const completeWithSpike = runWithSpike();
+  assert.equal(completeWithSpike.status, 0, completeWithSpike.stderr);
+  const mergedWithSpike = readFileSync(
+    resolve(checkout, "coverage/lcov.info"),
+    "utf8",
+  );
+  assert.ok(mergedWithSpike.startsWith(merged));
+  for (const record of spikeReports) {
+    assert.ok(mergedWithSpike.includes(record));
+  }
 });
 
 test("rejects malformed, duplicate or incomplete line counters", () => {

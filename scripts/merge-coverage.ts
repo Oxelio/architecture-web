@@ -14,6 +14,13 @@ export const CI_SOURCES = [
   "scripts/run-workspace-tests.ts",
 ];
 
+const DELEGATED_AUTHORIZATION_SOURCES = [
+  "adapter.mjs",
+  "database.mjs",
+  "fastify-host.mjs",
+  "issuer.mjs",
+].map((name) => `scripts/spikes/delegated-authorization/${name}`);
+
 interface CoverageReport {
   path: string;
   content: string;
@@ -117,17 +124,27 @@ if (
     const path = `${workspace.path}/coverage/lcov.info`;
     return { path, content: readFileSync(resolve(root, path), "utf8") };
   });
-  const scriptsPath = "coverage/scripts/lcov.info";
-  reports.push({
-    path: scriptsPath,
-    sourceRoot: ".",
-    expectedSources: CI_SOURCES,
-    content: readFileSync(resolve(root, scriptsPath), "utf8"),
-  });
+  const coverageReports: [string, readonly string[]][] = [
+    ["coverage/scripts/lcov.info", CI_SOURCES],
+  ];
+  if (process.argv.includes("--with-delegated-authorization")) {
+    coverageReports.push([
+      "coverage/delegated-authorization/lcov.info",
+      DELEGATED_AUTHORIZATION_SOURCES,
+    ]);
+  }
+  for (const [path, expectedSources] of coverageReports) {
+    reports.push({
+      path,
+      sourceRoot: ".",
+      expectedSources,
+      content: readFileSync(resolve(root, path), "utf8"),
+    });
+  }
   const output = mergeCoverage(reports, root);
   mkdirSync(resolve(root, "coverage"), { recursive: true });
   writeFileSync(resolve(root, "coverage/lcov.info"), output);
   console.log(
-    `Merged ${reports.length - 1} workspace reports and native CI-script coverage`,
+    `Merged ${reports.length - coverageReports.length} workspace reports and ${coverageReports.length} native Node reports`,
   );
 }
