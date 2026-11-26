@@ -2,15 +2,9 @@
 
 > **Identifier:** SF-SECURITY-CONFIG-001
 >
-> **Artifact status:** Proposed amendment — Work #184
+> **Lifecycle:** Approved
 >
-> **Content status:** Proposed
->
-> The existing approved specification on `main` remains authoritative.
-> Only the changes proposed by
-> [Work #184](https://github.com/Oxelio/architecture-web/issues/184)
-> await explicit Human Functional Approval. This draft neither withdraws
-> previously approved behavior nor establishes an effective new policy.
+> **Content status:** Canonical
 >
 > **Document type:** Functional Specification
 >
