@@ -1,7 +1,7 @@
 # ADR-0012 — OAuth Authorization Server Integration and Grant Authority
 
-**Status:** Proposed
-**Content status:** Proposed
+**Status:** Accepted
+**Content status:** Canonical
 **Document type:** Architecture Decision Record
 **Domain:** IAM / Delegated Authorization
 
@@ -48,9 +48,9 @@ credential renewal or scope revival after IAM changes.
 | Own the full OAuth implementation                                                             | Complete control over protocol state and transaction ordering.                                                          | The project takes on protocol correctness, interoperability, security fixes and conformance maintenance.                                                                                             |
 | Invalidate an entire affected credential family when a permission is withdrawn                | Simpler invalidation and lookup. Can contain replay to a single family.                                                 | In the spike, withdrawal also removed unaffected read from mixed-scope families and required fresh consent to reconnect.                                                                             |
 
-## Proposed decision
+## Decision
 
-Prefer an embedded `oidc-provider` OAuth adapter, with version `9.15.1` as
+Use an embedded `oidc-provider` OAuth adapter, with version `9.15.1` as
 the evaluated baseline. IAM remains the unique business authorization
 authority. Provider Grants and credentials are subordinate records bound to one
 IAM grant lifecycle and resource. The resource adapter calls IAM for effective
@@ -93,13 +93,21 @@ transaction guarantees.
   account-linked erasure add schema and lifecycle responsibilities. The exposed
   endpoint profile and client interoperability still need review.
 
+## Structural acceptance
+
+The Architecture Web maintainer explicitly accepted the decision on 2026-11-26
+at [candidate fca0d8f92a12f5c87e50dfcff8a8404705d3e514](https://github.com/Oxelio/architecture-web/blob/fca0d8f92a12f5c87e50dfcff8a8404705d3e514/docs/architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md),
+PR #216. See the [attributable decision](https://github.com/Oxelio/architecture-web/issues/215#issuecomment-7202625547).
+This is an accepted target, not effective current architecture, Readiness or
+merge authority. The Technical Design owns remaining integration decisions.
+
 ## Target and synchronization
 
 The [approved Functional Specification](../../specifications/SF-DELEGATED-AUTHORIZATION-001.md)
 remains the behavioral target. The
 [proposed Technical Design](../../technical-designs/TD-DELEGATED-AUTHORIZATION-001.md)
 owns technical contracts and evidence for Work #215. ADR-0012 records the
-proposed structural rationale.
+accepted structural rationale.
 
 When the accepted target is effective, synchronize these current-state owners:
 
@@ -110,7 +118,7 @@ When the accepted target is effective, synchronize these current-state owners:
 | [IAM security](../iam-security.md)                                                                                   | Issuance and admission order, effective invalidation, session independence and credential erasure. |
 | [Cross-context compliance](../cross-context-compliance.md) and [IAM event reliability](../iam-events-reliability.md) | Effective audit and notification facts, delivery and account erasure interactions.                 |
 
-The proposal preserves the aggregate and PostgreSQL consistency rationale in
+The accepted decision preserves the aggregate and PostgreSQL consistency rationale in
 [ADR-0004](0004-aggregates-and-consistency.md), event ownership in
 [ADR-0005](0005-domain-events-messaging.md), and IAM-owned erasure evidence in
 [ADR-0010](0010-iam-erasure-evidence.md). Runtime pinning and deployment-image
