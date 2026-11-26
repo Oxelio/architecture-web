@@ -223,8 +223,15 @@ describe("CI trust and failure boundaries", () => {
     const collect = steps.findIndex(
       (step) => step.run === "pnpm ci:test:tooling",
     );
+    const spike = steps.findIndex((step) =>
+      step.run?.includes(
+        "--test-reporter-destination=coverage/delegated-authorization/lcov.info",
+      ),
+    );
     const merge = steps.findIndex(
-      (step) => step.run === "node scripts/merge-coverage.ts",
+      (step) =>
+        step.run ===
+        "node scripts/merge-coverage.ts --with-delegated-authorization",
     );
     const upload = steps.findIndex(
       (step) => step.with?.["name"] === "sonar-coverage",
@@ -232,7 +239,8 @@ describe("CI trust and failure boundaries", () => {
     expect(collect).toBeGreaterThan(
       steps.findIndex((step) => step.run === "pnpm ci:test:integration"),
     );
-    expect(merge).toBeGreaterThan(collect);
+    expect(spike).toBeGreaterThan(collect);
+    expect(merge).toBeGreaterThan(spike);
     expect(upload).toBeGreaterThan(merge);
     expect(
       shared.jobs["node-compatibility"]?.steps?.some(
