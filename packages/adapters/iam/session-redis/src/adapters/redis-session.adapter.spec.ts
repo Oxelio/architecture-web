@@ -104,42 +104,136 @@ describe("RedisSessionAdapter", () => {
     );
   });
 
-  it("updates session activity without extending its TTL", async () => {
+  describe("activity updates", () => {
     const id = SessionIdentifierValueObject.generate();
     const userId = UserIdentifierValueObject.generate();
-    const expiresAt = new Date(Date.now() + 60_000);
-    const createdAt = new Date();
-    const lastActivityAt = new Date();
-    const record = JSON.stringify({
-      userId: userId.value,
-      userSessionVersion: 1,
-      expiresAt: expiresAt.toISOString(),
-      createdAt: createdAt.toISOString(),
-      lastActivityAt: lastActivityAt.toISOString(),
-    });
-    const redis = {
-      get: vi.fn().mockResolvedValue(record),
-      set: vi.fn(),
-    };
-    const adapter = new RedisSessionAdapter(redis as never);
-
-    const session = await adapter.findById(id);
-    expect(session?.createdAt).toEqual(createdAt);
-    expect(session?.lastActivityAt).toEqual(lastActivityAt);
-
-    const activity = new Date();
-    await adapter.updateLastActivity(id, activity);
-    expect(redis.set).toHaveBeenCalledWith(
-      `session:${id.value}`,
+    const key = `session:${id.value}`;
+    const createdAt = new Date("2026-01-01T12:00:00.000Z");
+    const expiresAt = new Date("2026-01-01T13:00:00.000Z");
+    const activity = new Date("2026-01-01T12:10:00.000Z");
+    const record = (lastActivityAt: Date) =>
       JSON.stringify({
         userId: userId.value,
         userSessionVersion: 1,
         expiresAt: expiresAt.toISOString(),
         createdAt: createdAt.toISOString(),
-        lastActivityAt: activity.toISOString(),
-      }),
-      "KEEPTTL",
+        lastActivityAt: lastActivityAt.toISOString(),
+      });
+
+    it("conditionally replaces the exact snapshot without extending its TTL", async () => {
+      const redis = {
+        get: vi.fn().mockResolvedValue(record(createdAt)),
+        eval: vi.fn().mockResolvedValue(1),
+      };
+      const adapter = new RedisSessionAdapter(redis as never);
+
+      const session = await adapter.findById(id);
+      expect(session?.createdAt).toEqual(createdAt);
+      expect(session?.lastActivityAt).toEqual(createdAt);
+
+      await adapter.updateLastActivity(id, activity);
+      expect(redis.eval).toHaveBeenCalledWith(
+        expect.stringContaining("XX"),
+        1,
+        key,
+        record(createdAt),
+        record(activity),
+      );
+    });
+
+    it.each([null, "invalid JSON", "{}"])(
+      "does not update an absent or invalid record (%s)",
+      async (snapshot) => {
+        const redis = {
+          get: vi.fn().mockResolvedValue(snapshot),
+          eval: vi.fn(),
+        };
+        await new RedisSessionAdapter(redis as never).updateLastActivity(
+          id,
+          activity,
+        );
+        expect(redis.eval).not.toHaveBeenCalled();
+      },
     );
+
+    it("does not write equal or older activity", async () => {
+      const redis = {
+        get: vi.fn().mockResolvedValue(record(activity)),
+        eval: vi.fn(),
+      };
+      const adapter = new RedisSessionAdapter(redis as never);
+      await adapter.updateLastActivity(id, activity);
+      await adapter.updateLastActivity(id, createdAt);
+      expect(redis.eval).not.toHaveBeenCalled();
+    });
+
+    it("stops when the key disappears before the conditional write", async () => {
+      const redis = {
+        get: vi.fn().mockResolvedValue(record(createdAt)),
+        eval: vi.fn().mockResolvedValue(0),
+      };
+      await new RedisSessionAdapter(redis as never).updateLastActivity(
+        id,
+        activity,
+      );
+      expect(redis.get).toHaveBeenCalledOnce();
+      expect(redis.eval).toHaveBeenCalledOnce();
+    });
+
+    it("retries against an intervening snapshot if the activity is newer", async () => {
+      const intermediate = new Date("2026-01-01T12:05:00.000Z");
+      const redis = {
+        get: vi
+          .fn()
+          .mockResolvedValueOnce(record(createdAt))
+          .mockResolvedValueOnce(record(intermediate)),
+        eval: vi.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(1),
+      };
+      await new RedisSessionAdapter(redis as never).updateLastActivity(
+        id,
+        activity,
+      );
+      expect(redis.eval).toHaveBeenNthCalledWith(
+        2,
+        expect.any(String),
+        1,
+        key,
+        record(intermediate),
+        record(activity),
+      );
+      expect(redis.eval).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not overwrite newer activity after a conflict", async () => {
+      const newer = new Date("2026-01-01T12:15:00.000Z");
+      const redis = {
+        get: vi
+          .fn()
+          .mockResolvedValueOnce(record(createdAt))
+          .mockResolvedValueOnce(record(newer)),
+        eval: vi.fn().mockResolvedValue(2),
+      };
+      await new RedisSessionAdapter(redis as never).updateLastActivity(
+        id,
+        activity,
+      );
+      expect(redis.get).toHaveBeenCalledTimes(2);
+      expect(redis.eval).toHaveBeenCalledOnce();
+    });
+
+    it("propagates technical Redis failures", async () => {
+      const error = new Error("Redis unavailable");
+      const redis = {
+        get: vi.fn().mockResolvedValue(record(createdAt)),
+        eval: vi.fn().mockRejectedValue(error),
+      };
+      await expect(
+        new RedisSessionAdapter(redis as never).updateLastActivity(
+          id,
+          activity,
+        ),
+      ).rejects.toBe(error);
+    });
   });
 
   it("lists only sessions from the active-session index", async () => {
@@ -185,13 +279,13 @@ describe("RedisSessionAdapter", () => {
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
         }),
       ),
-      set: vi.fn(),
+      eval: vi.fn(),
     };
     const adapter = new RedisSessionAdapter(redis as never);
 
     await expect(adapter.findById(id)).resolves.toBeNull();
     await adapter.updateLastActivity(id, new Date());
 
-    expect(redis.set).not.toHaveBeenCalled();
+    expect(redis.eval).not.toHaveBeenCalled();
   });
 });
