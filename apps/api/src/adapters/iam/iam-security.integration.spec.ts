@@ -19,6 +19,7 @@ import {
   PasswordAuthenticatorEntity,
   SessionEntity,
   UserEntity,
+  UserIdentifierValueObject,
   UserRoleValueObject,
 } from "@architecture/iam/domain";
 import { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
@@ -82,6 +83,80 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     hasher = new Argon2PasswordHasherAdapter();
   const outbox = (trx: Kysely<IamDatabase>) =>
     new KyselyOutboxWriterAdapter(trx as never);
+  it.each(["revocation", "expiration"] as const)(
+    "does not recreate a session when %s interleaves with activity tracking",
+    async (invalidation) => {
+      const userId = UserIdentifierValueObject.generate();
+      const session = SessionEntity.createForUser({
+        userId,
+        userSessionVersion: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const key = `session:${session.identifier.value}`;
+      const index = `user-sessions:${userId.value}`;
+      const adapter = new RedisSessionAdapter(redis);
+      const concurrent = redis.duplicate();
+      let releaseRead!: () => void;
+      let signalRead!: () => void;
+      const resumeRead = new Promise<void>((resolve) => {
+        releaseRead = resolve;
+      });
+      const readReached = new Promise<void>((resolve) => {
+        signalRead = resolve;
+      });
+      try {
+        await concurrent.ping();
+        await adapter.save(session);
+
+        // Pause a non-atomic update after Redis returns the old record.
+        // An atomic update may complete first, in which case invalidation
+        // follows it instead. No timing-dependent sleeps are needed.
+        const get = redis.get.bind(redis);
+        const read = vi.spyOn(redis, "get").mockImplementationOnce(
+          async (sessionKey) => {
+            const snapshot = await get(sessionKey);
+            signalRead();
+            await resumeRead;
+            return snapshot;
+          },
+        );
+        const activity = adapter.updateLastActivity(
+          session.identifier,
+          new Date(session.lastActivityAt.getTime() + 1_000),
+        );
+        try {
+          await Promise.race([readReached, activity]);
+          if (invalidation === "revocation") {
+            await new RedisSessionAdapter(concurrent).delete(
+              session.identifier,
+            );
+          } else {
+            // Force Redis expiration, without waiting on wall-clock timing.
+            await concurrent.pexpireat(key, 1);
+          }
+          expect(await concurrent.get(key)).toBeNull();
+          releaseRead();
+          await activity;
+
+          expect(await concurrent.get(key)).toBeNull();
+          expect(await concurrent.pttl(key)).toBe(-2);
+          if (invalidation === "revocation") {
+            expect(
+              await concurrent.zscore(index, session.identifier.value),
+            ).toBeNull();
+          }
+        } finally {
+          releaseRead();
+          await activity.catch(() => undefined);
+          read.mockRestore();
+        }
+      } finally {
+        await concurrent.del(key, index);
+        await concurrent.quit();
+      }
+    },
+  );
+
   it("counts recovery attempts atomically without relying on Audit delivery", async () => {
     const fingerprint = randomUUID(),
       key = `iam:recovery-origin:${fingerprint}`;
