@@ -31,9 +31,11 @@ Architecture owners:
 [ADR-0005](../architecture/decisions/0005-domain-events-messaging.md),
 [testing](../development/testing.md).
 
-Design baseline: focused reads of current main and the Work branch; executable
-feasibility evidence has not been obtained. The proposal remains incomplete
-pending the protocol integration experiment and structural decision.
+Design baseline: focused reads of current main and the Work branch, plus the
+[executable feasibility evidence](#executable-feasibility-evidence).
+Work #215 includes the OAuth authorization server integration. The proposed
+structural rationale is in
+[ADR-0012](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md).
 
 ## 1. Authorized behavior / constraints to preserve
 
@@ -51,10 +53,11 @@ responsible for administrator eligibility; delegatedAuthorization owns the
 client policy and grant lifecycle. No independent bounded context or shared
 cross-context domain model is justified by current requirements.
 
-OAuth is a protocol adapter, not a product domain. IAM owns client admission,
-permission policy and active grant decisions. A provider may maintain protocol
-records (codes, tokens, interactions, provider grant references), but these
-are subordinate to the authoritative IAM grant and never confer access alone.
+IAM is the unique business authorization authority. It owns client admission,
+permission policy, consent, grant lifecycles and final delegated admission.
+The OAuth protocol adapter owns codes, tokens, interactions and provider Grant
+references. Each provider Grant is bound to one IAM grant lifecycle and resource.
+The presence of provider state alone cannot authorize an operation.
 
 Notifications and Audit consume integration facts under existing ADR-0005.
 The composition root wires public contracts and concrete adapters.
@@ -114,18 +117,20 @@ deliberately where account security and grant invalidation must commit together.
 
 ## 6. Adapters and composition
 
-Preferred initial topology: protocol adapter composed alongside the existing
-Fastify host, logically separated from HTTP account controllers. Existing
-Web handles first-party login, consent, connected applications and admin
-screens. No additional worker lifecycle or identity store.
+Prefer an embedded `oidc-provider` protocol adapter composed in the
+existing Fastify host, with `9.15.1` as the evaluated baseline.
+Provider-specific handlers, serialization and metadata mapping stay in
+infrastructure. Existing Web handles first-party login, consent, connected
+applications and administration. Work #214 owns the downstream resource
+boundary and uses an explicit application-owned IAM admission contract.
 
-Evaluate node-oidc-provider first; provider-specific handlers, storage
-serialization and metadata mapping stay in infrastructure. The protocol
-server is not the MCP resource server. Future #214 uses IAM admission through
-an explicit application-owned contract at a trusted resource boundary.
-
-Separate process topology is a valid alternative, not yet decided. No direct
-imports from one application's private composition root into another.
+The spike used a minimal Node HTTP host. The Fastify integration must
+establish where the provider accepts its request body, which component owns
+the response and cookies, and how the per-request transaction reaches all
+provider adapter calls. Prove that neither Fastify nor the provider sends
+success headers, a code redirect or a token body before the applicable
+transaction commits. Include commit failure, handled replay, connection loss
+and the real first-party authentication bridge in the integration tests.
 
 ## 7. Data and state
 
@@ -142,16 +147,22 @@ expiration without losing the IAM grant lifecycle.
 
 Prefer opaque access tokens with authoritative lookup/introspection for V1.
 Bind the credential to issuer, client, account, grant lifecycle, resource,
-expiry and granted permission snapshot. A permission removed then regranted
-must not become usable through an older credential. Compare permission
-generations or rotate the grant credential revision on restriction; if
-rotating, renewal must not silently restore withdrawn privileges. This
-representation and unaffected-scope renewal behavior need proof in the spike.
+expiry and an immutable snapshot of the selected permission generations.
+Give each new permission grant a non-reused generation. Consent and
+issuance freeze those generations in a credential family. Renewal intersects
+the original snapshot with the generations still current under IAM policy.
+Final admission also checks the credential's scope against this intersection.
+A regranted permission has a different generation, so old credentials retain
+only still-current permissions.
 
 ## 8. Flows, interfaces and contracts
 
-Authorization Code with PKCE S256 is the initial protocol candidate. Use
-pre-registered approved clients initially where interoperability allows.
+Use Authorization Code with PKCE S256. At the token endpoint, require an
+explicit `redirect_uri` and require it to exactly match the URI bound to the code
+before consumption. F02 showed that the native S256 exchange accepts omission.
+Keep the guard at the protocol boundary and verify the error mapping, code
+usability after denial and access to parsed parameters in the Fastify bridge.
+Use pre-registered approved clients initially where interoperability allows.
 Advertise required OAuth metadata and resource discovery for #214. Evaluate
 CIMD only with controlled client admission, metadata trust and SSRF controls;
 DCR, if needed, cannot self-approve clients. No password grant, implicit flow
@@ -174,12 +185,24 @@ SF FR-16, not a promise of retroactive cancellation.
 
 ## 9. Transactions, consistency, concurrency and idempotency
 
-Authoritative grant decisions and security mutations must be serialized in
-PostgreSQL. Use existing account locks/administrative-access discipline as the
-starting point; define and test a consistent lock order for account, client and
-grant boundaries before implementation. Do not acquire account locks after
-client locks if other paths acquire them in reverse order. Provider/network
-I/O must not be performed while holding unbounded database locks.
+Use one PostgreSQL transaction per issuance decision. Authoritatively check
+the current client, account, grant lifecycle and permission generations, then
+atomically consume the presented code or refresh token and persist eligible
+successors. Authorization code persistence also rechecks the IAM decision.
+Release the successful response only after commit. Technical failures roll
+back consumption and writes. If a request proves replay, persist the
+applicable protocol-family invalidation before returning its protocol error.
+An independently admitted access decision always rechecks current IAM state.
+
+Build the concrete lock order on the existing
+[IAM administrative-access and account lock discipline](../architecture/iam-security.md#operation-and-concurrency-boundaries).
+Specify acquisition order across account, client, grant, family and credential
+rows, including deterministic ordering for multi-row paths. Prove that
+client-wide fan-out and account-wide invalidation cover concurrently created
+grants and never acquire locks in opposite directions. Keep network and UI
+waits outside the transaction. The spike's fixture-wide fence established
+ordering on one primary. Production lock granularity, contention and
+deadlock/retry behavior remain open.
 
 Account security invalidation must be part of the successful account security
 transaction, with durable affected-grant facts, not an asynchronous consumer.
@@ -277,26 +300,15 @@ Protocol experiment must establish PKCE, partial scopes, issuer/resource
 binding, controlled registration, consent reuse prevention, provider storage,
 refresh/revocation and failure behavior. Test against ChatGPT and a second
 compatible MCP client when #214 integration is available; use synthetic test
-accounts before real user exposure. No test execution or successful
-interoperability is asserted here.
+accounts before real user exposure. The isolated protocol results appear in
+[executable feasibility evidence](#executable-feasibility-evidence).
 
-## 16. Technical alternatives and trade-offs
+## 16. Provider feasibility
 
-- node-oidc-provider: first candidate. Official documentation advertises
-  Node/Fastify integration, resource indicators and CIMD draft support.
-  Validate the selected release, adapter and extension points; ensure all
-  issuance, refresh and admission paths respect IAM and do not duplicate
-  authoritative grant state.
-- Ory Hydra: independent protocol server with external login/consent.
-  The official OSS MCP guide uses v26.2.0 without resource indicators; the
-  enterprise guide documents support. Verify actual selected OSS release and
-  license before treating it as equivalent. Separate persistence and remote
-  lifecycle coordination increase consistency complexity.
-- Keycloak/external identity platform: candidate only if it can preserve
-  existing IAM ownership without identity duplication or unjustified
-  replacement. Not preferred given current scope.
-- Custom protocol implementation: reject as the initial direction; protocol
-  primitives and maintenance risk have no identified product value.
+The [proposed ADR](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md)
+compares the preferred embedded integration with alternatives. Re-evaluate
+the chosen provider/version at integration against the exact endpoint profile
+needed for #214.
 
 References:
 [node-oidc-provider](https://github.com/panva/node-oidc-provider),
@@ -306,24 +318,21 @@ References:
 [OpenAI authentication](https://developers.openai.com/plugins/build/auth).
 Documentation evidence only, consulted 2026-11-26.
 
-
 ### Version-pinned feasibility findings (static inspection)
 
-Candidate: oidc-provider 9.15.1 (MIT; release 2026-11-20). Reviewed the
-tagged source, not only main or generic feature documentation. The package
-is ESM JavaScript; confirm TypeScript declarations and the project's Node
-runtime compatibility in the isolated experiment. Do not add a runtime
-dependency before the structural decision.
+The evaluated release is `oidc-provider@9.15.1` (MIT, 2026-11-20). Its
+tagged source uses ESM JavaScript. Confirm TypeScript declarations and the
+Fastify contract as part of integration preparation.
 
-| Boundary | Observed source capability | Required project-specific proof |
-| --- | --- | --- |
-| Consent | Custom interactions, findAccount, loadExistingGrant; provider Grant has per-resource accepted/rejected scopes. | Mandatory/optional classification, final consent check, account binding, no stale remembered consent, repeated optional-scope request. |
-| Client admission | Client adapter lookup; CIMD allowFetch and allowClient (including cached metadata). | Reject unknown/disabled clients at all relevant endpoints, even cached; no metadata-based self-approval. |
-| Resource | resourceIndicators.getResourceServerInfo, defaultResource, useGrantedResource; PKCE policy. | Single intended resource, enforce S256 and scope policy, no cross-resource credential reuse. |
-| Issuance | Authorization-code and refresh handlers load provider Grant and validate account. | Every code/refresh issue and persistence path subordinate to current IAM authorization; concurrent invalidation cannot return a usable credential. |
-| Storage | Adapter contract includes upsert, find, consume, destroy, revokeByGrantId and lookup methods. | Atomic consume rejects reuse by throwing, not returning false; hashed bearer lookup keys where compatible; expiry, erasure, replica/race behavior. |
-| Introspection | Valid token and provider grant checks plus allowedPolicy; opaque token format supports extra claims. | Authenticated resource-server caller, safe projection, current IAM admission with precise lifecycle/resource/scope binding. |
-| Session | Default expiresWithSession and initial refresh issuance depend on offline_access. | First-party sign-out preserves business grant and valid delegated credentials; consent still requires live first-party session. |
+| Boundary         | Observed source capability                                                                                     | Required project-specific proof                                                                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Consent          | Custom interactions, findAccount, loadExistingGrant; provider Grant has per-resource accepted/rejected scopes. | Mandatory/optional classification, final consent check, account binding, no stale remembered consent, repeated optional-scope request.             |
+| Client admission | Client adapter lookup; CIMD allowFetch and allowClient (including cached metadata).                            | Reject unknown/disabled clients at all relevant endpoints, even cached; no metadata-based self-approval.                                           |
+| Resource         | resourceIndicators.getResourceServerInfo, defaultResource, useGrantedResource; PKCE policy.                    | Single intended resource, enforce S256 and scope policy, no cross-resource credential reuse.                                                       |
+| Issuance         | Authorization-code and refresh handlers load provider Grant and validate account.                              | Every code/refresh issue and persistence path subordinate to current IAM authorization; concurrent invalidation cannot return a usable credential. |
+| Storage          | Adapter contract includes upsert, find, consume, destroy, revokeByGrantId and lookup methods.                  | Atomic consume rejects reuse by throwing, not returning false; hashed bearer lookup keys where compatible; expiry, erasure, replica/race behavior. |
+| Introspection    | Valid token and provider grant checks plus allowedPolicy; opaque token format supports extra claims.           | Authenticated resource-server caller, safe projection, current IAM admission with precise lifecycle/resource/scope binding.                        |
+| Session          | Default expiresWithSession and initial refresh issuance depend on offline_access.                              | First-party sign-out preserves business grant and valid delegated credentials; consent still requires live first-party session.                    |
 
 Tagged evidence:
 [package manifest](https://github.com/panva/node-oidc-provider/blob/v9.15.1/package.json),
@@ -337,17 +346,13 @@ Tagged evidence:
 [adapter contract](https://github.com/panva/node-oidc-provider/blob/v9.15.1/example/my_adapter.js),
 [revocation helper](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/helpers/revoke.js).
 
-### Grant authority and credential epochs
+### Provider lifecycle constraints
 
-The provider Grant can contain scopes for several resources and the default
-loadExistingGrant may reuse a grant referenced by its own session. Neither
-matches the IAM invariant automatically. Candidate mapping: explicit provider
-grant/credential-family reference to a single IAM authorization lifecycle and
-resource; no provider grant spanning several IAM authorization lifecycles.
-Provider consent and cached client metadata are not product authorization
-decisions. Use custom interactions and authoritative lookups, disable
-development interactions and unneeded flows/endpoints, and prove that
-automatic consent reuse cannot bypass FR-15.
+The provider Grant can contain scopes for several resources, and the default
+`loadExistingGrant` may reuse the provider session's grant. Use custom
+interactions, a lookup restricted to the current IAM consent result, and an
+authoritative client check even when the provider caches metadata. Disable
+development interactions and flows outside the exposed endpoint profile.
 
 The provider's refresh handler checks requested scopes against the old refresh
 token and builds a rotated token carrying the original refresh scope. Current
@@ -356,34 +361,19 @@ regranted permission cannot reappear through an old credential. A revision
 claim on an access token alone is insufficient: extraTokenClaims in the opaque
 format applies to access tokens and client credentials, not refresh tokens.
 
-Prefer an immutable issuance entitlement snapshot bound to credential-family
-or token lineage, including the IAM grant lifecycle, resource and permission
-generations. A refresh derives only the intersection of its original
-entitlements with the still-current generations and policy; it must never
-acquire a regranted generation from the current grant. Renewals for unaffected
-permissions should remain possible when supported. Compare a simpler
-whole-family invalidation on scope withdrawal; it may force reconnection and
-must be reviewed for functional/UX implications rather than silently selected.
-Use explicit non-reused grant identity after complete revocation.
+Use the permission generations in [data and state](#7-data-and-state) when
+projecting provider scopes. Provider existence, expiry and client checks
+are protocol checks. An account lookup alone cannot serialize issuance
+against concurrent invalidation. Bind the guarded storage adapter to the
+[issuance transaction](#9-transactions-consistency-concurrency-and-idempotency)
+and retain the final IAM admission check regardless of cleanup timing.
+Use keyed bearer lookup hashes and strip bearer identifiers from persisted
+payloads, logs, export and audit.
 
-The provider's grant validation verifies existence, expiry and client match;
-it is not sufficient for current IAM grant/account/policy checks. findAccount
-is invoked on code/refresh issuance but cannot alone serialize against a
-concurrent invalidation. Evaluate supported hooks plus a guarded storage
-boundary for code/token persistence and renewal; final resource admission
-must check the authoritative state regardless of provider cleanup timing.
-Do not patch undocumented internals or infer a cross-call transaction from
-adapter method calls. Opaque bearer values are used as provider lookup keys
-by default; assess keyed hashing of storage identifiers and safe indexing
-without persisting raw tokens in logs, export or audit.
-
-Provider revocation and replay protection can destroy protocol grants or
-credential families. Distinguish credential/family invalidation from explicit
-IAM business grant revocation. Define mapping and reconcile security events;
-provider events are not the synchronous enforcement boundary. Test provider
-session expiry/logout independently from first-party session logout. The
-provider defaults tying expiry and initial refresh issuance to offline_access
-must be deliberately configured and verified, not assumed compatible.
+Protocol replay invalidates the affected credential family. IAM separately
+owns business grant revocation and the synchronous invalidation boundary.
+Configure expiry and refresh eligibility independently from first-party
+session lifecycle, including the provider defaults tied to `offline_access`.
 
 ### Bounded executable feasibility experiment
 
@@ -396,46 +386,149 @@ an OAuth client harness, plus a mocked resource-server admission boundary
 using the same authoritative data; do not require real account data or
 ChatGPT credentials.
 
-| Case | Required evidence |
-| --- | --- |
-| F01 | Custom first-party login/consent binds actual authenticated account; read accepted, optional write declined; returned scopes and admission match. |
-| F02 | Code exchange requires correct S256 verifier, client and redirect URI; concurrent redemption admits at most one exchange. |
-| F03 | Reject unapproved/disabled client, wrong resource, unknown/disallowed scopes; cached client cannot bypass disablement. |
-| F04 | Declined extension leaves existing grant unchanged; new consent can extend it; stale consent after revocation cannot recreate access. |
-| F05 | Revoke after authorization code issue, before exchange; old code/refresh and access admission fail after effective invalidation. |
-| F06 | Remove write then regrant it; old access and refresh lineage cannot recover write; test unaffected read continuity and new consent. |
-| F07 | Concurrent refresh/revocation and refresh replay, including two processes; no usable credential issued from invalidated lifecycle. |
-| F08 | Re-enable client or reactivate account; old credentials remain unusable; new authorization has distinct identity. |
-| F09 | Sign out or expire first-party session; independently valid grant/credentials continue; stale pending consent fails. |
-| F10 | Storage failure, restart, expiry/erasure and guarded persistence; fail closed, no raw credentials in outputs. |
+| Case | Required evidence                                                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F01  | Custom first-party login/consent binds actual authenticated account; read accepted, optional write declined; returned scopes and admission match. |
+| F02  | Code exchange requires correct S256 verifier, client and redirect URI; concurrent redemption admits at most one exchange.                         |
+| F03  | Reject unapproved/disabled client, wrong resource, unknown/disallowed scopes; cached client cannot bypass disablement.                            |
+| F04  | Declined extension leaves existing grant unchanged; new consent can extend it; stale consent after revocation cannot recreate access.             |
+| F05  | Revoke after authorization code issue, before exchange; old code/refresh and access admission fail after effective invalidation.                  |
+| F06  | Remove write then regrant it; old access and refresh lineage cannot recover write; test unaffected read continuity and new consent.               |
+| F07  | Concurrent refresh/revocation and refresh replay, including two processes; no usable credential issued from invalidated lifecycle.                |
+| F08  | Re-enable client or reactivate account; old credentials remain unusable; new authorization has distinct identity.                                 |
+| F09  | Sign out or expire first-party session; independently valid grant/credentials continue; stale pending consent fails.                              |
+| F10  | Storage failure, restart, expiry/erasure and guarded persistence; fail closed, no raw credentials in outputs.                                     |
 
-Gate recommendation: if F01-F10 demonstrate required protocol and authority
-boundaries using supported hooks, prefer embedded provider subject to
-structural acceptance; otherwise evaluate independent authorization server
-or a narrower supported integration, escalating any required functional
-deviation. Static inspection alone is not a pass. No executable cases have
-been run in this activity; no proof of full compatibility is claimed.
+### Executable feasibility evidence
 
-## 17. ADR candidates / referenced ADRs
+Work #215, Technical Design / Feasibility, Software Architect. The maintainer
+authorized the bounded spike for [draft PR #216](https://github.com/Oxelio/architecture-web/pull/216)
+at baseline `c42356a17c224ae3323002bc425d3746b932c93e`; the live Project #3
+Status was Preparing. Evidence was produced on 2026-11-26 by the
+[isolated experiment](../../scripts/spikes/delegated-authorization/README.md)
+and its [executable assertions](../../scripts/spikes/delegated-authorization/feasibility.test.mjs).
 
-One structural decision candidate: protocol server integration and
-authoritative delegated authorization boundary. Consider embedded provider
-versus independently deployed provider; preserve existing aggregate and
-messaging decisions. Draft an ADR after feasibility evidence supports the
-alternatives and rationale. No structural acceptance has been granted.
+Observed environment: `oidc-provider@9.15.1`, `pg@8.16.3`, npm `11.19.1`,
+and PostgreSQL `18.6` on Linux/amd64 (Debian `18.6-1.pgdg13+2`). The
+[dependency lock](../../scripts/spikes/delegated-authorization/package-lock.json)
+and spike README pin the dependency tree and database image digest. The verified
+clean reinstall used `npm ci --offline --ignore-scripts --no-audit --no-fund`.
+The final runs used a clean lockfile install and the commands in the spike
+README. The root project declares pnpm `12.21.0`. The spike uses its own
+npm lockfile and sits outside the pnpm workspace. Nodes `24.15.0`, `26.8.1`
+and `26.13.1` each passed 12 of 12 tests covering F01–F10, including the
+native redirect control and both F06 models.
+
+| Case | Expected boundary                                                                                           | Observed in the fixture                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F01  | Authenticate through the first-party boundary and grant only accepted permissions.                          | The login hook bound Alice from the session even when the submitted body named Bob. Consent showed required `read` and optional `write`. Accepting only read returned scope `read`; write and wrong-account admission were denied. Switching the session owner during consent was rejected. Declining required read returned `access_denied`.                                                                                                                                                            |
+| F02  | Require S256, verifier, issuing client and matching redirect; one atomic redemption.                        | Plain/missing PKCE, wrong verifier, other registered client and mismatched redirect were denied. The native control accepted an omitted redirect for the S256 exchange. The spike guard refused the omission. Two issuer processes returned one 200 and one `invalid_grant` for the same code. Two direct PostgreSQL consume calls without the request fence produced one winner and one rejection.                                                                                                      |
+| F03  | Enforce client admission and resource/scope binding despite cached provider metadata.                       | Unknown and disabled clients, missing/wrong/multiple resources and requests with unknown/disallowed or missing required scopes were rejected. A warmed client could neither authorize nor exchange/refresh after disablement; existing access was refused. Wrong resource at exchange, renewal and admission was denied. Dynamic registration was disabled.                                                                                                                                              |
+| F04  | Require explicit extension and preserve existing state on denial. Stale consent must not recreate a grant.  | Repeated requests went through explicit consent. Decline preserved the prior read grant. Concurrent explicit extensions kept one active IAM grant and did not widen old access. Revocation defeated both a displayed prompt and a request whose prompt had never been displayed, and prevented code issuance if it occurred after approval but before resume.                                                                                                                                            |
+| F05  | Revocation denies a code issued before exchange, older refresh and old access.                              | After revocation committed, exchange and refresh returned `invalid_grant` and access admission denied the still-persisted token.                                                                                                                                                                                                                                                                                                                                                                         |
+| F06  | Old credentials never recover a withdrawn and regranted write permission. Compare read continuity.          | Generations preserved old read access, renewed read-only across withdrawal and regrant, and narrowed a pre-withdrawal code to read. Explicit old-lineage write renewal failed. Whole-family invalidation denied old mixed-scope access, code and renewal, including unaffected read on that family. An independent read-only family survived both modes. Fresh consent obtained write, and required read withdrawal revoked the resulting grant.                                                         |
+| F07  | Rotation, replay containment and a consistent revocation boundary across processes.                         | Two issuer processes racing the same refresh returned one 200 and one `invalid_grant`. Replay invalidated the rotated family and preserved a separate family and the IAM grant. PostgreSQL lock-wait assertions established both revocation/renewal orders. Revocation-first denied renewal. Issuance-first could return 200, but after revocation committed the returned access and refresh were unusable.                                                                                              |
+| F08  | Permanent invalidation across client re-enable or account reactivation.                                     | Disable/re-enable and suspend/reactivate each denied old access, refresh and pending consent. After fresh consent, three lifecycles had three distinct IAM grant IDs.                                                                                                                                                                                                                                                                                                                                    |
+| F09  | Ordinary session loss leaves independent delegated credentials valid; pending consent needs a live session. | Deleting the synthetic Web session blocked submission of pending consent and preserved access. Expiring its replacement also blocked consent. After deleting provider-session rows, the prior refresh token still rotated and the new access token was admitted.                                                                                                                                                                                                                                         |
+| F10  | Fail closed, atomic storage, restart, expiry and linked erasure without bearer leakage.                     | SQL errors in admission and credential persistence returned technical failures. A deferred-constraint commit failure returned 503 without tokens. Code consumption and refresh rotation were retryable after rollback. A replacement issuer resumed an interaction and used persisted tokens. Expired code/access were refused. Account deletion removed linked fixture records and blocked old refresh/consent. Sampled bearer values were absent from stored artifact rows and captured issuer output. |
+
+### Observed integration mechanics
+
+- Custom interaction policy, `interactionDetails`/`interactionResult`,
+  `loadExistingGrant`, `findAccount`, resource indicators and the public
+  adapter interface were sufficient for the exercised OAuth-only profile
+  without patching the library. The experiment waits for commit before
+  sending the interaction redirect. It leaves protocol replay invalidation
+  committed on its expected `invalid_grant` path and rolls back technical
+  failures. SQL fencing, current grant use, protocol writes and consumption
+  share the same request transaction.
+- Each accepted interaction creates a subordinate provider Grant/credential
+  family bound to one IAM grant lifecycle and resource. Consent freezes only
+  the selected permission generations. The adapter projects allowed resource
+  scopes at provider Grant lookup and checks code, access and refresh writes.
+  The mock resource boundary independently compares the presented scope and
+  the frozen generations against current IAM state. Successful protocol
+  persistence alone cannot establish resource admission.
+- Rotation retains the upstream refresh payload's original scope. The
+  immutable family snapshot and projected Grant constrain it, including
+  after regrant. The configured adapter reads the pinned opaque payload fields (`jti`, `resources`,
+  `grantId`, resource/audience, account and client). Keyed hashing of the
+  artifact row identifier alone left a raw `jti` in the payload in an
+  earlier run. The adapter now strips it before storage and restores it from
+  the presented credential only at lookup.
+- The tested request wrapper uses public `provider.use` and
+  `Provider.ctx`. Strict redirect presence in the spike reads the parsed
+  redirect during code consumption. Grant scope projection, parsed request
+  fields and the rollback/commit behavior around provider error handling
+  remain version-sensitive contracts. Adapter callbacks by themselves
+  provide no cross-call transaction. The spike deliberately tested commit
+  failure after provider success had been calculated.
+
+### Node.js compatibility
+
+The [pinned provider entry point](https://github.com/panva/node-oidc-provider/blob/v9.15.1/lib/index.js)
+checks `process.release.lts` at import. It logs a warning for a build without
+an LTS codename or one that predates its Node 22 LTS minimum. Node 26.8.1 was
+published as a Current build, before the Node 26 line entered LTS. Its test
+run completed despite the warning.
+
+| Exact Node build                                       | Observed `process.release.lts` | Provider warning | F01–F10 suite |
+| ------------------------------------------------------ | ------------------------------ | ---------------- | ------------- |
+| [24.15.0](https://nodejs.org/en/blog/release/v24.15.0) | `Krypton`                      | Absent           | 12/12         |
+| [26.8.1](https://nodejs.org/en/blog/release/v26.8.1)   | Absent                         | Present          | 12/12         |
+| [26.13.1](https://nodejs.org/en/blog/release/v26.13.1) | `Lithium`                      | Absent           | 12/12         |
+
+The warning creates no project-wide runtime upgrade requirement for Work
+#215. Node 24.15.0 is already covered by the repository's engine range and
+compatibility CI. The current API Dockerfile uses Node 26.8.1 for its build
+stage and a separate Distroless Node 26 runtime image. On 2026-11-26 the
+Dockerfile's runtime tag `gcr.io/distroless/nodejs26-debian13:debug-nonroot`
+resolved to `sha256:9a4f8edc7ad17de23070f6991b43362b6de4c0c0c586c7f5b3153922462f1b02`.
+A network-disabled version probe of the Linux/amd64 image reported Node
+26.13.1 `Lithium`. The exact image used
+to deploy OAuth must be checked again because the Dockerfile tag can move.
+Use a supported LTS build whenever the provider runs in production. If the
+OAuth host will use 26.8.1, select an LTS build before deployment. Keep the
+existing project runtime settings during this preparation.
+
+### Remaining integration boundaries
+
+The experiment established race ordering on a single PostgreSQL primary under
+a fixture-wide transaction lock. Production lock order, deadlocks, fan-out
+and read replicas require separate evidence. The resource endpoint is a mock.
+Issuer restart used the same database and keys.
+Database failover, ambiguous commits, backup/restore, key rotation, and
+production TTL/purge policies require separate evidence. Erasure covers the
+fixture's linked rows and outputs. Production Audit, Notifications, export,
+backup retention and the erasure witness remain with their existing owners.
+
+The fixture starts from synthetic first-party sessions and static public OAuth
+clients, with one resource and two permissions. Integration remains open for
+Fastify/Web session wiring, cross-account provider session switching,
+production CSRF/TLS controls and endpoint choices such as authenticated resource-server
+introspection, DCR/CIMD, RP-initiated logout and RFC 7009 revocation. Decide
+the exposed protocol endpoint profile and error mapping for rejected redirects
+and write-only renewal after withdrawal. Test #214 client interoperability
+against that profile. Full SF acceptance remains a separate validation
+activity. Production transaction integration for every FR-11 event remains open.
+
+## 17. Proposed architecture decision
+
+[ADR-0012 — OAuth Authorization Server Integration and Grant Authority](../architecture/decisions/0012-oauth-authorization-server-integration-and-grant-authority.md)
+records the proposed structural decision and the current-state owners to
+synchronize when an accepted target becomes effective.
 
 ## 18. Risks and unresolved technical decisions
 
-Blocking design work: validate the pinned 9.15.1 candidate in an executable
-experiment, verify extension points, controlled client identity, mandatory/optional partial consent,
-resource/audience binding, refresh and revocation consistency, opaque
-credential support and persistence/erasure. Resolve lock order and fan-out,
-credential permission generations, lifecycle binding and failure recovery.
+Blocking design work remains in the
+[integration boundaries](#remaining-integration-boundaries). Verify the
+Fastify response boundary, production lock ordering, lineage storage and
+recovery, exact hosting runtime, endpoint interoperability, and integration
+with account security and erasure.
 Confirm protocol/user experience can preserve the approved functional target.
 If not, escalate to Functional Specification authority before any deviation.
 
-Do not declare Readiness or start product implementation based on this
-candidate. A feasibility experiment requires an authorized bounded scope.
+The candidate remains proposed and awaits the applicable structural decision.
 
 ## 19. Task-planning inputs
 

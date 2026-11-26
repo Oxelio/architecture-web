@@ -63,6 +63,9 @@ recipient directory queries and the API composition adapter.
 
 ## Open decisions
 
+[ADR-0012](0012-oauth-authorization-server-integration-and-grant-authority.md)
+proposes an embedded OAuth protocol adapter with IAM as the grant authority.
+
 The following topics are not established decisions merely because they are
 listed here. Explore them first and create an ADR if/when an explicit structural
 choice is made:
