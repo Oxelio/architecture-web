@@ -389,6 +389,7 @@ describe("createIam", () => {
         "finalizeConsent",
         "listGrants",
         "revokeGrant",
+        "revokeAllGrants",
         "withdrawPermission",
         "admit",
       ],
@@ -747,6 +748,7 @@ describe("createIam", () => {
         authenticator,
         users: f.users,
         passwordAuthenticators: f.passwords,
+        invalidateDelegatedAuthorizations: vi.fn(),
         consume,
       });
     expect(

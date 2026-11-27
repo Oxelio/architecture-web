@@ -105,7 +105,7 @@ export async function buildIamModule(
   const deletions = new KyselyAccountDeletionAdapter(db, createOutbox);
   const iam = createIam({
     delegatedAuthorization: {
-      store: new KyselyDelegatedAuthorizationAdapter(db),
+      store: new KyselyDelegatedAuthorizationAdapter(db, createOutbox),
       resources: [],
     },
     userRepository: users,

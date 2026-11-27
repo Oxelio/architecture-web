@@ -1,5 +1,6 @@
 import type { UserIdentifierValueObject } from "#value-objects/user-identifier.value-object";
 
+import type { AccountDelegatedInvalidation } from "../delegated-authorization/delegated-revocation.js";
 import type { EmailVerificationRepository } from "./email-verification.repository.js";
 import type { LoginIdentityRepository } from "./login-identity.repository.js";
 import type { PasswordAuthenticatorRepository } from "./password-authenticator.repository.js";
@@ -12,6 +13,9 @@ export interface IamTransactionalRepositories {
   readonly passwordAuthenticators: PasswordAuthenticatorRepository;
   readonly users: UserRepository;
   readonly userQueries: UserQueryRepository;
+  invalidateDelegatedAuthorizations(
+    input: AccountDelegatedInvalidation,
+  ): Promise<void>;
 }
 
 /**

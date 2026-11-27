@@ -417,6 +417,12 @@ export type {
   FinalizeConsentInput,
 } from "./delegated-authorization/delegated-authorization.contracts.js";
 export { DelegatedAuthorization } from "./delegated-authorization/delegated-authorization.js";
+export {
+  type AccountDelegatedInvalidation,
+  createDelegatedRevocationFact,
+  createDelegatedWithdrawalFact,
+  type DelegatedRevocationActor,
+} from "./delegated-authorization/delegated-revocation.js";
 export { toIamIntegrationEvent } from "./events/iam-integration-event.js";
 export {
   createIamSecurityEvent,

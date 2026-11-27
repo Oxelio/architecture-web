@@ -61,6 +61,14 @@ function fixture() {
     invalidateConsent: vi
       .fn<DelegatedAuthorizationWriter["invalidateConsent"]>()
       .mockResolvedValue(undefined),
+    saveGrantRestriction: vi.fn<
+      DelegatedAuthorizationWriter["saveGrantRestriction"]
+    >(async (grant) => {
+      stored = grant;
+    }),
+    revokeAccountGrants: vi
+      .fn<DelegatedAuthorizationWriter["revokeAccountGrants"]>()
+      .mockResolvedValue(undefined),
   } satisfies DelegatedAuthorizationWriter;
   const application = delegatedAuthorizationApplication({
     resources: [resource],
@@ -163,5 +171,5 @@ it("withdraws and revokes only for the owner and invalidates consent once per ac
     success: true,
     value: false,
   });
-  expect(f.writer.invalidateConsent).toHaveBeenCalledTimes(2);
+  expect(f.writer.saveGrantRestriction).toHaveBeenCalledTimes(2);
 });

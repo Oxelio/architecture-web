@@ -4,6 +4,7 @@ import type { UserEntity } from "#entities/user.entity";
 import type { PasswordAuthenticatorRepository } from "#ports/password-authenticator.repository";
 import type { UserRepository } from "#ports/user.repository";
 export interface RecoveryCommit {
+  invalidateDelegatedAuthorizations(): Promise<void>;
   readonly user: UserEntity;
   readonly authenticator: PasswordAuthenticatorEntity;
   readonly users: UserRepository;

@@ -22,6 +22,7 @@ import {
   currentAccessPolicy,
   lockAdministrativeAccess,
 } from "./administrative-access.js";
+import { invalidateDelegatedAccount } from "./delegated-revocation.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 
 function credential(row: IamMfaSettingTable): MfaCredential {
@@ -263,6 +264,11 @@ export class KyselyMfaAdapter implements MfaStore {
         .where("user_id", "=", account.id)
         .execute();
       await new KyselyUserAdapter(trx, this.outbox(trx)).save(input.user);
+      await invalidateDelegatedAccount(trx, this.outbox(trx), {
+        accountId: account.id,
+        reason: "mfa_activated",
+        actor: { actorType: "user", actorId: account.id },
+      });
       await this.outbox(trx).append([
         createIamSecurityEvent({
           type: "mfa.activated",
@@ -445,6 +451,11 @@ export class KyselyMfaAdapter implements MfaStore {
         return false;
       }
       await this.backupCodes(trx, userId, hashes, now);
+      await invalidateDelegatedAccount(trx, this.outbox(trx), {
+        accountId: userId,
+        reason: "backup_codes_regenerated",
+        actor: { actorType: "user", actorId: userId },
+      });
       await this.outbox(trx).append([
         createIamSecurityEvent({
           type: "mfa.backup_codes.regenerated",
@@ -471,10 +482,15 @@ export class KyselyMfaAdapter implements MfaStore {
       ) {
         return false;
       }
-      await trx
+      const disabled = await trx
         .deleteFrom("iam_mfa_settings")
         .where("user_id", "=", account.id)
-        .execute();
+        .where("enabled_at", "is not", null)
+        .returning("user_id")
+        .executeTakeFirst();
+      if (!disabled) {
+        return false;
+      }
       await trx
         .deleteFrom("iam_mfa_backup_codes")
         .where("user_id", "=", account.id)
@@ -486,6 +502,11 @@ export class KyselyMfaAdapter implements MfaStore {
         .where("consumed_at", "is", null)
         .execute();
       await new KyselyUserAdapter(trx, this.outbox(trx)).save(user);
+      await invalidateDelegatedAccount(trx, this.outbox(trx), {
+        accountId: account.id,
+        reason: "mfa_deactivated",
+        actor: { actorType: "user", actorId: account.id },
+      });
       await this.outbox(trx).append([
         createIamSecurityEvent({
           type: "mfa.disabled",

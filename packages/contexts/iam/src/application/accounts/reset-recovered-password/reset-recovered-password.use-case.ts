@@ -103,6 +103,7 @@ export class ResetRecoveredPasswordUseCase implements ResetRecoveredPassword {
         commit.user.invalidateSessions();
         await commit.passwordAuthenticators.save(commit.authenticator);
         await commit.users.save(commit.user);
+        await commit.invalidateDelegatedAuthorizations();
         return Result.success(undefined);
       },
     );

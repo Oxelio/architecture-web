@@ -13,6 +13,10 @@ import {
   type IamDatabase,
   KyselyDelegatedAuthorizationAdapter,
 } from "@architecture/iam-persistence-kysely";
+import {
+  KyselyOutboxWriterAdapter,
+  type MessagingDatabase,
+} from "@architecture/messaging-persistence-kysely";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Migrator } from "kysely/migration";
 import { Pool } from "pg";
@@ -45,9 +49,17 @@ describe.skipIf(!databaseUrl)(
   () => {
     const authority = new DelegatedAuthorization([resource]);
     const schema = `delegated_test_${randomUUID().replaceAll("-", "")}`;
-    let database: Kysely<IamDatabase>;
+    let database: Kysely<IamDatabase & MessagingDatabase>;
     let admin: Pool;
     let store: KyselyDelegatedAuthorizationAdapter;
+    const outbox = (db: Kysely<IamDatabase>) =>
+      new KyselyOutboxWriterAdapter(
+        db
+          .$extendTables<{
+            messaging_outbox: MessagingDatabase["messaging_outbox"];
+          }>()
+          .$pickTables<keyof MessagingDatabase>(),
+      );
 
     beforeAll(async () => {
       admin = new Pool({ connectionString: databaseUrl });
@@ -69,7 +81,10 @@ describe.skipIf(!databaseUrl)(
       if (error) {
         throw error;
       }
-      store = new KyselyDelegatedAuthorizationAdapter(database);
+      store = new KyselyDelegatedAuthorizationAdapter(
+        database.$pickTables<keyof IamDatabase>(),
+        outbox,
+      );
     });
 
     afterAll(async () => {
@@ -100,7 +115,7 @@ describe.skipIf(!databaseUrl)(
       const client = unwrap(
         ClientApplication.register(randomUUID(), "Synthetic client"),
       );
-      await store.write(null, (writer) => writer.saveClient(client));
+      await store.write(null, (writer) => writer.saveClient(client, accountId));
       const enabled = ClientApplication.rehydrate({
         ...client.state,
         enabled: true,
@@ -109,7 +124,9 @@ describe.skipIf(!databaseUrl)(
           { resourceId: resource.id, required: ["read"], optional: ["write"] },
         ],
       });
-      await store.write(null, (writer) => writer.saveClient(enabled));
+      await store.write(null, (writer) =>
+        writer.saveClient(enabled, accountId),
+      );
       const request = {
         accountId,
         clientId: client.state.id,
@@ -209,8 +226,10 @@ describe.skipIf(!databaseUrl)(
         if (!grant) {
           throw new Error("Missing initial grant");
         }
-        await writer.saveGrant(grant.withdraw("write", ["read"], new Date()));
-        await writer.invalidateConsent(grant.state);
+        await writer.saveGrantRestriction(
+          grant.withdraw("write", ["read"], new Date()),
+          { permission: "write" },
+        );
       });
       expect(await finalize(stale, ["read", "write"])).toMatchObject({
         success: false,
@@ -229,8 +248,10 @@ describe.skipIf(!databaseUrl)(
         if (!grant) {
           throw new Error("Missing extended grant");
         }
-        await writer.saveGrant(grant.withdraw("read", ["read"], new Date()));
-        await writer.invalidateConsent(grant.state);
+        await writer.saveGrantRestriction(
+          grant.withdraw("read", ["read"], new Date()),
+          { permission: "read" },
+        );
       });
       const replacement = unwrap(
         await finalize(await prepare(request), ["read"]),
@@ -264,15 +285,22 @@ describe.skipIf(!databaseUrl)(
       ).toBe(false);
       expect((await attempt({ expiresAt: new Date(0) })).success).toBe(false);
       expect((await finalize(consent, ["write"])).success).toBe(false);
-      await database
-        .insertInto("iam_delegated_account_epochs")
-        .values({ account_id: accountId, epoch: "1" })
-        .execute();
+      await store.write(accountId, (writer) =>
+        writer.revokeAccountGrants(accountId),
+      );
+      expect(
+        await database
+          .selectFrom("messaging_outbox")
+          .select("id")
+          .where("aggregate_id", "=", accountId)
+          .execute(),
+      ).toEqual([]);
       expect((await attempt({})).success).toBe(false);
       const afterEpoch = await prepare(request);
       await store.write(null, (writer) =>
         writer.saveClient(
           ClientApplication.rehydrate({ ...enabled.state, revision: 2 }),
+          accountId,
         ),
       );
       expect((await finalize(afterEpoch, ["read"])).success).toBe(false);
@@ -310,6 +338,7 @@ describe.skipIf(!databaseUrl)(
       const credential = unwrap(
         await finalize(await prepare(request), ["read"]),
       );
+      const displayed = await prepare(request);
       const release = Promise.withResolvers<undefined>();
       const updated = Promise.withResolvers<undefined>();
       const revocation = store.write(accountId, async (writer) => {
@@ -317,14 +346,17 @@ describe.skipIf(!databaseUrl)(
         if (!grant) {
           throw new Error("Missing active grant");
         }
-        await writer.saveGrant(grant.revoke(new Date()));
-        await writer.invalidateConsent(grant.state);
+        await writer.saveGrantRestriction(
+          grant.revoke(new Date()),
+          "revocation",
+        );
         updated.resolve(undefined);
         await release.promise;
       });
       try {
         await Promise.race([revocation, updated.promise]);
         const admission = admit(credential, "read");
+        const consent = finalize(displayed, ["read"]);
         await expect
           .poll(
             async () => {
@@ -339,10 +371,189 @@ describe.skipIf(!databaseUrl)(
         release.resolve(undefined);
         await revocation;
         expect((await admission).success).toBe(false);
+        expect(await consent).toMatchObject({
+          success: false,
+          error: { code: "delegated_authorization.stale_consent" },
+        });
       } finally {
         release.resolve(undefined);
         await revocation;
       }
     });
+
+    it("removes policy-withdrawn generations, preserves other grants and revokes only newly noncompliant grants", async () => {
+      const { accountId, otherAccountId, request, enabled } = await fixture();
+      const original = unwrap(
+        await finalize(await prepare(request), ["read", "write"]),
+      );
+      const other = unwrap(
+        await finalize(
+          await prepare({ ...request, accountId: otherAccountId }),
+          ["read"],
+        ),
+      );
+      const setPolicy = (
+        revision: number,
+        required: string[],
+        optional: string[],
+      ) =>
+        store.write(null, (writer) =>
+          writer.saveClient(
+            ClientApplication.rehydrate({
+              ...enabled.state,
+              revision,
+              policies: [{ resourceId: resource.id, required, optional }],
+            }),
+            accountId,
+          ),
+        );
+      await setPolicy(2, ["read"], []);
+      expect((await admit(original, "read")).success).toBe(true);
+      expect((await admit(original, "write")).success).toBe(false);
+      const withdrawal = await database
+        .selectFrom("messaging_outbox")
+        .select("payload")
+        .where("aggregate_id", "=", original.grantId)
+        .executeTakeFirstOrThrow();
+      expect(withdrawal.payload).toMatchObject({
+        permissions: ["write"],
+        userId: accountId,
+      });
+      await setPolicy(3, ["read"], ["write"]);
+      expect((await admit(original, "write")).success).toBe(false);
+      const fresh = unwrap(
+        await finalize(await prepare({ ...request, clientRevision: 3 }), [
+          "read",
+          "write",
+        ]),
+      );
+      expect(fresh.grantId).toBe(original.grantId);
+      expect((await admit(fresh, "write")).success).toBe(true);
+
+      await setPolicy(4, ["read", "write"], []);
+      expect((await admit(fresh, "read")).success).toBe(true);
+      await setPolicy(5, ["read"], ["write"]);
+      expect((await admit(other, "read")).success).toBe(false);
+      const revoked = await database
+        .selectFrom("messaging_outbox")
+        .select("payload")
+        .where("topic", "=", "iam.delegated-grants-revoked")
+        .where("aggregate_id", "=", otherAccountId)
+        .execute();
+      expect(revoked).toEqual([
+        {
+          payload: expect.objectContaining({
+            reason: "client_policy_changed",
+            affectedGrantCount: 1,
+          }),
+        },
+      ]);
+    });
+
+    it.each([1000, 10000])(
+      "atomically disables a client across %i accounts with grouped durable facts",
+      async (accounts) => {
+        const { accountId, enabled } = await fixture();
+        const unrelated = await fixture();
+        const retained = unwrap(
+          await finalize(await prepare(unrelated.request), ["read"]),
+        );
+        await sql`
+        with seeded as (
+          insert into iam_users (id, role, status, session_version, created_at, updated_at)
+          select uuidv7(), 'user', 'active', 1, now(), now() from generate_series(1, ${accounts}) returning id
+        )
+        insert into iam_delegated_grants (id, account_id, client_id, resource_id, authorized_at, permissions)
+        select uuidv7(), seeded.id, ${enabled.state.id}, 'synthetic-' || resource.number, now(),
+          jsonb_build_array(jsonb_build_object('code', 'read', 'generation', uuidv7()))
+        from seeded cross join generate_series(1, 3) as resource(number)
+      `.execute(database);
+        const change = (
+          adapter: KyselyDelegatedAuthorizationAdapter,
+          revision: number,
+          enabledState: boolean,
+        ) =>
+          adapter.write(null, (writer) =>
+            writer.saveClient(
+              ClientApplication.rehydrate({
+                ...enabled.state,
+                revision,
+                enabled: enabledState,
+              }),
+              accountId,
+            ),
+          );
+        const remaining = () =>
+          database
+            .selectFrom("iam_delegated_grants")
+            .select(({ fn }) => fn.countAll().as("count"))
+            .where("client_id", "=", enabled.state.id)
+            .where("revoked_at", "is", null)
+            .executeTakeFirstOrThrow();
+        const counts = async () =>
+          (
+            await sql<{
+              facts: number;
+              subjects: number;
+              operations: number;
+              grants: number;
+            }>`
+        select count(*)::int as facts, count(distinct aggregate_id)::int as subjects,
+          count(distinct payload->>'operationId')::int as operations,
+          coalesce(sum((payload->>'affectedGrantCount')::int), 0)::int as grants
+        from messaging_outbox where topic = 'iam.delegated-grants-revoked' and payload->>'clientId' = ${enabled.state.id}
+      `.execute(database)
+          ).rows[0];
+        if (accounts === 1000) {
+          let batches = 0;
+          const failure = new Error(
+            "failure after two transaction-bound outbox writes",
+          );
+          const failingStore = new KyselyDelegatedAuthorizationAdapter(
+            database.$pickTables<keyof IamDatabase>(),
+            (db) => ({
+              append: async (events) => {
+                await outbox(db).append(events);
+                if (++batches === 2) {
+                  throw failure;
+                }
+              },
+            }),
+          );
+          await expect(change(failingStore, 2, false)).rejects.toBe(failure);
+          expect(Number((await remaining()).count)).toBe(accounts * 3);
+          expect(await counts()).toEqual({
+            facts: 0,
+            subjects: 0,
+            operations: 0,
+            grants: 0,
+          });
+        }
+        const start = performance.now();
+        await change(store, 2, false);
+        const elapsed = Math.round(performance.now() - start);
+        expect(Number((await remaining()).count)).toBe(0);
+        expect(await counts()).toEqual({
+          facts: accounts,
+          subjects: accounts,
+          operations: 1,
+          grants: accounts * 3,
+        });
+        await change(store, 3, false);
+        await change(store, 4, true);
+        expect(Number((await remaining()).count)).toBe(0);
+        expect(await counts()).toEqual({
+          facts: accounts,
+          subjects: accounts,
+          operations: 1,
+          grants: accounts * 3,
+        });
+        expect((await admit(retained, "read")).success).toBe(true);
+        console.info(
+          `Delegated client disablement: ${accounts} accounts, ${accounts * 3} grants, ${elapsed} ms`,
+        );
+      },
+      30000,
+    );
   },
 );

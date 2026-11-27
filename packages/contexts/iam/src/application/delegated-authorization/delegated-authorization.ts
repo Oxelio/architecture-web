@@ -240,9 +240,18 @@ export function delegatedAuthorizationApplication({
           if (revoked === grant) {
             return Result.success(false);
           }
-          await writer.saveGrant(revoked);
-          await writer.invalidateConsent(grant.state);
+          await writer.saveGrantRestriction(revoked, "revocation");
           return Result.success(true);
+        }),
+    },
+    revokeAllGrants: {
+      execute: ({ accountId }) =>
+        store.write(accountId, async (writer) => {
+          if (!(await writer.eligibleAccount(accountId))) {
+            return Result.failure(Errors.ineligibleAccount);
+          }
+          await writer.revokeAccountGrants(accountId);
+          return Result.success(undefined);
         }),
     },
     withdrawPermission: {
@@ -264,8 +273,7 @@ export function delegatedAuthorizationApplication({
           if (restricted === grant) {
             return Result.success(false);
           }
-          await writer.saveGrant(restricted);
-          await writer.invalidateConsent(grant.state);
+          await writer.saveGrantRestriction(restricted, { permission });
           return Result.success(true);
         }),
     },

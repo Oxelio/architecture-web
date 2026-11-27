@@ -110,6 +110,19 @@ export class KyselyAccountExportAdapter implements AccountExportStore {
   }
   async complete(id: string, archive: Uint8Array, now: Date) {
     await this.db.transaction().execute(async (trx) => {
+      const reservation = await trx
+        .selectFrom("iam_account_exports")
+        .select("user_id")
+        .where("id", "=", id)
+        .where("status", "=", "pending")
+        .executeTakeFirstOrThrow();
+      // Final erasure deletes exports while holding the account row.
+      await trx
+        .selectFrom("iam_users")
+        .select("id")
+        .where("id", "=", reservation.user_id)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
       const row = await trx
         .updateTable("iam_account_exports")
         .set({
@@ -119,6 +132,7 @@ export class KyselyAccountExportAdapter implements AccountExportStore {
           updated_at: now,
         })
         .where("id", "=", id)
+        .where("user_id", "=", reservation.user_id)
         .where("status", "=", "pending")
         .returning("user_id")
         .executeTakeFirstOrThrow();

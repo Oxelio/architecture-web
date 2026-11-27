@@ -58,61 +58,72 @@ export class ChangeEmailUseCase implements ChangeEmail {
     if (!user) {
       return Result.failure(ChangeEmailErrors.notFound);
     }
-
-    const currentIdentity = await this.loginIdentities.findForUser(
-      user.identifier,
-      "email",
-    );
-    if (currentIdentity?.login.equals(login.value)) {
+    if (existing) {
       return Result.success(undefined);
     }
 
     const verificationRequired = accountPolicy.emailVerification;
-    const identity =
-      currentIdentity ??
-      LoginIdentityEntity.create({
-        userId: user.identifier,
-        login: login.value,
-        verificationRequired: verificationRequired,
-      });
-    if (currentIdentity) {
-      identity.replace(login.value, verificationRequired);
-    }
-
-    const token =
-      identity.verificationStatus === "pending"
-        ? EmailVerificationTokenValueObject.generate()
-        : null;
-    const verification = token
-      ? EmailVerificationEntity.create({
-          userId: user.identifier,
-          loginIdentityId: identity.identifier,
-          tokenHash: await this.tokenHasher.hash(token),
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
-        })
+    const token = verificationRequired
+      ? EmailVerificationTokenValueObject.generate()
       : null;
+    const tokenHash = token ? await this.tokenHasher.hash(token) : null;
 
     const committed = await this.unitOfWork.executeForUser(
       user.identifier,
-      async ({ emailVerifications, loginIdentities }) => {
+      async ({
+        emailVerifications,
+        loginIdentities,
+        invalidateDelegatedAuthorizations,
+      }) => {
+        const currentIdentity = await loginIdentities.findForUser(
+          user.identifier,
+          "email",
+        );
+        if (currentIdentity?.login.equals(login.value)) {
+          return "unchanged" as const;
+        }
+        const identity =
+          currentIdentity ??
+          LoginIdentityEntity.create({
+            userId: user.identifier,
+            login: login.value,
+            verificationRequired,
+          });
+        if (currentIdentity) {
+          identity.replace(login.value, verificationRequired);
+        }
         if (
           !(await loginIdentities.replacePreservingAdministrativeAccess(
             identity,
           ))
         ) {
-          return false;
+          return "denied" as const;
         }
         await emailVerifications.invalidatePreviousFor(identity.identifier);
-        if (verification) {
-          await emailVerifications.save(verification);
+        if (tokenHash) {
+          await emailVerifications.save(
+            EmailVerificationEntity.create({
+              userId: user.identifier,
+              loginIdentityId: identity.identifier,
+              tokenHash,
+              expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+            }),
+          );
         }
-        return true;
+        if (currentIdentity) {
+          await invalidateDelegatedAuthorizations({
+            accountId: user.identifier.value,
+            reason: "login_identity_replaced",
+            actor: { actorType: "user", actorId: user.identifier.value },
+          });
+        }
+        return "changed" as const;
       },
     );
-    if (!committed) {
+    if (committed === "denied") {
       return Result.failure(ChangeEmailErrors.lastActiveAdministrator);
     }
-    if (token) {
+    if (committed === "changed" && token) {
       await this.emailSender.sendVerificationEmail(email.value, token.value);
     }
 

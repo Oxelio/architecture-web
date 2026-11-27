@@ -34,9 +34,14 @@ export interface DelegatedAuthorizationReader {
 }
 
 export interface DelegatedAuthorizationWriter extends DelegatedAuthorizationReader {
-  saveClient(client: ClientApplication): Promise<void>;
+  saveClient(client: ClientApplication, administratorId: string): Promise<void>;
   saveGrant(grant: AuthorizationGrant): Promise<void>;
   invalidateConsent(target: AuthorizationTarget): Promise<void>;
+  saveGrantRestriction(
+    grant: AuthorizationGrant,
+    effect: "revocation" | { readonly permission: string },
+  ): Promise<void>;
+  revokeAccountGrants(accountId: string): Promise<void>;
 }
 
 export interface DelegatedAuthorizationStore {
@@ -146,6 +151,11 @@ export interface DelegatedAuthorizationApplication {
     GrantChange,
     boolean,
     Errors["grantNotFound"]
+  >;
+  readonly revokeAllGrants: Operation<
+    { readonly accountId: string },
+    void,
+    Errors["ineligibleAccount"]
   >;
   readonly withdrawPermission: Operation<
     GrantChange & { readonly permission: string },

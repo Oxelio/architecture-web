@@ -1,18 +1,32 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   DelegatedAuthorizationReader,
   DelegatedAuthorizationStore,
   DelegatedAuthorizationWriter,
 } from "@architecture/iam/application";
 import {
+  createDelegatedRevocationFact,
+  createDelegatedWithdrawalFact,
+} from "@architecture/iam/application";
+import {
   AuthorizationGrant,
   type AuthorizationTarget,
   ClientApplication,
+  type ClientResourcePolicy,
 } from "@architecture/iam/domain";
+import type { OutboxWriter } from "@architecture/messaging/application";
 import { type Kysely, type Selectable, sql, type Transaction } from "kysely";
 
 import type { IamDatabase, IamDelegatedGrantTable } from "#persistence/schema";
 
 import { lockAdministrativeAccess } from "./administrative-access.js";
+import {
+  appendDelegatedFacts,
+  invalidateDelegatedAccount,
+  invalidateDelegatedClient,
+  lockDelegatedClientAccounts,
+} from "./delegated-revocation.js";
 
 function toGrant(row: Selectable<IamDelegatedGrantTable>) {
   return AuthorizationGrant.rehydrate({
@@ -26,8 +40,21 @@ function toGrant(row: Selectable<IamDelegatedGrantTable>) {
   });
 }
 
+function policyKey(policies: readonly ClientResourcePolicy[]) {
+  return policies
+    .map(({ resourceId, required, optional }) =>
+      JSON.stringify([resourceId, [...required].sort(), [...optional].sort()]),
+    )
+    .sort()
+    .join("\n");
+}
+
 class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationWriter {
-  constructor(private readonly db: Transaction<IamDatabase>) {}
+  constructor(
+    private readonly db: Transaction<IamDatabase>,
+    private readonly outbox?: OutboxWriter,
+    private readonly accountId?: string | null,
+  ) {}
 
   async eligibleAccount(accountId: string) {
     const row = await this.db
@@ -109,7 +136,16 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
     };
   }
 
-  async saveClient({ state }: ClientApplication) {
+  async saveClient({ state }: ClientApplication, administratorId: string) {
+    if (this.accountId !== null) {
+      throw new Error("Client policy requires a client-wide transaction");
+    }
+    if (
+      new Set(state.policies.map(({ resourceId }) => resourceId)).size !==
+      state.policies.length
+    ) {
+      throw new Error("A client must have one policy per resource");
+    }
     const client = {
       id: state.id,
       public_id: state.publicId,
@@ -126,6 +162,17 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
         .execute();
       return;
     }
+    const previous = await this.client(client.id);
+    if (previous?.state.revision !== client.revision - 1) {
+      throw new Error("Unexpected delegated client revision");
+    }
+    const affectsAuthority =
+      previous.state.enabled &&
+      (!client.enabled ||
+        policyKey(previous.state.policies) !== policyKey(state.policies));
+    if (affectsAuthority) {
+      await lockDelegatedClientAccounts(this.db, client.id);
+    }
     const updated = await this.db
       .updateTable("iam_delegated_clients")
       .set({
@@ -141,9 +188,20 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
     if (updated.numUpdatedRows !== 1n) {
       throw new Error("Unexpected delegated client revision");
     }
+    if (affectsAuthority) {
+      await invalidateDelegatedClient(
+        this.db,
+        this.outbox,
+        state,
+        administratorId,
+      );
+    }
   }
 
   async saveGrant({ state }: AuthorizationGrant) {
+    if (this.accountId !== state.accountId) {
+      throw new Error("Grant mutation requires the locked account");
+    }
     const permissions = JSON.stringify(state.permissions);
     const persisted = await this.db
       .insertInto("iam_delegated_grants")
@@ -178,6 +236,9 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
   }
 
   async invalidateConsent(target: AuthorizationTarget) {
+    if (this.accountId !== target.accountId) {
+      throw new Error("Consent invalidation requires the locked account");
+    }
     await this.db
       .insertInto("iam_delegated_tuple_epochs")
       .values({
@@ -195,10 +256,67 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
       )
       .execute();
   }
+
+  async saveGrantRestriction(
+    grant: AuthorizationGrant,
+    effect: "revocation" | { readonly permission: string },
+  ) {
+    const {
+      accountId,
+      clientId,
+      resourceId,
+      id: grantId,
+      revokedAt,
+    } = grant.state;
+    if (!revokedAt && effect === "revocation") {
+      throw new Error("A revoked grant is required to record revocation");
+    }
+    const context = {
+      userId: accountId,
+      clientId,
+      resourceId,
+      grantId,
+      operationId: randomUUID(),
+      occurredAt: revokedAt ?? new Date(),
+      actor: { actorType: "user", actorId: accountId } as const,
+    };
+    const fact = revokedAt
+      ? createDelegatedRevocationFact({
+          ...context,
+          affectedGrantCount: 1,
+          reason:
+            effect === "revocation"
+              ? "user_revocation"
+              : "required_permission_withdrawn",
+        })
+      : createDelegatedWithdrawalFact({
+          ...context,
+          permissions: effect === "revocation" ? [] : [effect.permission],
+        });
+    await this.saveGrant(grant);
+    await this.invalidateConsent(grant.state);
+    await appendDelegatedFacts(this.outbox, [fact]);
+  }
+
+  revokeAccountGrants(accountId: string): Promise<void> {
+    if (this.accountId !== accountId) {
+      throw new Error("Grant revocation requires the locked account");
+    }
+    return invalidateDelegatedAccount(this.db, this.outbox, {
+      accountId,
+      reason: "user_revocation",
+      actor: { actorType: "user", actorId: accountId },
+    });
+  }
 }
 
 export class KyselyDelegatedAuthorizationAdapter implements DelegatedAuthorizationStore {
-  constructor(private readonly db: Kysely<IamDatabase>) {}
+  constructor(
+    private readonly db: Kysely<IamDatabase>,
+    private readonly createOutbox?: (
+      transaction: Kysely<IamDatabase>,
+    ) => OutboxWriter,
+  ) {}
 
   read<T>(
     run: (reader: DelegatedAuthorizationReader) => Promise<T>,
@@ -230,7 +348,13 @@ export class KyselyDelegatedAuthorizationAdapter implements DelegatedAuthorizati
             .forUpdate()
             .executeTakeFirst();
         }
-        return run(new KyselyDelegatedAuthorizationTransaction(transaction));
+        return run(
+          new KyselyDelegatedAuthorizationTransaction(
+            transaction,
+            this.createOutbox?.(transaction),
+            accountId,
+          ),
+        );
       });
   }
 }
