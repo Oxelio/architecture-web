@@ -763,7 +763,10 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       const confirmation = { password: "initial long account password" };
       const configure = {
         kind: "configure",
-        redirectUris: ["https://client.example.test/callback"],
+        redirectUris: [
+          "https://client.example.test/callback-A",
+          "https://client.example.test/callback-a",
+        ],
         policies: [
           {
             resourceId: clientResource.id,
@@ -802,6 +805,17 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
           })
         ).statusCode,
       ).toBe(200);
+      expect(
+        (
+          await change({
+            expectedRevision: 1,
+            command: {
+              ...configure,
+              redirectUris: configure.redirectUris.toReversed(),
+            },
+          })
+        ).json(),
+      ).toMatchObject({ data: { revision: 1 } });
       expect(
         (
           await change({

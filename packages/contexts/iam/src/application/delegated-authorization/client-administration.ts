@@ -87,6 +87,27 @@ const sessionInvalid = () =>
   Result.failure({ code: "session_invalid" } as const);
 const refused = () => Result.failure({ code: "confirmation_refused" } as const);
 
+function comparePolicyValues(left: string, right: string) {
+  const alphabetical = left.localeCompare(right, "en");
+  if (alphabetical || left === right) {
+    return alphabetical;
+  }
+  // Collation can give distinct exact URI or permission strings the same rank.
+  return left < right ? -1 : 1;
+}
+
+function orderedPolicies(policies: readonly ClientResourcePolicy[]) {
+  return policies
+    .map(({ resourceId, required, optional }) => ({
+      resourceId,
+      required: required.toSorted(comparePolicyValues),
+      optional: optional.toSorted(comparePolicyValues),
+    }))
+    .sort((left, right) =>
+      comparePolicyValues(left.resourceId, right.resourceId),
+    );
+}
+
 export class ClientAdministration {
   private readonly catalog: ReadonlyMap<string, ProtectedResource>;
 
@@ -343,14 +364,8 @@ export class ClientAdministration {
       );
     }
     if (command.kind === "configure") {
-      const redirectUris = [...command.redirectUris].sort();
-      const policies = command.policies
-        .map(({ resourceId, required, optional }) => ({
-          resourceId,
-          required: [...required].sort(),
-          optional: [...optional].sort(),
-        }))
-        .sort((a, b) => a.resourceId.localeCompare(b.resourceId));
+      const redirectUris = command.redirectUris.toSorted(comparePolicyValues);
+      const policies = orderedPolicies(command.policies);
       const configured = ClientApplication.rehydrate({
         ...next,
         redirectUris,
@@ -359,18 +374,13 @@ export class ClientAdministration {
       if (!this.validConfiguration(configured)) {
         return Result.failure({ code: "invalid_client" });
       }
-      const previousPolicies = client.state.policies
-        .map(({ resourceId, required, optional }) => ({
-          resourceId,
-          required: [...required].sort(),
-          optional: [...optional].sort(),
-        }))
-        .sort((a, b) => a.resourceId.localeCompare(b.resourceId));
       const policyChanged =
-        JSON.stringify(previousPolicies) !== JSON.stringify(policies);
+        JSON.stringify(orderedPolicies(client.state.policies)) !==
+        JSON.stringify(policies);
       const redirectChanged =
-        JSON.stringify([...client.state.redirectUris].sort()) !==
-        JSON.stringify(redirectUris);
+        JSON.stringify(
+          client.state.redirectUris.toSorted(comparePolicyValues),
+        ) !== JSON.stringify(redirectUris);
       return Result.success(
         policyChanged || redirectChanged
           ? {
