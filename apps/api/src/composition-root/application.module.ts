@@ -50,8 +50,10 @@ import {
 
 import { IamAuditAccessAdapter } from "#adapters/audit/iam-audit-access.adapter";
 import { Sha256AuditPseudonymizerAdapter } from "#adapters/audit/sha256-audit-pseudonymizer.adapter";
+import type { OAuthProvider } from "#adapters/iam/oauth-provider";
 import { IamNotificationRecipientDirectoryAdapter } from "#adapters/notifications/iam-notification-recipient-directory.adapter";
 import { loadConfig } from "#config/app.config";
+import { loadOAuthOptions } from "#config/oauth.config";
 
 import { startBackgroundPolling } from "./background-polling.js";
 import { createDatabase } from "./database.module.js";
@@ -66,12 +68,17 @@ export interface ApplicationModule {
   readonly auditQueries: AuditQueriesApplication;
   readonly notifications: NotificationsApplication;
   readonly outboxWorker: OutboxWorker;
+  readonly oauth?: OAuthProvider | undefined;
 
   dispose(): Promise<void>;
 }
 
 export async function buildApplicationModule(): Promise<ApplicationModule> {
   const config = loadConfig();
+  const oauth = loadOAuthOptions(
+    process.env["DELEGATED_OAUTH_CONFIG"],
+    process.env["TRUST_PROXY"] === "true",
+  );
 
   const db = createDatabase(config.database);
   let disconnectRedis: (() => void) | undefined;
@@ -110,6 +117,7 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
         encryptionKey: config.security.encryptionKey,
         recoveryUrl: config.smtp.recoveryUrl,
         deletionCancellationUrl: config.smtp.deletionCancellationUrl,
+        oauth,
       },
     );
     const deliveries: NotificationDelivery[] = [
@@ -188,6 +196,15 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       },
       3_600_000,
     );
+    const stopOAuthRetention =
+      iamModule.oauth &&
+      startBackgroundPolling(
+        iamModule.oauth.purgeExpired,
+        () => {
+          console.error("OAuth protocol retention poll failed");
+        },
+        60_000,
+      );
 
     return {
       iam: iamModule.iam,
@@ -197,12 +214,14 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       auditQueries,
       notifications,
       outboxWorker,
+      oauth: iamModule.oauth,
 
       async dispose() {
         const stopped = await Promise.allSettled([
           stopOutbox(),
           stopNotifications(),
           stopAudit(),
+          stopOAuthRetention?.(),
         ]);
         const closed = await Promise.allSettled([redis.quit(), db.destroy()]);
         const failures = [...stopped, ...closed]

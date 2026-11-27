@@ -81,6 +81,10 @@ export async function buildServer() {
       resolveSession: container.iam.authentication.resolveSession,
       sessionCookieName: SESSION_COOKIE_NAME,
     });
+    if (container.oauth) {
+      const { buildOAuthRoutes } = await import("#adapters/iam/oauth.routes");
+      await app.register(buildOAuthRoutes(container.oauth));
+    }
 
     // =========================
     // Routes registration

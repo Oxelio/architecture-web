@@ -415,10 +415,12 @@ export type {
   DelegatedAuthorizationWriter,
   DelegatedCredentialAuthority,
   FinalizeConsentInput,
+  PreparedConsent,
 } from "./delegated-authorization/delegated-authorization.contracts.js";
 export { DelegatedAuthorization } from "./delegated-authorization/delegated-authorization.js";
 export {
   type AccountDelegatedInvalidation,
+  createDelegatedApprovalFact,
   createDelegatedRevocationFact,
   createDelegatedWithdrawalFact,
   type DelegatedRevocationActor,

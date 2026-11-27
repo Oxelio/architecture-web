@@ -35,7 +35,13 @@ export interface DelegatedAuthorizationReader {
 
 export interface DelegatedAuthorizationWriter extends DelegatedAuthorizationReader {
   saveClient(client: ClientApplication, administratorId: string): Promise<void>;
-  saveGrant(grant: AuthorizationGrant): Promise<void>;
+  saveGrant(
+    grant: AuthorizationGrant,
+    approval?: {
+      readonly addedPermissions: readonly string[];
+      readonly created: boolean;
+    },
+  ): Promise<void>;
   invalidateConsent(target: AuthorizationTarget): Promise<void>;
   saveGrantRestriction(
     grant: AuthorizationGrant,

@@ -424,6 +424,7 @@ describe.skipIf(!databaseUrl)(
         .selectFrom("messaging_outbox")
         .select("payload")
         .where("aggregate_id", "=", original.grantId)
+        .where("topic", "=", "iam.delegated-permission-withdrawn")
         .executeTakeFirstOrThrow();
       expect(withdrawal.payload).toMatchObject({
         permissions: ["write"],

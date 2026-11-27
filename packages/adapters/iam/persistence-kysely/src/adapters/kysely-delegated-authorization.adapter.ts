@@ -6,6 +6,7 @@ import type {
   DelegatedAuthorizationWriter,
 } from "@architecture/iam/application";
 import {
+  createDelegatedApprovalFact,
   createDelegatedRevocationFact,
   createDelegatedWithdrawalFact,
 } from "@architecture/iam/application";
@@ -222,7 +223,13 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
     }
   }
 
-  async saveGrant({ state }: AuthorizationGrant) {
+  async saveGrant(
+    { state }: AuthorizationGrant,
+    approval?: {
+      readonly created: boolean;
+      readonly addedPermissions: readonly string[];
+    },
+  ) {
     if (this.accountId !== state.accountId) {
       throw new Error("Grant mutation requires the locked account");
     }
@@ -256,6 +263,19 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
       throw new Error(
         "Cannot update a different or revoked authorization lifecycle",
       );
+    }
+    if (approval) {
+      await appendDelegatedFacts(this.outbox, [
+        createDelegatedApprovalFact({
+          operationId: randomUUID(),
+          userId: state.accountId,
+          grantId: state.id,
+          clientId: state.clientId,
+          resourceId: state.resourceId,
+          occurredAt: new Date(),
+          approval,
+        }),
+      ]);
     }
   }
 
@@ -364,21 +384,61 @@ export class KyselyDelegatedAuthorizationAdapter implements DelegatedAuthorizati
       .setIsolationLevel("read committed")
       .execute(async (transaction) => {
         await lockAdministrativeAccess(transaction);
-        if (accountId !== null) {
-          await transaction
-            .selectFrom("iam_users")
-            .select("id")
-            .where("id", "=", accountId)
-            .forUpdate()
-            .executeTakeFirst();
+        return run(await this.bindWriter(transaction, accountId));
+      });
+  }
+
+  /** The protocol boundary already holds the administrative fence on this connection. */
+  async bindWriter(
+    transaction: Transaction<IamDatabase>,
+    accountId: string | null,
+  ) {
+    if (accountId !== null) {
+      await transaction
+        .selectFrom("iam_users")
+        .select("id")
+        .where("id", "=", accountId)
+        .forUpdate()
+        .executeTakeFirst();
+    }
+    return new KyselyDelegatedAuthorizationTransaction(
+      transaction,
+      this.createOutbox?.(transaction),
+      accountId,
+    );
+  }
+
+  protocolTransaction<T>(
+    mode: "exclusive" | "shared",
+    deadline: number,
+    run: (
+      transaction: Transaction<IamDatabase>,
+      reader: DelegatedAuthorizationReader,
+    ) => Promise<T>,
+  ) {
+    return this.db
+      .transaction()
+      .setIsolationLevel("read committed")
+      .setAccessMode(mode === "shared" ? "read only" : "read write")
+      .execute(async (transaction) => {
+        const remaining = Math.floor(deadline - performance.now());
+        if (remaining <= 0) {
+          throw new Error("Delegated request deadline elapsed");
         }
-        return run(
-          new KyselyDelegatedAuthorizationTransaction(
-            transaction,
-            this.createOutbox?.(transaction),
-            accountId,
-          ),
+        await sql`select set_config('lock_timeout', ${String(Math.min(500, remaining))}, true),
+          set_config('statement_timeout', ${String(Math.min(2_000, remaining))}, true),
+          set_config('transaction_timeout', ${String(Math.min(4_000, remaining))}, true)`.execute(
+          transaction,
         );
+        await lockAdministrativeAccess(transaction, mode);
+        const result = await run(
+          transaction,
+          new KyselyDelegatedAuthorizationTransaction(transaction),
+        );
+        if (performance.now() >= deadline) {
+          throw new Error("Delegated request deadline elapsed");
+        }
+        return result;
       });
   }
 }

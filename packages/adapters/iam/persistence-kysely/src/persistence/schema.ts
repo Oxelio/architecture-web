@@ -1,6 +1,10 @@
 // @file infrastructure/iam/persitence/kysely/src/persistence/schema.ts
 
 import type {
+  DelegatedCredentialAuthority,
+  PreparedConsent,
+} from "@architecture/iam/application";
+import type {
   ClientResourcePolicy,
   PermissionGeneration,
 } from "@architecture/iam/domain";
@@ -22,6 +26,35 @@ export interface IamDatabase {
   iam_account_erasure_evidence: { subject_key: Buffer };
   iam_delegated_clients: IamDelegatedClientTable;
   iam_delegated_grants: IamDelegatedGrantTable;
+  iam_oauth_families: {
+    id: string;
+    account_id: string;
+    client_id: string;
+    grant_id: string;
+    authority: ColumnType<DelegatedCredentialAuthority, string, never>;
+    expires_at: Date;
+    revoked: Generated<boolean>;
+  };
+  iam_oauth_artifacts: {
+    model: string;
+    id: string;
+    uid: string | null;
+    account_id: string | null;
+    family_id: string | null;
+    payload: Buffer;
+    consumed: number | null;
+    expires_at: Date;
+  };
+  iam_oauth_pending: {
+    id: string;
+    client_id: string;
+    client_revision: number;
+    account_id: string | null;
+    binding: string | null;
+    consent: ColumnType<PreparedConsent | null, string | null, string | null>;
+    expires_at: Date;
+    decided: Generated<boolean>;
+  };
   iam_delegated_account_epochs: {
     account_id: string;
     epoch: Generated<string>;

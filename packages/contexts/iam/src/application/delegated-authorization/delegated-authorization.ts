@@ -122,7 +122,13 @@ export class DelegatedAuthorization {
       previous?.extend(selected) ??
       AuthorizationGrant.authorize(consent, selected, new Date());
     if (grant !== previous) {
-      await writer.saveGrant(grant);
+      const previousCodes = new Set(
+        previous?.state.permissions.map(({ code }) => code),
+      );
+      await writer.saveGrant(grant, {
+        created: previous === undefined,
+        addedPermissions: selected.filter((code) => !previousCodes.has(code)),
+      });
     }
     return Result.success({
       accountId: consent.accountId,

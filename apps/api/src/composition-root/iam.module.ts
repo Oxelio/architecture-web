@@ -11,6 +11,7 @@ import {
   PublishedIamPolicies,
   type SecurityEventRecorder,
 } from "@architecture/iam/application";
+import type { ProtectedResource } from "@architecture/iam/domain";
 import type { NodemailerEmailSenderAdapter } from "@architecture/iam-email-nodemailer";
 import { Sha256EmailVerificationTokenHasherAdapter } from "@architecture/iam-email-verification-sha256";
 import { Argon2PasswordHasherAdapter } from "@architecture/iam-password-argon2";
@@ -46,12 +47,14 @@ import { AuditSecurityEventsAdapter } from "#adapters/iam/audit-security-events.
 import { NodeAccountArchiveAdapter } from "#adapters/iam/node-account-archive.adapter";
 import { NodeMfaCryptographyAdapter } from "#adapters/iam/node-mfa-cryptography.adapter";
 import { NodeSecurityTokensAdapter } from "#adapters/iam/node-security-tokens.adapter";
+import type { OAuthProvider } from "#adapters/iam/oauth-provider";
 import { RedisRecoveryOriginLimiterAdapter } from "#adapters/iam/redis-recovery-origin-limiter.adapter";
 import {
   HeuristicPasswordStrengthEvaluator,
   LocalCommonPasswordChecker,
   LocalCompromisedPasswordChecker,
 } from "#adapters/local-password-security.adapter";
+import type { OAuthOptions } from "#config/oauth.config";
 
 import type { AppDatabase } from "./database.module.js";
 export async function buildIamModule(
@@ -65,6 +68,7 @@ export async function buildIamModule(
     encryptionKey: string;
     recoveryUrl: string;
     deletionCancellationUrl: string;
+    oauth?: OAuthOptions | undefined;
   },
 ): Promise<{
   iam: IamApplication;
@@ -72,6 +76,7 @@ export async function buildIamModule(
   securityEvents: SecurityEventRecorder;
   recipientReads: AccountRecipientReader;
   deliveryEligibility: AffectedUserDeliveryEligibilityReader;
+  oauth?: OAuthProvider | undefined;
 }> {
   const db = database.$pickTables<keyof IamDatabase>();
   const createOutbox = (transaction: Kysely<IamDatabase>) =>
@@ -103,10 +108,15 @@ export async function buildIamModule(
     common = new LocalCommonPasswordChecker(),
     compromised = new LocalCompromisedPasswordChecker();
   const deletions = new KyselyAccountDeletionAdapter(db, createOutbox);
+  const delegatedStore = new KyselyDelegatedAuthorizationAdapter(
+    db,
+    createOutbox,
+  );
+  const resources: readonly ProtectedResource[] = [];
   const iam = createIam({
     delegatedAuthorization: {
-      store: new KyselyDelegatedAuthorizationAdapter(db, createOutbox),
-      resources: [],
+      store: delegatedStore,
+      resources,
     },
     userRepository: users,
     userQueryRepository: users,
@@ -144,11 +154,23 @@ export async function buildIamModule(
     archive: new NodeAccountArchiveAdapter(),
     outbox,
   });
+  let oauth: OAuthProvider | undefined;
+  if (options.oauth) {
+    const { createOAuthProvider } =
+      await import("#adapters/iam/oauth-provider");
+    oauth = createOAuthProvider(
+      options.oauth,
+      delegatedStore,
+      sessions,
+      resources,
+    );
+  }
   return {
     iam,
     configuration,
     securityEvents: events,
     recipientReads: users,
     deliveryEligibility: deletions,
+    oauth,
   };
 }

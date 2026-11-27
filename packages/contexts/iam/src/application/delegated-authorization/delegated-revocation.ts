@@ -131,3 +131,45 @@ function delegatedActorContext(
     ...(actorId === undefined ? {} : { actorId }),
   };
 }
+
+export function createDelegatedApprovalFact(
+  input: Omit<DelegatedWithdrawalFact, "actor" | "permissions"> & {
+    readonly approval: {
+      readonly created: boolean;
+      readonly addedPermissions: readonly string[];
+    };
+  },
+): IntegrationEvent {
+  const {
+    userId,
+    operationId,
+    occurredAt,
+    clientId,
+    resourceId,
+    grantId,
+    approval,
+  } = input;
+  return {
+    eventId: uuid(`approval:${operationId}:${grantId}`, factNamespace),
+    topic: approval.created
+      ? "iam.delegated-grant-created"
+      : "iam.delegated-grant-extended",
+    version: 1,
+    aggregateId: grantId,
+    occurredAt,
+    payload: {
+      userId,
+      operationId,
+      grantId,
+      clientId,
+      resourceId,
+      ...(approval.created
+        ? {}
+        : { permissions: [...approval.addedPermissions] }),
+    },
+    context: delegatedActorContext(
+      { actorType: "user", actorId: userId },
+      userId,
+    ),
+  };
+}

@@ -23,4 +23,5 @@ export { iamConfigurationVersionMigrations } from "./persistence/migrations/008_
 export { iamErasureEvidenceMigrations } from "./persistence/migrations/009_add_iam_erasure_evidence.js";
 export { iamCriticalConfigurationAttemptMigrations } from "./persistence/migrations/011_add_iam_critical_configuration_attempts.js";
 export { iamDelegatedAuthorizationMigrations } from "./persistence/migrations/012_add_iam_delegated_authorization.js";
+export { iamOAuthProtocolMigrations } from "./persistence/migrations/013_add_iam_oauth_protocol.js";
 export type { IamDatabase } from "./persistence/schema.js";
