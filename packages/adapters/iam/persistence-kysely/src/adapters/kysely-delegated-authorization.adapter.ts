@@ -40,13 +40,38 @@ function toGrant(row: Selectable<IamDelegatedGrantTable>) {
   });
 }
 
-function policyKey(policies: readonly ClientResourcePolicy[]) {
-  return policies
-    .map(({ resourceId, required, optional }) =>
-      JSON.stringify([resourceId, [...required].sort(), [...optional].sort()]),
-    )
-    .sort()
-    .join("\n");
+function samePermissions(
+  previous: readonly string[],
+  current: readonly string[],
+) {
+  const permissions = new Set(previous);
+  return (
+    previous.length === current.length &&
+    permissions.size === previous.length &&
+    new Set(current).size === current.length &&
+    current.every((permission) => permissions.has(permission))
+  );
+}
+
+function samePolicy(
+  previous: readonly ClientResourcePolicy[],
+  current: readonly ClientResourcePolicy[],
+) {
+  const byResource = new Map(
+    previous.map((policy) => [policy.resourceId, policy]),
+  );
+  return (
+    byResource.size === previous.length &&
+    previous.length === current.length &&
+    current.every((policy) => {
+      const old = byResource.get(policy.resourceId);
+      return (
+        old !== undefined &&
+        samePermissions(old.required, policy.required) &&
+        samePermissions(old.optional, policy.optional)
+      );
+    })
+  );
 }
 
 class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationWriter {
@@ -168,8 +193,7 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
     }
     const affectsAuthority =
       previous.state.enabled &&
-      (!client.enabled ||
-        policyKey(previous.state.policies) !== policyKey(state.policies));
+      (!client.enabled || !samePolicy(previous.state.policies, state.policies));
     if (affectsAuthority) {
       await lockDelegatedClientAccounts(this.db, client.id);
     }

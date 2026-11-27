@@ -442,7 +442,9 @@ describe.skipIf(!databaseUrl)(
 
       await setPolicy(4, ["read", "write"], []);
       expect((await admit(fresh, "read")).success).toBe(true);
-      await setPolicy(5, ["read"], ["write"]);
+      await setPolicy(5, ["write", "read"], []);
+      expect((await admit(fresh, "write")).success).toBe(true);
+      await setPolicy(6, ["read"], ["write"]);
       expect((await admit(other, "read")).success).toBe(false);
       const revoked = await database
         .selectFrom("messaging_outbox")
