@@ -48,7 +48,7 @@ describe.skipIf(!databaseUrl)(
   "delegated authorization PostgreSQL boundaries",
   () => {
     const authority = new DelegatedAuthorization([resource]);
-    const schema = `delegated_test_${randomUUID().replaceAll("-", "")}`;
+    const databaseName = `iam_refactor_test_delegated_${randomUUID().replaceAll("-", "")}`;
     let database: Kysely<IamDatabase & MessagingDatabase>;
     let admin: Pool;
     let store: KyselyDelegatedAuthorizationAdapter;
@@ -62,19 +62,29 @@ describe.skipIf(!databaseUrl)(
       );
 
     beforeAll(async () => {
+      if (!databaseUrl) {
+        throw new Error("An IAM integration database URL is required");
+      }
+      const isolatedUrl = new URL(databaseUrl);
+      if (!isolatedUrl.pathname.startsWith("/iam_refactor_test")) {
+        throw new Error(
+          "IAM integration database name must start with iam_refactor_test",
+        );
+      }
       admin = new Pool({ connectionString: databaseUrl });
-      await admin.query(`create schema ${schema}`);
+      // PostgreSQL advisory locks are database-wide. Keep the bulk writer off the other suites' fence.
+      await admin.query(`create database "${databaseName}"`);
+      isolatedUrl.pathname = `/${databaseName}`;
       database = new Kysely({
         dialect: new PostgresDialect({
           pool: new Pool({
-            connectionString: databaseUrl,
-            options: `-c search_path=${schema} -c statement_timeout=5000`,
+            connectionString: isolatedUrl.href,
+            options: "-c statement_timeout=5000",
           }),
         }),
       });
       const migrator = new Migrator({
         db: database,
-        migrationTableSchema: schema,
         provider: { getMigrations: async () => getAllMigrations() },
       });
       const { error } = await migrator.migrateToLatest();
@@ -90,7 +100,7 @@ describe.skipIf(!databaseUrl)(
     afterAll(async () => {
       await database?.destroy();
       if (admin) {
-        await admin.query(`drop schema if exists ${schema} cascade`);
+        await admin.query(`drop database if exists "${databaseName}"`);
         await admin.end();
       }
     });
