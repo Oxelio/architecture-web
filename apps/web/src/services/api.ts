@@ -197,6 +197,72 @@ export class ApiRequestError extends Error {
   }
 }
 
+export interface DelegatedClientPolicy {
+  resourceId: string;
+  required: string[];
+  optional: string[];
+}
+
+export interface DelegatedClient {
+  id: string;
+  publicId: string;
+  displayName: string;
+  redirectUris: string[];
+  enabled: boolean;
+  revision: number;
+  policies: DelegatedClientPolicy[];
+}
+
+export interface DelegatedResource {
+  id: string;
+  uri: string;
+  permissions: { code: string; description: string }[];
+}
+
+export type DelegatedClientCommand =
+  | { kind: "rename"; displayName: string }
+  | {
+      kind: "configure";
+      redirectUris: string[];
+      policies: DelegatedClientPolicy[];
+    }
+  | { kind: "enable" }
+  | { kind: "disable" };
+
+const delegatedClientsPath = "/iam/admin/delegated-clients";
+
+export function getDelegatedClients() {
+  return request<{
+    clients: DelegatedClient[];
+    resources: DelegatedResource[];
+  }>(delegatedClientsPath, { method: "GET" });
+}
+
+export function registerDelegatedClient(input: {
+  publicId: string;
+  displayName: string;
+}) {
+  return request<DelegatedClient>(delegatedClientsPath, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function changeDelegatedClient(
+  id: string,
+  expectedRevision: number,
+  command: DelegatedClientCommand,
+  confirmation?: { password: string; mfaCode?: string },
+) {
+  return request<DelegatedClient>(
+    `${delegatedClientsPath}/${encodeURIComponent(id)}/change`,
+    {
+      method: "POST",
+      body: JSON.stringify({ expectedRevision, command, confirmation }),
+    },
+  );
+}
+
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const response = await requestEnvelope<T>(path, init);
   if (response === null) {

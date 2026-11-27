@@ -62,6 +62,7 @@ import { authPlugin } from "#app/auth";
 import { getAllMigrations } from "#app/scripts/migrations.provider";
 import type { AppDatabase } from "#composition-root/database.module";
 import { buildIamModule } from "#composition-root/iam.module";
+import { buildClientAdministrationRoutes } from "#iam/routes/client-administration.routes";
 import { buildIamRoutes } from "#iam/routes/index";
 import { buildSecurityRoutes } from "#iam/security/security.routes";
 import { errorHandler } from "#types/error-handler";
@@ -75,6 +76,14 @@ if (Boolean(databaseUrl) !== Boolean(redisUrl)) {
   throw new Error("Both IAM integration URLs are required");
 }
 const enabled = Boolean(databaseUrl && redisUrl);
+const clientResource = {
+  id: "synthetic-oauth",
+  uri: "https://resource.example.test/account",
+  permissions: [
+    { code: "read", description: "Read" },
+    { code: "write", description: "Write" },
+  ],
+};
 describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
   let db: Kysely<AppDatabase>,
     iamDb: Kysely<IamDatabase>,
@@ -311,6 +320,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         encryptionKey: "integration-test-key",
         recoveryUrl: "http://localhost/recovery",
         deletionCancellationUrl: "http://localhost/cancellation",
+        delegatedResources: [clientResource],
       },
     );
   }, 30000);
@@ -692,6 +702,307 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     ]) {
       expect(recorded).not.toContain(secret);
     }
+  });
+  it("administers approved clients over first-party HTTP, revokes grants on disablement, and records only committed changes", async () => {
+    const { user } = await account(true);
+    const session = await oldSession(user);
+    const other = await oldSession((await account()).user);
+    const origin = "https://web.example.test";
+    const app = Fastify({ logger: false });
+    await app.register(authPlugin, {
+      sessionCookieName: "sid",
+      resolveSession: module.iam.authentication.resolveSession,
+    });
+    await app.register(
+      buildClientAdministrationRoutes(module.iam.clientAdministration, origin),
+    );
+    try {
+      const path = "/admin/delegated-clients";
+      const headers = { origin, cookie: `sid=${session.identifier.value}` };
+      expect(
+        (
+          await app.inject({
+            method: "GET",
+            url: path,
+            headers: { cookie: `sid=${other.identifier.value}` },
+          })
+        ).statusCode,
+      ).toBe(403);
+      const input = {
+        publicId: randomUUID(),
+        displayName: "Synthetic integration client",
+      };
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: path,
+            headers: { ...headers, origin: "https://elsewhere.example.test" },
+            payload: input,
+          })
+        ).statusCode,
+      ).toBe(403);
+      const registered = await app.inject({
+        method: "POST",
+        url: path,
+        headers,
+        payload: input,
+      });
+      expect(registered.statusCode).toBe(201);
+      const { data: client } = registered.json<{
+        data: { id: string; enabled: boolean; revision: number };
+      }>();
+      expect(client).toMatchObject({ enabled: false, revision: 0 });
+      const change = (payload: object) =>
+        app.inject({
+          method: "POST",
+          url: `${path}/${client.id}/change`,
+          headers,
+          payload,
+        });
+      const confirmation = { password: "initial long account password" };
+      const configure = {
+        kind: "configure",
+        redirectUris: ["https://client.example.test/callback"],
+        policies: [
+          {
+            resourceId: clientResource.id,
+            required: ["read"],
+            optional: ["write"],
+          },
+        ],
+      };
+      expect(
+        (await change({ expectedRevision: 0, command: configure })).statusCode,
+      ).toBe(403);
+      expect(
+        (
+          await change({
+            expectedRevision: 0,
+            command: {
+              ...configure,
+              policies: [
+                {
+                  resourceId: clientResource.id,
+                  required: ["invented"],
+                  optional: [],
+                },
+              ],
+            },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(422);
+      expect(
+        (
+          await change({
+            expectedRevision: 0,
+            command: configure,
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect(
+        (
+          await change({
+            expectedRevision: 0,
+            command: { kind: "enable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(409);
+      expect(
+        (
+          await change({
+            expectedRevision: 1,
+            command: { kind: "enable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      const accountId = user.identifier.value;
+      const delegated = new KyselyDelegatedAuthorizationAdapter(iamDb, outbox);
+      const grant = AuthorizationGrant.authorize(
+        { accountId, clientId: client.id, resourceId: clientResource.id },
+        ["read", "write"],
+        new Date(),
+      );
+      await delegated.write(accountId, (writer) => writer.saveGrant(grant));
+      expect(
+        (
+          await change({
+            expectedRevision: 2,
+            command: { kind: "disable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect(
+        (await change({ expectedRevision: 3, command: { kind: "disable" } }))
+          .statusCode,
+      ).toBe(200);
+      expect(
+        (
+          await change({
+            expectedRevision: 3,
+            command: { kind: "enable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      await delegated.read(async (reader) => {
+        expect(
+          (await reader.grant(accountId, grant.state.id))?.state.revokedAt,
+        ).toBeInstanceOf(Date);
+      });
+      const facts = await db
+        .selectFrom("messaging_outbox")
+        .select(["payload", "context"])
+        .where("topic", "=", "iam.delegated-client-changed")
+        .where("aggregate_id", "=", client.id)
+        .execute();
+      expect(facts).toHaveLength(5);
+      expect(facts.map(({ payload }) => payload)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: "registered", revision: 0 }),
+          expect.objectContaining({ kind: "policy_changed", revision: 1 }),
+          expect.objectContaining({ kind: "disabled", revision: 3 }),
+        ]),
+      );
+      for (const fact of facts) {
+        expect(fact.context).toMatchObject({
+          actorId: accountId,
+          subjectId: accountId,
+        });
+      }
+      expect(JSON.stringify(facts)).not.toContain(session.identifier.value);
+      expect(JSON.stringify(facts)).not.toContain(confirmation.password);
+      await sql`create function fail_client_change_outbox() returns trigger language plpgsql as $$
+        begin
+          raise exception 'fixture outbox failure';
+        end
+      $$`.execute(db);
+      await sql`create trigger fail_client_change_outbox before insert on messaging_outbox
+        for each row when (new.topic = 'iam.delegated-client-changed')
+        execute function fail_client_change_outbox()`.execute(db);
+      try {
+        expect(
+          (
+            await change({
+              expectedRevision: 4,
+              command: { kind: "rename", displayName: "Failed rename" },
+            })
+          ).statusCode,
+        ).toBe(500);
+        await delegated.read(async (reader) => {
+          expect((await reader.client(client.id))?.state).toMatchObject({
+            revision: 4,
+            displayName: input.displayName,
+          });
+        });
+      } finally {
+        await sql`drop trigger fail_client_change_outbox on messaging_outbox`.execute(
+          db,
+        );
+        await sql`drop function fail_client_change_outbox()`.execute(db);
+      }
+      expect(
+        (await app.inject({ method: "GET", url: path, headers })).json(),
+      ).toMatchObject({
+        data: {
+          resources: [clientResource],
+          clients: expect.arrayContaining([
+            expect.objectContaining({ id: client.id, enabled: true }),
+          ]),
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("reserves exactly five client confirmations across sessions, independently of the configuration allowance", async () => {
+    const { user } = await account(true);
+    const accountId = user.identifier.value;
+    const sessions = await Promise.all([oldSession(user), oldSession(user)]);
+    const clients = module.iam.clientAdministration;
+    const client = await clients.register.execute(
+      { accountId, sessionId: sessions[0].identifier.value },
+      {
+        publicId: randomUUID(),
+        displayName: "Attempt allowance",
+      },
+    );
+    if (!client.success) {
+      throw new Error("Expected test client registration");
+    }
+    await db
+      .insertInto("iam_critical_configuration_attempts")
+      .values({
+        user_id: accountId,
+        timestamps: Array.from({ length: 5 }, () => new Date()),
+      })
+      .execute();
+    const command = {
+      kind: "configure" as const,
+      redirectUris: ["https://client.example.test/callback"],
+      policies: [],
+    };
+    const attempts = await Promise.all(
+      Array.from({ length: 6 }, (_, index) =>
+        clients.change.execute({
+          actor: {
+            accountId,
+            sessionId: (index % 2 === 0 ? sessions[0] : sessions[1]).identifier
+              .value,
+          },
+          clientId: client.value.id,
+          expectedRevision: 0,
+          command,
+          confirmation: { password: "incorrect account password" },
+        }),
+      ),
+    );
+    expect(
+      attempts.filter(
+        (result) =>
+          !result.success && result.error.code === "confirmation_refused",
+      ),
+    ).toHaveLength(5);
+    expect(
+      attempts.filter(
+        (result) =>
+          !result.success && result.error.code === "attempts_exhausted",
+      ),
+    ).toHaveLength(1);
+    const ledger = await db
+      .selectFrom("iam_critical_client_attempts")
+      .select("timestamps")
+      .where("user_id", "=", accountId)
+      .executeTakeFirstOrThrow();
+    expect(ledger.timestamps).toHaveLength(5);
+    await sql`update iam_critical_client_attempts
+      set timestamps = array[clock_timestamp() - interval '5 minutes 1 second']
+      where user_id = ${accountId}`.execute(db);
+    const changed = await Promise.all(
+      sessions.map((session, index) =>
+        clients.change.execute({
+          actor: { accountId, sessionId: session.identifier.value },
+          clientId: client.value.id,
+          expectedRevision: 0,
+          command: {
+            ...command,
+            redirectUris: [`https://client.example.test/callback-${index}`],
+          },
+          confirmation: { password: "initial long account password" },
+        }),
+      ),
+    );
+    expect(changed.filter(({ success }) => success)).toHaveLength(1);
+    expect(changed).toContainEqual({
+      success: false,
+      error: { code: "revision_conflict" },
+    });
   });
   it("shares five admissions across sessions, publication and restoration, and two instances", async () => {
     const { user } = await account(true);

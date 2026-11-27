@@ -34,7 +34,7 @@ export function createOAuthTransactions(
       if (scope.getStore()) {
         throw new Error("Nested OAuth transaction");
       }
-      return store.protocolTransaction(mode, deadline, (db, reader) => {
+      return store.boundedTransaction(mode, deadline, (db, reader) => {
         const context = new OAuthTransaction(
           db,
           reader,

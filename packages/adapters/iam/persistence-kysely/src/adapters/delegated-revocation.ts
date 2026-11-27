@@ -73,19 +73,23 @@ export async function appendDelegatedFacts(
 export async function lockDelegatedClientAccounts(
   trx: Transaction<IamDatabase>,
   clientId: string,
+  administratorId?: string,
 ) {
   await trx
     .selectFrom("iam_users")
     .select("id")
-    .where(({ exists, selectFrom }) =>
-      exists(
+    .where(({ eb, or, exists, selectFrom }) => {
+      const affected = exists(
         selectFrom("iam_delegated_grants")
           .select("id")
           .whereRef("account_id", "=", "iam_users.id")
           .where("client_id", "=", clientId)
           .where("revoked_at", "is", null),
-      ),
-    )
+      );
+      return administratorId
+        ? or([affected, eb("iam_users.id", "=", administratorId)])
+        : affected;
+    })
     .orderBy("id")
     .forUpdate()
     .execute();

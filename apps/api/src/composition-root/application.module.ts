@@ -69,12 +69,15 @@ export interface ApplicationModule {
   readonly notifications: NotificationsApplication;
   readonly outboxWorker: OutboxWorker;
   readonly oauth?: OAuthProvider | undefined;
+  readonly webOrigin: string;
 
   dispose(): Promise<void>;
 }
 
 export async function buildApplicationModule(): Promise<ApplicationModule> {
   const config = loadConfig();
+  const webOrigin = new URL(process.env["WEB_ORIGIN"] ?? config.smtp.verifyUrl)
+    .origin;
   const oauth = loadOAuthOptions(
     process.env["DELEGATED_OAUTH_CONFIG"],
     process.env["TRUST_PROXY"] === "true",
@@ -215,6 +218,7 @@ export async function buildApplicationModule(): Promise<ApplicationModule> {
       notifications,
       outboxWorker,
       oauth: iamModule.oauth,
+      webOrigin,
 
       async dispose() {
         const stopped = await Promise.allSettled([

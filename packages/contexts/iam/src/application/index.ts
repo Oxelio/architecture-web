@@ -407,6 +407,13 @@ export {
   Reauthentication,
 } from "./authentication/reauthentication.js";
 export { RegenerateMfaBackupCodesUseCase } from "./authentication/regenerate-mfa-backup-codes/regenerate-mfa-backup-codes.use-case.js";
+export {
+  ClientAdministration,
+  type ClientAdministrationError,
+  type ClientAdministrationStore,
+  type ClientAdministrationTransaction,
+  type ClientChangeKind,
+} from "./delegated-authorization/client-administration.js";
 export type {
   DelegatedAuthorizationApplication,
   DelegatedAuthorizationDependencies,
@@ -421,6 +428,7 @@ export { DelegatedAuthorization } from "./delegated-authorization/delegated-auth
 export {
   type AccountDelegatedInvalidation,
   createDelegatedApprovalFact,
+  createDelegatedClientChangeFact,
   createDelegatedRevocationFact,
   createDelegatedWithdrawalFact,
   type DelegatedRevocationActor,

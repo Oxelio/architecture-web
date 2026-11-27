@@ -6,7 +6,10 @@ import type {
   DelegatedAuthorizationWriter,
 } from "@architecture/iam/application";
 import {
+  type ClientAdministrationStore,
+  type ClientAdministrationTransaction,
   createDelegatedApprovalFact,
+  createDelegatedClientChangeFact,
   createDelegatedRevocationFact,
   createDelegatedWithdrawalFact,
 } from "@architecture/iam/application";
@@ -21,13 +24,20 @@ import { type Kysely, type Selectable, sql, type Transaction } from "kysely";
 
 import type { IamDatabase, IamDelegatedGrantTable } from "#persistence/schema";
 
-import { lockAdministrativeAccess } from "./administrative-access.js";
+import {
+  currentAccessPolicy,
+  lockAdministrativeAccess,
+} from "./administrative-access.js";
 import {
   appendDelegatedFacts,
   invalidateDelegatedAccount,
   invalidateDelegatedClient,
   lockDelegatedClientAccounts,
 } from "./delegated-revocation.js";
+import {
+  readCriticalSecurityState,
+  reserveCriticalConfirmation,
+} from "./kysely-critical-configuration-confirmation.adapter.js";
 
 function toGrant(row: Selectable<IamDelegatedGrantTable>) {
   return AuthorizationGrant.rehydrate({
@@ -38,6 +48,18 @@ function toGrant(row: Selectable<IamDelegatedGrantTable>) {
     authorizedAt: row.authorized_at,
     revokedAt: row.revoked_at,
     permissions: row.permissions,
+  });
+}
+
+function toClient(row: Selectable<IamDatabase["iam_delegated_clients"]>) {
+  return ClientApplication.rehydrate({
+    id: row.id,
+    publicId: row.public_id,
+    displayName: row.display_name,
+    redirectUris: row.redirect_uris,
+    enabled: row.enabled,
+    revision: row.revision,
+    policies: row.policies,
   });
 }
 
@@ -80,6 +102,7 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
     private readonly db: Transaction<IamDatabase>,
     private readonly outbox?: OutboxWriter,
     private readonly accountId?: string | null,
+    private readonly lockedClientId?: string,
   ) {}
 
   async eligibleAccount(accountId: string) {
@@ -97,18 +120,7 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
       .selectAll()
       .where("id", "=", clientId)
       .executeTakeFirst();
-    return (
-      row &&
-      ClientApplication.rehydrate({
-        id: row.id,
-        publicId: row.public_id,
-        displayName: row.display_name,
-        redirectUris: row.redirect_uris,
-        enabled: row.enabled,
-        revision: row.revision,
-        policies: row.policies,
-      })
-    );
+    return row && toClient(row);
   }
 
   async grant(accountId: string, grantId: string) {
@@ -195,7 +207,7 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
     const affectsAuthority =
       previous.state.enabled &&
       (!client.enabled || !samePolicy(previous.state.policies, state.policies));
-    if (affectsAuthority) {
+    if (affectsAuthority && this.lockedClientId !== client.id) {
       await lockDelegatedClientAccounts(this.db, client.id);
     }
     const updated = await this.db
@@ -354,13 +366,108 @@ class KyselyDelegatedAuthorizationTransaction implements DelegatedAuthorizationW
   }
 }
 
-export class KyselyDelegatedAuthorizationAdapter implements DelegatedAuthorizationStore {
+export class KyselyDelegatedAuthorizationAdapter
+  implements DelegatedAuthorizationStore, ClientAdministrationStore
+{
   constructor(
     private readonly db: Kysely<IamDatabase>,
     private readonly createOutbox?: (
       transaction: Kysely<IamDatabase>,
     ) => OutboxWriter,
   ) {}
+
+  run<T>(
+    {
+      actorId,
+      affectedClientId,
+      deadline,
+    }: Parameters<ClientAdministrationStore["run"]>[0],
+    execute: (transaction: ClientAdministrationTransaction) => Promise<T>,
+  ) {
+    return this.boundedTransaction("exclusive", deadline, async (db) => {
+      if (affectedClientId) {
+        await lockDelegatedClientAccounts(db, affectedClientId, actorId);
+      } else {
+        await db
+          .selectFrom("iam_users")
+          .select("id")
+          .where("id", "=", actorId)
+          .forUpdate()
+          .execute();
+      }
+      const outbox = this.createOutbox?.(db);
+      const writer = new KyselyDelegatedAuthorizationTransaction(
+        db,
+        outbox,
+        null,
+        affectedClientId,
+      );
+      return execute({
+        async adminSessionVersion() {
+          const actor = await db
+            .selectFrom("iam_users")
+            .select("session_version")
+            .where("id", "=", actorId)
+            .where("status", "=", "active")
+            .where("role", "=", "admin")
+            .executeTakeFirst();
+          return actor?.session_version;
+        },
+        async security() {
+          const snapshot = await readCriticalSecurityState(db, actorId);
+          if (!snapshot.success) {
+            return;
+          }
+          const mfaRequired = (
+            await currentAccessPolicy(db)
+          ).authentication.mfaRequiredRoles.includes("admin");
+          return {
+            ...snapshot.value,
+            comparison: `${snapshot.value.comparison}:${mfaRequired}`,
+            mfaRequired,
+          };
+        },
+        reserveAttempt: () =>
+          reserveCriticalConfirmation(
+            db,
+            "iam_critical_client_attempts",
+            actorId,
+          ),
+        async clients() {
+          const rows = await db
+            .selectFrom("iam_delegated_clients")
+            .selectAll()
+            .orderBy("display_name")
+            .orderBy("id")
+            .execute();
+          return rows.map((row) => toClient(row).state);
+        },
+        client: (id) => writer.client(id),
+        async publicIdExists(publicId) {
+          return Boolean(
+            await db
+              .selectFrom("iam_delegated_clients")
+              .select("id")
+              .where("public_id", "=", publicId)
+              .executeTakeFirst(),
+          );
+        },
+        async save(client, kind) {
+          await writer.saveClient(client, actorId);
+          await appendDelegatedFacts(outbox, [
+            createDelegatedClientChangeFact({
+              administratorId: actorId,
+              clientId: client.state.id,
+              revision: client.state.revision,
+              kind,
+              operationId: randomUUID(),
+              occurredAt: new Date(),
+            }),
+          ]);
+        },
+      });
+    });
+  }
 
   read<T>(
     run: (reader: DelegatedAuthorizationReader) => Promise<T>,
@@ -408,7 +515,7 @@ export class KyselyDelegatedAuthorizationAdapter implements DelegatedAuthorizati
     );
   }
 
-  protocolTransaction<T>(
+  boundedTransaction<T>(
     mode: "exclusive" | "shared",
     deadline: number,
     run: (

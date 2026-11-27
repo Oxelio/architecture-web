@@ -22,6 +22,96 @@ const getInitialLanguage = (): Language => {
 // Group each FR/EN translation pair under one key to preserve structural parity
 // without duplicating the entire resource schema for each locale.
 const localizedCopy = {
+  delegatedClients: {
+    title: [
+      "Applications tierces approuvées",
+      "Approved third-party applications",
+    ],
+    register: ["Enregistrer une application", "Register an application"],
+    createDisabled: [
+      "Créer l’application désactivée",
+      "Create disabled application",
+    ],
+    publicId: ["Identifiant public", "Public client ID"],
+    displayName: ["Nom affiché", "Display name"],
+    enabled: ["Activée", "Enabled"],
+    disabled: ["Désactivée", "Disabled"],
+    empty: ["Aucune application enregistrée.", "No registered applications."],
+    saved: ["Application enregistrée.", "Application saved."],
+    rename: ["Enregistrer le nom", "Save name"],
+    redirectUris: [
+      "URI de redirection, une par ligne",
+      "Redirect URIs, one per line",
+    ],
+    required: ["Obligatoire", "Required"],
+    optional: ["Facultative", "Optional"],
+    unavailable: ["Non autorisée", "Unavailable"],
+    noResources: [
+      "Aucune ressource protégée n’est configurée.",
+      "No protected resources are configured.",
+    ],
+    permanentRevocation: [
+      "La désactivation révoque définitivement les autorisations de cette application. Une réactivation nécessitera un nouveau consentement.",
+      "Disabling permanently revokes this application’s authorizations. Users must consent again after reactivation.",
+    ],
+    configure: ["Vérifier la configuration", "Review configuration"],
+    enable: ["Activer", "Enable"],
+    disable: ["Désactiver", "Disable"],
+    cancel: ["Annuler", "Cancel"],
+    apply: ["Confirmer la modification", "Confirm change"],
+    password: ["Mot de passe actuel", "Current password"],
+    mfa: ["Code MFA, si activé", "MFA code, if enabled"],
+    explicit: ["Je confirme cette modification.", "I confirm this change."],
+    confirm: {
+      configure: [
+        "Confirmer la configuration de {{name}}",
+        "Confirm configuration for {{name}}",
+      ],
+      enable: [
+        "Confirmer l’activation de {{name}}",
+        "Confirm activation of {{name}}",
+      ],
+      disable: [
+        "Confirmer la désactivation de {{name}}",
+        "Confirm disablement of {{name}}",
+      ],
+    },
+    errors: {
+      forbidden: [
+        "Accès administrateur requis.",
+        "Administrator access is required.",
+      ],
+      session_invalid: [
+        "Reconnectez-vous pour continuer.",
+        "Sign in again to continue.",
+      ],
+      confirmation_refused: [
+        "La confirmation a été refusée ou a expiré.",
+        "The confirmation was refused or expired.",
+      ],
+      attempts_exhausted: [
+        "Cinq tentatives ont déjà été utilisées au cours des cinq dernières minutes.",
+        "Five attempts have already been used in the last five minutes.",
+      ],
+      revision_conflict: [
+        "L’application a changé. Sélectionnez-la de nouveau avant de continuer.",
+        "The application changed. Select it again before continuing.",
+      ],
+      client_not_found: ["Application introuvable.", "Application not found."],
+      public_id_conflict: [
+        "Cet identifiant public est déjà utilisé.",
+        "This public client ID is already in use.",
+      ],
+      invalid_client: [
+        "Vérifiez le nom, les URI et les permissions de l’application.",
+        "Check the application name, redirect URIs and permissions.",
+      ],
+      unexpected: [
+        "Impossible de charger ou de modifier les applications.",
+        "The applications could not be loaded or changed.",
+      ],
+    },
+  },
   document: {
     description: [
       "Front React moderne relié à une API Fastify pour gérer l'identité et l'authentification.",

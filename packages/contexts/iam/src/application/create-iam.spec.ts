@@ -177,6 +177,7 @@ function fixture() {
   const outbox = { append: vi.fn<IamDependencies["outbox"]["append"]>() };
   const events = { record: vi.fn<IamDependencies["events"]["record"]>() };
   const dependencies = {
+    clientAdministrationStore: { run: vi.fn() },
     delegatedAuthorization: {
       resources: [],
       store: { read: vi.fn(), write: vi.fn() },
@@ -384,6 +385,7 @@ describe("createIam", () => {
   it("exposes operation contracts through their owning capabilities without performing I/O", () => {
     const f = fixture();
     const expected = {
+      clientAdministration: ["list", "register", "change"],
       delegatedAuthorization: [
         "prepareConsent",
         "finalizeConsent",
@@ -450,6 +452,7 @@ describe("createIam", () => {
       "authentication",
       "administration",
       "delegatedAuthorization",
+      "clientAdministration",
     ] as const) {
       expect(Object.keys(f.iam[capability]).sort()).toEqual(
         [...expected[capability]].sort(),

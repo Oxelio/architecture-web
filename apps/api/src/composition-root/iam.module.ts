@@ -69,6 +69,7 @@ export async function buildIamModule(
     recoveryUrl: string;
     deletionCancellationUrl: string;
     oauth?: OAuthOptions | undefined;
+    delegatedResources?: readonly ProtectedResource[];
   },
 ): Promise<{
   iam: IamApplication;
@@ -112,8 +113,9 @@ export async function buildIamModule(
     db,
     createOutbox,
   );
-  const resources: readonly ProtectedResource[] = [];
+  const resources = options.delegatedResources ?? [];
   const iam = createIam({
+    clientAdministrationStore: delegatedStore,
     delegatedAuthorization: {
       store: delegatedStore,
       resources,

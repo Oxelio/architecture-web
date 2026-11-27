@@ -16,6 +16,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "./auth.js";
 import { buildApplicationModule } from "./composition-root/application.module.js";
+import { buildClientAdministrationRoutes } from "./features/iam/routes/client-administration.routes.js";
 import { buildIamRoutes } from "./features/iam/routes/index.js";
 import { buildSecurityRoutes } from "./features/iam/security/security.routes.js";
 import {
@@ -94,6 +95,15 @@ export async function buildServer() {
         name: SESSION_COOKIE_NAME,
         options: sessionCookieOptions,
       }),
+      {
+        prefix: `/${apiVersion}/iam`,
+      },
+    );
+    await app.register(
+      buildClientAdministrationRoutes(
+        container.iam.clientAdministration,
+        container.webOrigin,
+      ),
       {
         prefix: `/${apiVersion}/iam`,
       },

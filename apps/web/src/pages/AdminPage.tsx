@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { apiErrorKey, errorMessage } from "#app/lib/error-feedback";
+import { AdminDelegatedClients } from "#components/AdminDelegatedClients";
 import { AdminSecurityCenter } from "#components/AdminSecurityCenter";
 import { SessionSummary } from "#components/SessionSummary";
 import {
@@ -330,6 +331,7 @@ export function AdminPage({ currentUserId }: Readonly<AdminPageProps>) {
         <AdministrationNotice notice={notice} onClose={() => setNotice(null)} />
       ) : null}
       <AdminSecurityCenter />
+      <AdminDelegatedClients />
     </motion.section>
   );
 

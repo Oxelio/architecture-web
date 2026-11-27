@@ -1,6 +1,8 @@
 import type { IntegrationEvent } from "@architecture/messaging/domain";
 import { v5 as uuid } from "uuid";
 
+import type { ClientChangeKind } from "./client-administration.js";
+
 export type AccountRevocationReason =
   | "password_replaced"
   | "recovery_password_replaced"
@@ -53,6 +55,30 @@ const factNamespace = uuid(
   "architecture-web/iam/delegated-revocation/v1",
   uuid.URL,
 );
+
+export function createDelegatedClientChangeFact(input: {
+  administratorId: string;
+  clientId: string;
+  operationId: string;
+  kind: ClientChangeKind;
+  revision: number;
+  occurredAt: Date;
+}): IntegrationEvent {
+  const { administratorId, clientId, operationId, kind, revision, occurredAt } =
+    input;
+  return {
+    eventId: uuid(`client-change:${operationId}:${clientId}`, factNamespace),
+    topic: "iam.delegated-client-changed",
+    version: 1,
+    aggregateId: clientId,
+    occurredAt,
+    payload: { clientId, operationId, kind, revision },
+    context: delegatedActorContext(
+      { actorType: "administrator", actorId: administratorId },
+      administratorId,
+    ),
+  };
+}
 
 export function createDelegatedRevocationFact(
   input: DelegatedRevocationFact,
