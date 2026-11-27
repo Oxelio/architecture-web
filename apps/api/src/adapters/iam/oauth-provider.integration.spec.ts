@@ -6,6 +6,8 @@ import {
   randomUUID,
 } from "node:crypto";
 import { once } from "node:events";
+import { request as httpRequest } from "node:http";
+import { setTimeout as delay } from "node:timers/promises";
 
 import {
   ClientApplication,
@@ -159,6 +161,9 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         begin
           if exists (select 1 from oauth_test_faults where model = NEW.model) then
             insert into oauth_test_guard values ('00000000-0000-0000-0000-000000000000');
+          end if;
+          if NEW.model = 'AccessToken' and exists (select 1 from oauth_test_faults where model = 'Disconnect') then
+            perform pg_advisory_xact_lock(7210446);
           end if;
           return NEW;
         end
@@ -483,6 +488,66 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         const failed = await exchange(client.state.publicId, code);
         expect(failed.status).toBe(503);
         expect(await failed.json()).toEqual({ error: "server_error" });
+      } finally {
+        await sql`delete from oauth_test_faults`.execute(db);
+      }
+      await tokens(await exchange(client.state.publicId, code));
+    });
+
+    it("rolls back consumption when the socket disconnects before the commit decision", async () => {
+      const { sid, client } = await fixture();
+      const user = browser(sid.value);
+      const code = await approve(
+        user,
+        await prompt(client.state.publicId, user),
+      );
+      const form = new URLSearchParams({
+        client_id: client.state.publicId,
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: redirect,
+        resource: resource.uri,
+      }).toString();
+      await sql`insert into oauth_test_faults values ('Disconnect')`.execute(
+        db,
+      );
+      try {
+        await db.connection().execute(async (connection) => {
+          await sql`select pg_advisory_lock(7210446)`.execute(connection);
+          const request = httpRequest(runtime.address + "/token", {
+            method: "POST",
+            headers: {
+              "content-type": "application/x-www-form-urlencoded",
+              "content-length": Buffer.byteLength(form),
+            },
+          });
+          const closed = new Promise<void>((resolve) =>
+            request.on("error", () => resolve()),
+          );
+          request.end(form);
+          try {
+            const deadline = performance.now() + 900;
+            let waiting = false;
+            do {
+              const result = await sql<{ blocked: boolean }>`
+                select exists (select 1 from pg_locks
+                  where locktype = 'advisory' and objid = 7210446 and not granted) as blocked
+              `.execute(connection);
+              waiting = result.rows[0]?.blocked ?? false;
+              if (!waiting) {
+                await delay(10);
+              }
+            } while (!waiting && performance.now() < deadline);
+            expect(waiting).toBe(true);
+            request.destroy();
+            await closed;
+            await delay(25);
+          } finally {
+            request.destroy();
+            await sql`select pg_advisory_unlock(7210446)`.execute(connection);
+          }
+        });
       } finally {
         await sql`delete from oauth_test_faults`.execute(db);
       }
