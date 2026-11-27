@@ -217,6 +217,13 @@ export function createOAuthProvider(
         }
         if (context.path.startsWith("/auth/")) {
           const id = context.path.slice("/auth/".length);
+          if (
+            context.cookies.get(provider.cookieName("resume"), {
+              signed: true,
+            }) !== id
+          ) {
+            throw new errors.AccessDenied();
+          }
           const saved = await provider.Interaction.find(id);
           const pending = saved?.cid && (await artifacts.pending(saved.cid));
           if (

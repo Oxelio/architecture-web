@@ -417,6 +417,14 @@ describe.skipIf(!databaseUrl || !redisUrl)(
         ).status,
       ).toBe(403);
       const login = await user.request(loginPath, { confirm: true });
+      const separateBrowser = browser(sid.value);
+      const separate = await separateBrowser.request(
+        authorization(client.state.publicId),
+      );
+      const separateLogin = await separateBrowser.request(location(separate), {
+        confirm: true,
+      });
+      expect((await user.request(location(separateLogin))).status).toBe(403);
       const resumed = await user.request(location(login));
       expect(resumed.status).toBe(303);
       const consentPath = location(resumed);
