@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useEffect, useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import {
@@ -14,6 +14,7 @@ import {
   errorMessage,
   fieldErrorMessage,
 } from "#app/lib/error-feedback";
+import { oauthContinuation } from "#app/lib/oauth-continuation";
 import { LoginIdentifierField } from "#components/LoginIdentifierField";
 import {
   getPublicCapabilities,
@@ -44,7 +45,17 @@ export function SignInPage() {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const navigate = useNavigate();
+  const { search } = useLocation();
   const queryClient = useQueryClient();
+  async function finishSignIn() {
+    const continuation = oauthContinuation(search);
+    await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+    if (continuation) {
+      window.location.assign(continuation);
+    } else {
+      navigate("/profile", { replace: true });
+    }
+  }
   const {
     register,
     handleSubmit,
@@ -76,8 +87,7 @@ export function SignInPage() {
         setChallengeId(result.challengeId);
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      navigate("/profile", { replace: true });
+      await finishSignIn();
     } catch (error) {
       setServerError(apiErrorKey(error, "signIn"));
     } finally {
@@ -93,8 +103,7 @@ export function SignInPage() {
     setIsSubmitting(true);
     try {
       await verifyMfaChallenge(challengeId, mfaCode);
-      await queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-      navigate("/profile", { replace: true });
+      await finishSignIn();
     } catch (error) {
       setServerError(apiErrorKey(error, "mfa"));
     } finally {

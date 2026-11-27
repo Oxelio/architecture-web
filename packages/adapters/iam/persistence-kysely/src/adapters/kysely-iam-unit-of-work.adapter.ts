@@ -9,6 +9,7 @@ import type { Kysely } from "kysely";
 import type { IamDatabase } from "#persistence/schema";
 
 import { lockAdministrativeAccess } from "./administrative-access.js";
+import { invalidateDelegatedAccount } from "./delegated-revocation.js";
 import { KyselyEmailVerificationAdapter } from "./kysely-email-verification.adapter.js";
 import { KyselyLoginIdentityAdapter } from "./kysely-login-identity.adapter.js";
 import { KyselyPasswordAuthenticatorAdapter } from "./kysely-password-authenticator.adapter.js";
@@ -60,6 +61,14 @@ export class KyselyIamUnitOfWorkAdapter extends IamUnitOfWork {
         ),
         users,
         userQueries: users,
+        invalidateDelegatedAuthorizations: (input) => {
+          if (input.accountId !== userId) {
+            throw new Error(
+              "Delegated invalidation requires the locked account",
+            );
+          }
+          return invalidateDelegatedAccount(transaction, outbox, input);
+        },
       });
     });
   }

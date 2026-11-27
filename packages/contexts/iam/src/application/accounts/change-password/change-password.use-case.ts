@@ -100,7 +100,11 @@ export class ChangePasswordUseCase implements ChangePassword {
 
     const committed = await this.unitOfWork.executeForUser(
       user.identifier,
-      async ({ passwordAuthenticators, users }) => {
+      async ({
+        passwordAuthenticators,
+        users,
+        invalidateDelegatedAuthorizations,
+      }) => {
         const currentUser = await users.findById(user.identifier);
         const currentAuthenticator = await passwordAuthenticators.findForUser(
           user.identifier,
@@ -118,6 +122,11 @@ export class ChangePasswordUseCase implements ChangePassword {
         currentUser.invalidateSessions();
         await passwordAuthenticators.save(currentAuthenticator);
         await users.save(currentUser);
+        await invalidateDelegatedAuthorizations({
+          accountId: user.identifier.value,
+          reason: "password_replaced",
+          actor: { actorType: "user", actorId: user.identifier.value },
+        });
         return Result.success(undefined);
       },
     );

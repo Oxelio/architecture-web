@@ -49,7 +49,12 @@ describe("SuspendUserUseCase", () => {
         executeForUser: async (
           _id: UserIdentifierValueObject,
           work: Parameters<IamUnitOfWork["execute"]>[0],
-        ) => work({ users: userPort, userQueries: userPort } as never),
+        ) =>
+          work({
+            users: userPort,
+            userQueries: userPort,
+            invalidateDelegatedAuthorizations: vi.fn(),
+          } as never),
       } as IamUnitOfWork,
     );
   });

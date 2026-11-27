@@ -231,11 +231,23 @@ Use the dedicated disposable Compose project, which has no application volumes:
 docker compose -p iam-refactor-tests -f compose.iam-test.yml up -d --wait
 $env:IAM_INTEGRATION_DATABASE_URL = 'postgresql://iam_test:iam_test@127.0.0.1:55432/iam_refactor_test'
 $env:IAM_INTEGRATION_REDIS_URL = 'redis://127.0.0.1:56379/15'
-pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts src/adapters/iam/iam-events.integration.spec.ts
+pnpm --filter api test src/adapters/iam/iam-security.integration.spec.ts src/adapters/iam/iam-events.integration.spec.ts src/adapters/iam/delegated-authorization.integration.spec.ts
 docker compose -p iam-refactor-tests -f compose.iam-test.yml down
 ```
 
-The database name must start with `iam_refactor_test`. Every run creates a unique schema, migrates it, and removes only that schema. Redis uses generated test-account/session identifiers and clears only those owned keys; it never flushes a database. Both variables are required together. These checks cover publication races, single-use recovery, outbox rollback, session-version protection after cleanup failure, MFA attempts and backup-code consumption, single archive download, last-administrator deletion and policy snapshot consistency.
+The database name must start with `iam_refactor_test`. The security and event
+suites create and migrate their own schemas, then remove only those schemas.
+Redis uses generated test-account/session identifiers and clears only its owned
+keys. Both variables are required together for these suites. These checks cover
+publication races, single-use recovery, Outbox rollback, session-version
+protection after cleanup failure, MFA attempts and backup-code consumption,
+single archive download, last-administrator deletion and policy snapshots.
+
+The delegated authorization suite creates, migrates, and drops a uniquely named
+disposable database on the same PostgreSQL server. Advisory locks are shared
+across schemas in one database, so this isolates bulk revocation from the other
+suites' timed lock probes while exercising the production lock key. The Compose
+test role can create this database.
 
 The IAM correction extends the isolated suite with stale credential saves (including MFA), identity-bound recovery issuance in both orderings, stale MFA generations, unsafe publication/restoration, mixed administrator mutations, a real pre-refactor database upgrade, and publication inside actual registration/sign-in workflows. Fixtures use only their generated schemas and owned Redis keys. These scenarios must execute with both integration URLs; ordinary skipped runs provide no database evidence.
 

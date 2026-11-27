@@ -167,6 +167,13 @@ records/counters. Native coverage is merged using its repository source root;
 Vitest reports retain their workspace roots and counters. Missing expected script
 sources, duplicate sources or incomplete declared line counts fail collection.
 
+The primary validation job also runs the isolated delegated authorization
+spike with its npm lockfile and a disposable, pinned PostgreSQL container.
+The `--with-delegated-authorization` flag requires the native report for all
+four spike source files before exporting the combined LCOV artifact. For a local
+reproduction, follow the [spike instructions](../../scripts/spikes/delegated-authorization/README.md)
+and place its report at `coverage/delegated-authorization/lcov.info`.
+
 Use this order for local coverage validation:
 
 ```bash

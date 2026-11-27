@@ -20,6 +20,7 @@ import {
 } from "vitest";
 
 import i18n, { changeLanguage, type Language } from "#app/i18n";
+import { AdminDelegatedClients } from "#components/AdminDelegatedClients";
 import { AdminSecurityCenter } from "#components/AdminSecurityCenter";
 import { SecurityCenter } from "#components/SecurityCenter";
 import type { AdminUser } from "#services/api";
@@ -182,6 +183,110 @@ function fieldFeedback(name: string) {
   expect(id).toBeTruthy();
   return document.getElementById(id ?? "")?.textContent;
 }
+
+describe("approved client administration", () => {
+  it("shows the permanent effect and submits only the confirmed operation at the selected revision", async () => {
+    const old = {
+      id: "client-id",
+      publicId: "synthetic-client",
+      displayName: "Synthetic app",
+      enabled: true,
+      revision: 7,
+      redirectUris: ["https://client.example.test/callback"],
+      policies: [],
+    };
+    const updated = { ...old, enabled: false, revision: 8 };
+    fetchApi
+      .mockResolvedValueOnce(
+        Response.json({ data: { clients: [old], resources: [] } }),
+      )
+      .mockResolvedValueOnce(
+        failure("delegated_clients.confirmation_refused", 403),
+      )
+      .mockResolvedValueOnce(Response.json({ data: updated }))
+      .mockResolvedValueOnce(
+        Response.json({ data: { clients: [updated], resources: [] } }),
+      );
+    await render(<AdminDelegatedClients />);
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain("Synthetic app"),
+    );
+    await click('button[aria-pressed="false"]');
+    await clickButton("Disable");
+    expect(container.textContent).toContain("Disabling permanently revokes");
+    expect(element<HTMLButtonElement>('button[type="submit"]').disabled).toBe(
+      true,
+    );
+    await enter('input[type="password"]', loginPassword);
+    await click('input[type="checkbox"]');
+    await submit();
+    await expectFeedback(
+      '[role="alert"]',
+      "The confirmation was refused or expired.",
+    );
+    expect(fetchApi).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/\/client-id\/change$/u),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          expectedRevision: 7,
+          command: { kind: "disable" },
+          confirmation: { password: loginPassword },
+        }),
+      }),
+    );
+    expect(element<HTMLInputElement>('input[type="password"]').value).toBe("");
+    await changeLocale("fr");
+    expect(element('[role="alert"]').textContent).toContain(
+      "La confirmation a été refusée ou a expiré.",
+    );
+    await enter('input[type="password"]', loginPassword);
+    await click('input[type="checkbox"]');
+    await submit();
+    await expectFeedback('[role="status"]', "Application enregistrée.");
+    expect(container.textContent).toContain("Désactivée");
+  });
+
+  it("registers a disabled client without sending an identity or confirmation proof", async () => {
+    const registered = {
+      id: "client-id",
+      publicId: "synthetic-client",
+      displayName: "Synthetic app",
+      enabled: false,
+      revision: 0,
+      redirectUris: [],
+      policies: [],
+    };
+    fetchApi
+      .mockResolvedValueOnce(
+        Response.json({ data: { clients: [], resources: [] } }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ data: registered }, { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ data: { clients: [registered], resources: [] } }),
+      );
+    await render(<AdminDelegatedClients />);
+    await clickButton("Register an application");
+    await enter("form label:nth-of-type(1) input", "synthetic-client");
+    await enter("form label:nth-of-type(2) input", "Synthetic app");
+    await submit();
+    await expectFeedback('[role="status"]', "Application saved.");
+    expect(fetchApi).toHaveBeenNthCalledWith(
+      2,
+      expect.stringMatching(/\/admin\/delegated-clients$/u),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          publicId: "synthetic-client",
+          displayName: "Synthetic app",
+        }),
+      }),
+    );
+  });
+});
 
 function failure(code: string, status = 400) {
   return Response.json({ error: { code, message: privateDetail } }, { status });
@@ -772,6 +877,10 @@ it("retranslates an authorized user-administration error in its existing notice"
   client.setQueryData(["admin", "sessions", user.userId], []);
   client.setQueryData(["admin-security-config"], null);
   client.setQueryData(["admin-security-events"], []);
+  client.setQueryData(["admin-delegated-clients"], {
+    clients: [],
+    resources: [],
+  });
   await render(<AdminPage currentUserId="admin-id" />);
   const row = Array.from(container.querySelectorAll("button")).find((node) =>
     node.textContent?.includes("member@example.invalid"),

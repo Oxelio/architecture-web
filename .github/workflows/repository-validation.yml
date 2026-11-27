@@ -111,8 +111,35 @@ jobs:
       - name: Test CI tooling with native Node coverage
         run: pnpm ci:test:tooling
 
+      - name: Test delegated authorization spike with PostgreSQL coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          spike=scripts/spikes/delegated-authorization
+          npm ci --prefix "$spike" --ignore-scripts --no-audit --no-fund
+          container=$(docker run --rm --detach --publish 127.0.0.1::5432 \
+            --env POSTGRES_HOST_AUTH_METHOD=trust --env POSTGRES_USER=spike --env POSTGRES_DB=spike \
+            --health-cmd 'pg_isready -h 127.0.0.1 -U spike -d spike' \
+            --health-interval 1s --health-timeout 3s --health-retries 20 \
+            postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42)
+          trap 'docker stop "$container" >/dev/null' EXIT
+          for attempt in {1..30}; do
+            health=$(docker inspect --format '{{.State.Health.Status}}' "$container")
+            [[ "$health" == healthy || "$health" == unhealthy ]] && break
+            sleep 1
+          done
+          test "$health" = healthy
+          export SPIKE_DATABASE_URL="postgresql://spike@$(docker port "$container" 5432/tcp)/spike"
+          export SPIKE_HOST=fastify
+          mkdir -p coverage/delegated-authorization
+          node --test --experimental-test-coverage \
+            --test-coverage-include="$spike/*.mjs" --test-coverage-exclude="$spike/*.test.mjs" \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=lcov --test-reporter-destination=coverage/delegated-authorization/lcov.info \
+            "$spike/feasibility.test.mjs" "$spike/revocation.test.mjs"
+
       - name: Prepare repository-relative LCOV
-        run: node scripts/merge-coverage.ts
+        run: node scripts/merge-coverage.ts --with-delegated-authorization
 
       - name: Export coverage from this run
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

@@ -13,6 +13,8 @@ import {
   ResetRecoveredPasswordUseCase,
 } from "@architecture/iam/application";
 import {
+  AuthorizationGrant,
+  ClientApplication,
   DEFAULT_SECURITY_POLICY,
   LoginIdentifierValueObject,
   LoginIdentityEntity,
@@ -29,6 +31,7 @@ import {
   KyselyAccountDeletionAdapter,
   KyselyAccountExportAdapter,
   KyselyCriticalConfigurationConfirmationAdapter,
+  KyselyDelegatedAuthorizationAdapter,
   KyselyIamUnitOfWorkAdapter,
   KyselyLoginIdentityAdapter,
   KyselyMfaAdapter,
@@ -59,6 +62,7 @@ import { authPlugin } from "#app/auth";
 import { getAllMigrations } from "#app/scripts/migrations.provider";
 import type { AppDatabase } from "#composition-root/database.module";
 import { buildIamModule } from "#composition-root/iam.module";
+import { buildClientAdministrationRoutes } from "#iam/routes/client-administration.routes";
 import { buildIamRoutes } from "#iam/routes/index";
 import { buildSecurityRoutes } from "#iam/security/security.routes";
 import { errorHandler } from "#types/error-handler";
@@ -72,6 +76,14 @@ if (Boolean(databaseUrl) !== Boolean(redisUrl)) {
   throw new Error("Both IAM integration URLs are required");
 }
 const enabled = Boolean(databaseUrl && redisUrl);
+const clientResource = {
+  id: "synthetic-oauth",
+  uri: "https://resource.example.test/account",
+  permissions: [
+    { code: "read", description: "Read" },
+    { code: "write", description: "Write" },
+  ],
+};
 describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
   let db: Kysely<AppDatabase>,
     iamDb: Kysely<IamDatabase>,
@@ -308,6 +320,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         encryptionKey: "integration-test-key",
         recoveryUrl: "http://localhost/recovery",
         deletionCancellationUrl: "http://localhost/cancellation",
+        delegatedResources: [clientResource],
       },
     );
   }, 30000);
@@ -385,6 +398,84 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     await passwords.save(authenticator);
     return { user, authenticator, users, identities, passwords };
   }
+
+  async function seedDelegation(user: UserEntity) {
+    const registered = ClientApplication.register(
+      randomUUID(),
+      "Synthetic client",
+    );
+    if (!registered.success) {
+      throw new Error(registered.error.code);
+    }
+    const accountId = user.identifier.value;
+    const clientId = registered.value.state.id;
+    const grant = AuthorizationGrant.authorize(
+      { accountId, clientId, resourceId: "synthetic" },
+      ["read"],
+      new Date(),
+    );
+    const delegated = new KyselyDelegatedAuthorizationAdapter(iamDb, outbox);
+    await delegated.write(null, (writer) =>
+      writer.saveClient(registered.value, accountId),
+    );
+    await delegated.write(null, (writer) =>
+      writer.saveClient(
+        ClientApplication.rehydrate({
+          ...registered.value.state,
+          enabled: true,
+          revision: 1,
+          policies: [
+            { resourceId: "synthetic", required: ["read"], optional: [] },
+          ],
+        }),
+        accountId,
+      ),
+    );
+    await delegated.write(accountId, (writer) => writer.saveGrant(grant));
+    return grant.state.id;
+  }
+
+  function delegatedEpoch(user: UserEntity) {
+    return db
+      .selectFrom("iam_delegated_account_epochs")
+      .select("epoch")
+      .where("account_id", "=", user.identifier.value)
+      .executeTakeFirst();
+  }
+
+  function delegatedFacts(user: UserEntity, reason?: string) {
+    const query = db
+      .selectFrom("messaging_outbox")
+      .select(["id", "payload", "context"])
+      .where("topic", "=", "iam.delegated-grants-revoked")
+      .where("aggregate_id", "=", user.identifier.value);
+    return (
+      reason ? query.where(sql<string>`payload->>'reason'`, "=", reason) : query
+    ).execute();
+  }
+
+  async function verifyDelegatedRevocation(
+    user: UserEntity,
+    grantId: string,
+    reason: string,
+  ) {
+    const grant = await db
+      .selectFrom("iam_delegated_grants")
+      .select("revoked_at")
+      .where("id", "=", grantId)
+      .executeTakeFirstOrThrow();
+    expect(grant.revoked_at).toBeInstanceOf(Date);
+    const facts = await delegatedFacts(user, reason);
+    expect(facts).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          userId: user.identifier.value,
+          reason,
+          affectedGrantCount: 1,
+        }),
+      }),
+    ]);
+  }
   beforeEach(async () => {
     await db
       .updateTable("iam_users")
@@ -430,6 +521,93 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       password: "initial long account password",
     };
   }
+
+  it("invalidates consent on an effective login replacement even without grants, and ignores unchanged input", async () => {
+    const f = await account();
+    const sender = vi
+      .spyOn(NodemailerEmailSenderAdapter.prototype, "sendVerificationEmail")
+      .mockResolvedValue(undefined);
+    const change = module.iam.accounts.changeEmail;
+    try {
+      const userId = f.user.identifier.value;
+      expect(
+        (await change.execute({ userId, email: `${userId}@example.test` }))
+          .success,
+      ).toBe(true);
+      expect(await delegatedEpoch(f.user)).toBeUndefined();
+      const replacement = {
+        userId,
+        email: `replacement-${userId}@example.test`,
+      };
+      expect((await change.execute(replacement)).success).toBe(true);
+      expect(await delegatedEpoch(f.user)).toEqual({ epoch: "1" });
+      expect(await delegatedFacts(f.user)).toEqual([]);
+      expect((await change.execute(replacement)).success).toBe(true);
+      expect(await delegatedEpoch(f.user)).toEqual({ epoch: "1" });
+      expect(sender).toHaveBeenCalledOnce();
+      const grant = await seedDelegation(f.user);
+      expect(
+        (await change.execute({ userId, email: `next-${userId}@example.test` }))
+          .success,
+      ).toBe(true);
+      await verifyDelegatedRevocation(f.user, grant, "login_identity_replaced");
+    } finally {
+      sender.mockRestore();
+    }
+  });
+
+  it("revokes independently on MFA activation, backup-code regeneration and enabled MFA deactivation", async () => {
+    const { user, users } = await account();
+    const activationGrant = await seedDelegation(user);
+    const store = await enableStepUpMfa(user, ["fixture-code-A"]);
+    await verifyDelegatedRevocation(user, activationGrant, "mfa_activated");
+    const regenerationGrant = await seedDelegation(user);
+    expect(
+      await store.replaceBackupCodes(
+        user.identifier.value,
+        [tokens.hash("fixture-code-B")],
+        new Date(),
+      ),
+    ).toBe(true);
+    await verifyDelegatedRevocation(
+      user,
+      regenerationGrant,
+      "backup_codes_regenerated",
+    );
+    expect((await users.findById(user.identifier))?.sessionVersion).toBe(
+      user.sessionVersion,
+    );
+    const deactivationGrant = await seedDelegation(user);
+    user.invalidateSessions();
+    expect(await store.disable(user)).toBe(true);
+    await verifyDelegatedRevocation(user, deactivationGrant, "mfa_deactivated");
+    user.invalidateSessions();
+    expect(await store.disable(user)).toBe(false);
+    expect(await delegatedEpoch(user)).toEqual({ epoch: "3" });
+    expect(await delegatedFacts(user)).toHaveLength(3);
+  });
+
+  it("revokes on the first suspension and leaves the revoked lifecycle in place on reactivation", async () => {
+    const { user } = await account();
+    const { user: administrator } = await account(true);
+    const grant = await seedDelegation(user);
+    const command = {
+      userId: user.identifier.value,
+      actorUserId: administrator.identifier.value,
+    };
+    expect(
+      (await module.iam.administration.suspendUser.execute(command)).success,
+    ).toBe(true);
+    expect(
+      (await module.iam.administration.suspendUser.execute(command)).success,
+    ).toBe(true);
+    expect(
+      (await module.iam.administration.activateUser.execute(command)).success,
+    ).toBe(true);
+    await verifyDelegatedRevocation(user, grant, "account_suspended");
+    expect(await delegatedEpoch(user)).toEqual({ epoch: "1" });
+    expect(await delegatedFacts(user)).toHaveLength(1);
+  });
   async function enableStepUpMfa(user: UserEntity, codes: string[]) {
     const store = new KyselyMfaAdapter(iamDb, outbox);
     const now = new Date();
@@ -524,6 +702,321 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     ]) {
       expect(recorded).not.toContain(secret);
     }
+  });
+  it("administers approved clients over first-party HTTP, revokes grants on disablement, and records only committed changes", async () => {
+    const { user } = await account(true);
+    const session = await oldSession(user);
+    const other = await oldSession((await account()).user);
+    const origin = "https://web.example.test";
+    const app = Fastify({ logger: false });
+    await app.register(authPlugin, {
+      sessionCookieName: "sid",
+      resolveSession: module.iam.authentication.resolveSession,
+    });
+    await app.register(
+      buildClientAdministrationRoutes(module.iam.clientAdministration, origin),
+    );
+    try {
+      const path = "/admin/delegated-clients";
+      const headers = { origin, cookie: `sid=${session.identifier.value}` };
+      expect(
+        (
+          await app.inject({
+            method: "GET",
+            url: path,
+            headers: { cookie: `sid=${other.identifier.value}` },
+          })
+        ).statusCode,
+      ).toBe(403);
+      const input = {
+        publicId: randomUUID(),
+        displayName: "Synthetic integration client",
+      };
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: path,
+            headers: { ...headers, origin: "https://elsewhere.example.test" },
+            payload: input,
+          })
+        ).statusCode,
+      ).toBe(403);
+      const registered = await app.inject({
+        method: "POST",
+        url: path,
+        headers,
+        payload: input,
+      });
+      expect(registered.statusCode).toBe(201);
+      const { data: client } = registered.json<{
+        data: { id: string; enabled: boolean; revision: number };
+      }>();
+      expect(client).toMatchObject({ enabled: false, revision: 0 });
+      const change = (payload: object) =>
+        app.inject({
+          method: "POST",
+          url: `${path}/${client.id}/change`,
+          headers,
+          payload,
+        });
+      const confirmation = { password: "initial long account password" };
+      const configure = {
+        kind: "configure",
+        redirectUris: [
+          "https://client.example.test/callback-A",
+          "https://client.example.test/callback-a",
+        ],
+        policies: [
+          {
+            resourceId: clientResource.id,
+            required: ["read"],
+            optional: ["write"],
+          },
+        ],
+      };
+      expect(
+        (await change({ expectedRevision: 0, command: configure })).statusCode,
+      ).toBe(403);
+      expect(
+        (
+          await change({
+            expectedRevision: 0,
+            command: {
+              ...configure,
+              policies: [
+                {
+                  resourceId: clientResource.id,
+                  required: ["invented"],
+                  optional: [],
+                },
+              ],
+            },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(422);
+      expect(
+        (
+          await change({
+            expectedRevision: 0,
+            command: configure,
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect(
+        (
+          await change({
+            expectedRevision: 1,
+            command: {
+              ...configure,
+              redirectUris: configure.redirectUris.toReversed(),
+            },
+          })
+        ).json(),
+      ).toMatchObject({ data: { revision: 1 } });
+      expect(
+        (
+          await change({
+            expectedRevision: 0,
+            command: { kind: "enable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(409);
+      expect(
+        (
+          await change({
+            expectedRevision: 1,
+            command: { kind: "enable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      const accountId = user.identifier.value;
+      const delegated = new KyselyDelegatedAuthorizationAdapter(iamDb, outbox);
+      const grant = AuthorizationGrant.authorize(
+        { accountId, clientId: client.id, resourceId: clientResource.id },
+        ["read", "write"],
+        new Date(),
+      );
+      await delegated.write(accountId, (writer) => writer.saveGrant(grant));
+      expect(
+        (
+          await change({
+            expectedRevision: 2,
+            command: { kind: "disable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect(
+        (await change({ expectedRevision: 3, command: { kind: "disable" } }))
+          .statusCode,
+      ).toBe(200);
+      expect(
+        (
+          await change({
+            expectedRevision: 3,
+            command: { kind: "enable" },
+            confirmation,
+          })
+        ).statusCode,
+      ).toBe(200);
+      await delegated.read(async (reader) => {
+        expect(
+          (await reader.grant(accountId, grant.state.id))?.state.revokedAt,
+        ).toBeInstanceOf(Date);
+      });
+      const facts = await db
+        .selectFrom("messaging_outbox")
+        .select(["payload", "context"])
+        .where("topic", "=", "iam.delegated-client-changed")
+        .where("aggregate_id", "=", client.id)
+        .execute();
+      expect(facts).toHaveLength(5);
+      expect(facts.map(({ payload }) => payload)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: "registered", revision: 0 }),
+          expect.objectContaining({ kind: "policy_changed", revision: 1 }),
+          expect.objectContaining({ kind: "disabled", revision: 3 }),
+        ]),
+      );
+      for (const fact of facts) {
+        expect(fact.context).toMatchObject({
+          actorId: accountId,
+          subjectId: accountId,
+        });
+      }
+      expect(JSON.stringify(facts)).not.toContain(session.identifier.value);
+      expect(JSON.stringify(facts)).not.toContain(confirmation.password);
+      await sql`create function fail_client_change_outbox() returns trigger language plpgsql as $$
+        begin
+          raise exception 'fixture outbox failure';
+        end
+      $$`.execute(db);
+      await sql`create trigger fail_client_change_outbox before insert on messaging_outbox
+        for each row when (new.topic = 'iam.delegated-client-changed')
+        execute function fail_client_change_outbox()`.execute(db);
+      try {
+        expect(
+          (
+            await change({
+              expectedRevision: 4,
+              command: { kind: "rename", displayName: "Failed rename" },
+            })
+          ).statusCode,
+        ).toBe(500);
+        await delegated.read(async (reader) => {
+          expect((await reader.client(client.id))?.state).toMatchObject({
+            revision: 4,
+            displayName: input.displayName,
+          });
+        });
+      } finally {
+        await sql`drop trigger fail_client_change_outbox on messaging_outbox`.execute(
+          db,
+        );
+        await sql`drop function fail_client_change_outbox()`.execute(db);
+      }
+      expect(
+        (await app.inject({ method: "GET", url: path, headers })).json(),
+      ).toMatchObject({
+        data: {
+          resources: [clientResource],
+          clients: expect.arrayContaining([
+            expect.objectContaining({ id: client.id, enabled: true }),
+          ]),
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("reserves exactly five client confirmations across sessions, independently of the configuration allowance", async () => {
+    const { user } = await account(true);
+    const accountId = user.identifier.value;
+    const sessions = await Promise.all([oldSession(user), oldSession(user)]);
+    const clients = module.iam.clientAdministration;
+    const client = await clients.register.execute(
+      { accountId, sessionId: sessions[0].identifier.value },
+      {
+        publicId: randomUUID(),
+        displayName: "Attempt allowance",
+      },
+    );
+    if (!client.success) {
+      throw new Error("Expected test client registration");
+    }
+    await db
+      .insertInto("iam_critical_configuration_attempts")
+      .values({
+        user_id: accountId,
+        timestamps: Array.from({ length: 5 }, () => new Date()),
+      })
+      .execute();
+    const command = {
+      kind: "configure" as const,
+      redirectUris: ["https://client.example.test/callback"],
+      policies: [],
+    };
+    const attempts = await Promise.all(
+      Array.from({ length: 6 }, (_, index) =>
+        clients.change.execute({
+          actor: {
+            accountId,
+            sessionId: (index % 2 === 0 ? sessions[0] : sessions[1]).identifier
+              .value,
+          },
+          clientId: client.value.id,
+          expectedRevision: 0,
+          command,
+          confirmation: { password: "incorrect account password" },
+        }),
+      ),
+    );
+    expect(
+      attempts.filter(
+        (result) =>
+          !result.success && result.error.code === "confirmation_refused",
+      ),
+    ).toHaveLength(5);
+    expect(
+      attempts.filter(
+        (result) =>
+          !result.success && result.error.code === "attempts_exhausted",
+      ),
+    ).toHaveLength(1);
+    const ledger = await db
+      .selectFrom("iam_critical_client_attempts")
+      .select("timestamps")
+      .where("user_id", "=", accountId)
+      .executeTakeFirstOrThrow();
+    expect(ledger.timestamps).toHaveLength(5);
+    await sql`update iam_critical_client_attempts
+      set timestamps = array[clock_timestamp() - interval '5 minutes 1 second']
+      where user_id = ${accountId}`.execute(db);
+    const changed = await Promise.all(
+      sessions.map((session, index) =>
+        clients.change.execute({
+          actor: { accountId, sessionId: session.identifier.value },
+          clientId: client.value.id,
+          expectedRevision: 0,
+          command: {
+            ...command,
+            redirectUris: [`https://client.example.test/callback-${index}`],
+          },
+          confirmation: { password: "initial long account password" },
+        }),
+      ),
+    );
+    expect(changed.filter(({ success }) => success)).toHaveLength(1);
+    expect(changed).toContainEqual({
+      success: false,
+      error: { code: "revision_conflict" },
+    });
   });
   it("shares five admissions across sessions, publication and restoration, and two instances", async () => {
     const { user } = await account(true);
@@ -1142,6 +1635,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     const f = await account(),
       recovery = await recoveryFor(f),
       useCase = resetUseCase(f, recovery.store);
+    const grant = await seedDelegation(f.user);
     const outcomes = await Promise.all([
       useCase.execute(recovery.input),
       useCase.execute(recovery.input),
@@ -1156,16 +1650,54 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       .execute();
     expect(events).toHaveLength(1);
     expect(JSON.stringify(events)).not.toContain(recovery.input.token);
+    await verifyDelegatedRevocation(
+      f.user,
+      grant,
+      "recovery_password_replaced",
+    );
+    expect(await delegatedEpoch(f.user)).toEqual({ epoch: "1" });
   });
+  it("serializes recovery and authenticated password replacement on the same account", async () => {
+    const f = await account();
+    const grant = await seedDelegation(f.user);
+    const recovery = await recoveryFor(f);
+    const newPassword = "an independent password change passphrase";
+    const [recovered, changed] = await Promise.all([
+      resetUseCase(f, recovery.store).execute(recovery.input),
+      module.iam.accounts.changePassword.execute({
+        userId: f.user.identifier.value,
+        currentPassword: "initial long account password",
+        password: newPassword,
+        passwordConfirmation: newPassword,
+      }),
+    ]);
+    expect(
+      [recovered, changed].filter((outcome) => outcome.success),
+    ).toHaveLength(1);
+    await verifyDelegatedRevocation(
+      f.user,
+      grant,
+      recovered.success ? "recovery_password_replaced" : "password_replaced",
+    );
+    expect(await delegatedFacts(f.user)).toHaveLength(1);
+    expect(await delegatedEpoch(f.user)).toEqual({ epoch: "1" });
+  });
+
   it("rolls back token consumption when the transactional outbox fails", async () => {
     const f = await account(),
       failure = new Error("outbox unavailable"),
-      store = new KyselyPasswordRecoveryAdapter(iamDb, () => ({
-        append: async () => {
-          throw failure;
+      store = new KyselyPasswordRecoveryAdapter(iamDb, (trx) => ({
+        append: async (events) => {
+          await outbox(trx).append(events);
+          if (
+            events.some(({ topic }) => topic === "iam.delegated-grants-revoked")
+          ) {
+            throw failure;
+          }
         },
       }));
     const recovery = await recoveryFor(f, store);
+    const grant = await seedDelegation(f.user);
     await expect(resetUseCase(f, store).execute(recovery.input)).rejects.toBe(
       failure,
     );
@@ -1173,6 +1705,15 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       (await store.find(tokens.hash(recovery.input.token)))?.consumedAt,
     ).toBeNull();
     expect((await f.users.findById(f.user.identifier))?.sessionVersion).toBe(1);
+    expect(await delegatedEpoch(f.user)).toBeUndefined();
+    expect(await delegatedFacts(f.user)).toEqual([]);
+    expect(
+      await db
+        .selectFrom("iam_delegated_grants")
+        .select("revoked_at")
+        .where("id", "=", grant)
+        .executeTakeFirst(),
+    ).toEqual({ revoked_at: null });
   });
   it("rejects a stale Redis session even when post-commit cleanup fails", async () => {
     const f = await account(),
@@ -1664,6 +2205,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       store = new KyselyAccountDeletionAdapter(iamDb, outbox),
       now = new Date(),
       id = randomUUID();
+    const grant = await seedDelegation(f.user);
     f.user.suspend();
     await f.users.save(f.user);
     f.user.requestDeletion();
@@ -1696,6 +2238,12 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
     const restored = await f.users.findById(f.user.identifier);
     expect(restored?.status.isSuspended()).toBe(true);
     expect(restored?.sessionVersion).toBe(2);
+    await verifyDelegatedRevocation(
+      f.user,
+      grant,
+      "account_deletion_requested",
+    );
+    expect(await delegatedEpoch(f.user)).toEqual({ epoch: "1" });
   });
   it("preserves real HTTP authentication and invalidates the cookie after password change", async () => {
     const f = await account(),
@@ -1704,6 +2252,7 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
         name: "sid",
         options: { path: "/", httpOnly: true, sameSite: "lax" as const },
       };
+    const grant = await seedDelegation(f.user);
     try {
       app.setErrorHandler(errorHandler);
       await app.register(authPlugin, {
@@ -1783,10 +2332,96 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       expect(events).toHaveLength(1);
       expect(events[0]?.version).toBe(2);
       expect(JSON.stringify(events)).not.toContain(session.value);
+      await verifyDelegatedRevocation(f.user, grant, "password_replaced");
     } finally {
       await app.close();
     }
   });
+  it("erases delegated records and discards an export completing behind the account lock", async () => {
+    const { user } = await account();
+    const userId = user.identifier.value;
+    const exportId = randomUUID();
+    const deletionId = randomUUID();
+    const exportStore = new KyselyAccountExportAdapter(iamDb, outbox);
+    const released = Promise.withResolvers<undefined>();
+    const erasing = Promise.withResolvers<undefined>();
+    const deletionStore = new KyselyAccountDeletionAdapter(iamDb, (trx) => ({
+      append: async (events) => {
+        await outbox(trx).append(events);
+        if (events.some(({ topic }) => topic === "account.deletion.executed")) {
+          erasing.resolve(undefined);
+          await released.promise;
+        }
+      },
+    }));
+    const grant = await seedDelegation(user);
+    const now = new Date();
+    const scheduledFor = new Date(now.getTime() + 60_000);
+    await expect(
+      exportStore.reserve(userId, exportId, now),
+    ).resolves.toMatchObject({ created: true });
+    user.requestDeletion();
+    expect(
+      await deletionStore.request({
+        user,
+        previousStatus: "active",
+        requireAnotherAdministrator: false,
+        id: deletionId,
+        tokenHash: tokens.hash(randomUUID()),
+        now,
+        scheduledFor,
+        confirmedGracePeriodDays: 14,
+      }),
+    ).toBe("saved");
+    const erasure = deletionStore.eraseIfDue(deletionId, scheduledFor);
+    try {
+      await Promise.race([erasure, erasing.promise]);
+      const completion = exportStore.complete(
+        exportId,
+        new Uint8Array([1]),
+        scheduledFor,
+      );
+      const result = Promise.allSettled([completion]);
+      await expect
+        .poll(
+          async () => {
+            const waiting = await sql<{ waiting: boolean }>`select exists (
+          select 1 from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock'
+          and query like 'select "id" from "iam_users"%for update'
+        ) as waiting`.execute(db);
+            return waiting.rows[0]?.waiting;
+          },
+          { timeout: 2000, interval: 20 },
+        )
+        .toBe(true);
+      released.resolve(undefined);
+      expect(await erasure).toBe(userId);
+      expect(await result).toEqual([
+        { status: "rejected", reason: expect.any(Error) },
+      ]);
+      expect(await delegatedEpoch(user)).toBeUndefined();
+      expect(
+        await db
+          .selectFrom("iam_delegated_grants")
+          .select("id")
+          .where("id", "=", grant)
+          .executeTakeFirst(),
+      ).toBeUndefined();
+      expect(
+        await db
+          .selectFrom("messaging_outbox")
+          .select("id")
+          .where("topic", "=", "account.export.generated")
+          .where("aggregate_id", "=", userId)
+          .execute(),
+      ).toEqual([]);
+    } finally {
+      released.resolve(undefined);
+      await erasure;
+    }
+  });
+
   it("honors legal hold and executes final deletion idempotently", async () => {
     const f = await account(),
       store = new KyselyAccountDeletionAdapter(iamDb, outbox),
@@ -1886,6 +2521,11 @@ describe.skipIf(!enabled)("IAM PostgreSQL/Redis security boundaries", () => {
       .selectFrom("messaging_outbox")
       .selectAll()
       .where("topic", "=", "account.deletion.executed")
+      .where(
+        "aggregate_id",
+        "=",
+        createHash("sha256").update(f.user.identifier.value).digest("hex"),
+      )
       .execute();
     expect(events).toHaveLength(1);
     expect(JSON.stringify(events)).not.toContain(f.user.identifier.value);

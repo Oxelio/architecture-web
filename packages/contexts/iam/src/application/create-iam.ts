@@ -100,6 +100,16 @@ import type { SessionRepository } from "#ports/session.repository";
 import type { UserRepository } from "#ports/user.repository";
 import type { UserQueryRepository } from "#ports/user-query.repository";
 
+import {
+  ClientAdministration,
+  type ClientAdministrationStore,
+} from "./delegated-authorization/client-administration.js";
+import type {
+  DelegatedAuthorizationApplication,
+  DelegatedAuthorizationDependencies,
+} from "./delegated-authorization/delegated-authorization.contracts.js";
+import { delegatedAuthorizationApplication } from "./delegated-authorization/delegated-authorization.js";
+
 export interface IamDependencies {
   userRepository: UserRepository;
   userQueryRepository: UserQueryRepository;
@@ -137,12 +147,20 @@ export interface IamDependencies {
   origins: RecoveryOriginLimiter;
   audit: AccountAuditData;
   archive: AccountArchiveBuilder;
+  delegatedAuthorization: DelegatedAuthorizationDependencies;
+  clientAdministrationStore: ClientAdministrationStore;
 }
 
 export interface IamApplication {
   accounts: AccountsApplication;
   authentication: AuthenticationApplication;
   administration: AdministrationApplication;
+  delegatedAuthorization: DelegatedAuthorizationApplication;
+  clientAdministration: {
+    list: { execute: ClientAdministration["list"] };
+    register: { execute: ClientAdministration["register"] };
+    change: { execute: ClientAdministration["change"] };
+  };
 }
 
 export function createIam(dependencies: IamDependencies): IamApplication {
@@ -190,7 +208,22 @@ export function createIam(dependencies: IamDependencies): IamApplication {
     ),
     dependencies.events,
   );
+  const clients = new ClientAdministration(
+    dependencies.clientAdministrationStore,
+    dependencies.delegatedAuthorization.resources,
+    dependencies.sessionRepository,
+    reauthentication,
+    factor,
+  );
   return {
+    clientAdministration: {
+      list: { execute: (actor) => clients.list(actor) },
+      register: { execute: (actor, input) => clients.register(actor, input) },
+      change: { execute: (input) => clients.change(input) },
+    },
+    delegatedAuthorization: delegatedAuthorizationApplication(
+      dependencies.delegatedAuthorization,
+    ),
     accounts: {
       changeEmail: new ChangeEmailUseCase(
         dependencies.userRepository,

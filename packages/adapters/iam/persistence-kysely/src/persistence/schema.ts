@@ -1,6 +1,14 @@
 // @file infrastructure/iam/persitence/kysely/src/persistence/schema.ts
 
-import type { Generated, Insertable, Selectable } from "kysely";
+import type {
+  DelegatedCredentialAuthority,
+  PreparedConsent,
+} from "@architecture/iam/application";
+import type {
+  ClientResourcePolicy,
+  PermissionGeneration,
+} from "@architecture/iam/domain";
+import type { ColumnType, Generated, Insertable, Selectable } from "kysely";
 
 export interface IamDatabase {
   iam_users: IamUserTable;
@@ -13,9 +21,71 @@ export interface IamDatabase {
   iam_mfa_challenges: IamMfaChallengeTable;
   iam_security_config_revisions: IamSecurityConfigRevisionTable;
   iam_critical_configuration_attempts: { user_id: string; timestamps: Date[] };
+  iam_critical_client_attempts: { user_id: string; timestamps: Date[] };
   iam_account_exports: IamAccountExportTable;
   iam_account_deletions: IamAccountDeletionTable;
   iam_account_erasure_evidence: { subject_key: Buffer };
+  iam_delegated_clients: IamDelegatedClientTable;
+  iam_delegated_grants: IamDelegatedGrantTable;
+  iam_oauth_families: {
+    id: string;
+    account_id: string;
+    client_id: string;
+    grant_id: string;
+    authority: ColumnType<DelegatedCredentialAuthority, string, never>;
+    expires_at: Date;
+    revoked: Generated<boolean>;
+  };
+  iam_oauth_artifacts: {
+    model: string;
+    id: string;
+    uid: string | null;
+    account_id: string | null;
+    family_id: string | null;
+    payload: Buffer;
+    consumed: number | null;
+    expires_at: Date;
+  };
+  iam_oauth_pending: {
+    id: string;
+    client_id: string;
+    client_revision: number;
+    account_id: string | null;
+    binding: string | null;
+    consent: ColumnType<PreparedConsent | null, string | null, string | null>;
+    expires_at: Date;
+    decided: Generated<boolean>;
+  };
+  iam_delegated_account_epochs: {
+    account_id: string;
+    epoch: Generated<string>;
+  };
+  iam_delegated_tuple_epochs: {
+    account_id: string;
+    client_id: string;
+    resource_id: string;
+    epoch: Generated<string>;
+  };
+}
+
+export interface IamDelegatedClientTable {
+  id: string;
+  public_id: string;
+  display_name: string;
+  redirect_uris: readonly string[];
+  enabled: boolean;
+  revision: number;
+  policies: ColumnType<readonly ClientResourcePolicy[], string, string>;
+}
+
+export interface IamDelegatedGrantTable {
+  id: string;
+  account_id: string;
+  client_id: string;
+  resource_id: string;
+  authorized_at: Date;
+  revoked_at: Date | null;
+  permissions: ColumnType<readonly PermissionGeneration[], string, string>;
 }
 
 export interface IamUserTable {

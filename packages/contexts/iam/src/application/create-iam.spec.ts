@@ -177,6 +177,11 @@ function fixture() {
   const outbox = { append: vi.fn<IamDependencies["outbox"]["append"]>() };
   const events = { record: vi.fn<IamDependencies["events"]["record"]>() };
   const dependencies = {
+    clientAdministrationStore: { run: vi.fn() },
+    delegatedAuthorization: {
+      resources: [],
+      store: { read: vi.fn(), write: vi.fn() },
+    },
     userRepository: users,
     userQueryRepository: new InMemoryUserQueryRepository(users, identities),
     loginIdentityRepository: identities,
@@ -377,9 +382,19 @@ describe("createIam", () => {
     }
   });
 
-  it("exposes all 42 operation contracts through their owning capabilities without performing I/O", () => {
+  it("exposes operation contracts through their owning capabilities without performing I/O", () => {
     const f = fixture();
     const expected = {
+      clientAdministration: ["list", "register", "change"],
+      delegatedAuthorization: [
+        "prepareConsent",
+        "finalizeConsent",
+        "listGrants",
+        "revokeGrant",
+        "revokeAllGrants",
+        "withdrawPermission",
+        "admit",
+      ],
       accounts: [
         "changeEmail",
         "changePassword",
@@ -436,6 +451,8 @@ describe("createIam", () => {
       "accounts",
       "authentication",
       "administration",
+      "delegatedAuthorization",
+      "clientAdministration",
     ] as const) {
       expect(Object.keys(f.iam[capability]).sort()).toEqual(
         [...expected[capability]].sort(),
@@ -734,6 +751,7 @@ describe("createIam", () => {
         authenticator,
         users: f.users,
         passwordAuthenticators: f.passwords,
+        invalidateDelegatedAuthorizations: vi.fn(),
         consume,
       });
     expect(

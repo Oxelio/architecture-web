@@ -15,7 +15,9 @@ import type { IamAccountDeletionTable, IamDatabase } from "#persistence/schema";
 import {
   currentAccessPolicy,
   hasAdministrativeAccess,
+  lockAdministrativeAccess,
 } from "./administrative-access.js";
+import { invalidateDelegatedAccount } from "./delegated-revocation.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 
 function erasureWitnessKey(userId: string): Buffer {
@@ -76,7 +78,7 @@ export class KyselyAccountDeletionAdapter
 
   async request(input: Parameters<AccountDeletionStore["request"]>[0]) {
     return this.db.transaction().execute(async (trx) => {
-      await sql`select pg_advisory_xact_lock(728194002)`.execute(trx);
+      await lockAdministrativeAccess(trx);
       await sql`select pg_advisory_xact_lock(728194001)`.execute(trx);
       const policy = await currentAccessPolicy(trx);
       if (!policy.accounts.deletion) {
@@ -131,6 +133,11 @@ export class KyselyAccountDeletionAdapter
         )
         .execute();
       await new KyselyUserAdapter(trx, this.outbox(trx)).save(input.user);
+      await invalidateDelegatedAccount(trx, this.outbox(trx), {
+        accountId: account.id,
+        reason: "account_deletion_requested",
+        actor: { actorType: "user", actorId: account.id },
+      });
       await trx
         .updateTable("iam_password_recoveries")
         .set({ invalidated_at: input.now })
@@ -170,6 +177,7 @@ export class KyselyAccountDeletionAdapter
   }
   async cancel(input: Parameters<AccountDeletionStore["cancel"]>[0]) {
     return this.db.transaction().execute(async (trx) => {
+      await lockAdministrativeAccess(trx);
       const user = await trx
         .selectFrom("iam_users")
         .selectAll()
@@ -233,6 +241,7 @@ export class KyselyAccountDeletionAdapter
       if (!initial) {
         return null;
       }
+      await lockAdministrativeAccess(trx);
       const user = await trx
         .selectFrom("iam_users")
         .selectAll()
@@ -246,6 +255,7 @@ export class KyselyAccountDeletionAdapter
         .selectFrom("iam_account_deletions")
         .selectAll()
         .where("id", "=", id)
+        .where("user_id", "=", user.id)
         .where("scheduled_for", "<=", now)
         .where("cancelled_at", "is", null)
         .where("executed_at", "is", null)

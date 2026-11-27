@@ -36,7 +36,7 @@ export class SuspendUserUseCase implements SuspendUser {
     const actorId = UserIdentifierValueObject.create(input.actorUserId);
     const result = await this.unitOfWork.executeForUser(
       userId.value,
-      async ({ users, userQueries }) => {
+      async ({ users, userQueries, invalidateDelegatedAuthorizations }) => {
         const actor = actorId.success
           ? await users.findById(actorId.value)
           : null;
@@ -58,8 +58,19 @@ export class SuspendUserUseCase implements SuspendUser {
             code: "administrator.last_active_access",
           } as const);
         }
-        user.suspend(actorId.success ? actorId.value : undefined);
+        if (user.status.isSuspended()) {
+          return Result.success(undefined);
+        }
+        user.suspend(actor.identifier);
         await users.save(user);
+        await invalidateDelegatedAuthorizations({
+          accountId: user.identifier.value,
+          reason: "account_suspended",
+          actor: {
+            actorType: "administrator",
+            actorId: actor.identifier.value,
+          },
+        });
         return Result.success(undefined);
       },
     );

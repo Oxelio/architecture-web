@@ -14,6 +14,8 @@ import type { Kysely } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";
 
+import { lockAdministrativeAccess } from "./administrative-access.js";
+import { invalidateDelegatedAccount } from "./delegated-revocation.js";
 import { KyselyPasswordAuthenticatorAdapter } from "./kysely-password-authenticator.adapter.js";
 import { KyselyUserAdapter } from "./kysely-user.adapter.js";
 export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
@@ -110,6 +112,7 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
       if (!initial) {
         return null;
       }
+      await lockAdministrativeAccess(trx);
       const locked = await trx
         .selectFrom("iam_users")
         .select("id")
@@ -126,7 +129,7 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
         .forUpdate()
         .executeTakeFirst();
       if (
-        !row ||
+        row?.user_id !== locked.id ||
         !isRecoveryTokenUsable(
           {
             id: row.id,
@@ -176,6 +179,12 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
         authenticator,
         users,
         passwordAuthenticators,
+        invalidateDelegatedAuthorizations: () =>
+          invalidateDelegatedAccount(trx, outbox, {
+            accountId: row.user_id,
+            reason: "recovery_password_replaced",
+            actor: { actorType: "anonymous" },
+          }),
         consume: async () => {
           await trx
             .updateTable("iam_password_recoveries")

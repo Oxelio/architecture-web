@@ -69,6 +69,7 @@ async function fixture(admin = false) {
         authenticator,
         users,
         passwordAuthenticators: passwords,
+        invalidateDelegatedAuthorizations: vi.fn(),
         consume,
       }),
   } satisfies PasswordRecoveryStore;

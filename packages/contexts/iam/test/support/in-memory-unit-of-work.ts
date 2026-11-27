@@ -45,6 +45,7 @@ export class InMemoryIamUnitOfWork extends IamUnitOfWork {
       loginIdentities: this.loginIdentities,
       passwordAuthenticators: this.passwordAuthenticators,
       emailVerifications: this.emailVerifications,
+      invalidateDelegatedAuthorizations: () => Promise.resolve(),
     });
   }
 }

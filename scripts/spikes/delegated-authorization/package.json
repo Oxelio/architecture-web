@@ -1,0 +1,13 @@
+{
+  "name": "architecture-web-work-215-feasibility",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test feasibility.test.mjs"
+  },
+  "dependencies": {
+    "fastify": "5.12.8",
+    "oidc-provider": "9.15.1",
+    "pg": "8.16.3"
+  }
+}

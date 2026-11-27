@@ -6,8 +6,15 @@ import { type Kysely, sql } from "kysely";
 
 import type { IamDatabase } from "#persistence/schema";
 /** Acquire before configuration/account/credential locks in every participating writer. */
-export async function lockAdministrativeAccess(db: Kysely<IamDatabase>) {
-  await sql`select pg_advisory_xact_lock(728194002)`.execute(db);
+export async function lockAdministrativeAccess(
+  db: Kysely<IamDatabase>,
+  mode: "exclusive" | "shared" = "exclusive",
+) {
+  const lock =
+    mode === "exclusive"
+      ? sql`pg_advisory_xact_lock`
+      : sql`pg_advisory_xact_lock_shared`;
+  await sql`select ${lock}(728194002)`.execute(db);
 }
 export async function currentAccessPolicy(db: Kysely<IamDatabase>) {
   const row = await db
