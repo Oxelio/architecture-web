@@ -58,10 +58,11 @@ const app = Fastify({ logger: false });
 await app.register(authPlugin, {
   sessionCookieName: "sid",
   resolveSession: {
-    execute: async () => ({
-      success: false,
-      error: { code: "session.unauthorized" },
-    }),
+    execute: () =>
+      Promise.resolve({
+        success: false,
+        error: { code: "session.unauthorized" },
+      }),
   },
 });
 await app.register(

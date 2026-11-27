@@ -222,6 +222,47 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+async function finishConsent(req, res, consent, selected) {
+  const { cid, accountId, clientId, sessionId, revision, requested } = consent;
+  const pending = await one(
+    `DELETE FROM pending WHERE id = $1 AND account_id = $2 AND client_id = $3
+     AND session_id = $4 AND expires_at > now() RETURNING revision`,
+    [cid, accountId, clientId, sessionId],
+  );
+  if (
+    Array.isArray(selected) &&
+    !selected.every((name) => requested.includes(name))
+  ) {
+    return { status: 400, error: "unexpected_permission" };
+  }
+  if (
+    pending?.revision !== revision ||
+    !Array.isArray(selected) ||
+    !selected.includes("read")
+  ) {
+    return {
+      location: await provider.interactionResult(req, res, {
+        error: "access_denied",
+      }),
+    };
+  }
+  const approval = await iam.approve(accountId, clientId, selected);
+  const grant = new provider.Grant({ accountId, clientId });
+  grant.addResourceScope(resource, selected);
+  const declined = requested.filter((name) => !selected.includes(name));
+  if (declined.length) grant.rejectResourceScope(resource, declined);
+  const grantId = await grant.save();
+  await query(
+    "INSERT INTO family (id, grant_id, entitlements) VALUES ($1, $2, $3)",
+    [grantId, approval.grantId, approval.entitlements],
+  );
+  return {
+    location: await provider.interactionResult(req, res, {
+      consent: { grantId },
+    }),
+  };
+}
+
 async function interaction(req, res, path) {
   let body;
   if (req.method === "POST") {
@@ -299,45 +340,12 @@ async function interaction(req, res, path) {
       };
     }
 
-    const pending = await one(
-      `DELETE FROM pending WHERE id = $1 AND account_id = $2 AND client_id = $3
-       AND session_id = $4 AND expires_at > now() RETURNING revision`,
-      [details.cid, accountId, clientId, sessionId],
+    return finishConsent(
+      req,
+      res,
+      { cid: details.cid, accountId, clientId, sessionId, revision, requested },
+      body?.selected,
     );
-    const selected = body?.selected;
-    if (
-      Array.isArray(selected) &&
-      !selected.every((name) => requested.includes(name))
-    ) {
-      return { status: 400, error: "unexpected_permission" };
-    }
-    if (
-      pending?.revision !== revision ||
-      !Array.isArray(selected) ||
-      !selected.includes("read")
-    ) {
-      return {
-        location: await provider.interactionResult(req, res, {
-          error: "access_denied",
-        }),
-      };
-    }
-
-    const approval = await iam.approve(accountId, clientId, selected);
-    const grant = new provider.Grant({ accountId, clientId });
-    grant.addResourceScope(resource, selected);
-    const declined = requested.filter((name) => !selected.includes(name));
-    if (declined.length) grant.rejectResourceScope(resource, declined);
-    const grantId = await grant.save();
-    await query(
-      "INSERT INTO family (id, grant_id, entitlements) VALUES ($1, $2, $3)",
-      [grantId, approval.grantId, approval.entitlements],
-    );
-    return {
-      location: await provider.interactionResult(req, res, {
-        consent: { grantId },
-      }),
-    };
   });
   if (result.location) {
     res.writeHead(303, {

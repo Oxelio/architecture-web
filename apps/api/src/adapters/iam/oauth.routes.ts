@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
+import type { PreparedConsent } from "@architecture/iam/application";
 import type { FastifyPluginAsync } from "fastify";
 import { errors } from "oidc-provider";
 import { z } from "zod";
@@ -7,6 +9,7 @@ import { z } from "zod";
 import { SESSION_COOKIE_NAME } from "#app/auth";
 
 import { type OAuthProvider, oauthRequestBudget } from "./oauth-provider.js";
+import type { OAuthTransaction } from "./oauth-transaction.js";
 
 declare module "fastify" {
   interface FastifyContextConfig {
@@ -16,6 +19,7 @@ declare module "fastify" {
 
 const identifier = /^[A-Za-z0-9_-]{16,128}$/u;
 const codeChallenge = /^[A-Za-z0-9_-]{43}$/u;
+const protocolRoutes = new Set(["/token", "/auth", "/auth/:uid"]);
 const authParameters = new Set([
   "client_id",
   "redirect_uri",
@@ -48,6 +52,133 @@ function validAuthorization(query: URLSearchParams) {
   );
 }
 
+function validProtocolTarget(target: URL, issuer: string) {
+  if (target.origin !== issuer) {
+    return false;
+  }
+  if (target.pathname === "/auth") {
+    return validAuthorization(target.searchParams);
+  }
+  return (
+    !target.pathname.startsWith("/auth/") ||
+    (identifier.test(target.pathname.slice(6)) && !target.search)
+  );
+}
+
+function boundTokenBody(raw: IncomingMessage) {
+  if (Number(raw.headers["content-length"]) > 56 * 1024) {
+    return false;
+  }
+  const timer = setTimeout(() => raw.destroy(), 1000);
+  raw.once("end", () => clearTimeout(timer));
+  raw.once("close", () => clearTimeout(timer));
+  return true;
+}
+
+function signInContinuation(
+  uid: string,
+  boundAccountId: string | null,
+  post: boolean,
+) {
+  if (boundAccountId || post) {
+    throw new errors.AccessDenied();
+  }
+  const interactionPath = `/oauth/consent/${uid}`;
+  return {
+    location: `/signin?continue=${encodeURIComponent(interactionPath)}`,
+  };
+}
+
+async function resolvePendingInteraction(
+  oauth: OAuthProvider,
+  request: IncomingMessage,
+  response: ServerResponse,
+  uid: string,
+) {
+  const details = await oauth.provider.interactionDetails(request, response);
+  if (response.destroyed) {
+    throw new Error("OAuth request disconnected");
+  }
+  if (uid !== details.uid || details.result) {
+    throw new errors.AccessDenied();
+  }
+  const existing = await oauth.artifacts.pending(details.cid);
+  if (!existing || existing.decided) {
+    throw new errors.AccessDenied();
+  }
+  return { details, boundAccountId: existing.account_id };
+}
+
+async function finishConsent(
+  oauth: OAuthProvider,
+  tx: OAuthTransaction,
+  input: {
+    pendingId: string;
+    expiresAt: Date;
+    consent: PreparedConsent;
+    selected: readonly string[] | undefined;
+    sid: string | undefined;
+    actorId: string;
+    publicClientId: unknown;
+  },
+): Promise<Parameters<OAuthProvider["provider"]["interactionResult"]>[2]> {
+  const spent = await tx.db
+    .updateTable("iam_oauth_pending")
+    .set({ decided: true })
+    .where("id", "=", input.pendingId)
+    .where("decided", "=", false)
+    .where("expires_at", ">", new Date())
+    .executeTakeFirst();
+  if (spent.numUpdatedRows !== 1n) {
+    throw new errors.AccessDenied();
+  }
+  if (!input.selected) {
+    return { error: "access_denied" };
+  }
+  const approval = await oauth.authority.finalize(
+    await tx.lock(input.actorId),
+    {
+      consent: input.consent,
+      selected: [...new Set(input.selected)],
+      expiresAt: input.expiresAt,
+      sessionIsCurrent: async (accountId) =>
+        (await tx.session(input.sid))?.accountId === accountId,
+    },
+  );
+  if (!approval.success) {
+    return { error: "access_denied" };
+  }
+  const lineage = approval.value;
+  const grantId = randomUUID();
+  await tx.db
+    .insertInto("iam_oauth_families")
+    .values({
+      id: grantId,
+      account_id: lineage.accountId,
+      client_id: lineage.clientId,
+      grant_id: lineage.grantId,
+      authority: JSON.stringify(lineage),
+      expires_at: new Date(Date.now() + 90 * 86_400_000),
+    })
+    .execute();
+  const grant = new oauth.provider.Grant({
+    accountId: input.actorId,
+    clientId: String(input.publicClientId),
+  });
+  grant.jti = grantId;
+  const { resourceUri } = input.consent;
+  const codes = lineage.entitlements.map(({ code }) => code);
+  grant.addResourceScope(resourceUri, codes);
+  const declined = input.consent.requested.filter(
+    (code) => !codes.includes(code),
+  );
+  if (declined.length) {
+    grant.rejectResourceScope(resourceUri, declined);
+  }
+  await grant.save();
+  return { consent: { grantId } };
+}
+
 export function buildOAuthRoutes(oauth: OAuthProvider): FastifyPluginAsync {
   return async (app) => {
     const issuer = new URL(oauth.issuer);
@@ -57,33 +188,17 @@ export function buildOAuthRoutes(oauth: OAuthProvider): FastifyPluginAsync {
       if (`${request.protocol}:` !== issuer.protocol) {
         return reply.status(400).send({ error: "invalid_request" });
       }
-      if (
-        request.routeOptions.url === "/token" ||
-        request.routeOptions.url === "/auth" ||
-        request.routeOptions.url === "/auth/:uid"
-      ) {
+      if (protocolRoutes.has(request.routeOptions.url ?? "")) {
         const path = new URL(request.url, oauth.issuer);
-        if (
-          path.origin !== oauth.issuer ||
-          (path.pathname === "/auth" &&
-            !validAuthorization(path.searchParams)) ||
-          (path.pathname.startsWith("/auth/") &&
-            (!identifier.test(path.pathname.slice(6)) || path.search))
-        ) {
+        if (!validProtocolTarget(path, oauth.issuer)) {
           return reply.status(400).send({ error: "invalid_request" });
         }
         const raw = request.raw;
         // Provider-generated resume URLs use Koa's request host.
         raw.headers.host = issuer.host;
         delete raw.headers["x-forwarded-host"];
-        if (request.method === "POST") {
-          const length = Number(raw.headers["content-length"]);
-          if (length > 56 * 1024) {
-            return reply.status(413).send({ error: "invalid_request" });
-          }
-          const timer = setTimeout(() => raw.destroy(), 1000);
-          raw.once("end", () => clearTimeout(timer));
-          raw.once("close", () => clearTimeout(timer));
+        if (request.method === "POST" && !boundTokenBody(raw)) {
+          return reply.status(413).send({ error: "invalid_request" });
         }
         const sid =
           path.pathname === "/token"
@@ -176,27 +291,15 @@ export function buildOAuthRoutes(oauth: OAuthProvider): FastifyPluginAsync {
               if (actor) {
                 await tx.lock(actor.accountId);
               }
-              const details = await oauth.provider.interactionDetails(
-                request.raw,
-                reply.raw,
-              );
-              if (reply.raw.destroyed) {
-                throw new Error("OAuth request disconnected");
-              }
-              if (uid !== details.uid || details.result) {
-                throw new errors.AccessDenied();
-              }
-              const existing = await oauth.artifacts.pending(details.cid);
-              if (!existing || existing.decided) {
-                throw new errors.AccessDenied();
-              }
+              const { details, boundAccountId } =
+                await resolvePendingInteraction(
+                  oauth,
+                  request.raw,
+                  reply.raw,
+                  uid,
+                );
               if (!actor) {
-                if (existing.account_id || post) {
-                  throw new errors.AccessDenied();
-                }
-                return {
-                  location: `/signin?continue=${encodeURIComponent(`/oauth/consent/${uid}`)}`,
-                };
+                return signInContinuation(uid, boundAccountId, post);
               }
               const pending = await oauth.artifacts.capture(
                 details,
@@ -251,62 +354,20 @@ export function buildOAuthRoutes(oauth: OAuthProvider): FastifyPluginAsync {
               if (!input.success || "confirm" in input.data) {
                 throw new errors.AccessDenied();
               }
-              const spent = await tx.db
-                .updateTable("iam_oauth_pending")
-                .set({ decided: true })
-                .where("id", "=", pending.id)
-                .where("decided", "=", false)
-                .where("expires_at", ">", new Date())
-                .executeTakeFirst();
-              if (spent.numUpdatedRows !== 1n) {
-                throw new errors.AccessDenied();
-              }
-              const approved =
-                "selected" in input.data &&
-                (await oauth.authority.finalize(
-                  await tx.lock(actor.accountId),
-                  {
-                    consent: pending.consent,
-                    selected: [...new Set(input.data.selected)],
-                    expiresAt: pending.expires_at,
-                    sessionIsCurrent: async (accountId) =>
-                      (await tx.session(sid))?.accountId === accountId,
-                  },
-                ));
-              if (!approved || !approved.success) {
-                return continueProtocol({ error: "access_denied" });
-              }
-              const lineage = approved.value;
-              const grantId = randomUUID();
-              await tx.db
-                .insertInto("iam_oauth_families")
-                .values({
-                  id: grantId,
-                  account_id: lineage.accountId,
-                  client_id: lineage.clientId,
-                  grant_id: lineage.grantId,
-                  authority: JSON.stringify(lineage),
-                  expires_at: new Date(Date.now() + 90 * 86_400_000),
-                })
-                .execute();
-              const grant = new oauth.provider.Grant({
-                accountId: actor.accountId,
-                clientId: String(details.params["client_id"]),
+              const result = await finishConsent(oauth, tx, {
+                pendingId: pending.id,
+                expiresAt: pending.expires_at,
+                consent: pending.consent,
+                selected:
+                  "selected" in input.data ? input.data.selected : undefined,
+                sid,
+                actorId: actor.accountId,
+                publicClientId: details.params["client_id"],
               });
-              grant.jti = grantId;
-              const codes = lineage.entitlements.map(({ code }) => code);
-              grant.addResourceScope(resourceUri, codes);
-              const declined = pending.consent.requested.filter(
-                (code) => !codes.includes(code),
-              );
-              if (declined.length) {
-                grant.rejectResourceScope(resourceUri, declined);
-              }
-              await grant.save();
-              return continueProtocol({ consent: { grantId } });
+              return continueProtocol(result);
             },
           );
-          return response.location
+          return "location" in response
             ? reply.redirect(response.location, 303)
             : reply.send(response.payload);
         } catch (error) {

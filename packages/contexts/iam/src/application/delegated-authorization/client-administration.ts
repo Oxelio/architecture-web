@@ -35,6 +35,10 @@ interface AdminFailure {
   readonly code: ClientAdministrationError;
 }
 type ClientResult = Result<ClientApplicationState, AdminFailure>;
+type ClientPlan = Result<
+  { client: ClientApplication; kind?: ClientChangeKind; critical: boolean },
+  AdminFailure
+>;
 
 interface Actor {
   readonly accountId: string;
@@ -299,8 +303,7 @@ export class ClientAdministration {
         }
         const current = await tx.security();
         if (
-          !current ||
-          current.comparison !== security.comparison ||
+          current?.comparison !== security.comparison ||
           this.now() >= proofDeadline
         ) {
           return refused();
@@ -334,12 +337,7 @@ export class ClientAdministration {
     id: string,
     expectedRevision: number,
     command: ClientCommand,
-  ): Promise<
-    Result<
-      { client: ClientApplication; kind?: ClientChangeKind; critical: boolean },
-      AdminFailure
-    >
-  > {
+  ): Promise<ClientPlan> {
     const client = await tx.client(id);
     if (!client) {
       return Result.failure({ code: "client_not_found" });
@@ -364,32 +362,7 @@ export class ClientAdministration {
       );
     }
     if (command.kind === "configure") {
-      const redirectUris = command.redirectUris.toSorted(comparePolicyValues);
-      const policies = orderedPolicies(command.policies);
-      const configured = ClientApplication.rehydrate({
-        ...next,
-        redirectUris,
-        policies,
-      });
-      if (!this.validConfiguration(configured)) {
-        return Result.failure({ code: "invalid_client" });
-      }
-      const policyChanged =
-        JSON.stringify(orderedPolicies(client.state.policies)) !==
-        JSON.stringify(policies);
-      const redirectChanged =
-        JSON.stringify(
-          client.state.redirectUris.toSorted(comparePolicyValues),
-        ) !== JSON.stringify(redirectUris);
-      return Result.success(
-        policyChanged || redirectChanged
-          ? {
-              client: configured,
-              kind: policyChanged ? "policy_changed" : "metadata_changed",
-              critical: true,
-            }
-          : { client, critical: false },
-      );
+      return this.planConfiguration(client, next, command);
     }
     const enabled = command.kind === "enable";
     const changed = ClientApplication.rehydrate({ ...next, enabled });
@@ -405,6 +378,38 @@ export class ClientAdministration {
             critical: true,
           },
     );
+  }
+
+  private planConfiguration(
+    client: ClientApplication,
+    next: ClientApplicationState,
+    command: Extract<ClientCommand, { kind: "configure" }>,
+  ): ClientPlan {
+    const redirectUris = command.redirectUris.toSorted(comparePolicyValues);
+    const policies = orderedPolicies(command.policies);
+    const configured = ClientApplication.rehydrate({
+      ...next,
+      redirectUris,
+      policies,
+    });
+    if (!this.validConfiguration(configured)) {
+      return Result.failure({ code: "invalid_client" });
+    }
+    const policyChanged =
+      JSON.stringify(orderedPolicies(client.state.policies)) !==
+      JSON.stringify(policies);
+    const redirectChanged =
+      JSON.stringify(
+        client.state.redirectUris.toSorted(comparePolicyValues),
+      ) !== JSON.stringify(redirectUris);
+    if (!policyChanged && !redirectChanged) {
+      return Result.success({ client, critical: false });
+    }
+    return Result.success({
+      client: configured,
+      kind: policyChanged ? "policy_changed" : "metadata_changed",
+      critical: true,
+    });
   }
 
   private validConfiguration(client: ClientApplication) {

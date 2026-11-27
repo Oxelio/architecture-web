@@ -21,6 +21,11 @@ import {
   type PreparedConsent,
 } from "./delegated-authorization.contracts.js";
 
+function hasExpired(expiresAt: Date) {
+  const expiry = expiresAt.getTime();
+  return Number.isNaN(expiry) || expiry <= Date.now();
+}
+
 export class DelegatedAuthorization {
   private readonly resources: ReadonlyMap<string, ProtectedResource>;
 
@@ -63,10 +68,10 @@ export class DelegatedAuthorization {
       return Result.failure(Errors.staleConsent);
     }
     const { resource, client, policy } = context;
-    const allowed = [...policy.required, ...policy.optional];
+    const allowed = new Set([...policy.required, ...policy.optional]);
     if (
       !request.requested.length ||
-      request.requested.some((code) => !allowed.includes(code)) ||
+      request.requested.some((code) => !allowed.has(code)) ||
       policy.required.some((code) => !request.requested.includes(code))
     ) {
       return Result.failure(Errors.invalidPermission);
@@ -101,17 +106,19 @@ export class DelegatedAuthorization {
       freshness.tupleEpoch !== consent.freshness.tupleEpoch ||
       freshness.clientRevision !== consent.freshness.clientRevision ||
       resourceUri !== consent.resourceUri ||
-      !(expiresAt.getTime() > Date.now()) ||
+      hasExpired(expiresAt) ||
       !(await sessionIsCurrent(consent.accountId)) ||
-      !(expiresAt.getTime() > Date.now())
+      hasExpired(expiresAt)
     ) {
       return Result.failure(Errors.staleConsent);
     }
 
-    const eligible = [...required, ...optional].map(({ code }) => code);
+    const eligible = new Set(
+      [...required, ...optional].map(({ code }) => code),
+    );
     if (
       !selected.length ||
-      selected.some((code) => !eligible.includes(code)) ||
+      selected.some((code) => !eligible.has(code)) ||
       required.some(({ code }) => !selected.includes(code))
     ) {
       return Result.failure(Errors.invalidPermission);
@@ -155,8 +162,7 @@ export class DelegatedAuthorization {
     }
     const grant = await reader.grant(credential.accountId, credential.grantId);
     if (
-      !grant ||
-      grant.state.clientId !== credential.clientId ||
+      grant?.state.clientId !== credential.clientId ||
       grant.state.resourceId !== credential.resourceId
     ) {
       return [];
@@ -216,22 +222,27 @@ export function delegatedAuthorizationApplication({
           if (!(await reader.eligibleAccount(accountId))) {
             return Result.failure(Errors.ineligibleAccount);
           }
-          const projections: ConnectedAuthorization[] = [];
-          for (const { state } of await reader.grants(accountId)) {
-            const client = await reader.client(state.clientId);
-            if (!client) {
-              throw new Error("Authorization grant has no client");
-            }
-            projections.push({
-              id: state.id,
-              clientId: state.clientId,
-              applicationName: client.state.displayName,
-              resourceId: state.resourceId,
-              permissions: state.permissions.map(({ code }) => code),
-              authorizedAt: state.authorizedAt,
-              revokedAt: state.revokedAt,
-            });
-          }
+          const grants = await reader.grants(accountId);
+          const projections = await grants.reduce(
+            async (previous, { state }) => {
+              const entries = await previous;
+              const client = await reader.client(state.clientId);
+              if (!client) {
+                throw new Error("Authorization grant has no client");
+              }
+              entries.push({
+                id: state.id,
+                clientId: state.clientId,
+                applicationName: client.state.displayName,
+                resourceId: state.resourceId,
+                permissions: state.permissions.map(({ code }) => code),
+                authorizedAt: state.authorizedAt,
+                revokedAt: state.revokedAt,
+              });
+              return entries;
+            },
+            Promise.resolve<ConnectedAuthorization[]>([]),
+          );
           return Result.success(projections);
         }),
     },

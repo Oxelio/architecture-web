@@ -1,10 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import type {
-  DelegatedAuthorizationReader,
-  DelegatedAuthorizationStore,
-  DelegatedAuthorizationWriter,
-} from "@architecture/iam/application";
 import {
   type ClientAdministrationStore,
   type ClientAdministrationTransaction,
@@ -12,6 +7,9 @@ import {
   createDelegatedClientChangeFact,
   createDelegatedRevocationFact,
   createDelegatedWithdrawalFact,
+  type DelegatedAuthorizationReader,
+  type DelegatedAuthorizationStore,
+  type DelegatedAuthorizationWriter,
 } from "@architecture/iam/application";
 import {
   AuthorizationGrant,

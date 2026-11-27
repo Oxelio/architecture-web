@@ -57,7 +57,7 @@ export const iamOAuthProtocolMigrations: Record<string, Migration> = {
           column.notNull().defaultTo(false),
         )
         .execute();
-      for (const [table, columns] of [
+      const indexedColumns = [
         [
           "iam_oauth_families",
           ["account_id", "client_id", "grant_id", "expires_at"],
@@ -67,15 +67,16 @@ export const iamOAuthProtocolMigrations: Record<string, Migration> = {
           ["account_id", "family_id", "uid", "expires_at"],
         ],
         ["iam_oauth_pending", ["account_id", "expires_at"]],
-      ] as const) {
-        for (const column of columns) {
-          await db.schema
-            .createIndex(`${table}_${column}`)
-            .on(table)
-            .column(column)
-            .execute();
-        }
-      }
+      ] as const;
+      const indexes = indexedColumns.flatMap(([table, columns]) =>
+        columns.map((column) =>
+          db.schema.createIndex(`${table}_${column}`).on(table).column(column),
+        ),
+      );
+      await indexes.reduce(async (previous, index) => {
+        await previous;
+        await index.execute();
+      }, Promise.resolve());
     },
     async down(db) {
       await db.schema.dropTable("iam_oauth_pending").execute();

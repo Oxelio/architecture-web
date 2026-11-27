@@ -104,21 +104,19 @@ export function createOAuthArtifacts(
     }
 
     let record = await pending(payload.cid);
-    if (!record) {
-      record = await db
-        .insertInto("iam_oauth_pending")
-        .values({
-          id: secrets.index("pending", payload.cid),
-          client_id: application.state.id,
-          client_revision: application.state.revision,
-          account_id: null,
-          binding: null,
-          consent: null,
-          expires_at: expiresAt,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-    }
+    record ??= await db
+      .insertInto("iam_oauth_pending")
+      .values({
+        id: secrets.index("pending", payload.cid),
+        client_id: application.state.id,
+        client_revision: application.state.revision,
+        account_id: null,
+        binding: null,
+        consent: null,
+        expires_at: expiresAt,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
     if (
       record.decided ||
       record.client_id !== application.state.id ||
@@ -177,30 +175,7 @@ export function createOAuthArtifacts(
       let familyId: string | null = null;
       let accountId = body.accountId ?? null;
       if (bearerModels.has(model)) {
-        const lineage = body.grantId && (await family(body.grantId));
-        const target = model === "AccessToken" ? body.aud : body.resource;
-        const resource =
-          Array.isArray(target) && target.length === 1 ? target[0] : target;
-        const application = body.clientId && (await client(body.clientId));
-        const required =
-          lineage && application
-            ? application.policyFor(lineage.resource)?.required
-            : undefined;
-        const scope = oauthScope(body.scope);
-        if (
-          !lineage ||
-          !application ||
-          lineage.client_id !== application.state.id ||
-          lineage.account_id !== accountId ||
-          lineage.resource.uri !== resource ||
-          (model !== "RefreshToken" &&
-            (!scope.length ||
-              !required?.every((code) => scope.includes(code)) ||
-              !scope.every((code) => lineage.scope.includes(code))))
-        ) {
-          throw new errors.InvalidGrant();
-        }
-        await transactions.current().lock(lineage.account_id);
+        const lineage = await this.authorizeIssuance(body, accountId);
         expiry = Math.min(expiry, lineage.expires_at.getTime());
         familyId = lineage.id;
         delete body.jti;
@@ -242,6 +217,39 @@ export function createOAuthArtifacts(
         .execute();
     }
 
+    private async authorizeIssuance(
+      body: AdapterPayload,
+      accountId: string | null,
+    ) {
+      const lineage = body.grantId && (await family(body.grantId));
+      const target = this.model === "AccessToken" ? body.aud : body.resource;
+      const resource =
+        Array.isArray(target) && target.length === 1 ? target[0] : target;
+      const application = body.clientId && (await client(body.clientId));
+      if (
+        !lineage ||
+        !application ||
+        lineage.client_id !== application.state.id ||
+        lineage.account_id !== accountId ||
+        lineage.resource.uri !== resource
+      ) {
+        throw new errors.InvalidGrant();
+      }
+      if (this.model !== "RefreshToken") {
+        const required = application.policyFor(lineage.resource)?.required;
+        const scope = oauthScope(body.scope);
+        if (
+          !scope.length ||
+          !required?.every((code) => scope.includes(code)) ||
+          !scope.every((code) => lineage.scope.includes(code))
+        ) {
+          throw new errors.InvalidGrant();
+        }
+      }
+      await transactions.current().lock(lineage.account_id);
+      return lineage;
+    }
+
     async find(id: string): Promise<AdapterPayload | undefined> {
       if (this.model === "Client") {
         const registered = await client(id);
@@ -263,32 +271,7 @@ export function createOAuthArtifacts(
       }
       const payload = secrets.open<AdapterPayload>(row.payload, row.id);
       if (this.model === "AuthorizationCode" || this.model === "RefreshToken") {
-        const params = Provider.ctx?.oidc.params;
-        if (
-          !params ||
-          typeof params["resource"] !== "string" ||
-          !(
-            Array.isArray(payload.resource)
-              ? payload.resource
-              : [payload.resource]
-          ).includes(params["resource"])
-        ) {
-          throw new errors.InvalidTarget();
-        }
-        if (this.model === "AuthorizationCode") {
-          const redirect = params["redirect_uri"];
-          if (typeof redirect !== "string") {
-            throw new errors.InvalidRequest("redirect_uri is required");
-          }
-          const registered =
-            payload.clientId && (await client(payload.clientId));
-          if (
-            !registered ||
-            !registered.state.redirectUris.includes(redirect)
-          ) {
-            throw new errors.InvalidGrant();
-          }
-        }
+        await this.validateExchange(payload);
         if (row.account_id) {
           await transactions.current().lock(row.account_id);
         }
@@ -309,6 +292,29 @@ export function createOAuthArtifacts(
         };
       }
       return payload;
+    }
+
+    private async validateExchange(payload: AdapterPayload) {
+      const params = Provider.ctx?.oidc.params;
+      const resources = Array.isArray(payload.resource)
+        ? payload.resource
+        : [payload.resource];
+      if (
+        typeof params?.["resource"] !== "string" ||
+        !resources.includes(params["resource"])
+      ) {
+        throw new errors.InvalidTarget();
+      }
+      if (this.model === "AuthorizationCode") {
+        const redirect = params["redirect_uri"];
+        if (typeof redirect !== "string") {
+          throw new errors.InvalidRequest("redirect_uri is required");
+        }
+        const registered = payload.clientId && (await client(payload.clientId));
+        if (!registered || !registered.state.redirectUris.includes(redirect)) {
+          throw new errors.InvalidGrant();
+        }
+      }
     }
 
     async findByUid(uid: string) {

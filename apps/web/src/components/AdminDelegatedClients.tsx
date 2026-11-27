@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useRef, useState } from "react";
+import { type SubmitEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -239,7 +239,7 @@ function ClientEditor({
     ]);
   }
 
-  function confirm(event: FormEvent) {
+  function confirm(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (confirmation && explicit) {
       void save(confirmation, {
@@ -396,11 +396,12 @@ function ClientEditor({
             const policy = policies.find(
               (entry) => entry.resourceId === resource.id,
             );
+            const optionalAccess = policy?.optional.includes(permission)
+              ? "optional"
+              : "unavailable";
             const access = policy?.required.includes(permission)
               ? "required"
-              : policy?.optional.includes(permission)
-                ? "optional"
-                : "unavailable";
+              : optionalAccess;
             return (
               <label key={permission} className="grid gap-1 md:grid-cols-2">
                 {description}

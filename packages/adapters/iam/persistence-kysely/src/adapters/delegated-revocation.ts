@@ -62,11 +62,19 @@ export async function appendDelegatedFacts(
   if (!outbox) {
     throw new Error("Delegated revocation requires the transactional outbox");
   }
-  // Bound the number of parameters without splitting the transaction.
+  // Keep each parameter-bounded batch on the same transaction and stop at the first failed write.
   const batchSize = 250;
-  for (let offset = 0; offset < facts.length; offset += batchSize) {
-    await outbox.append(facts.slice(offset, offset + batchSize));
+  async function appendBatch(
+    writer: OutboxWriter,
+    offset: number,
+  ): Promise<void> {
+    const next = offset + batchSize;
+    await writer.append(facts.slice(offset, next));
+    if (next < facts.length) {
+      await appendBatch(writer, next);
+    }
   }
+  await appendBatch(outbox, 0);
 }
 
 /** Lock affected accounts in stable order before the client revision and its grants. */

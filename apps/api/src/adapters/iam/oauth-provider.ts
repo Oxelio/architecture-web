@@ -174,7 +174,7 @@ export function createOAuthProvider(
     },
     async findAccount(_context, accountId) {
       if (await transactions.current().reader.eligibleAccount(accountId)) {
-        return { accountId, claims: async () => ({ sub: accountId }) };
+        return { accountId, claims: () => Promise.resolve({ sub: accountId }) };
       }
       return undefined;
     },

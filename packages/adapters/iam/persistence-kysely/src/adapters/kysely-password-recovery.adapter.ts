@@ -129,8 +129,7 @@ export class KyselyPasswordRecoveryAdapter implements PasswordRecoveryStore {
         .forUpdate()
         .executeTakeFirst();
       if (
-        !row ||
-        row.user_id !== locked.id ||
+        row?.user_id !== locked.id ||
         !isRecoveryTokenUsable(
           {
             id: row.id,
